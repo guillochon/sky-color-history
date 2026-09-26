@@ -107,6 +107,16 @@ button.tick.on{background:none;color:var(--ink)}
 .vrkeys kbd{font:inherit;font-size:.88rem;border:1px solid rgba(255,255,255,.55);border-radius:3px;padding:0 .38rem;margin-right:.3rem;background:rgba(8,10,16,.5)}
 .vrnote{max-width:48ch;text-align:right;font-size:.82rem;opacity:.9}
 #vrclock{font-size:1.25rem}
+.vrpad{display:none}
+.vrpad-row{display:flex;justify-content:center;gap:.45rem}
+.vrpad button{width:2.75rem;height:2.75rem;padding:0;display:inline-flex;align-items:center;justify-content:center;color:#fff;background:rgba(8,10,16,.5);border:1px solid rgba(255,255,255,.5);border-radius:10px;touch-action:manipulation}
+.vrpad button[aria-pressed="true"]{color:#1c1400;background:#ffc400;border-color:#fff4c2}
+.vrpad button svg{width:1.4rem;height:1.4rem;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+@media (hover:none) and (pointer:coarse), (max-width:820px) and (pointer:coarse){
+  .vrkeys,.vrnote{display:none}
+  .vrpad{display:flex;flex-direction:column;gap:.45rem;width:100%;pointer-events:auto;padding-bottom:env(safe-area-inset-bottom,0px)}
+  #vr,#vr canvas{cursor:auto}
+}
 </style></head><body><main>
 <div class="titlebar"><h1>Earth's sky <em>through time</em></h1><div class="titlelinks"><a class="repo" href="https://github.com/guillochon/sky-color-history"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.65-.18 1.35-.27 2.04-.27.68 0 1.35.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>GitHub</a><a class="report" href="main.pdf">see full report here</a></div></div>
 <p class="lede">An interactive companion to the sky-color reconstruction. Scrub the timeline to watch the atmosphere change from the steam-and-CO₂ Hadean to today, then pick an epoch and scrub through a day to see how its sky moved from dawn to dusk. Every color comes from the same spectral radiative-transfer model as the report.</p>
@@ -169,6 +179,19 @@ button.tick.on{background:none;color:var(--ink)}
   <div class="vrbot">
     <div class="vrkeys"><span>mouse looks</span><span><kbd>w</kbd><kbd>a</kbd><kbd>s</kbd><kbd>d</kbd> move</span><span><kbd>shift</kbd> faster</span><span><kbd>h</kbd> scenery</span><span><kbd>c</kbd> clouds</span><span><kbd>m</kbd> <span id="vrmusiclabel">music</span></span><span><kbd>esc</kbd> leave</span><span><kbd>space</kbd> play / pause</span><span><kbd>←</kbd><kbd>→</kbd> step time</span><span><kbd>↑</kbd><kbd>↓</kbd> change era</span></div>
     <div class="vrnote">The plain, the shapes, and the clouds are scenery. The sky is the model.</div>
+    <div class="vrpad" role="toolbar" aria-label="View controls">
+      <div class="vrpad-row">
+        <button type="button" id="vrpad-scenery" data-act="scenery" aria-pressed="true" aria-label="Scenery"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 19l6-11 4 6 3-4 5 9z"/></svg></button>
+        <button type="button" id="vrpad-clouds" data-act="clouds" aria-pressed="true" aria-label="Clouds"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .5-8 5.5 5.5 0 0 0-10.6-1.6A3.5 3.5 0 0 0 7 18z"/></svg></button>
+        <button type="button" id="vrpad-music" data-act="music" aria-pressed="true" aria-label="Music"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V6l10-2v10"/><circle cx="7" cy="18" r="2.4" fill="currentColor" stroke="none"/><circle cx="17" cy="14" r="2.4" fill="currentColor" stroke="none"/></svg></button>
+      </div>
+      <div class="vrpad-row">
+        <button type="button" data-act="time" data-dir="-5" aria-label="Earlier"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 7 L6 12 L11 17"/><circle cx="16.5" cy="12" r="3.2"/></svg></button>
+        <button type="button" data-act="time" data-dir="5" aria-label="Later"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="7.5" cy="12" r="3.2"/><path d="M13 7 L18 12 L13 17"/></svg></button>
+        <button type="button" data-act="era" data-dir="-1" aria-label="Previous era"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10M7 11h10"/><path d="M8 14l4 5 4-5"/></svg></button>
+        <button type="button" data-act="era" data-dir="1" aria-label="Next era"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 10l4-5 4 5"/><path d="M7 14h10M7 18h10"/></svg></button>
+      </div>
+    </div>
   </div>
 </div>
 </div>
@@ -1077,7 +1100,8 @@ function applyLink(){
   }
   return q.has('vr');
 }
-let musicMuted=false, music=null;
+const vrTouch=window.matchMedia('(hover: none) and (pointer: coarse), (max-width: 820px) and (pointer: coarse)').matches;
+let musicMuted=vrTouch, music=null;
 const MUSIC_BPM=74;
 const MUSIC_CHORDS=[[50,57,64,69],[55,62,67,71],[47,54,62,66],[52,57,64,69]];
 const MUSIC_LEAD=[74,0,0,78,0,76,0,0,81,0,78,0,76,0,0,74,0,0,83,0,81,0,78,0,76,0,0,74,0,0,0,0];
@@ -1151,8 +1175,7 @@ function stopVRMusic(){
 }
 function toggleVRMusic(){
   musicMuted=!musicMuted;
-  const el=document.getElementById('vrmusiclabel');
-  if(el) el.textContent=musicMuted?'muted':'music';
+  syncVRPad();
   if(!vrOn) return;
   if(!music) startVRMusic();
   pokeVRMusic(); applyMusicGain();
@@ -1175,10 +1198,10 @@ function enterVR(fromLink){
   adoptPlayRate();
   const fs=root.requestFullscreen?root.requestFullscreen():null; if(fs&&fs.catch) fs.catch(()=>{});
   setTimeout(()=>{ vrRelock=false; }, 700);
-  startVRMusic();
+  if(!musicMuted) startVRMusic();
 }
 function lockLook(){
-  if(!vrOn||document.pointerLockElement===document.getElementById('vrc')) return;
+  if(vrTouch||!vrOn||document.pointerLockElement===document.getElementById('vrc')) return;
   const p=document.getElementById('vrc').requestPointerLock(); if(p&&p.catch) p.catch(()=>{});
 }
 function exitVR(){
@@ -1229,8 +1252,8 @@ document.addEventListener('keydown',e=>{
     if(k==='m'&&!e.repeat){ e.preventDefault(); toggleVRMusic(); return; }
     if(k==='w'||k==='a'||k==='s'||k==='d'){ e.preventDefault(); vrHeld.add(k); if(e.shiftKey) vrHeld.add('shift'); if(!dayPlaying) pumpWalk(); return; }
     if(e.key==='Shift'){ vrHeld.add('shift'); return; }
-    if(k==='h'&&!e.repeat){ e.preventDefault(); vrScenery=!vrScenery; paintVR(); return; }
-    if(k==='c'&&!e.repeat){ e.preventDefault(); vrClouds=!vrClouds; paintVR(); return; }
+    if(k==='h'&&!e.repeat){ e.preventDefault(); vrScenery=!vrScenery; paintVR(); syncVRPad(); return; }
+    if(k==='c'&&!e.repeat){ e.preventDefault(); vrClouds=!vrClouds; paintVR(); syncVRPad(); return; }
     if(e.key==='Escape'){ exitVR(); return; }
     if(e.key===' ' && !e.repeat){ e.preventDefault(); hplay.click(); return; }
     if(e.key==='ArrowRight'){ e.preventDefault(); stepMinutes(5); return; }
@@ -1243,6 +1266,28 @@ document.addEventListener('keydown',e=>{
   if(e.key==='ArrowRight'&&tIdx<EP.length-1){tslider.value=tIdx+1;showEpoch(tIdx+1);}
   if(e.key==='ArrowLeft'&&tIdx>0){tslider.value=tIdx-1;showEpoch(tIdx-1);}
 });
+function syncVRPad(){
+  const set=(id,on)=>{ const b=document.getElementById(id); if(b) b.setAttribute('aria-pressed', on?'true':'false'); };
+  set('vrpad-scenery', vrScenery);
+  set('vrpad-clouds', vrClouds);
+  set('vrpad-music', !musicMuted);
+  const el=document.getElementById('vrmusiclabel');
+  if(el) el.textContent=musicMuted?'muted':'music';
+}
+document.querySelectorAll('.vrpad button').forEach(b=>{
+  b.addEventListener('pointerdown', e=>e.stopPropagation());
+  b.addEventListener('click', e=>{
+    e.preventDefault(); e.stopPropagation();
+    const act=b.dataset.act;
+    if(act==='scenery'){ vrScenery=!vrScenery; paintVR(); }
+    else if(act==='clouds'){ vrClouds=!vrClouds; paintVR(); }
+    else if(act==='music'){ toggleVRMusic(); return; }
+    else if(act==='time') stepMinutes(+b.dataset.dir);
+    else if(act==='era') stepEpoch(+b.dataset.dir);
+    syncVRPad();
+  });
+});
+syncVRPad();
 const openVR=applyLink();
 tslider.value=dIdx;
 showEpoch(dIdx); renderDay(); warm();
