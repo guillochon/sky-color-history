@@ -99,7 +99,7 @@ button.tick.on{background:none;color:var(--ink)}
 .vrbot{bottom:0;background:linear-gradient(transparent,rgba(8,10,16,.62));align-items:flex-end}
 .vrkeys{display:flex;flex-wrap:wrap;gap:.3rem 1rem}
 .vrkeys kbd{font:inherit;font-size:.88rem;border:1px solid rgba(255,255,255,.55);border-radius:3px;padding:0 .38rem;margin-right:.3rem;background:rgba(8,10,16,.5)}
-.vrnote{max-width:36ch;text-align:right;font-size:.82rem;opacity:.9}
+.vrnote{max-width:48ch;text-align:right;font-size:.82rem;opacity:.9}
 #vrclock{font-size:1.25rem}
 </style></head><body><main>
 <div class="titlebar"><h1>Earth's sky <em>through time</em></h1><a class="repo" href="https://github.com/guillochon/sky-color-history"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.65-.18 1.35-.27 2.04-.27.68 0 1.35.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>GitHub</a></div>
@@ -160,8 +160,8 @@ button.tick.on{background:none;color:var(--ink)}
 <div class="vrhud">
   <div class="vrtop"><div id="vrplace"></div><div id="vrclock"></div></div>
   <div class="vrbot">
-    <div class="vrkeys"><span>mouse looks</span><span><kbd>w</kbd><kbd>a</kbd><kbd>s</kbd><kbd>d</kbd> move</span><span><kbd>shift</kbd> faster</span><span><kbd>h</kbd> scenery</span><span><kbd>esc</kbd> leave</span><span><kbd>space</kbd> play / pause</span><span><kbd>←</kbd><kbd>→</kbd> step time</span><span><kbd>↑</kbd><kbd>↓</kbd> change era</span></div>
-    <div class="vrnote">The plain and the shapes are scenery. The sky is the model.</div>
+    <div class="vrkeys"><span>mouse looks</span><span><kbd>w</kbd><kbd>a</kbd><kbd>s</kbd><kbd>d</kbd> move</span><span><kbd>shift</kbd> faster</span><span><kbd>h</kbd> scenery</span><span><kbd>c</kbd> clouds</span><span><kbd>esc</kbd> leave</span><span><kbd>space</kbd> play / pause</span><span><kbd>←</kbd><kbd>→</kbd> step time</span><span><kbd>↑</kbd><kbd>↓</kbd> change era</span></div>
+    <div class="vrnote">The plain, the shapes, and the clouds are scenery. The sky is the model.</div>
   </div>
 </div>
 </div>
@@ -421,7 +421,7 @@ const LAND={ // stand-in surface color, not from the radiative-transfer model
   proterozoic22:[.16,.18,.11], snowball07:[.78,.82,.86], carbon30:[.12,.22,.08],
   kpg66:[.17,.15,.13], volcanic:[.18,.16,.14], modern:[.15,.22,.09], modernpoll:[.17,.18,.11]
 };
-let skyNow=null, skyGen=0, skyUploaded=-1, vrOn=false, vrYaw=0, vrPitch=8, vrX=0, vrY=0, vrScenery=true, vrRelock=false, vrGL=null, vrRAF=0, vrWalk=0, vrWalkStamp=0;
+let skyNow=null, skyGen=0, skyUploaded=-1, vrOn=false, vrYaw=0, vrPitch=8, vrX=0, vrY=0, vrScenery=true, vrClouds=true, cloudScroll=0, cloudStamp=0, vrRelock=false, vrGL=null, vrRAF=0, vrWalk=0, vrWalkStamp=0;
 const vrHeld=new Set();
 const VRFS=`#version 300 es
 precision highp float;
@@ -527,6 +527,174 @@ void main(){
   }
   fragColor=vec4(col,1.0);
 }`;
+
+const CLOUDFS=`#version 300 es
+precision highp float;
+precision highp sampler3D;
+uniform sampler3D noise; uniform vec2 res;
+uniform float yaw,pitch,fov,sunAz,sunEl,sunMu,showScn,cloudCov,cloudScale,cloudDrift;
+uniform vec3 sunCol,amb,eye;
+uniform vec4 obj[12];
+uniform float kind[12];
+out vec4 fragColor;
+float coneT(vec3 ro,vec3 rd,vec2 c,float R,float h){
+  float k=R/max(h,0.001);
+  vec3 f=vec3(ro.x-c.x, ro.y-c.y, h-ro.z);
+  float A=rd.x*rd.x+rd.y*rd.y-k*k*rd.z*rd.z;
+  if(abs(A)<1e-5) return -1.0;
+  float B=2.0*(f.x*rd.x+f.y*rd.y+k*k*f.z*rd.z);
+  float C=f.x*f.x+f.y*f.y-k*k*f.z*f.z;
+  float disk=B*B-4.0*A*C; if(disk<0.0) return -1.0;
+  float s=sqrt(disk), t0=(-B-s)/(2.0*A), t1=(-B+s)/(2.0*A), t=-1.0;
+  if(t0>0.05){ float z=ro.z+rd.z*t0; if(z>=0.0&&z<=h) t=t0; }
+  if(t1>0.05){ float z=ro.z+rd.z*t1; if(z>=0.0&&z<=h&&(t<0.0||t1<t)) t=t1; }
+  return t;
+}
+float boxT(vec3 ro,vec3 rd,vec2 c,float r,float h){
+  vec3 mn=vec3(c.x-r,c.y-r,0.0), mx=vec3(c.x+r,c.y+r,h);
+  float tn=0.0, tf=1e8;
+  if(abs(rd.x)<1e-5){ if(ro.x<mn.x||ro.x>mx.x) return -1.0; }
+  else { float a=(mn.x-ro.x)/rd.x, b=(mx.x-ro.x)/rd.x; if(a>b){ float s=a; a=b; b=s; } tn=max(tn,a); tf=min(tf,b); if(tn>tf) return -1.0; }
+  if(abs(rd.y)<1e-5){ if(ro.y<mn.y||ro.y>mx.y) return -1.0; }
+  else { float a=(mn.y-ro.y)/rd.y, b=(mx.y-ro.y)/rd.y; if(a>b){ float s=a; a=b; b=s; } tn=max(tn,a); tf=min(tf,b); if(tn>tf) return -1.0; }
+  if(abs(rd.z)<1e-5){ if(ro.z<mn.z||ro.z>mx.z) return -1.0; }
+  else { float a=(mn.z-ro.z)/rd.z, b=(mx.z-ro.z)/rd.z; if(a>b){ float s=a; a=b; b=s; } tn=max(tn,a); tf=min(tf,b); if(tn>tf) return -1.0; }
+  return tn>0.05?tn:(tf>0.05?tf:-1.0);
+}
+float ellT(vec3 ro,vec3 rd,vec2 c,float R,float H){
+  vec3 f=vec3((ro.x-c.x)/R,(ro.y-c.y)/R,ro.z/H), d=vec3(rd.x/R,rd.y/R,rd.z/H);
+  float A=dot(d,d), B=2.0*dot(f,d), C=dot(f,f)-1.0, disk=B*B-4.0*A*C;
+  if(disk<0.0||A<1e-8) return -1.0;
+  float s=sqrt(disk), t0=(-B-s)/(2.0*A), t1=(-B+s)/(2.0*A), t=-1.0;
+  if(t0>0.05&&ro.z+rd.z*t0>=0.0) t=t0;
+  if(t1>0.05&&ro.z+rd.z*t1>=0.0&&(t<0.0||t1<t)) t=t1;
+  return t;
+}
+float cloudDen(vec3 p, float detail){
+  float ph=clamp((p.z-1500.0)/2700.0, 0.0, 1.0);
+  float grad=smoothstep(0.0, 0.10, ph)*smoothstep(1.0, 0.58, ph);
+  vec3 uv=vec3((p.x+cloudDrift)*cloudScale, p.y*cloudScale, ph*0.42+0.17);
+  vec2 n=texture(noise, uv).rg;
+  float edge=0.78-cloudCov*0.62;
+  float gate=smoothstep(edge, edge+0.10, n.g);
+  float core=smoothstep(0.40, 0.72, n.r);
+  if(detail>0.5) core*=0.78+0.22*texture(noise, uv*2.35+vec3(2.2,0.8,1.1)).r;
+  return core*gate*grad;
+}
+float lightBeer(vec3 p, vec3 sd){
+  float tau=0.0, ls=240.0;
+  for(int i=0;i<5;i++){ p+=sd*ls; tau+=cloudDen(p, 0.0)*ls; }
+  return exp(-tau*0.0026);
+}
+void main(){
+  float aspect=res.x/max(res.y,1.0); float fy=tan(fov*0.5); float fx=fy*aspect;
+  float u=((gl_FragCoord.x/res.x)*2.0-1.0)*fx;
+  float v=((gl_FragCoord.y/res.y)*2.0-1.0)*fy;
+  float cp=cos(pitch), sp=sin(pitch), cy=cos(yaw), sy=sin(yaw);
+  vec3 rd=normalize(vec3(sy*cp, cy*cp, sp)+u*vec3(cy,-sy,0.0)+v*vec3(-sy*sp,-cy*sp,cp));
+  vec3 ro=eye;
+  float sunA=sunAz*0.01745329252, sunZen=(90.0-sunEl)*0.01745329252;
+  vec3 sd=normalize(vec3(sin(sunA)*sin(sunZen), cos(sunA)*sin(sunZen), cos(sunZen)));
+  if(rd.z<0.02){ fragColor=vec4(0.0); return; }
+  float tIn=(1500.0-ro.z)/rd.z, tOut=(4200.0-ro.z)/rd.z;
+  if(tOut<tIn){ float s=tIn; tIn=tOut; tOut=s; }
+  tIn=max(tIn, 0.0);
+  float tHit=1e8;
+  if(showScn>0.5){
+    for(int i=0;i<12;i++){
+      float kk=kind[i]; if(kk<0.5) continue;
+      vec4 q=obj[i]; float t=-1.0;
+      if(kk>3.5&&kk<4.5) t=boxT(ro,rd,q.xy,q.z,q.w);
+      else if(kk>2.5&&kk<3.5) t=ellT(ro,rd,q.xy,q.z,q.w);
+      else t=coneT(ro,rd,q.xy,q.z,q.w);
+      if(t>0.0&&t<tHit) tHit=t;
+    }
+  }
+  if(tHit<tIn){ fragColor=vec4(0.0); return; }
+  tOut=min(tOut, tHit-2.0);
+  if(tOut<=tIn||tIn>11000.0){ fragColor=vec4(0.0); return; }
+  tOut=min(tOut, 11000.0);
+  float dt=160.0;
+  float ign=fract(52.9829189*fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+  float t=tIn+dt*ign, T=1.0;
+  vec3 col=vec3(0.0);
+  for(int i=0;i<28;i++){
+    if(T<0.04||t>tOut) break;
+    vec3 p=ro+rd*t;
+    float den=cloudDen(p, 1.0)*smoothstep(11000.0, 5000.0, t);
+    if(den>0.02){
+      float beer=lightBeer(p, sd);
+      float silver=pow(clamp(dot(rd, sd), 0.0, 1.0), 5.0);
+      vec3 lin=sunCol*beer*mix(0.55, 1.55, silver)*(0.20+0.80*max(sunMu,0.0))+amb*(0.28+0.35*beer);
+      float a=1.0-exp(-den*dt*0.0032);
+      col+=lin*a*T;
+      T*=1.0-a;
+    }
+    t+=dt;
+  }
+  fragColor=vec4(col, 1.0-T);
+}`;
+const COMPFS=`#version 300 es
+precision highp float;
+uniform sampler2D cloudTex; uniform vec2 res;
+out vec4 fragColor;
+void main(){ fragColor=texture(cloudTex, gl_FragCoord.xy/res); }
+`;
+function makeCloudNoise(){
+  const N=64, data=new Uint8Array(N*N*N*4);
+  const hsh=(i,j,k)=>{ let n=Math.imul(i|0,374761393)+Math.imul(j|0,668265263)+Math.imul(k|0,1274126177); n=(n^(n>>>13))>>>0; n=Math.imul(n,1274126177); return ((n^(n>>>16))>>>0)/4294967295; };
+  const worley=(x,y,z,cells)=>{
+    const cell=N/cells, cx=Math.floor(x/cell), cy=Math.floor(y/cell), cz=Math.floor(z/cell);
+    let md=1e9; const wrap=i=>((i%cells)+cells)%cells;
+    for(let dz=-1;dz<=1;dz++) for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){
+      const ix=cx+dx, iy=cy+dy, iz=cz+dz, wx=wrap(ix), wy=wrap(iy), wz=wrap(iz);
+      const px=(ix+hsh(wx,wy,wz))*cell, py=(iy+hsh(wy+17,wz,wx))*cell, pz=(iz+hsh(wz+41,wx,wy))*cell;
+      let ddx=x-px, ddy=y-py, ddz=z-pz; const H=N*0.5;
+      if(ddx>H) ddx-=N; else if(ddx<-H) ddx+=N;
+      if(ddy>H) ddy-=N; else if(ddy<-H) ddy+=N;
+      if(ddz>H) ddz-=N; else if(ddz<-H) ddz+=N;
+      const d=ddx*ddx+ddy*ddy+ddz*ddz; if(d<md) md=d;
+    }
+    return 1-Math.min(1, Math.sqrt(md)/(cell*1.05));
+  };
+  for(let z=0;z<N;z++) for(let y=0;y<N;y++) for(let x=0;x<N;x++){
+    const o=((z*N+y)*N+x)*4;
+    data[o]=Math.round(worley(x,y,z,4)*255);
+    data[o+1]=Math.round(worley(x,y,z,2)*255);
+    data[o+3]=255;
+  }
+  return data;
+}
+// How common water clouds were. A steam Hadean and the wet Carboniferous carry a
+// thick field; organic haze, snowball ice, and the impact winter leave only a few.
+const CLOUD_COV={
+  hadean44:0.88, hadean40:0.74, archean38:0.48, archean27thin:0.42, archean27:0.30,
+  archean27vthick:0.16, proterozoic22:0.58, snowball07:0.22, carbon30:0.82, kpg66:0.08,
+  volcanic:0.52, modern:0.50, modernpoll:0.56
+};
+function cloudField(key){
+  const cov=CLOUD_COV[key]??0.5;
+  return {cov, scale:1/(9000-cov*4200)};
+}
+function vrCaption(){
+  if(vrScenery&&vrClouds) return 'The plain, the shapes, and the clouds are scenery. The sky is the model.';
+  if(vrScenery) return 'Clouds are hidden. The plain and the shapes are scenery. The sky is the model.';
+  if(vrClouds) return 'The shapes are hidden. The clouds are scenery. The sky is the model.';
+  return 'Scenery and clouds are hidden. The sky is the model.';
+}
+function ensureCloudTarget(w, h){
+  const gl=vrGL.gl;
+  if(vrGL.cw===w&&vrGL.ch===h) return;
+  vrGL.cw=w; vrGL.ch=h;
+  gl.bindTexture(gl.TEXTURE_2D, vrGL.cloudTex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.cloudFbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, vrGL.cloudTex, 0);
+}
 function glShader(gl, type, src){ const s=gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)){ console.warn(gl.getShaderInfoLog(s)); gl.deleteShader(s); return null; } return s; }
 function initVR(){
   if(vrGL) return vrGL.gl;
@@ -536,7 +704,7 @@ function initVR(){
   const vs=glShader(gl, gl.VERTEX_SHADER, '#version 300 es\nin vec2 a;void main(){gl_Position=vec4(a,0.0,1.0);}');
   const fs=glShader(gl, gl.FRAGMENT_SHADER, VRFS);
   if(!vs||!fs) return null;
-  const prog=gl.createProgram(); gl.attachShader(prog,vs); gl.attachShader(prog,fs); gl.linkProgram(prog);
+  const prog=gl.createProgram(); gl.attachShader(prog,vs); gl.attachShader(prog,fs); gl.bindAttribLocation(prog,0,'a'); gl.linkProgram(prog);
   if(!gl.getProgramParameter(prog, gl.LINK_STATUS)){ console.warn(gl.getProgramInfoLog(prog)); return null; }
   gl.useProgram(prog);
   const buf=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
@@ -553,7 +721,38 @@ function initVR(){
   gl.uniform1i(gl.getUniformLocation(prog,'sky'), 0);
   gl.uniform1f(u.fov, 70*Math.PI/180);
   gl.uniform1f(u.sunRad, SUNANG*Math.PI/180);
-  vrGL={gl,u,tex,prog}; return gl;
+  vrGL={gl,u,tex,prog,buf};
+  const cfs=glShader(gl, gl.FRAGMENT_SHADER, CLOUDFS), compFs=glShader(gl, gl.FRAGMENT_SHADER, COMPFS);
+  if(cfs&&compFs){
+    const cp=gl.createProgram(); gl.attachShader(cp,vs); gl.attachShader(cp,cfs); gl.bindAttribLocation(cp,0,'a'); gl.linkProgram(cp);
+    const pp=gl.createProgram(); gl.attachShader(pp,vs); gl.attachShader(pp,compFs); gl.bindAttribLocation(pp,0,'a'); gl.linkProgram(pp);
+    if(!gl.getProgramParameter(cp, gl.LINK_STATUS)||!gl.getProgramParameter(pp, gl.LINK_STATUS)){ console.warn(gl.getProgramInfoLog(cp)||gl.getProgramInfoLog(pp)); }
+    else {
+      const cu={}; for(const n of ['res','yaw','pitch','fov','eye','sunAz','sunEl','sunCol','sunMu','amb','showScn','cloudCov','cloudScale','cloudDrift']) cu[n]=gl.getUniformLocation(cp, n);
+      cu.obj=gl.getUniformLocation(cp,'obj[0]'); cu.kind=gl.getUniformLocation(cp,'kind[0]');
+      const noise=gl.createTexture();
+      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_3D, noise);
+      const nd=makeCloudNoise();
+      gl.texImage3D(gl.TEXTURE_3D, 0, gl.RGBA8, 64, 64, 64, 0, gl.RGBA, gl.UNSIGNED_BYTE, nd);
+      gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+      gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+      gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_R, gl.REPEAT);
+      gl.useProgram(cp); gl.uniform1i(gl.getUniformLocation(cp,'noise'), 1); gl.uniform1f(cu.fov, 70*Math.PI/180);
+      const compU={res:gl.getUniformLocation(pp,'res')};
+      gl.useProgram(pp); gl.uniform1i(gl.getUniformLocation(pp,'cloudTex'), 2);
+      const cloudTex=gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, cloudTex);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      vrGL.cloudProg=cp; vrGL.compProg=pp; vrGL.cu=cu; vrGL.compU=compU; vrGL.noise=noise; vrGL.cloudTex=cloudTex; vrGL.cloudFbo=gl.createFramebuffer(); vrGL.cw=0; vrGL.ch=0;
+      gl.activeTexture(gl.TEXTURE0); gl.useProgram(prog);
+    }
+  }
+  return gl;
 }
 function sizeVR(){
   const c=document.getElementById('vrc'), dpr=Math.min(window.devicePixelRatio||1, 2);
@@ -569,7 +768,7 @@ function sceneFor(key){ // a dozen stand-ins: [bearing deg, distance m, radius m
   const ICE=[[165,220,70,36,3],[195,420,130,60,3],[120,700,220,90,3],[240,1100,300,120,3],[210,1900,900,200,3],[260,3400,1600,280,3],[320,2100,1000,220,3],[30,7000,2000,900,3],[100,9000,2400,1100,3],[190,8000,1800,800,3],[250,11000,2600,1200,3],[330,6000,1600,700,3]];
   const TREES=[[10,70,5,24,5],[35,120,7,32,5],[60,85,4,20,5],[95,160,8,36,5],[140,95,6,28,5],[180,200,9,42,5],[220,110,5,26,5],[270,150,7,34,5],[40,6000,1600,900,1],[140,8500,2200,1300,1],[230,5000,1400,750,1],[310,10000,2500,1500,1]];
   const PEAKS=[[170,380,110,190,1],[200,720,170,300,1],[140,1200,260,420,1],[55,4200,1300,800,1],[95,2200,700,420,1],[230,4500,1400,880,1],[280,2600,800,500,1],[330,3800,1100,700,1],[70,8000,2200,1400,1],[160,9500,2600,1600,1],[240,7000,1800,1100,1],[310,11000,2800,1500,1]];
-  const city=(dk,hk)=>[[8,45*dk,10,18*hk,4],[25,70*dk,14,36*hk,4],[48,55*dk,9,14*hk,4],[70,100*dk,16,55*hk,4],[110,80*dk,12,28*hk,4],[150,60*dk,11,22*hk,4],[190,130*dk,18,72*hk,4],[230,90*dk,13,40*hk,4],[300,7500,2000,1200,1],[20,9000,2400,1400,1],[160,11000,2800,1600,1],[250,6000,1500,800,1]];
+  const city=(dk,hk)=>[[8,45*dk,10,18*hk,4],[25,70*dk,14,36*hk,4],[48,55*dk,9,14*hk,4],[70,100*dk,16,55*hk,4],[110,80*dk,12,28*hk,4],[150,60*dk,11,22*hk,4],[190,130*dk,18,72*hk,4],[230,90*dk,13,40*hk,4],[300,7500,2000,1200,1],[20,9000,2400,1400,1],[160,11000,2800,1600,1],[250,6000,1500,800,1]].map(s=>s[4]===4?[s[0],s[1],s[2]*0.5,s[3]*0.5,s[4]]:s);
   if(key==='snowball07') return spots(ICE);
   if(key==='carbon30') return spots(TREES);
   if(key==='modern') return spots(city(2.2,1));
@@ -588,6 +787,7 @@ function groundRGB(){
 function paintVR(){
   if(!vrOn||!vrGL||!skyNow) return;
   const {gl,u,tex}=vrGL, c=gl.canvas;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.disable(gl.BLEND);
   gl.viewport(0,0,c.width,c.height); gl.uniform2f(u.res, c.width, c.height);
   if(skyUploaded!==skyNow.gen){
     const cg=skyNow.colgrid, h=cg.length, w=cg[0].length, data=new Uint8Array(w*h*4);
@@ -596,6 +796,7 @@ function paintVR(){
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
     gl.uniform1f(u.nr, h-1); gl.uniform1f(u.na, w-1); skyUploaded=skyNow.gen;
   }
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex);
   gl.useProgram(vrGL.prog);
   gl.uniform1f(u.yaw, vrYaw*Math.PI/180); gl.uniform1f(u.pitch, vrPitch*Math.PI/180);
   gl.uniform3f(u.eye, vrX, vrY, 2);
@@ -607,10 +808,41 @@ function paintVR(){
   gl.uniform1f(u.showScn, vrScenery?1:0);
   const sc=sceneFor(EP[dIdx].key); gl.uniform4fv(u.obj, sc.o); gl.uniform1fv(u.kind, sc.k);
   gl.drawArrays(gl.TRIANGLES, 0, 6);
+  if(vrClouds&&vrGL.cloudProg){
+    const cw=Math.max(2,c.width>>1), ch=Math.max(2,c.height>>1);
+    const now=performance.now();
+    if(cloudStamp&&dayPlaying) cloudScroll+=Math.min(0.05,(now-cloudStamp)/1000)*28;
+    cloudStamp=now;
+    const field=cloudField(EP[dIdx].key), cu=vrGL.cu;
+    ensureCloudTarget(cw, ch);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.cloudFbo);
+    gl.viewport(0,0,cw,ch); gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.useProgram(vrGL.cloudProg);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_3D, vrGL.noise);
+    gl.uniform2f(cu.res, cw, ch);
+    gl.uniform1f(cu.yaw, vrYaw*Math.PI/180); gl.uniform1f(cu.pitch, vrPitch*Math.PI/180);
+    gl.uniform3f(cu.eye, vrX, vrY, 2);
+    gl.uniform1f(cu.sunAz, skyNow.sunAz); gl.uniform1f(cu.sunEl, 90-skyNow.sza);
+    gl.uniform1f(cu.sunMu, Math.max(0, Math.sin(apparentEl(90-skyNow.sza)*Math.PI/180)));
+    gl.uniform3fv(cu.sunCol, new Float32Array(skyNow.sunRGB.map(v=>v/255)));
+    const cg=skyNow.colgrid, ay=Math.min(cg.length-1, Math.round((cg.length-1)*0.25)), ap=cg[ay][Math.floor(cg[ay].length/2)];
+    gl.uniform3f(cu.amb, ap[0]/255, ap[1]/255, ap[2]/255);
+    gl.uniform1f(cu.showScn, vrScenery?1:0);
+    gl.uniform1f(cu.cloudCov, field.cov); gl.uniform1f(cu.cloudScale, field.scale); gl.uniform1f(cu.cloudDrift, cloudScroll);
+    gl.uniform4fv(cu.obj, sc.o); gl.uniform1fv(cu.kind, sc.k);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0,0,c.width,c.height);
+    gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    gl.useProgram(vrGL.compProg);
+    gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, vrGL.cloudTex);
+    gl.uniform2f(vrGL.compU.res, c.width, c.height);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    gl.disable(gl.BLEND);
+  }
   const hh=Math.floor(minutes/60), mm=Math.floor(minutes%60), ss=Math.floor((minutes%1)*60);
   const lat=dLat==='Polar'?'75°':dLat==='Mid-latitude'?'45°':'equator';
   document.getElementById('vrplace').textContent=EP[dIdx].name+' · '+lat;
-  document.querySelector('.vrnote').textContent=vrScenery?'The plain and the shapes are scenery. The sky is the model.':'Scenery is hidden. The sky is the model.';
+  document.querySelector('.vrnote').textContent=vrCaption();
   document.getElementById('vrclock').textContent=hh+':'+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0')+' · '+(dayPlaying?'playing':'paused');
 }
 function requestVR(){ if(!vrOn||vrRAF) return; vrRAF=requestAnimationFrame(()=>{ vrRAF=0; paintVR(); }); }
@@ -703,6 +935,7 @@ document.addEventListener('keydown',e=>{
     if(k==='w'||k==='a'||k==='s'||k==='d'){ e.preventDefault(); vrHeld.add(k); if(e.shiftKey) vrHeld.add('shift'); if(!dayPlaying) pumpWalk(); return; }
     if(e.key==='Shift'){ vrHeld.add('shift'); return; }
     if(k==='h'&&!e.repeat){ e.preventDefault(); vrScenery=!vrScenery; paintVR(); return; }
+    if(k==='c'&&!e.repeat){ e.preventDefault(); vrClouds=!vrClouds; paintVR(); return; }
     if(e.key==='Escape'){ exitVR(); return; }
     if(e.key===' ' && !e.repeat){ e.preventDefault(); hplay.click(); return; }
     if(e.key==='ArrowRight'){ e.preventDefault(); stepMinutes(5); return; }
