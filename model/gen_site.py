@@ -88,8 +88,8 @@ button.tick.on{background:none;color:var(--ink)}
 .repo{display:inline-flex;align-items:center;gap:.4rem;color:var(--ink2);font-size:.95rem;text-decoration:none;white-space:nowrap}
 .repo svg{width:1.05em;height:1.05em;display:block;fill:currentColor}
 .repo:hover{color:var(--ink)}
-.vrbtn{position:absolute;top:.5rem;right:.5rem;z-index:6;color:#fff;background:rgba(8,10,16,.55);border:1px solid rgba(255,255,255,.45);font-size:.8rem;letter-spacing:.08em;padding:.2rem .55rem}
-.vrbtn:hover{color:#fff;background:rgba(8,10,16,.82)}
+.vrbtn{position:absolute;top:.55rem;right:.55rem;z-index:6;color:#1c1400;background:#ffc400;border:2px solid #fff4c2;font-size:1.35rem;font-weight:700;letter-spacing:.14em;padding:.5rem 1.15rem;border-radius:6px;box-shadow:0 0 0 4px rgba(255,196,0,.45),0 8px 24px rgba(0,0,0,.45)}
+.vrbtn:hover{color:#1c1400;background:#ffd84a}
 #vr{display:none;position:fixed;inset:0;z-index:40;background:#000;overflow:hidden}
 #vr.on{display:block}
 #vr canvas{position:absolute;inset:0;width:100%;height:100%;cursor:grab}
@@ -162,7 +162,7 @@ button.tick.on{background:none;color:var(--ink)}
   <div class="vrtop"><div id="vrplace"></div><div id="vrclock"></div></div>
   <div class="vrbot">
     <div class="vrkeys"><span>mouse to look</span><span><kbd>esc</kbd> leave</span><span><kbd>space</kbd> play / pause</span><span><kbd>←</kbd><kbd>→</kbd> step time</span></div>
-    <div class="vrnote">Ground is a sunlit plain, fading into the horizon sky.</div>
+    <div class="vrnote">The plain and the shapes are scenery. The sky is the model.</div>
   </div>
 </div>
 </div>
@@ -304,10 +304,9 @@ function domeXYZ(key, lat, si, st, vz, azr){
   }
   return out;
 }
-function renderDay(){
+function renderDay(fast){
   const ep=EP[dIdx], rec=DAY.epochs[ep.key][dLat]; const {sza,az:sunAz}=sunGeom(LATDEG[dLat],minutes);
   const W=dome.width,H=dome.height, cx=W/2, cy=H/2, R=W*0.46;
-  const img=dctx.createImageData(W,H), px=img.data;
   // Computed through 10° of solar depression. Past that, keep the last twilight
   // colour and dim it at the rate the model itself was fading, until astronomical
   // twilight ends at 18°. Hold the exposure so auto-exposure does not undo the fade.
@@ -323,6 +322,7 @@ function renderDay(){
       const X=fade===1?X0:[X0[0]*fade,X0[1]*fade,X0[2]*fade]; if(X[1]>Ymax) Ymax=X[1]; row.push(X);} grid.push(row); }
   const Yref = autoExpo ? Math.max(past>0?Yhold:Ymax, 1e-6*YREF) : YREF; const k = autoExpo?0.85:0.85, p = autoExpo?0.5:0.4;
   const colgrid=grid.map(row=>row.map(X=>tone(X,Yref,k,p,0.95)));
+  if(!fast){ const img=dctx.createImageData(W,H), px=img.data;
   for(let y=0;y<H;y++)for(let x=0;x<W;x++){
     const dx=x-cx, dy=y-cy, r=Math.hypot(dx,dy); const o=(y*W+x)*4;
     if(r>R){ px[o]=10;px[o+1]=12;px[o+2]=18;px[o+3]=255; continue; }
@@ -331,7 +331,7 @@ function renderDay(){
     for(let q=0;q<3;q++){ const a=colgrid[ir][ia][q]*(1-ta)+colgrid[ir][ia+1][q]*ta, b=colgrid[ir+1][ia][q]*(1-ta)+colgrid[ir+1][ia+1][q]*ta; px[o+q]=a*(1-tr)+b*tr; }
     px[o+3]=255;
   }
-  dctx.putImageData(img,0,0);
+  dctx.putImageData(img,0,0); }
   // sun
   const sunc=rec.sun[Math.min(si+ (st>0.5?1:0), rec.sun.length-1)];
   const sX=xyY2XYZ(sunc); const sunRel = sX[1]/DAY.epochs['modern']['Equator'].sun[0][2];
@@ -347,20 +347,21 @@ function renderDay(){
   const sunRelD=rec.sun[visI][2]/noonY;
   const SUNR=22, rr=R*sza/90, a=sunAz*Math.PI/180, sx=cx+rr*Math.sin(a), sy=cy-rr*Math.cos(a);
   const sunRGB=tone(sXd, sXd[1], 0.95,0.4,0.98);
-  if(rr-SUNR<R && sunRelD>3e-4){
+  if(!fast && rr-SUNR<R && sunRelD>3e-4){
     dctx.save(); dctx.beginPath(); dctx.arc(cx,cy,R,0,Math.PI*2); dctx.clip();
     const col=hex(sunRGB);
     dctx.globalAlpha=1; dctx.fillStyle=col; dctx.beginPath(); dctx.arc(sx,sy,SUNR,0,Math.PI*2); dctx.fill(); dctx.restore();
   }
   skyNow={colgrid, sza, sunAz, sunRGB, sunOn:sunRelD>3e-4 && sza<90+SUNANG, gen:++skyGen};
   if(vrOn) paintVR();
+  if(fast) return;
   // compass + rim
   dctx.strokeStyle='rgba(255,255,255,.35)'; dctx.lineWidth=1.5; dctx.beginPath(); dctx.arc(cx,cy,R,0,7); dctx.stroke();
   dctx.fillStyle='rgba(255,255,255,.8)'; dctx.font='16px Newsreader, Georgia, serif'; dctx.textAlign='center';
   dctx.fillText('N',cx,cy-R-6); dctx.fillText('S',cx,cy+R+18); dctx.fillText('E',cx+R+12,cy+6); dctx.fillText('W',cx-R-12,cy+6); dctx.textAlign='left';
   dctx.font='italic 20px Newsreader, Georgia, serif'; dctx.fillText(`${ep.name} · ${dLat==='Polar'?'75° latitude':dLat==='Mid-latitude'?'45° latitude':'equator'}`, 16, H-16);
   // readouts
-  const hh=Math.floor(minutes/60), mm=minutes%60; document.getElementById('hclock').textContent=`${hh}:${String(mm).padStart(2,'0')}`;
+  const hh=Math.floor(minutes/60), mm=Math.floor(minutes%60); document.getElementById('hclock').textContent=`${hh}:${String(mm).padStart(2,'0')}`;
   document.getElementById('relev').textContent=(90-sza).toFixed(1)+'°';
   const dim=X=>fade===1?X:[X[0]*fade,X[1]*fade,X[2]*fade];
   const zX=night?[0,0,0]:dim(domeXYZ(ep.key,dLat,si,st,0,0)), hX=night?[0,0,0]:dim(domeXYZ(ep.key,dLat,si,st,88,90));
@@ -385,10 +386,30 @@ function clockLabel(m){ const hh=Math.floor(m/60), mm=m%60; return hh+':'+String
 for(let m=240, n=0; m<=1200; m+=60, n++){ const t=document.createElement('button'); t.type='button'; t.className='tick row'+(n%2); t.style.left=(100*(m-HMIN)/(HMAX-HMIN))+'%'; t.dataset.min=String(m); t.innerHTML=`<i></i><span class="lb">${clockLabel(m)}</span>`; t.addEventListener('click',()=>{ minutes=m; hslider.value=minutes; renderDay(); }); htrack.appendChild(t); }
 function markHour(){ const ticks=[...htrack.querySelectorAll('.tick')]; let best=0, bd=Infinity; ticks.forEach((t,j)=>{ const d=Math.abs(+t.dataset.min-minutes); if(d<bd){ bd=d; best=j; } }); ticks.forEach((t,j)=>{ const on=j===best; t.classList.toggle('on',on); if(on) t.setAttribute('aria-current','true'); else t.removeAttribute('aria-current'); }); }
 const expo=document.getElementById('expo'); expo.addEventListener('click',()=>{ autoExpo=!autoExpo; expo.setAttribute('aria-pressed',autoExpo); renderDay(); });
-let hTimer=null; const hplay=document.getElementById('hplay');
-hplay.addEventListener('click',()=>{ if(hTimer){clearInterval(hTimer);hTimer=null;hplay.textContent='Play';hplay.setAttribute('aria-pressed','false');return;}
-  hplay.textContent='Pause'; hplay.setAttribute('aria-pressed','true'); if(minutes>=1200) minutes=240;
-  hTimer=setInterval(()=>{ minutes+=5; if(minutes>1200) minutes=240; hslider.value=minutes; renderDay(); },60); });
+let hTimer=null, dayPlaying=false, playRAF=0, playStamp=0; const hplay=document.getElementById('hplay');
+function adoptPlayRate(){
+  if(hTimer){ clearInterval(hTimer); hTimer=null; }
+  if(playRAF){ cancelAnimationFrame(playRAF); playRAF=0; }
+  if(!dayPlaying) return;
+  if(vrOn){
+    // Page play covers 5 minutes of sky per 60 ms. In VR that rate is five times slower, and time advances continuously so the Sun does not jump.
+    playStamp=performance.now();
+    const frame=now=>{
+      if(!dayPlaying||!vrOn) return;
+      let dt=(now-playStamp)/1000; playStamp=now; if(dt>0.05) dt=0.05;
+      minutes+=dt*(5/0.06)/5;
+      while(minutes>=1200) minutes-=960;
+      hslider.value=minutes; renderDay(true);
+      playRAF=requestAnimationFrame(frame);
+    };
+    playRAF=requestAnimationFrame(frame);
+  }else hTimer=setInterval(()=>{ minutes+=5; if(minutes>=1200) minutes=240; hslider.value=minutes; renderDay(); },60);
+}
+hplay.addEventListener('click',()=>{
+  if(dayPlaying){ dayPlaying=false; adoptPlayRate(); hplay.textContent='Play'; hplay.setAttribute('aria-pressed','false'); return; }
+  dayPlaying=true; if(minutes>=1200) minutes=240;
+  hplay.textContent='Pause'; hplay.setAttribute('aria-pressed','true'); adoptPlayRate();
+});
 /* ---------- first-person view of the day sky ---------- */
 const SUNANG=1.5; // displayed solar radius, degrees; real is ~0.27, enlarged so the disc reads
 const LAND={ // stand-in surface colour, not from the radiative-transfer model
@@ -398,49 +419,109 @@ const LAND={ // stand-in surface colour, not from the radiative-transfer model
   kpg66:[.17,.15,.13], volcanic:[.18,.16,.14], modern:[.15,.22,.09], modernpoll:[.17,.18,.11]
 };
 let skyNow=null, skyGen=0, skyUploaded=-1, vrOn=false, vrYaw=0, vrPitch=8, vrGL=null, vrRAF=0;
-const VRFS=`precision mediump float;
+const VRFS=`#version 300 es
+precision highp float;
 uniform sampler2D sky; uniform vec2 res;
-uniform float yaw,pitch,fov,sunAz,sunEl,sunRad,sunOn,nr,na;
+uniform float yaw,pitch,fov,sunAz,sunEl,sunRad,sunOn,nr,na,sunMu;
 uniform vec3 sunCol,ground;
+uniform vec4 obj[12];
+uniform float kind[12];
+out vec4 fragColor;
+float coneT(vec3 ro,vec3 rd,vec2 c,float R,float h){
+  float k=R/max(h,0.001);
+  vec3 f=vec3(ro.x-c.x, ro.y-c.y, h-ro.z);
+  float A=rd.x*rd.x+rd.y*rd.y-k*k*rd.z*rd.z;
+  if(abs(A)<1e-5) return -1.0;
+  float B=2.0*(f.x*rd.x+f.y*rd.y+k*k*f.z*rd.z);
+  float C=f.x*f.x+f.y*f.y-k*k*f.z*f.z;
+  float disc=B*B-4.0*A*C; if(disc<0.0) return -1.0;
+  float s=sqrt(disc), t0=(-B-s)/(2.0*A), t1=(-B+s)/(2.0*A), t=-1.0;
+  if(t0>0.05){ float z=ro.z+rd.z*t0; if(z>=0.0&&z<=h) t=t0; }
+  if(t1>0.05){ float z=ro.z+rd.z*t1; if(z>=0.0&&z<=h&&(t<0.0||t1<t)) t=t1; }
+  return t;
+}
+vec3 coneN(vec3 p,vec2 c,float R,float h){ float k=R/max(h,0.001); vec2 d=p.xy-c; return normalize(vec3(d, k*max(length(d),0.001))); }
+float boxT(vec3 ro,vec3 rd,vec2 c,float r,float h){
+  vec3 mn=vec3(c.x-r,c.y-r,0.0), mx=vec3(c.x+r,c.y+r,h);
+  float tn=0.0, tf=1e8;
+  if(abs(rd.x)<1e-5){ if(ro.x<mn.x||ro.x>mx.x) return -1.0; }
+  else { float a=(mn.x-ro.x)/rd.x, b=(mx.x-ro.x)/rd.x; if(a>b){ float s=a; a=b; b=s; } tn=max(tn,a); tf=min(tf,b); if(tn>tf) return -1.0; }
+  if(abs(rd.y)<1e-5){ if(ro.y<mn.y||ro.y>mx.y) return -1.0; }
+  else { float a=(mn.y-ro.y)/rd.y, b=(mx.y-ro.y)/rd.y; if(a>b){ float s=a; a=b; b=s; } tn=max(tn,a); tf=min(tf,b); if(tn>tf) return -1.0; }
+  if(abs(rd.z)<1e-5){ if(ro.z<mn.z||ro.z>mx.z) return -1.0; }
+  else { float a=(mn.z-ro.z)/rd.z, b=(mx.z-ro.z)/rd.z; if(a>b){ float s=a; a=b; b=s; } tn=max(tn,a); tf=min(tf,b); if(tn>tf) return -1.0; }
+  float t=tn>0.05?tn:(tf>0.05?tf:-1.0); return t;
+}
+vec3 boxN(vec3 p,vec2 c,float r,float h){
+  vec3 q=(p-vec3(c,h*0.5))/vec3(r,r,max(h*0.5,0.001)); vec3 a=abs(q);
+  if(a.x>=a.y&&a.x>=a.z) return vec3(sign(q.x),0.0,0.0);
+  if(a.y>=a.z) return vec3(0.0,sign(q.y),0.0);
+  return vec3(0.0,0.0,sign(q.z));
+}
+float ellT(vec3 ro,vec3 rd,vec2 c,float R,float H){
+  vec3 f=vec3((ro.x-c.x)/R,(ro.y-c.y)/R,ro.z/H), d=vec3(rd.x/R,rd.y/R,rd.z/H);
+  float A=dot(d,d), B=2.0*dot(f,d), C=dot(f,f)-1.0, disc=B*B-4.0*A*C;
+  if(disc<0.0||A<1e-8) return -1.0;
+  float s=sqrt(disc), t0=(-B-s)/(2.0*A), t1=(-B+s)/(2.0*A), t=-1.0;
+  if(t0>0.05&&ro.z+rd.z*t0>=0.0) t=t0;
+  if(t1>0.05&&ro.z+rd.z*t1>=0.0&&(t<0.0||t1<t)) t=t1;
+  return t;
+}
+vec3 ellN(vec3 p,vec2 c,float R,float H){ return normalize(vec3((p.x-c.x)/(R*R),(p.y-c.y)/(R*R),p.z/(H*H))); }
 void main(){
   float aspect=res.x/max(res.y,1.0); float fy=tan(fov*0.5); float fx=fy*aspect;
   float u=((gl_FragCoord.x/res.x)*2.0-1.0)*fx;
   float v=((gl_FragCoord.y/res.y)*2.0-1.0)*fy;
   float cp=cos(pitch), sp=sin(pitch), cy=cos(yaw), sy=sin(yaw);
-  vec3 forward=vec3(sy*cp, cy*cp, sp);
-  vec3 right=vec3(cy, -sy, 0.0);
-  vec3 upv=vec3(-sy*sp, -cy*sp, cp);
-  vec3 dir=normalize(forward+u*right+v*upv);
-  float comp=atan(dir.x, dir.y); if(comp<0.0) comp+=6.28318530718;
-  float elev=asin(clamp(dir.z,-1.0,1.0));
-  float compDeg=comp*57.2957795; float elevDeg=elev*57.2957795;
-  float uTex=(fract(compDeg/360.0)*na+0.5)/(na+1.0);
-  float sunA=sunAz*0.01745329252; float sunZen=(90.0-sunEl)*0.01745329252;
-  vec3 sd=vec3(sin(sunA)*sin(sunZen), cos(sunA)*sin(sunZen), cos(sunZen));
-  vec3 col;
-  if(dir.z>=0.0){
-    float vTex=((90.0-elevDeg)/90.0*nr+0.5)/(nr+1.0);
-    col=texture2D(sky, vec2(uTex, vTex)).rgb;
-    float ang=acos(clamp(dot(dir, normalize(sd)),-1.0,1.0));
-    if(sunOn>0.5 && ang<sunRad) col=sunCol;
-  }else{
-    float haze=exp(elevDeg/6.5);
-    float vTex=(nr+0.5)/(nr+1.0);
-    vec3 hor=texture2D(sky, vec2(uTex, vTex)).rgb;
-    float hlen=length(dir.xy);
-    float toward=hlen>1e-4?dot(dir.xy/hlen, vec2(sin(sunA), cos(sunA))):0.0;
-    vec3 lit=ground*mix(0.84, 1.12, clamp(toward*0.5+0.5, 0.0, 1.0));
-    col=mix(lit, hor, haze);
+  vec3 rd=normalize(vec3(sy*cp, cy*cp, sp)+u*vec3(cy,-sy,0.0)+v*vec3(-sy*sp,-cy*sp,cp));
+  vec3 ro=vec3(0.0,0.0,2.0);
+  float comp=atan(rd.x, rd.y); if(comp<0.0) comp+=6.28318530718;
+  float elevDeg=asin(clamp(rd.z,-1.0,1.0))*57.2957795;
+  float compDeg=comp*57.2957795;
+  float sunA=sunAz*0.01745329252, sunZen=(90.0-sunEl)*0.01745329252;
+  vec3 sd=normalize(vec3(sin(sunA)*sin(sunZen), cos(sunA)*sin(sunZen), cos(sunZen)));
+  float tGround=rd.z<0.0?-ro.z/rd.z:1e8;
+  float tBest=1e8, kBest=0.0, hBest=1.0; vec3 nBest=vec3(0.0,0.0,1.0), pBest=ro;
+  for(int i=0;i<12;i++){
+    float kk=kind[i]; if(kk<0.5) continue;
+    vec4 q=obj[i]; float t=-1.0; vec3 n=vec3(0.0,0.0,1.0);
+    if(kk>3.5&&kk<4.5){ t=boxT(ro,rd,q.xy,q.z,q.w); if(t>0.0) n=boxN(ro+rd*t,q.xy,q.z,q.w); }
+    else if(kk>2.5&&kk<3.5){ t=ellT(ro,rd,q.xy,q.z,q.w); if(t>0.0) n=ellN(ro+rd*t,q.xy,q.z,q.w); }
+    else { t=coneT(ro,rd,q.xy,q.z,q.w); if(t>0.0) n=coneN(ro+rd*t,q.xy,q.z,q.w); }
+    if(t>0.0&&t<tBest&&t<tGround){ tBest=t; kBest=kk; hBest=q.w; nBest=n; pBest=ro+rd*t; if(dot(nBest,rd)>0.0) nBest=-nBest; }
   }
-  gl_FragColor=vec4(col,1.0);
+  vec3 col;
+  if(kBest>0.5){
+    vec3 albedo=vec3(0.46,0.38,0.31);
+    if(kBest>4.5) albedo=vec3(0.10,0.26,0.08);
+    else if(kBest>3.5) albedo=vec3(0.74,0.71,0.66);
+    else if(kBest>2.5) albedo=vec3(0.86,0.90,0.94);
+    else if(kBest>1.5){ albedo=vec3(0.32,0.26,0.23); if(pBest.z>0.75*hBest) albedo=vec3(0.72,0.16,0.03); }
+    float ndl=max(dot(nBest,sd),0.0);
+    float lit=(0.42+0.95*ndl)*(0.4+0.6*sunMu);
+    if(kBest>2.5&&kBest<3.5) lit=(0.78+0.35*ndl)*(0.85+0.15*sunMu);
+    col=albedo*lit;
+  }else{
+    float uTex=(fract(compDeg/360.0)*na+0.5)/(na+1.0);
+    float vTex=((90.0-max(elevDeg,0.0))/90.0*nr+0.5)/(nr+1.0);
+    vec3 skyC=texture(sky, vec2(uTex,vTex)).rgb;
+    float ang=acos(clamp(dot(rd,sd),-1.0,1.0));
+    if(sunOn>0.5&&ang<sunRad&&rd.z>0.0) skyC=sunCol;
+    float hlen=length(rd.xy);
+    float toward=hlen>1e-4?dot(rd.xy/hlen, vec2(sin(sunA),cos(sunA))):0.0;
+    vec3 gcol=ground*mix(0.9,1.08,clamp(toward*0.5+0.5,0.0,1.0));
+    float w=max(fwidth(elevDeg),0.04);
+    col=mix(gcol, skyC, smoothstep(-w,w,elevDeg));
+  }
+  fragColor=vec4(col,1.0);
 }`;
 function glShader(gl, type, src){ const s=gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)){ console.warn(gl.getShaderInfoLog(s)); gl.deleteShader(s); return null; } return s; }
 function initVR(){
   if(vrGL) return vrGL.gl;
   const canvas=document.getElementById('vrc');
-  const gl=canvas.getContext('webgl',{alpha:false,depth:false,stencil:false,antialias:false,preserveDrawingBuffer:true});
+  const gl=canvas.getContext('webgl2',{alpha:false,depth:false,stencil:false,antialias:false,preserveDrawingBuffer:true});
   if(!gl) return null;
-  const vs=glShader(gl, gl.VERTEX_SHADER, 'attribute vec2 a;void main(){gl_Position=vec4(a,0.0,1.0);}');
+  const vs=glShader(gl, gl.VERTEX_SHADER, '#version 300 es\nin vec2 a;void main(){gl_Position=vec4(a,0.0,1.0);}');
   const fs=glShader(gl, gl.FRAGMENT_SHADER, VRFS);
   if(!vs||!fs) return null;
   const prog=gl.createProgram(); gl.attachShader(prog,vs); gl.attachShader(prog,fs); gl.linkProgram(prog);
@@ -455,7 +536,8 @@ function initVR(){
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-  const u={}; for(const n of ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','nr','na']) u[n]=gl.getUniformLocation(prog, n);
+  const u={}; for(const n of ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','nr','na','sunMu']) u[n]=gl.getUniformLocation(prog, n);
+  u.obj=gl.getUniformLocation(prog,'obj[0]'); u.kind=gl.getUniformLocation(prog,'kind[0]');
   gl.uniform1i(gl.getUniformLocation(prog,'sky'), 0);
   gl.uniform1f(u.fov, 70*Math.PI/180);
   gl.uniform1f(u.sunRad, SUNANG*Math.PI/180);
@@ -466,6 +548,22 @@ function sizeVR(){
   const w=Math.max(2, Math.round(window.innerWidth*dpr)), h=Math.max(2, Math.round(window.innerHeight*dpr));
   if(c.width!==w||c.height!==h){ c.width=w; c.height=h; }
   if(vrGL){ vrGL.gl.viewport(0,0,c.width,c.height); }
+}
+function sceneFor(key){ // a dozen stand-ins: [bearing deg, distance m, radius m, height m, kind]
+  const spots=list=>{ const o=new Float32Array(48), k=new Float32Array(12);
+    for(let i=0;i<12;i++){ const s=list[i], a=s[0]*Math.PI/180; o[i*4]=Math.sin(a)*s[1]; o[i*4+1]=Math.cos(a)*s[1]; o[i*4+2]=s[2]; o[i*4+3]=s[3]; k[i]=s[4]; }
+    return {o,k}; };
+  const VOLC=[[175,320,80,150,2],[205,560,130,240,2],[140,900,200,340,2],[250,3000,700,520,2],[310,5200,1400,1000,1],[350,8000,2200,1500,1],[100,9000,2500,1600,1],[160,7000,1800,1100,1],[230,11000,2800,1700,1],[40,6500,1600,900,1],[70,4200,1100,780,1],[280,4800,1000,640,1]];
+  const ICE=[[165,220,70,36,3],[195,420,130,60,3],[120,700,220,90,3],[240,1100,300,120,3],[210,1900,900,200,3],[260,3400,1600,280,3],[320,2100,1000,220,3],[30,7000,2000,900,3],[100,9000,2400,1100,3],[190,8000,1800,800,3],[250,11000,2600,1200,3],[330,6000,1600,700,3]];
+  const TREES=[[10,70,5,24,5],[35,120,7,32,5],[60,85,4,20,5],[95,160,8,36,5],[140,95,6,28,5],[180,200,9,42,5],[220,110,5,26,5],[270,150,7,34,5],[40,6000,1600,900,1],[140,8500,2200,1300,1],[230,5000,1400,750,1],[310,10000,2500,1500,1]];
+  const PEAKS=[[170,380,110,190,1],[200,720,170,300,1],[140,1200,260,420,1],[55,4200,1300,800,1],[95,2200,700,420,1],[230,4500,1400,880,1],[280,2600,800,500,1],[330,3800,1100,700,1],[70,8000,2200,1400,1],[160,9500,2600,1600,1],[240,7000,1800,1100,1],[310,11000,2800,1500,1]];
+  const city=(dk,hk)=>[[8,45*dk,10,18*hk,4],[25,70*dk,14,36*hk,4],[48,55*dk,9,14*hk,4],[70,100*dk,16,55*hk,4],[110,80*dk,12,28*hk,4],[150,60*dk,11,22*hk,4],[190,130*dk,18,72*hk,4],[230,90*dk,13,40*hk,4],[300,7500,2000,1200,1],[20,9000,2400,1400,1],[160,11000,2800,1600,1],[250,6000,1500,800,1]];
+  if(key==='snowball07') return spots(ICE);
+  if(key==='carbon30') return spots(TREES);
+  if(key==='modern') return spots(city(2.2,1));
+  if(key==='modernpoll') return spots(city(1.5,1.55));
+  if(key==='hadean44'||key==='hadean40'||key==='archean38'||key==='archean27thin'||key==='archean27'||key==='archean27vthick'||key==='volcanic') return spots(VOLC);
+  return spots(PEAKS);
 }
 function groundRGB(){
   const alb=LAND[EP[dIdx].key]||[.2,.18,.14], cg=skyNow.colgrid, NR=cg.length-1, NA=cg[0].length-1;
@@ -490,18 +588,20 @@ function paintVR(){
   gl.uniform1f(u.yaw, vrYaw*Math.PI/180); gl.uniform1f(u.pitch, vrPitch*Math.PI/180);
   gl.uniform1f(u.sunAz, skyNow.sunAz); gl.uniform1f(u.sunEl, 90-skyNow.sza);
   gl.uniform1f(u.sunOn, skyNow.sunOn?1:0);
+  gl.uniform1f(u.sunMu, Math.max(0, Math.cos(skyNow.sza*Math.PI/180)));
   gl.uniform3fv(u.sunCol, new Float32Array(skyNow.sunRGB.map(v=>v/255)));
   gl.uniform3fv(u.ground, groundRGB());
+  const sc=sceneFor(EP[dIdx].key); gl.uniform4fv(u.obj, sc.o); gl.uniform1fv(u.kind, sc.k);
   gl.drawArrays(gl.TRIANGLES, 0, 6);
-  const hh=Math.floor(minutes/60), mm=minutes%60;
+  const hh=Math.floor(minutes/60), mm=Math.floor(minutes%60), ss=Math.floor((minutes%1)*60);
   const lat=dLat==='Polar'?'75°':dLat==='Mid-latitude'?'45°':'equator';
   document.getElementById('vrplace').textContent=EP[dIdx].name+' · '+lat;
-  document.getElementById('vrclock').textContent=hh+':'+String(mm).padStart(2,'0')+' · '+(hTimer?'playing':'paused');
+  document.getElementById('vrclock').textContent=hh+':'+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0')+' · '+(dayPlaying?'playing':'paused');
 }
 function requestVR(){ if(!vrOn||vrRAF) return; vrRAF=requestAnimationFrame(()=>{ vrRAF=0; paintVR(); }); }
 function lookVR(dx, dy){ vrYaw=(vrYaw+dx*0.1)%360; if(vrYaw<0) vrYaw+=360; vrPitch=Math.max(-80, Math.min(85, vrPitch-dy*0.1)); requestVR(); }
 function stepMinutes(d){
-  if(hTimer) hplay.click();
+  if(dayPlaying) hplay.click();
   minutes=Math.max(240, Math.min(1200, minutes+d)); hslider.value=minutes; renderDay();
 }
 function enterVR(){
@@ -509,11 +609,11 @@ function enterVR(){
   vrOn=true; vrLockedOnce=false; const root=document.getElementById('vr'); root.classList.add('on'); root.setAttribute('aria-hidden','false');
   const g=sunGeom(LATDEG[dLat], minutes); vrYaw=g.az; const elev=90-g.sza; vrPitch=Math.max(-8, Math.min(15, elev-8));
   sizeVR(); document.body.style.overflow='hidden'; root.tabIndex=-1; root.focus();
-  if(!hTimer) hplay.click();
-  renderDay();
+  if(!dayPlaying){ dayPlaying=true; if(minutes>=1200) minutes=240; hplay.textContent='Pause'; hplay.setAttribute('aria-pressed','true'); }
+  renderDay(false);
+  adoptPlayRate();
   const fs=root.requestFullscreen?root.requestFullscreen():null; if(fs&&fs.catch) fs.catch(()=>{});
   const lk=document.getElementById('vrc').requestPointerLock(); if(lk&&lk.catch) lk.catch(()=>{});
-  if(!hTimer) hplay.click();
 }
 function exitVR(){
   if(!vrOn) return; vrOn=false;
@@ -521,6 +621,8 @@ function exitVR(){
   document.body.style.overflow='';
   if(document.pointerLockElement) document.exitPointerLock();
   if(document.fullscreenElement){ const p=document.exitFullscreen(); if(p&&p.catch) p.catch(()=>{}); }
+  adoptPlayRate();
+  renderDay(false);
 }
 document.getElementById('vrbtn').addEventListener('click', enterVR);
 const vrc=document.getElementById('vrc');
