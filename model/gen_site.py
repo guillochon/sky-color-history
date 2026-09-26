@@ -161,7 +161,7 @@ button.tick.on{background:none;color:var(--ink)}
 <div class="vrhud">
   <div class="vrtop"><div id="vrplace"></div><div id="vrclock"></div></div>
   <div class="vrbot">
-    <div class="vrkeys"><span>mouse to look</span><span><kbd>esc</kbd> leave</span><span><kbd>space</kbd> play / pause</span><span><kbd>←</kbd><kbd>→</kbd> step time</span></div>
+    <div class="vrkeys"><span>mouse to look</span><span><kbd>esc</kbd> leave</span><span><kbd>space</kbd> play / pause</span><span><kbd>←</kbd><kbd>→</kbd> step time</span><span><kbd>↑</kbd><kbd>↓</kbd> change era</span></div>
     <div class="vrnote">The plain and the shapes are scenery. The sky is the model.</div>
   </div>
 </div>
@@ -604,6 +604,9 @@ function stepMinutes(d){
   if(dayPlaying) hplay.click();
   minutes=Math.max(240, Math.min(1200, minutes+d)); hslider.value=minutes; renderDay();
 }
+function stepEpoch(d){
+  dIdx=(dIdx+d%EP.length+EP.length)%EP.length; sel.value=String(dIdx); renderDay(); warm();
+}
 function enterVR(){
   if(!initVR()) return;
   vrOn=true; vrLockedOnce=false; const root=document.getElementById('vr'); root.classList.add('on'); root.setAttribute('aria-hidden','false');
@@ -648,6 +651,8 @@ document.addEventListener('keydown',e=>{
     if(e.key===' ' && !e.repeat){ e.preventDefault(); hplay.click(); return; }
     if(e.key==='ArrowRight'){ e.preventDefault(); stepMinutes(5); return; }
     if(e.key==='ArrowLeft'){ e.preventDefault(); stepMinutes(-5); return; }
+    if(e.key==='ArrowUp'||e.key===']'){ e.preventDefault(); stepEpoch(1); return; }
+    if(e.key==='ArrowDown'||e.key==='['){ e.preventDefault(); stepEpoch(-1); return; }
     return;
   }
   if(document.activeElement.tagName==='INPUT'||document.activeElement.tagName==='SELECT') return;
