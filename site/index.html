@@ -274,13 +274,17 @@ function renderDay(){
   // sun
   const sunc=rec.sun[Math.min(si+ (st>0.5?1:0), rec.sun.length-1)];
   const sX=xyY2XYZ(sunc); const sunRel = sX[1]/DAY.epochs['modern']['Equator'].sun[0][2];
-  // The table goes dark while the disc is still up. Hold the last visible colour
-  // and cut a hard disc on the sky edge so it sets as a partial circle.
+  // Blend chromaticity between samples so the disc colour moves continuously.
+  // A dark sample has no hue, so hold the last lit one. Visibility still follows
+  // the last sample bright enough to see, and the hard disc is cut by the sky edge.
   const noonY=DAY.epochs['modern']['Equator'].sun[0][2];
-  let drawI=Math.min(si+(st>0.5?1:0), rec.sun.length-1);
-  while(drawI>0 && rec.sun[drawI][2]/noonY<=3e-4) drawI--;
-  const sXd=xyY2XYZ(rec.sun[drawI]); const sunRelD=sXd[1]/noonY;
-  const SUNR=26, rr=R*sza/90, a=sunAz*Math.PI/180, sx=cx+rr*Math.sin(a), sy=cy-rr*Math.cos(a);
+  const lit=i=>rec.sun[i][1]>0 && rec.sun[i][2]>0;
+  let i0=si; while(i0>0 && !lit(i0)) i0--;
+  const i1=Math.min(si+1, rec.sun.length-1), c0=rec.sun[i0], c1=lit(i1)?rec.sun[i1]:c0, u=lit(i1)?st:0;
+  const sXd=xyY2XYZ([c0[0]*(1-u)+c1[0]*u, c0[1]*(1-u)+c1[1]*u, 1]);
+  let visI=si; while(visI>0 && rec.sun[visI][2]/noonY<=3e-4) visI--;
+  const sunRelD=rec.sun[visI][2]/noonY;
+  const SUNR=22, rr=R*sza/90, a=sunAz*Math.PI/180, sx=cx+rr*Math.sin(a), sy=cy-rr*Math.cos(a);
   if(rr-SUNR<R && sunRelD>3e-4){
     dctx.save(); dctx.beginPath(); dctx.arc(cx,cy,R,0,Math.PI*2); dctx.clip();
     const col=hex(tone(sXd, sXd[1], 0.95,0.4,0.98));
