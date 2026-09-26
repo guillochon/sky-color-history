@@ -3,7 +3,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Earth's Sky Through Time</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,300;1,6..72,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,700;1,6..72,300;1,6..72,400&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#dfe2e8;--bg2:#cfd3db;--ink:#1a2130;--ink2:#4a5263;--rule:#a4aab6;--space:#0a0c12;--stage:#6f737b;--accent:#1a2130;
  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -29,14 +29,18 @@ button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
 button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 select{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg2);border:1px solid var(--rule);border-radius:3px;padding:.28rem .5rem;max-width:100%}
 input[type=range]{width:100%;accent-color:var(--ink);margin:.4rem 0}
-.track{position:relative;height:3.6rem;margin:0 .2rem}
-.tick{position:absolute;top:0;transform:translateX(-50%);font-size:.72rem;color:var(--ink2);text-align:center;white-space:nowrap;line-height:1.15}
+.track{position:relative;height:3.6rem;margin:0 1.4rem}
+#ttrack{height:5.2rem}
+#tslider,#hslider{width:calc(100% - 2.8rem);margin:.4rem 1.4rem}
+.tick{position:absolute;top:0;transform:translateX(-50%);font-size:.72rem;color:var(--ink2);text-align:center;white-space:nowrap;line-height:1.15;cursor:pointer}
+button.tick{background:none;border:none;border-radius:0;padding:0;font-weight:400}
 .tick.row1{top:1.15rem}.tick.row1 i{height:26px;margin-top:-18px}
-.tick em{display:none;font-style:normal}
-.tick.on em{display:block;font-size:.78rem}
-.tick.on{z-index:2}
+.tick.on{z-index:2;color:var(--ink);font-weight:700}
+button.tick.on{background:none;color:var(--ink)}
 .tick i{display:block;width:1px;height:8px;background:var(--rule);margin:0 auto 3px}
-.tick.on{color:var(--ink);font-weight:500}
+.tick .name{display:none;position:absolute;left:50%;top:3.2rem;transform:translateX(-50%);background:var(--ink);color:var(--bg);font-weight:400;font-size:.75rem;line-height:1.2;padding:.12rem .45rem;border-radius:3px;pointer-events:none;z-index:6;white-space:nowrap}
+.tick.row1 .name{top:2.05rem}
+.tick:hover .name,.tick:focus-visible .name{display:block}
 .readout{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.4rem 1rem;font-size:.92rem;color:var(--ink2);margin:.5rem 0}
 .readout b{display:block;font-weight:400;color:var(--ink);font-size:1.15rem}
 .domes{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;background:var(--stage);padding:.5rem;border-radius:4px}
@@ -85,6 +89,7 @@ input[type=range]{width:100%;accent-color:var(--ink);margin:.4rem 0}
  <div>
   <div class="stage" id="dstage"><div class="tip" id="dtip"></div><canvas id="dome" width="600" height="600" aria-label="Whole-sky view for the selected epoch, latitude and time of day"></canvas></div>
   <input id="hslider" type="range" min="270" max="1170" step="5" value="720" aria-label="Time of day (minutes)">
+  <div class="track" id="htrack"></div>
   <div class="controls">
    <button id="hplay" aria-pressed="false">Play</button>
    <span id="hclock" style="font-size:1.2rem;min-width:4.5ch"></span>
@@ -155,11 +160,13 @@ function renderGlobe(ep){
 }
 let tPos=11, tIdx=11;
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let refreshGlobeTip=()=>{}, refreshDomeTip=()=>{};
 function drawGlobeAt(pos){ // blend between neighbouring epochs
   const i=Math.floor(pos), t=pos-i; const a=renderGlobe(EP[i]);
   gctx.globalAlpha=1; gctx.drawImage(a,0,0);
   if(t>0.001 && i<EP.length-1){ const b=renderGlobe(EP[i+1]); gctx.globalAlpha=t; gctx.drawImage(b,0,0); gctx.globalAlpha=1; }
   gctx.font='italic 22px Newsreader, Georgia, serif'; gctx.fillStyle='rgba(255,255,255,.9)'; gctx.fillText(EP[Math.round(pos)].name, 18, globe.height-18);
+  refreshGlobeTip();
 }
 function showEpoch(pos){
   tPos=pos; drawGlobeAt(pos);
@@ -171,10 +178,10 @@ function showEpoch(pos){
   const domes=document.getElementById('tdomes'); domes.innerHTML='';
   for(const L of ['Equator','Mid-latitude','Polar summer']){ const v=ep.lat[L]; const zc=hex(tone(xyY2XYZ(v.z),YREF)), hc=hex(tone(xyY2XYZ(v.h),YREF));
     domes.insertAdjacentHTML('beforeend',`<figure><div class="sky" style="background:linear-gradient(${zc},${hc})"></div><figcaption>${L}<small>zenith ${v.zc.toLocaleString()} K · horizon ${v.hc.toLocaleString()} K</small></figcaption></figure>`); }
-  document.querySelectorAll('#ttrack .tick').forEach((t,j)=>t.classList.toggle('on',j===i));
+  document.querySelectorAll('#ttrack .tick').forEach((t,j)=>{ const on=j===i; t.classList.toggle('on',on); if(on) t.setAttribute('aria-current','true'); else t.removeAttribute('aria-current'); });
 }
 const track=document.getElementById('ttrack');
-EP.forEach((ep,i)=>{ const t=document.createElement('div'); t.className='tick row'+(i%2); t.style.left=(100*(i+0.5)/EP.length)+'%'; t.innerHTML=`<i></i><span class="lb">${ep.age}<em>${ep.short}</em></span>`; track.appendChild(t); });
+EP.forEach((ep,i)=>{ const t=document.createElement('button'); t.type='button'; t.className='tick row'+(i%2); t.style.left=(100*i/(EP.length-1))+'%'; t.setAttribute('aria-label',ep.name); t.innerHTML='<i></i><span class="lb"></span><span class="name"></span>'; t.querySelector('.lb').textContent=ep.age; t.querySelector('.name').textContent=ep.name; t.addEventListener('click',()=>{ tslider.value=i; showEpoch(i); }); track.appendChild(t); });
 const tslider=document.getElementById('tslider');
 tslider.addEventListener('input',()=>{ showEpoch(+tslider.value); });
 let tRAF=null; const tplay=document.getElementById('tplay');
@@ -273,11 +280,18 @@ function renderDay(){
   const pts=[[88,0],[75,0],[60,0],[45,0],[30,0],[15,0],[0,0],[15,180],[30,180],[45,180],[60,180],[75,180],[88,180]];
   for(const [vz,azr] of pts){ const X=night?[0,0,0]:domeXYZ(ep.key,dLat,si,st,vz,azr); const i=document.createElement('i'); i.style.background=hex(tone(X,Yref,k,p,0.95)); i.title=`${vz}° from zenith, ${azr?'away from':'toward'} the Sun`; bar.appendChild(i); }
   document.getElementById('dprose').textContent = ep.prose;
+  markHour();
+  refreshDomeTip();
 }
 function warm(){ const ep=EP[dIdx], key=ep.key, lat=dLat; let s=0; const step=()=>{ if(EP[dIdx].key!==key||dLat!==lat) return; while(s<SZ.length && dense[key+'|'+lat+'|'+s]) s++; if(s>=SZ.length) return; denseSlice(key,lat,s); s++; (window.requestIdleCallback||setTimeout)(step); }; (window.requestIdleCallback||setTimeout)(step); }
 sel.addEventListener('change',()=>{ dIdx=+sel.value; renderDay(); warm(); });
 document.querySelectorAll('[data-lat]').forEach(b=>b.addEventListener('click',()=>{ dLat=b.dataset.lat; document.querySelectorAll('[data-lat]').forEach(x=>x.setAttribute('aria-pressed',x===b)); renderDay(); warm(); }));
 const hslider=document.getElementById('hslider'); hslider.addEventListener('input',()=>{ minutes=+hslider.value; renderDay(); });
+const htrack=document.getElementById('htrack');
+const HMIN=+hslider.min, HMAX=+hslider.max;
+function clockLabel(m){ const hh=Math.floor(m/60), mm=m%60; return hh+':'+String(mm).padStart(2,'0'); }
+for(let m=300, n=0; m<=1140; m+=60, n++){ const t=document.createElement('button'); t.type='button'; t.className='tick row'+(n%2); t.style.left=(100*(m-HMIN)/(HMAX-HMIN))+'%'; t.dataset.min=String(m); t.innerHTML=`<i></i><span class="lb">${clockLabel(m)}</span>`; t.addEventListener('click',()=>{ minutes=m; hslider.value=minutes; renderDay(); }); htrack.appendChild(t); }
+function markHour(){ const ticks=[...htrack.querySelectorAll('.tick')]; let best=0, bd=Infinity; ticks.forEach((t,j)=>{ const d=Math.abs(+t.dataset.min-minutes); if(d<bd){ bd=d; best=j; } }); ticks.forEach((t,j)=>{ const on=j===best; t.classList.toggle('on',on); if(on) t.setAttribute('aria-current','true'); else t.removeAttribute('aria-current'); }); }
 const expo=document.getElementById('expo'); expo.addEventListener('click',()=>{ autoExpo=!autoExpo; expo.setAttribute('aria-pressed',autoExpo); renderDay(); });
 let hTimer=null; const hplay=document.getElementById('hplay');
 hplay.addEventListener('click',()=>{ if(hTimer){clearInterval(hTimer);hTimer=null;hplay.textContent='Play';hplay.setAttribute('aria-pressed','false');return;}
@@ -287,18 +301,25 @@ hplay.addEventListener('click',()=>{ if(hTimer){clearInterval(hTimer);hTimer=nul
 document.addEventListener('keydown',e=>{ if(document.activeElement.tagName==='INPUT'||document.activeElement.tagName==='SELECT') return; if(e.key==='ArrowRight'&&tIdx<EP.length-1){tslider.value=tIdx+1;showEpoch(tIdx+1);} if(e.key==='ArrowLeft'&&tIdx>0){tslider.value=tIdx-1;showEpoch(tIdx-1);} });
 showEpoch(11); renderDay(); warm();
 function colourTip(canvas, tip, inside){
-  const ctx=canvas.getContext('2d'); let cur=null, copiedUntil=0;
-  const show=(e)=>{ const b=canvas.getBoundingClientRect(); const px=(e.clientX-b.left)*canvas.width/b.width, py=(e.clientY-b.top)*canvas.height/b.height;
+  const ctx=canvas.getContext('2d'); let cur=null, copiedUntil=0, hovering=false, px=0, py=0;
+  const refresh=()=>{
+    if(!hovering){ tip.style.display='none'; return; }
     if(!inside(px,py)){ tip.style.display='none'; cur=null; return; }
-    const d=ctx.getImageData(Math.round(px),Math.round(py),1,1).data; cur=hex([d[0],d[1],d[2]]);
-    tip.innerHTML=`<i style="background:${cur}"></i>${cur}${performance.now()<copiedUntil?' copied':''}`;
-    tip.style.left=(e.clientX-b.left)+'px'; tip.style.top=(e.clientY-b.top)+'px'; tip.style.display='block'; };
-  canvas.addEventListener('mousemove',show); canvas.addEventListener('mouseleave',()=>{tip.style.display='none';cur=null;});
-  const copy=(e)=>{ show(e); if(!cur) return; if(navigator.clipboard){ navigator.clipboard.writeText(cur).then(()=>{ copiedUntil=performance.now()+1200; show(e); }); } };
+    const x=Math.max(0,Math.min(canvas.width-1,Math.round(px))), y=Math.max(0,Math.min(canvas.height-1,Math.round(py)));
+    const d=ctx.getImageData(x,y,1,1).data; cur=hex([d[0],d[1],d[2]]);
+    tip.innerHTML=`<i style="background:${cur}"></i>current color ${cur}${performance.now()<copiedUntil?' copied':''}`;
+    const b=canvas.getBoundingClientRect();
+    tip.style.left=(px*b.width/canvas.width)+'px'; tip.style.top=(py*b.height/canvas.height)+'px'; tip.style.display='block';
+  };
+  const show=(e)=>{ const b=canvas.getBoundingClientRect(); px=(e.clientX-b.left)*canvas.width/b.width; py=(e.clientY-b.top)*canvas.height/b.height; hovering=true; refresh(); };
+  canvas.addEventListener('mousemove',show);
+  canvas.addEventListener('mouseleave',()=>{ hovering=false; tip.style.display='none'; cur=null; });
+  const copy=(e)=>{ show(e); if(!cur) return; if(navigator.clipboard){ navigator.clipboard.writeText(cur).then(()=>{ copiedUntil=performance.now()+1200; refresh(); }).catch(()=>{}); } };
   canvas.addEventListener('click',copy);
-  canvas.addEventListener('touchstart',e=>{ const t=e.touches[0]; copy({clientX:t.clientX,clientY:t.clientY}); setTimeout(()=>{tip.style.display='none';},1500); },{passive:true});
+  canvas.addEventListener('touchstart',e=>{ const t=e.touches[0]; copy({clientX:t.clientX,clientY:t.clientY}); setTimeout(()=>{ hovering=false; tip.style.display='none'; },1500); },{passive:true});
+  return refresh;
 }
-colourTip(globe, document.getElementById('gtip'), (x,y)=>{ const r=Math.hypot(x-globe.width/2,y-globe.height/2); return r<globe.width*0.30*1.5; });
-colourTip(dome, document.getElementById('dtip'), (x,y)=>{ const r=Math.hypot(x-dome.width/2,y-dome.height/2); return r<dome.width*0.46; });
+refreshGlobeTip=colourTip(globe, document.getElementById('gtip'), (x,y)=>{ const r=Math.hypot(x-globe.width/2,y-globe.height/2); return r<globe.width*0.30*1.5; });
+refreshDomeTip=colourTip(dome, document.getElementById('dtip'), (x,y)=>{ const r=Math.hypot(x-dome.width/2,y-dome.height/2); return r<dome.width*0.46; });
 </script>
 </body></html>
