@@ -335,12 +335,13 @@ function renderDay(fast){
   const sunc=rec.sun[Math.min(si+ (st>0.5?1:0), rec.sun.length-1)];
   const sX=xyY2XYZ(sunc); const sunRel = sX[1]/DAY.epochs['modern']['Equator'].sun[0][2];
   // Blend chromaticity between samples so the disc colour moves continuously.
-  // A dark sample has no hue, so hold the last lit one. Visibility still follows
-  // the last sample bright enough to see, and the hard disc is cut by the sky edge.
+  // Below about 1e-6 the direct beam is a one-wavelength leftover. In the early
+  // Hadean that leftover sits on the green part of the spectrum locus, and drawing
+  // it at full brightness makes a green disc. Hold the last sample that still has a hue.
   const noonY=DAY.epochs['modern']['Equator'].sun[0][2];
-  const lit=i=>rec.sun[i][1]>0 && rec.sun[i][2]>0;
-  let i0=si; while(i0>0 && !lit(i0)) i0--;
-  const i1=Math.min(si+1, rec.sun.length-1), c0=rec.sun[i0], c1=lit(i1)?rec.sun[i1]:c0, u=lit(i1)?st:0;
+  const hue=i=>rec.sun[i][1]>0 && rec.sun[i][2]>=1e-6;
+  let i0=si; while(i0>0 && !hue(i0)) i0--;
+  const i1=Math.min(si+1, rec.sun.length-1), c0=rec.sun[i0], c1=hue(i1)?rec.sun[i1]:c0, u=hue(i1)?st:0;
   const sXd=xyY2XYZ([c0[0]*(1-u)+c1[0]*u, c0[1]*(1-u)+c1[1]*u, 1]);
   let visI=si; while(visI>0 && rec.sun[visI][2]/noonY<=3e-4) visI--;
   const sunRelD=rec.sun[visI][2]/noonY;
@@ -420,7 +421,7 @@ const LAND={ // stand-in surface colour, not from the radiative-transfer model
   proterozoic22:[.16,.18,.11], snowball07:[.78,.82,.86], carbon30:[.12,.22,.08],
   kpg66:[.17,.15,.13], volcanic:[.18,.16,.14], modern:[.15,.22,.09], modernpoll:[.17,.18,.11]
 };
-let skyNow=null, skyGen=0, skyUploaded=-1, vrOn=false, vrYaw=0, vrPitch=8, vrX=0, vrY=0, vrScenery=true, vrGL=null, vrRAF=0, vrWalk=0, vrWalkStamp=0;
+let skyNow=null, skyGen=0, skyUploaded=-1, vrOn=false, vrYaw=0, vrPitch=8, vrX=0, vrY=0, vrScenery=true, vrRelock=false, vrGL=null, vrRAF=0, vrWalk=0, vrWalkStamp=0;
 const vrHeld=new Set();
 const VRFS=`#version 300 es
 precision highp float;
@@ -651,14 +652,20 @@ function enterVR(){
   vrOn=true; vrLockedOnce=false; vrX=0; vrY=0; vrHeld.clear(); const root=document.getElementById('vr'); root.classList.add('on'); root.setAttribute('aria-hidden','false');
   const g=sunGeom(LATDEG[dLat], minutes); vrYaw=g.az; const elev=90-g.sza; vrPitch=Math.max(-8, Math.min(15, elev-8));
   sizeVR(); document.body.style.overflow='hidden'; root.tabIndex=-1; root.focus();
+  // Capture the pointer before the slow sky render, while the click is still a user gesture, so yaw is not stopped by the edge of the window.
+  vrRelock=true; lockLook();
   if(!dayPlaying){ dayPlaying=true; if(minutes>=1200) minutes=240; hplay.textContent='Pause'; hplay.setAttribute('aria-pressed','true'); }
   renderDay(false);
   adoptPlayRate();
   const fs=root.requestFullscreen?root.requestFullscreen():null; if(fs&&fs.catch) fs.catch(()=>{});
-  const lk=document.getElementById('vrc').requestPointerLock(); if(lk&&lk.catch) lk.catch(()=>{});
+  setTimeout(()=>{ vrRelock=false; }, 700);
+}
+function lockLook(){
+  if(!vrOn||document.pointerLockElement===document.getElementById('vrc')) return;
+  const p=document.getElementById('vrc').requestPointerLock(); if(p&&p.catch) p.catch(()=>{});
 }
 function exitVR(){
-  if(!vrOn) return; vrOn=false; vrHeld.clear(); if(vrWalk){ cancelAnimationFrame(vrWalk); vrWalk=0; }
+  if(!vrOn) return; vrOn=false; vrRelock=false; vrHeld.clear(); if(vrWalk){ cancelAnimationFrame(vrWalk); vrWalk=0; }
   const root=document.getElementById('vr'); root.classList.remove('on','locked'); root.setAttribute('aria-hidden','true');
   document.body.style.overflow='';
   if(document.pointerLockElement) document.exitPointerLock();
@@ -669,16 +676,24 @@ function exitVR(){
 document.getElementById('vrbtn').addEventListener('click', enterVR);
 const vrc=document.getElementById('vrc');
 window.addEventListener('mousemove', e=>{ if(!vrOn) return; if(!e.movementX&&!e.movementY) return; lookVR(e.movementX, e.movementY); });
+window.addEventListener('pointerdown', ()=>{ if(!vrOn||document.pointerLockElement===vrc) return; vrRelock=true; lockLook(); setTimeout(()=>{ vrRelock=false; }, 400); });
 let vrTX=0, vrTY=0;
 vrc.addEventListener('touchstart', e=>{ const t=e.touches[0]; vrTX=t.clientX; vrTY=t.clientY; }, {passive:true});
 vrc.addEventListener('touchmove', e=>{ if(!vrOn) return; const t=e.touches[0]; lookVR(t.clientX-vrTX, t.clientY-vrTY); vrTX=t.clientX; vrTY=t.clientY; e.preventDefault(); }, {passive:false});
 window.addEventListener('resize', ()=>{ if(vrOn){ sizeVR(); paintVR(); } });
-document.addEventListener('fullscreenchange', ()=>{ if(vrOn && !document.fullscreenElement) exitVR(); });
+document.addEventListener('fullscreenchange', ()=>{
+  if(!vrOn) return;
+  if(!document.fullscreenElement){ exitVR(); return; }
+  vrRelock=true; lockLook(); setTimeout(()=>{ vrRelock=false; }, 400);
+});
 let vrLockedOnce=false;
 document.addEventListener('pointerlockchange', ()=>{
   const locked=document.pointerLockElement===vrc;
   document.getElementById('vr').classList.toggle('locked', locked);
-  if(locked) vrLockedOnce=true; else if(vrOn && vrLockedOnce) exitVR();
+  if(locked){ vrLockedOnce=true; return; }
+  if(!vrOn||!vrLockedOnce) return;
+  if(vrRelock){ lockLook(); return; }
+  exitVR();
 });
 document.addEventListener('keyup',e=>{ if(e.key==='Shift') vrHeld.delete('shift'); else vrHeld.delete(e.key.length===1?e.key.toLowerCase():e.key); });
 window.addEventListener('blur',()=>vrHeld.clear());
