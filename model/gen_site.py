@@ -88,6 +88,20 @@ button.tick.on{background:none;color:var(--ink)}
 .repo{display:inline-flex;align-items:center;gap:.4rem;color:var(--ink2);font-size:.95rem;text-decoration:none;white-space:nowrap}
 .repo svg{width:1.05em;height:1.05em;display:block;fill:currentColor}
 .repo:hover{color:var(--ink)}
+.vrbtn{position:absolute;top:.5rem;right:.5rem;z-index:6;color:#fff;background:rgba(8,10,16,.55);border:1px solid rgba(255,255,255,.45);font-size:.8rem;letter-spacing:.08em;padding:.2rem .55rem}
+.vrbtn:hover{color:#fff;background:rgba(8,10,16,.82)}
+#vr{display:none;position:fixed;inset:0;z-index:40;background:#000;overflow:hidden}
+#vr.on{display:block}
+#vr canvas{position:absolute;inset:0;width:100%;height:100%;cursor:grab}
+#vr.locked canvas{cursor:none}
+.vrhud{position:absolute;inset:0;pointer-events:none;color:#fff;font-size:.98rem}
+.vrtop,.vrbot{position:absolute;left:0;right:0;display:flex;justify-content:space-between;gap:1rem;padding:.85rem 1.15rem;text-shadow:0 1px 3px #000}
+.vrtop{top:0;background:linear-gradient(rgba(8,10,16,.6),transparent);align-items:flex-start}
+.vrbot{bottom:0;background:linear-gradient(transparent,rgba(8,10,16,.62));align-items:flex-end}
+.vrkeys{display:flex;flex-wrap:wrap;gap:.3rem 1rem}
+.vrkeys kbd{font:inherit;font-size:.88rem;border:1px solid rgba(255,255,255,.55);border-radius:3px;padding:0 .38rem;margin-right:.3rem;background:rgba(8,10,16,.5)}
+.vrnote{max-width:36ch;text-align:right;font-size:.82rem;opacity:.9}
+#vrclock{font-size:1.25rem}
 </style></head><body><main>
 <div class="titlebar"><h1>Earth's sky <em>through time</em></h1><a class="repo" href="https://github.com/guillochon/sky-color-history"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.65-.18 1.35-.27 2.04-.27.68 0 1.35.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>GitHub</a></div>
 <p class="lede">An interactive companion to the sky-colour reconstruction. Scrub the timeline to watch the atmosphere change from the steam-and-CO₂ Hadean to today, then pick an epoch and scrub through a day to see how its sky moved from dawn to dusk. Every colour comes from the same spectral radiative-transfer model as the report.</p>
@@ -114,7 +128,7 @@ button.tick.on{background:none;color:var(--ink)}
 <p class="hint">A whole-sky (fisheye) view: the zenith is at the centre and the horizon is the rim, north at the top. Equinox geometry, so the Sun rises due east at 6:00 and sets due west at 18:00 everywhere; at the poles the noon Sun sits only 15° above the horizon.</p>
 <div class="row">
  <div>
-  <div class="stage" id="dstage"><div class="tip" id="dtip"></div><canvas id="dome" width="600" height="600" aria-label="Whole-sky view for the selected epoch, latitude and time of day"></canvas></div>
+  <div class="stage" id="dstage"><button type="button" id="vrbtn" class="vrbtn" title="Full-screen view: look around while the day plays">VR</button><div class="tip" id="dtip"></div><canvas id="dome" width="600" height="600" aria-label="Whole-sky view for the selected epoch, latitude and time of day"></canvas></div>
   <input id="hslider" type="range" min="240" max="1200" step="5" value="720" aria-label="Time of day (minutes)">
   <div class="track" id="htrack"></div>
   <div class="controls">
@@ -142,6 +156,16 @@ button.tick.on{background:none;color:var(--ink)}
 
 <div class="foot">Model and data: spherical-shell single scattering with a delta-Eddington multiple-scattering correction, 380–780 nm, CIE 1931 colour matching, sRGB output without chromatic adaptation. Colours are what a daylight-balanced camera would record, not what an adapted eye would perceive. Clouds are omitted; paleoatmosphere compositions carry order-of-magnitude uncertainty. Time of day is interpolated between 21 computed solar zenith angles. The sky is computed down to a solar depression of 10°; from there to 18°, the end of astronomical twilight, that last sky fades out. Multiple scattering is omitted once the Sun is below the horizon.</div>
 </main>
+<div id="vr" aria-hidden="true">
+<canvas id="vrc"></canvas>
+<div class="vrhud">
+  <div class="vrtop"><div id="vrplace"></div><div id="vrclock"></div></div>
+  <div class="vrbot">
+    <div class="vrkeys"><span>mouse to look</span><span><kbd>esc</kbd> leave</span><span><kbd>space</kbd> play / pause</span><span><kbd>←</kbd><kbd>→</kbd> step time</span></div>
+    <div class="vrnote">Ground is a sunlit plain, fading into the horizon sky.</div>
+  </div>
+</div>
+</div>
 <script>
 const EP = __EP__;
 const DAY = __DAY__;
@@ -322,11 +346,14 @@ function renderDay(){
   let visI=si; while(visI>0 && rec.sun[visI][2]/noonY<=3e-4) visI--;
   const sunRelD=rec.sun[visI][2]/noonY;
   const SUNR=22, rr=R*sza/90, a=sunAz*Math.PI/180, sx=cx+rr*Math.sin(a), sy=cy-rr*Math.cos(a);
+  const sunRGB=tone(sXd, sXd[1], 0.95,0.4,0.98);
   if(rr-SUNR<R && sunRelD>3e-4){
     dctx.save(); dctx.beginPath(); dctx.arc(cx,cy,R,0,Math.PI*2); dctx.clip();
-    const col=hex(tone(sXd, sXd[1], 0.95,0.4,0.98));
+    const col=hex(sunRGB);
     dctx.globalAlpha=1; dctx.fillStyle=col; dctx.beginPath(); dctx.arc(sx,sy,SUNR,0,Math.PI*2); dctx.fill(); dctx.restore();
   }
+  skyNow={colgrid, sza, sunAz, sunRGB, sunOn:sunRelD>3e-4 && sza<90+SUNANG, gen:++skyGen};
+  if(vrOn) paintVR();
   // compass + rim
   dctx.strokeStyle='rgba(255,255,255,.35)'; dctx.lineWidth=1.5; dctx.beginPath(); dctx.arc(cx,cy,R,0,7); dctx.stroke();
   dctx.fillStyle='rgba(255,255,255,.8)'; dctx.font='16px Newsreader, Georgia, serif'; dctx.textAlign='center';
@@ -362,8 +389,169 @@ let hTimer=null; const hplay=document.getElementById('hplay');
 hplay.addEventListener('click',()=>{ if(hTimer){clearInterval(hTimer);hTimer=null;hplay.textContent='Play';hplay.setAttribute('aria-pressed','false');return;}
   hplay.textContent='Pause'; hplay.setAttribute('aria-pressed','true'); if(minutes>=1200) minutes=240;
   hTimer=setInterval(()=>{ minutes+=5; if(minutes>1200) minutes=240; hslider.value=minutes; renderDay(); },60); });
-// keyboard on timeline stage
-document.addEventListener('keydown',e=>{ if(document.activeElement.tagName==='INPUT'||document.activeElement.tagName==='SELECT') return; if(e.key==='ArrowRight'&&tIdx<EP.length-1){tslider.value=tIdx+1;showEpoch(tIdx+1);} if(e.key==='ArrowLeft'&&tIdx>0){tslider.value=tIdx-1;showEpoch(tIdx-1);} });
+/* ---------- first-person view of the day sky ---------- */
+const SUNANG=1.5; // displayed solar radius, degrees; real is ~0.27, enlarged so the disc reads
+const LAND={ // stand-in surface colour, not from the radiative-transfer model
+  hadean44:[.18,.12,.08], hadean40:[.16,.12,.08], archean38:[.15,.13,.10],
+  archean27thin:[.20,.16,.11], archean27:[.22,.16,.10], archean27vthick:[.24,.15,.09],
+  proterozoic22:[.16,.18,.11], snowball07:[.78,.82,.86], carbon30:[.12,.22,.08],
+  kpg66:[.17,.15,.13], volcanic:[.18,.16,.14], modern:[.15,.22,.09], modernpoll:[.17,.18,.11]
+};
+let skyNow=null, skyGen=0, skyUploaded=-1, vrOn=false, vrYaw=0, vrPitch=8, vrGL=null, vrRAF=0;
+const VRFS=`precision mediump float;
+uniform sampler2D sky; uniform vec2 res;
+uniform float yaw,pitch,fov,sunAz,sunEl,sunRad,sunOn,nr,na;
+uniform vec3 sunCol,ground;
+void main(){
+  float aspect=res.x/max(res.y,1.0); float fy=tan(fov*0.5); float fx=fy*aspect;
+  float u=((gl_FragCoord.x/res.x)*2.0-1.0)*fx;
+  float v=((gl_FragCoord.y/res.y)*2.0-1.0)*fy;
+  float cp=cos(pitch), sp=sin(pitch), cy=cos(yaw), sy=sin(yaw);
+  vec3 forward=vec3(sy*cp, cy*cp, sp);
+  vec3 right=vec3(cy, -sy, 0.0);
+  vec3 upv=vec3(-sy*sp, -cy*sp, cp);
+  vec3 dir=normalize(forward+u*right+v*upv);
+  float comp=atan(dir.x, dir.y); if(comp<0.0) comp+=6.28318530718;
+  float elev=asin(clamp(dir.z,-1.0,1.0));
+  float compDeg=comp*57.2957795; float elevDeg=elev*57.2957795;
+  float uTex=(fract(compDeg/360.0)*na+0.5)/(na+1.0);
+  float sunA=sunAz*0.01745329252; float sunZen=(90.0-sunEl)*0.01745329252;
+  vec3 sd=vec3(sin(sunA)*sin(sunZen), cos(sunA)*sin(sunZen), cos(sunZen));
+  vec3 col;
+  if(dir.z>=0.0){
+    float vTex=((90.0-elevDeg)/90.0*nr+0.5)/(nr+1.0);
+    col=texture2D(sky, vec2(uTex, vTex)).rgb;
+    float ang=acos(clamp(dot(dir, normalize(sd)),-1.0,1.0));
+    if(sunOn>0.5 && ang<sunRad) col=sunCol;
+  }else{
+    float haze=exp(elevDeg/6.5);
+    float vTex=(nr+0.5)/(nr+1.0);
+    vec3 hor=texture2D(sky, vec2(uTex, vTex)).rgb;
+    float hlen=length(dir.xy);
+    float toward=hlen>1e-4?dot(dir.xy/hlen, vec2(sin(sunA), cos(sunA))):0.0;
+    vec3 lit=ground*mix(0.84, 1.12, clamp(toward*0.5+0.5, 0.0, 1.0));
+    col=mix(lit, hor, haze);
+  }
+  gl_FragColor=vec4(col,1.0);
+}`;
+function glShader(gl, type, src){ const s=gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)){ console.warn(gl.getShaderInfoLog(s)); gl.deleteShader(s); return null; } return s; }
+function initVR(){
+  if(vrGL) return vrGL.gl;
+  const canvas=document.getElementById('vrc');
+  const gl=canvas.getContext('webgl',{alpha:false,depth:false,stencil:false,antialias:false,preserveDrawingBuffer:true});
+  if(!gl) return null;
+  const vs=glShader(gl, gl.VERTEX_SHADER, 'attribute vec2 a;void main(){gl_Position=vec4(a,0.0,1.0);}');
+  const fs=glShader(gl, gl.FRAGMENT_SHADER, VRFS);
+  if(!vs||!fs) return null;
+  const prog=gl.createProgram(); gl.attachShader(prog,vs); gl.attachShader(prog,fs); gl.linkProgram(prog);
+  if(!gl.getProgramParameter(prog, gl.LINK_STATUS)){ console.warn(gl.getProgramInfoLog(prog)); return null; }
+  gl.useProgram(prog);
+  const buf=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
+  const locA=gl.getAttribLocation(prog,'a'); gl.enableVertexAttribArray(locA); gl.vertexAttribPointer(locA,2,gl.FLOAT,false,0,0);
+  const tex=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+  const u={}; for(const n of ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','nr','na']) u[n]=gl.getUniformLocation(prog, n);
+  gl.uniform1i(gl.getUniformLocation(prog,'sky'), 0);
+  gl.uniform1f(u.fov, 70*Math.PI/180);
+  gl.uniform1f(u.sunRad, SUNANG*Math.PI/180);
+  vrGL={gl,u,tex,prog}; return gl;
+}
+function sizeVR(){
+  const c=document.getElementById('vrc'), dpr=Math.min(window.devicePixelRatio||1, 2);
+  const w=Math.max(2, Math.round(window.innerWidth*dpr)), h=Math.max(2, Math.round(window.innerHeight*dpr));
+  if(c.width!==w||c.height!==h){ c.width=w; c.height=h; }
+  if(vrGL){ vrGL.gl.viewport(0,0,c.width,c.height); }
+}
+function groundRGB(){
+  const alb=LAND[EP[dIdx].key]||[.2,.18,.14], cg=skyNow.colgrid, NR=cg.length-1, NA=cg[0].length-1;
+  let ar=0,ag=0,ab=0,n=0; const ir=Math.round(NR*0.45);
+  for(let ia=0; ia<=NA; ia+=8){ const c=cg[ir][ia]; ar+=c[0]; ag+=c[1]; ab+=c[2]; n++; }
+  const z=cg[0][0]; ar=ar/n*0.65+z[0]*0.35; ag=ag/n*0.65+z[1]*0.35; ab=ab/n*0.65+z[2]*0.35;
+  const mu=Math.max(0, Math.cos(skyNow.sza*Math.PI/180)), s=skyNow.sunRGB, amb=[ar,ag,ab];
+  return new Float32Array(alb.map((a,i)=>Math.min(255, a*(0.42*amb[i]+1.25*mu*s[i]+16))/255));
+}
+function paintVR(){
+  if(!vrOn||!vrGL||!skyNow) return;
+  const {gl,u,tex}=vrGL, c=gl.canvas;
+  gl.viewport(0,0,c.width,c.height); gl.uniform2f(u.res, c.width, c.height);
+  if(skyUploaded!==skyNow.gen){
+    const cg=skyNow.colgrid, h=cg.length, w=cg[0].length, data=new Uint8Array(w*h*4);
+    for(let y=0;y<h;y++) for(let x=0;x<w;x++){ const p=cg[y][x], o=(y*w+x)*4; data[o]=p[0]; data[o+1]=p[1]; data[o+2]=p[2]; data[o+3]=255; }
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+    gl.uniform1f(u.nr, h-1); gl.uniform1f(u.na, w-1); skyUploaded=skyNow.gen;
+  }
+  gl.useProgram(vrGL.prog);
+  gl.uniform1f(u.yaw, vrYaw*Math.PI/180); gl.uniform1f(u.pitch, vrPitch*Math.PI/180);
+  gl.uniform1f(u.sunAz, skyNow.sunAz); gl.uniform1f(u.sunEl, 90-skyNow.sza);
+  gl.uniform1f(u.sunOn, skyNow.sunOn?1:0);
+  gl.uniform3fv(u.sunCol, new Float32Array(skyNow.sunRGB.map(v=>v/255)));
+  gl.uniform3fv(u.ground, groundRGB());
+  gl.drawArrays(gl.TRIANGLES, 0, 6);
+  const hh=Math.floor(minutes/60), mm=minutes%60;
+  const lat=dLat==='Polar'?'75°':dLat==='Mid-latitude'?'45°':'equator';
+  document.getElementById('vrplace').textContent=EP[dIdx].name+' · '+lat;
+  document.getElementById('vrclock').textContent=hh+':'+String(mm).padStart(2,'0')+' · '+(hTimer?'playing':'paused');
+}
+function requestVR(){ if(!vrOn||vrRAF) return; vrRAF=requestAnimationFrame(()=>{ vrRAF=0; paintVR(); }); }
+function lookVR(dx, dy){ vrYaw=(vrYaw+dx*0.1)%360; if(vrYaw<0) vrYaw+=360; vrPitch=Math.max(-80, Math.min(85, vrPitch-dy*0.1)); requestVR(); }
+function stepMinutes(d){
+  if(hTimer) hplay.click();
+  minutes=Math.max(240, Math.min(1200, minutes+d)); hslider.value=minutes; renderDay();
+}
+function enterVR(){
+  if(!initVR()) return;
+  vrOn=true; vrLockedOnce=false; const root=document.getElementById('vr'); root.classList.add('on'); root.setAttribute('aria-hidden','false');
+  const g=sunGeom(LATDEG[dLat], minutes); vrYaw=g.az; const elev=90-g.sza; vrPitch=Math.max(-8, Math.min(15, elev-8));
+  sizeVR(); document.body.style.overflow='hidden'; root.tabIndex=-1; root.focus();
+  if(!hTimer) hplay.click();
+  renderDay();
+  const fs=root.requestFullscreen?root.requestFullscreen():null; if(fs&&fs.catch) fs.catch(()=>{});
+  const lk=document.getElementById('vrc').requestPointerLock(); if(lk&&lk.catch) lk.catch(()=>{});
+  if(!hTimer) hplay.click();
+}
+function exitVR(){
+  if(!vrOn) return; vrOn=false;
+  const root=document.getElementById('vr'); root.classList.remove('on','locked'); root.setAttribute('aria-hidden','true');
+  document.body.style.overflow='';
+  if(document.pointerLockElement) document.exitPointerLock();
+  if(document.fullscreenElement){ const p=document.exitFullscreen(); if(p&&p.catch) p.catch(()=>{}); }
+}
+document.getElementById('vrbtn').addEventListener('click', enterVR);
+const vrc=document.getElementById('vrc');
+let vrDrag=false;
+vrc.addEventListener('mousedown', ()=>{ vrDrag=true; });
+window.addEventListener('mouseup', ()=>{ vrDrag=false; });
+vrc.addEventListener('mousemove', e=>{ if(!vrOn) return; if(document.pointerLockElement!==vrc && !vrDrag) return; lookVR(e.movementX, e.movementY); });
+vrc.addEventListener('click', ()=>{ if(vrOn && document.pointerLockElement!==vrc){ const lk=vrc.requestPointerLock(); if(lk&&lk.catch) lk.catch(()=>{}); } });
+let vrTX=0, vrTY=0;
+vrc.addEventListener('touchstart', e=>{ const t=e.touches[0]; vrTX=t.clientX; vrTY=t.clientY; }, {passive:true});
+vrc.addEventListener('touchmove', e=>{ if(!vrOn) return; const t=e.touches[0]; lookVR(t.clientX-vrTX, t.clientY-vrTY); vrTX=t.clientX; vrTY=t.clientY; e.preventDefault(); }, {passive:false});
+window.addEventListener('resize', ()=>{ if(vrOn){ sizeVR(); paintVR(); } });
+document.addEventListener('fullscreenchange', ()=>{ if(vrOn && !document.fullscreenElement) exitVR(); });
+let vrLockedOnce=false;
+document.addEventListener('pointerlockchange', ()=>{
+  const locked=document.pointerLockElement===vrc;
+  document.getElementById('vr').classList.toggle('locked', locked);
+  if(locked) vrLockedOnce=true; else if(vrOn && vrLockedOnce) exitVR();
+});
+document.addEventListener('keydown',e=>{
+  if(vrOn){
+    if(e.key==='Escape'){ exitVR(); return; }
+    if(e.key===' ' && !e.repeat){ e.preventDefault(); hplay.click(); return; }
+    if(e.key==='ArrowRight'){ e.preventDefault(); stepMinutes(5); return; }
+    if(e.key==='ArrowLeft'){ e.preventDefault(); stepMinutes(-5); return; }
+    return;
+  }
+  if(document.activeElement.tagName==='INPUT'||document.activeElement.tagName==='SELECT') return;
+  if(e.key==='ArrowRight'&&tIdx<EP.length-1){tslider.value=tIdx+1;showEpoch(tIdx+1);}
+  if(e.key==='ArrowLeft'&&tIdx>0){tslider.value=tIdx-1;showEpoch(tIdx-1);}
+});
 showEpoch(11); renderDay(); warm();
 function colourTip(canvas, tip, inside){
   const ctx=canvas.getContext('2d'); let cur=null, copiedUntil=0, hovering=false, px=0, py=0;
