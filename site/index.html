@@ -509,8 +509,8 @@ void main(){
 const CLOUDFS=`#version 300 es
 precision highp float;
 precision highp sampler3D;
-uniform sampler3D noise; uniform vec2 res;
-uniform float yaw,pitch,fov,sunAz,sunEl,sunMu,showScn,cloudCov,cloudScale,cloudDrift;
+uniform sampler3D noise; uniform sampler2D sky; uniform vec2 res;
+uniform float yaw,pitch,fov,sunAz,sunEl,sunMu,showScn,cloudCov,cloudScale,cloudDrift,nr,na;
 uniform vec3 sunCol,amb,eye;
 uniform vec4 obj[12];
 uniform float kind[12];
@@ -557,32 +557,36 @@ float shellT(vec3 ro, vec3 rd, float H){
   if(disc<=0.0) return -1.0;
   return (2.0*rise)/(B+sqrt(disc));
 }
-float cloudDen(vec3 p, float detail, float lod){
+float cloudDen(vec3 p, float detail, float lod, float deck){
   vec2 dh=p.xy-eye.xy;
   float alt=p.z+dot(dh,dh)*7.848e-8;
   float ph=clamp((alt-1500.0)/2700.0, 0.0, 1.0);
   float grad=smoothstep(0.0, mix(0.10, 0.20, lod), ph)*smoothstep(1.0, mix(0.58, 0.40, lod), ph);
   float sc=cloudScale*mix(1.0, 0.14, lod);
-  vec3 uv=vec3((p.x+cloudDrift)*sc, (p.y+cloudDrift*0.42)*sc, ph*mix(0.58, 0.06, lod)+0.13);
-  if(detail>0.5){
+  float zK=mix(0.58, 0.03, max(smoothstep(0.12, 0.55, lod), deck));
+  vec3 uv=vec3((p.x+cloudDrift)*sc, (p.y+cloudDrift*0.42)*sc, ph*zK+0.13);
+  if(detail>0.02){
     vec2 w=texture(noise, uv*1.8+vec3(0.6,2.4,1.3)).rg;
-    uv+=vec3(w.x-0.5, w.y-0.5, (w.x-w.y)*0.4)*0.22;
+    uv+=vec3(w.x-0.5, w.y-0.5, (w.x-w.y)*0.4)*0.22*detail;
   }
   vec2 n=texture(noise, uv).rg;
   float edge=0.78-cloudCov*0.62;
   float gate=smoothstep(edge, edge+mix(0.10, 0.28, lod), n.g);
   float core=smoothstep(mix(0.40, 0.22, lod), mix(0.72, 0.92, lod), n.r);
-  if(detail>0.5){
+  if(detail>0.02){
     float mid=texture(noise, uv*2.15+vec3(1.7,3.4,0.5)).r;
-    float fine=texture(noise, uv*3.8+vec3(4.1,0.8,2.6)).r;
-    float lump=mid*0.58+fine*0.42;
-    core=clamp((core-(1.0-lump)*0.40)/0.60, 0.0, 1.0);
+    float lump=mid;
+    if(detail>0.65){
+      float fine=texture(noise, uv*3.8+vec3(4.1,0.8,2.6)).r;
+      lump=mid*0.58+fine*0.42;
+    }
+    core=mix(core, clamp((core-(1.0-lump)*0.40)/0.60, 0.0, 1.0), detail);
   }
   return core*gate*grad;
 }
-float lightBeer(vec3 p, vec3 sd, float lod){
+float lightBeer(vec3 p, vec3 sd, float lod, float deck){
   float tau=0.0, ls=mix(240.0, 1100.0, lod);
-  for(int i=0;i<5;i++){ p+=sd*ls; tau+=cloudDen(p, 0.0, lod)*ls; }
+  for(int i=0;i<5;i++){ p+=sd*ls; tau+=cloudDen(p, 0.0, lod, deck)*ls; }
   return exp(-tau*0.0026);
 }
 void main(){
@@ -608,36 +612,117 @@ void main(){
       if(t>0.0&&t<tHit) tHit=t;
     }
   }
-  if(tHit<tIn){ fragColor=vec4(0.0); return; }
-  tOut=min(tOut, tHit-2.0);
+  if(tHit>tIn) tOut=min(tOut, tHit-2.0);
   if(tOut<=tIn){ fragColor=vec4(0.0); return; }
   tOut=min(tOut, 220000.0);
-  float dt=clamp((tOut-tIn)/36.0, 120.0, 2400.0);
+  float dt=clamp((tOut-tIn)/40.0, 120.0, mix(420.0, 2400.0, smoothstep(12000.0, 55000.0, tIn)));
   float ign=fract(52.9829189*fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
-  float t=tIn+dt*ign, T=1.0;
+  float t=tIn+dt*ign, T=1.0, tAcc=0.0;
+  float deck=smoothstep(0.30, 0.06, rd.z);
   vec3 col=vec3(0.0);
-  for(int i=0;i<36;i++){
+  for(int i=0;i<40;i++){
     if(T<0.04||t>tOut) break;
-    vec3 p=ro+rd*t;
-    float lod=smoothstep(10000.0, 36000.0, t);
-    float den=cloudDen(p, lod<0.35?1.0:0.0, lod)*smoothstep(210000.0, 140000.0, t);
+    float j=fract(ign+float(i)*0.61803398875);
+    vec3 p=ro+rd*(t+(j-0.5)*dt);
+    float lod=max(smoothstep(7000.0, 26000.0, t), smoothstep(0.28, 0.05, rd.z)*smoothstep(3000.0, 12000.0, t));
+    float detail=smoothstep(15000.0, 4500.0, t)*smoothstep(0.035, 0.16, rd.z);
+    float den=cloudDen(p, detail, lod, deck)*smoothstep(210000.0, 140000.0, t);
     if(den>0.02){
-      float beer=lightBeer(p, sd, lod);
+      float beer=lightBeer(p, sd, lod, deck);
       float silver=pow(clamp(dot(rd, sd), 0.0, 1.0), 5.0);
       vec3 lin=sunCol*beer*mix(0.55, 1.55, silver)*(0.20+0.80*max(sunMu,0.0))+amb*(0.28+0.35*beer);
       float a=1.0-exp(-den*dt*0.0032);
-      col+=lin*a*T;
+      float w=a*T;
+      col+=lin*w;
+      tAcc+=t*w;
       T*=1.0-a;
     }
     t+=dt;
   }
-  fragColor=vec4(col, 1.0-T);
+  float alpha=1.0-T;
+  if(alpha>0.02){
+    float tMean=tAcc/alpha;
+    float comp=atan(rd.x, rd.y); if(comp<0.0) comp+=6.28318530718;
+    float elevDeg=asin(clamp(rd.z,-1.0,1.0))*57.2957795;
+    vec3 skyC=texture(sky, vec2((fract(comp*57.2957795/360.0)*na+0.5)/(na+1.0), ((90.0-max(elevDeg,0.0))/90.0*nr+0.5)/(nr+1.0))).rgb;
+    float tau=tMean*0.000011*(0.10+0.90*smoothstep(0.42, 0.012, rd.z));
+    float fog=min(0.78, 1.0-exp(-tau));
+    col=mix(col, skyC*alpha, fog);
+  }
+  fragColor=vec4(col, alpha);
 }`;
 const COMPFS=`#version 300 es
 precision highp float;
 uniform sampler2D cloudTex; uniform vec2 res;
+uniform float yaw,pitch,fov,showScn;
+uniform vec3 eye;
+uniform vec4 obj[12];
+uniform float kind[12];
 out vec4 fragColor;
-void main(){ fragColor=texture(cloudTex, gl_FragCoord.xy/res); }
+float coneT(vec3 ro,vec3 rd,vec2 c,float R,float h){
+  float k=R/max(h,0.001);
+  vec3 f=vec3(ro.x-c.x, ro.y-c.y, h-ro.z);
+  float A=rd.x*rd.x+rd.y*rd.y-k*k*rd.z*rd.z;
+  if(abs(A)<1e-5) return -1.0;
+  float B=2.0*(f.x*rd.x+f.y*rd.y+k*k*f.z*rd.z);
+  float C=f.x*f.x+f.y*f.y-k*k*f.z*f.z;
+  float disk=B*B-4.0*A*C; if(disk<0.0) return -1.0;
+  float s=sqrt(disk), t0=(-B-s)/(2.0*A), t1=(-B+s)/(2.0*A), t=-1.0;
+  if(t0>0.05){ float z=ro.z+rd.z*t0; if(z>=0.0&&z<=h) t=t0; }
+  if(t1>0.05){ float z=ro.z+rd.z*t1; if(z>=0.0&&z<=h&&(t<0.0||t1<t)) t=t1; }
+  return t;
+}
+float boxT(vec3 ro,vec3 rd,vec2 c,float r,float h){
+  vec3 mn=vec3(c.x-r,c.y-r,0.0), mx=vec3(c.x+r,c.y+r,h);
+  float tn=0.0, tf=1e8;
+  if(abs(rd.x)<1e-5){ if(ro.x<mn.x||ro.x>mx.x) return -1.0; }
+  else { float a=(mn.x-ro.x)/rd.x, b=(mx.x-ro.x)/rd.x; if(a>b){ float s=a; a=b; b=s; } tn=max(tn,a); tf=min(tf,b); if(tn>tf) return -1.0; }
+  if(abs(rd.y)<1e-5){ if(ro.y<mn.y||ro.y>mx.y) return -1.0; }
+  else { float a=(mn.y-ro.y)/rd.y, b=(mx.y-ro.y)/rd.y; if(a>b){ float s=a; a=b; b=s; } tn=max(tn,a); tf=min(tf,b); if(tn>tf) return -1.0; }
+  if(abs(rd.z)<1e-5){ if(ro.z<mn.z||ro.z>mx.z) return -1.0; }
+  else { float a=(mn.z-ro.z)/rd.z, b=(mx.z-ro.z)/rd.z; if(a>b){ float s=a; a=b; b=s; } tn=max(tn,a); tf=min(tf,b); if(tn>tf) return -1.0; }
+  return tn>0.05?tn:(tf>0.05?tf:-1.0);
+}
+float ellT(vec3 ro,vec3 rd,vec2 c,float R,float H){
+  vec3 f=vec3((ro.x-c.x)/R,(ro.y-c.y)/R,ro.z/H), d=vec3(rd.x/R,rd.y/R,rd.z/H);
+  float A=dot(d,d), B=2.0*dot(f,d), C=dot(f,f)-1.0, disk=B*B-4.0*A*C;
+  if(disk<0.0||A<1e-8) return -1.0;
+  float s=sqrt(disk), t0=(-B-s)/(2.0*A), t1=(-B+s)/(2.0*A), t=-1.0;
+  if(t0>0.05&&ro.z+rd.z*t0>=0.0) t=t0;
+  if(t1>0.05&&ro.z+rd.z*t1>=0.0&&(t<0.0||t1<t)) t=t1;
+  return t;
+}
+float shellT(vec3 ro, vec3 rd, float H){
+  float rise=H-ro.z;
+  if(rise<=0.0) return -1.0;
+  float B=rd.z;
+  float disc=B*B+4.0*dot(rd.xy,rd.xy)*7.848e-8*rise;
+  if(disc<=0.0) return -1.0;
+  return (2.0*rise)/(B+sqrt(disc));
+}
+void main(){
+  vec4 c=texture(cloudTex, gl_FragCoord.xy/res);
+  if(c.a<0.004||showScn<0.5){ fragColor=c; return; }
+  float aspect=res.x/max(res.y,1.0); float fy=tan(fov*0.5); float fx=fy*aspect;
+  float u=((gl_FragCoord.x/res.x)*2.0-1.0)*fx;
+  float v=((gl_FragCoord.y/res.y)*2.0-1.0)*fy;
+  float cp=cos(pitch), sp=sin(pitch), cy=cos(yaw), sy=sin(yaw);
+  vec3 rd=normalize(vec3(sy*cp, cy*cp, sp)+u*vec3(cy,-sy,0.0)+v*vec3(-sy*sp,-cy*sp,cp));
+  vec3 ro=eye;
+  float tIn=shellT(ro, rd, 1500.0);
+  if(tIn<0.0){ fragColor=c; return; }
+  float tHit=1e8;
+  for(int i=0;i<12;i++){
+    float kk=kind[i]; if(kk<0.5) continue;
+    vec4 q=obj[i]; float t=-1.0;
+    if(kk>3.5&&kk<4.5) t=boxT(ro,rd,q.xy,q.z,q.w);
+    else if(kk>2.5&&kk<3.5) t=ellT(ro,rd,q.xy,q.z,q.w);
+    else t=coneT(ro,rd,q.xy,q.z,q.w);
+    if(t>0.0&&t<tHit) tHit=t;
+  }
+  if(tHit<tIn){ fragColor=vec4(0.0); return; }
+  fragColor=c;
+}
 `;
 function makeCloudNoise(){
   const N=64, data=new Uint8Array(N*N*N*4);
@@ -727,7 +812,7 @@ function initVR(){
     const pp=gl.createProgram(); gl.attachShader(pp,vs); gl.attachShader(pp,compFs); gl.bindAttribLocation(pp,0,'a'); gl.linkProgram(pp);
     if(!gl.getProgramParameter(cp, gl.LINK_STATUS)||!gl.getProgramParameter(pp, gl.LINK_STATUS)){ console.warn(gl.getProgramInfoLog(cp)||gl.getProgramInfoLog(pp)); }
     else {
-      const cu={}; for(const n of ['res','yaw','pitch','fov','eye','sunAz','sunEl','sunCol','sunMu','amb','showScn','cloudCov','cloudScale','cloudDrift']) cu[n]=gl.getUniformLocation(cp, n);
+      const cu={}; for(const n of ['res','yaw','pitch','fov','eye','sunAz','sunEl','sunCol','sunMu','amb','showScn','cloudCov','cloudScale','cloudDrift','nr','na']) cu[n]=gl.getUniformLocation(cp, n);
       cu.obj=gl.getUniformLocation(cp,'obj[0]'); cu.kind=gl.getUniformLocation(cp,'kind[0]');
       const noise=gl.createTexture();
       gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_3D, noise);
@@ -738,9 +823,10 @@ function initVR(){
       gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_S, gl.REPEAT);
       gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_T, gl.REPEAT);
       gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_R, gl.REPEAT);
-      gl.useProgram(cp); gl.uniform1i(gl.getUniformLocation(cp,'noise'), 1); gl.uniform1f(cu.fov, 70*Math.PI/180);
-      const compU={res:gl.getUniformLocation(pp,'res')};
-      gl.useProgram(pp); gl.uniform1i(gl.getUniformLocation(pp,'cloudTex'), 2);
+      gl.useProgram(cp); gl.uniform1i(gl.getUniformLocation(cp,'noise'), 1); gl.uniform1i(gl.getUniformLocation(cp,'sky'), 0); gl.uniform1f(cu.fov, 70*Math.PI/180);
+      const compU={}; for(const n of ['res','yaw','pitch','fov','showScn']) compU[n]=gl.getUniformLocation(pp, n);
+      compU.eye=gl.getUniformLocation(pp,'eye'); compU.obj=gl.getUniformLocation(pp,'obj[0]'); compU.kind=gl.getUniformLocation(pp,'kind[0]');
+      gl.useProgram(pp); gl.uniform1i(gl.getUniformLocation(pp,'cloudTex'), 2); gl.uniform1f(compU.fov, 70*Math.PI/180);
       const cloudTex=gl.createTexture();
       gl.bindTexture(gl.TEXTURE_2D, cloudTex);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
@@ -826,6 +912,8 @@ function paintVR(){
     gl.uniform3fv(cu.sunCol, new Float32Array(skyNow.sunRGB.map(v=>v/255)));
     const cg=skyNow.colgrid, ay=Math.min(cg.length-1, Math.round((cg.length-1)*0.25)), ap=cg[ay][Math.floor(cg[ay].length/2)];
     gl.uniform3f(cu.amb, ap[0]/255, ap[1]/255, ap[2]/255);
+    gl.uniform1f(cu.nr, cg.length-1); gl.uniform1f(cu.na, cg[0].length-1);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.uniform1f(cu.showScn, vrScenery?1:0);
     gl.uniform1f(cu.cloudCov, field.cov); gl.uniform1f(cu.cloudScale, field.scale); gl.uniform1f(cu.cloudDrift, cloudScroll);
     gl.uniform4fv(cu.obj, sc.o); gl.uniform1fv(cu.kind, sc.k);
@@ -834,7 +922,12 @@ function paintVR(){
     gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.useProgram(vrGL.compProg);
     gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, vrGL.cloudTex);
-    gl.uniform2f(vrGL.compU.res, c.width, c.height);
+    const pu=vrGL.compU;
+    gl.uniform2f(pu.res, c.width, c.height);
+    gl.uniform1f(pu.yaw, vrYaw*Math.PI/180); gl.uniform1f(pu.pitch, vrPitch*Math.PI/180);
+    gl.uniform3f(pu.eye, vrX, vrY, 2);
+    gl.uniform1f(pu.showScn, vrScenery?1:0);
+    gl.uniform4fv(pu.obj, sc.o); gl.uniform1fv(pu.kind, sc.k);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     gl.disable(gl.BLEND);
   }
