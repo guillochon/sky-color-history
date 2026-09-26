@@ -79,7 +79,7 @@ button.tick.on{background:none;color:var(--ink)}
 .hint{font-size:.85rem;color:var(--ink2)}
 @media (max-width:760px){.tick .lb{visibility:hidden}.tick.on .lb{visibility:visible}.tick:first-child .lb,.tick:last-child .lb{visibility:visible}.tick.on .lb{background:var(--bg);padding:0 .3rem}}
 .tick.on .lb{background:var(--bg);padding:0 .3rem;border-radius:2px}
-@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}.vrbtn{animation:none}}
 .tip{position:absolute;pointer-events:none;background:rgba(20,22,30,.92);color:#fff;font-size:.85rem;padding:.3rem .5rem .3rem .35rem;border-radius:3px;display:none;white-space:nowrap;z-index:5;transform:translate(14px,-50%)}
 .tip i{display:inline-block;width:1.1em;height:1.1em;border-radius:2px;vertical-align:-3px;margin-right:.4em;border:1px solid rgba(255,255,255,.5)}
 .stage canvas{cursor:crosshair}
@@ -88,7 +88,8 @@ button.tick.on{background:none;color:var(--ink)}
 .repo{display:inline-flex;align-items:center;gap:.4rem;color:var(--ink2);font-size:.95rem;text-decoration:none;white-space:nowrap}
 .repo svg{width:1.05em;height:1.05em;display:block;fill:currentColor}
 .repo:hover{color:var(--ink)}
-.vrbtn{position:absolute;top:.55rem;right:.55rem;z-index:6;color:#1c1400;background:#ffc400;border:2px solid #fff4c2;font-size:1.35rem;font-weight:700;letter-spacing:.14em;padding:.5rem 1.15rem;border-radius:6px;box-shadow:0 0 0 4px rgba(255,196,0,.45),0 8px 24px rgba(0,0,0,.45)}
+@keyframes vrpulse{0%,100%{transform:scale(1);box-shadow:0 0 0 4px rgba(255,196,0,.5),0 8px 24px rgba(0,0,0,.45)}50%{transform:scale(1.08);box-shadow:0 0 0 14px rgba(255,196,0,0),0 10px 28px rgba(0,0,0,.5)}}
+.vrbtn{position:absolute;top:.55rem;right:.55rem;z-index:6;color:#1c1400;background:#ffc400;border:2px solid #fff4c2;font-size:1.35rem;font-weight:700;letter-spacing:.14em;padding:.5rem 1.15rem;border-radius:6px;box-shadow:0 0 0 4px rgba(255,196,0,.45),0 8px 24px rgba(0,0,0,.45);animation:vrpulse 1.8s ease-in-out infinite}
 .vrbtn:hover{color:#1c1400;background:#ffd84a}
 #vr{display:none;position:fixed;inset:0;z-index:40;background:#000;overflow:hidden;cursor:none}
 #vr.on{display:block}
@@ -421,7 +422,7 @@ const LAND={ // stand-in surface color, not from the radiative-transfer model
   proterozoic22:[.16,.18,.11], snowball07:[.78,.82,.86], carbon30:[.12,.22,.08],
   kpg66:[.17,.15,.13], volcanic:[.18,.16,.14], modern:[.15,.22,.09], modernpoll:[.17,.18,.11]
 };
-let skyNow=null, skyGen=0, skyUploaded=-1, vrOn=false, vrYaw=0, vrPitch=8, vrX=0, vrY=0, vrScenery=true, vrClouds=true, cloudScroll=0, cloudMinPrev=null, vrRelock=false, vrGL=null, vrRAF=0, vrWalk=0, vrWalkStamp=0;
+let skyNow=null, skyGen=0, skyUploaded=-1, vrOn=false, vrYaw=0, vrPitch=8, vrX=0, vrY=0, vrScenery=true, vrClouds=true, cloudScroll=0, cloudMinPrev=null, vrRelock=false, vrGL=null, vrRAF=0, vrWalk=0, vrWalkStamp=0, vrNav=false, vrLinkKey='';
 const vrHeld=new Set();
 const VRFS=`#version 300 es
 precision highp float;
@@ -958,6 +959,8 @@ function paintVR(){
   document.getElementById('vrplace').textContent=EP[dIdx].name+' · '+lat;
   document.querySelector('.vrnote').textContent=vrCaption();
   document.getElementById('vrclock').textContent=hh+':'+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0')+' · '+(dayPlaying?'playing':'paused');
+  const linkKey=EP[dIdx].key+'|'+dLat+'|'+(hh*60+mm);
+  if(linkKey!==vrLinkKey){ vrLinkKey=linkKey; syncVRLink(); }
 }
 function requestVR(){ if(!vrOn||vrRAF) return; vrRAF=requestAnimationFrame(()=>{ vrRAF=0; paintVR(); }); }
 function lookVR(dx, dy){ vrYaw=(vrYaw+dx*0.1)%360; if(vrYaw<0) vrYaw+=360; vrPitch=Math.max(-80, Math.min(85, vrPitch-dy*0.1)); requestVR(); }
@@ -993,7 +996,51 @@ function stepMinutes(d){
 function stepEpoch(d){
   dIdx=(dIdx+d%EP.length+EP.length)%EP.length; sel.value=String(dIdx); renderDay(); warm();
 }
-function enterVR(){
+function vrQuery(){
+  const q=new URLSearchParams(location.search);
+  q.set('vr','1');
+  q.set('epoch', EP[dIdx].key);
+  q.set('lat', dLat==='Equator'?'equator':dLat==='Polar'?'75':'45');
+  q.set('t', String(Math.floor(minutes)));
+  return q;
+}
+function vrLinkURL(){ return location.pathname+'?'+vrQuery().toString()+location.hash; }
+function syncVRLink(){
+  if(!vrOn||vrNav) return;
+  const url=vrLinkURL();
+  if(location.pathname+location.search+location.hash!==url) history.replaceState({vr:1},'',url);
+}
+function clearVRLink(){
+  const q=new URLSearchParams(location.search);
+  if(!q.has('vr')) return;
+  q.delete('vr');
+  const s=q.toString();
+  history.replaceState({},'',location.pathname+(s?'?'+s:'')+location.hash);
+}
+function applyLink(){
+  const q=new URLSearchParams(location.search);
+  const ep=q.get('epoch');
+  if(ep){
+    let idx=EP.findIndex(e=>e.key===ep);
+    if(idx<0 && /^\d+$/.test(ep)) idx=+ep;
+    if(idx>=0 && idx<EP.length){ dIdx=idx; sel.value=String(dIdx); }
+  }
+  const lat=(q.get('lat')||'').toLowerCase();
+  const latName={equator:'Equator','0':'Equator','45':'Mid-latitude',mid:'Mid-latitude','mid-latitude':'Mid-latitude','75':'Polar',polar:'Polar'}[lat];
+  if(latName){
+    dLat=latName;
+    document.querySelectorAll('[data-lat]').forEach(x=>x.setAttribute('aria-pressed', x.dataset.lat===latName?'true':'false'));
+  }
+  const raw=q.get('t');
+  if(raw){
+    let m=NaN;
+    if(raw.includes(':')){ const p=raw.split(':'); m=(+p[0])*60+(+p[1]||0); }
+    else m=+raw;
+    if(m>=240 && m<=1200){ minutes=m; hslider.value=String(minutes); }
+  }
+  return q.has('vr');
+}
+function enterVR(fromLink){
   if(!initVR()) return;
   vrOn=true; vrLockedOnce=false; vrX=0; vrY=0; vrHeld.clear(); const root=document.getElementById('vr'); root.classList.add('on'); root.setAttribute('aria-hidden','false');
   const g=sunGeom(LATDEG[dLat], minutes); vrYaw=g.az; const elev=90-g.sza; vrPitch=Math.max(-8, Math.min(15, elev-8));
@@ -1001,6 +1048,12 @@ function enterVR(){
   // Capture the pointer before the slow sky render, while the click is still a user gesture, so yaw is not stopped by the edge of the window.
   vrRelock=true; lockLook();
   if(!dayPlaying){ dayPlaying=true; if(minutes>=1200) minutes=240; hplay.textContent='Pause'; hplay.setAttribute('aria-pressed','true'); }
+  if(!vrNav){
+    const url=vrLinkURL();
+    if(fromLink===true) history.replaceState({vr:1},'',url);
+    else history.pushState({vr:1},'',url);
+    vrLinkKey=EP[dIdx].key+'|'+dLat+'|'+Math.floor(minutes);
+  }
   renderDay(false);
   adoptPlayRate();
   const fs=root.requestFullscreen?root.requestFullscreen():null; if(fs&&fs.catch) fs.catch(()=>{});
@@ -1011,7 +1064,8 @@ function lockLook(){
   const p=document.getElementById('vrc').requestPointerLock(); if(p&&p.catch) p.catch(()=>{});
 }
 function exitVR(){
-  if(!vrOn) return; vrOn=false; vrRelock=false; vrHeld.clear(); if(vrWalk){ cancelAnimationFrame(vrWalk); vrWalk=0; }
+  if(!vrOn) return; vrOn=false; vrRelock=false; vrLinkKey=''; vrHeld.clear(); if(vrWalk){ cancelAnimationFrame(vrWalk); vrWalk=0; }
+  if(!vrNav) clearVRLink();
   const root=document.getElementById('vr'); root.classList.remove('on','locked'); root.setAttribute('aria-hidden','true');
   document.body.style.overflow='';
   if(document.pointerLockElement) document.exitPointerLock();
@@ -1019,7 +1073,14 @@ function exitVR(){
   adoptPlayRate();
   renderDay(false);
 }
-document.getElementById('vrbtn').addEventListener('click', enterVR);
+document.getElementById('vrbtn').addEventListener('click', ()=>enterVR(false));
+window.addEventListener('popstate',()=>{
+  const want=new URLSearchParams(location.search).has('vr');
+  vrNav=true;
+  if(want&&!vrOn) enterVR(true);
+  else if(!want&&vrOn) exitVR();
+  vrNav=false;
+});
 const vrc=document.getElementById('vrc');
 window.addEventListener('mousemove', e=>{ if(!vrOn) return; if(!e.movementX&&!e.movementY) return; lookVR(e.movementX, e.movementY); });
 window.addEventListener('pointerdown', ()=>{ if(!vrOn||document.pointerLockElement===vrc) return; vrRelock=true; lockLook(); setTimeout(()=>{ vrRelock=false; }, 400); });
@@ -1062,7 +1123,10 @@ document.addEventListener('keydown',e=>{
   if(e.key==='ArrowRight'&&tIdx<EP.length-1){tslider.value=tIdx+1;showEpoch(tIdx+1);}
   if(e.key==='ArrowLeft'&&tIdx>0){tslider.value=tIdx-1;showEpoch(tIdx-1);}
 });
-showEpoch(11); renderDay(); warm();
+const openVR=applyLink();
+tslider.value=dIdx;
+showEpoch(dIdx); renderDay(); warm();
+if(openVR) enterVR(true);
 function colorTip(canvas, tip, inside){
   const ctx=canvas.getContext('2d'); let cur=null, copiedUntil=0, hovering=false, px=0, py=0;
   const refresh=()=>{
