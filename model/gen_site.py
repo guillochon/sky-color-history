@@ -792,7 +792,7 @@ const CLOUD_COV={
 };
 function cloudField(key){
   const cov=CLOUD_COV[key]??0.5;
-  return {cov, scale:1/(9000-cov*4200)};
+  return {cov, scale:1/(36000-cov*16800)};
 }
 function vrCaption(){
   if(vrScenery&&vrClouds) return 'The plain, the shapes, and the clouds are scenery. The sky is the model.';
