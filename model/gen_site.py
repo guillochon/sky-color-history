@@ -296,17 +296,17 @@ function renderDay(){
   // sun
   const sunc=rec.sun[Math.min(si+ (st>0.5?1:0), rec.sun.length-1)];
   const sX=xyY2XYZ(sunc); const sunRel = sX[1]/DAY.epochs['modern']['Equator'].sun[0][2];
-  // The tabulated disc is dark once its centre is down. Hold the last lit colour and
-  // clip the sprite to the sky so the setting disc shows as a partial circle.
+  // The table goes dark while the disc is still up. Hold the last visible colour
+  // and cut a hard disc on the sky edge so it sets as a partial circle.
+  const noonY=DAY.epochs['modern']['Equator'].sun[0][2];
   let drawI=Math.min(si+(st>0.5?1:0), rec.sun.length-1);
-  while(drawI>0 && rec.sun[drawI][2]<=0) drawI--;
-  const sXd=xyY2XYZ(rec.sun[drawI]); const sunRelD=sXd[1]/DAY.epochs['modern']['Equator'].sun[0][2];
+  while(drawI>0 && rec.sun[drawI][2]/noonY<=3e-4) drawI--;
+  const sXd=xyY2XYZ(rec.sun[drawI]); const sunRelD=sXd[1]/noonY;
   const SUNR=26, rr=R*sza/90, a=sunAz*Math.PI/180, sx=cx+rr*Math.sin(a), sy=cy-rr*Math.cos(a);
   if(rr-SUNR<R && sunRelD>3e-4){
     dctx.save(); dctx.beginPath(); dctx.arc(cx,cy,R,0,Math.PI*2); dctx.clip();
-    const op=Math.min(1,0.35+0.65*(Math.log10(sunRelD)+3.5)/3.5); const col=hex(tone(sXd, sXd[1], 0.95,0.4,0.98));
-    const grd=dctx.createRadialGradient(sx,sy,0,sx,sy,SUNR); grd.addColorStop(0,col); grd.addColorStop(0.35,col); grd.addColorStop(1,col+'00');
-    dctx.globalAlpha=op; dctx.fillStyle=grd; dctx.beginPath(); dctx.arc(sx,sy,SUNR,0,Math.PI*2); dctx.fill(); dctx.restore();
+    const col=hex(tone(sXd, sXd[1], 0.95,0.4,0.98));
+    dctx.globalAlpha=1; dctx.fillStyle=col; dctx.beginPath(); dctx.arc(sx,sy,SUNR,0,Math.PI*2); dctx.fill(); dctx.restore();
   }
   // compass + rim
   dctx.strokeStyle='rgba(255,255,255,.35)'; dctx.lineWidth=1.5; dctx.beginPath(); dctx.arc(cx,cy,R,0,7); dctx.stroke();
