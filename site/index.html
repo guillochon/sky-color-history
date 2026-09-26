@@ -399,7 +399,7 @@ const LAND={ // stand-in surface color, not from the radiative-transfer model
   proterozoic22:[.16,.18,.11], snowball07:[.78,.82,.86], carbon30:[.12,.22,.08],
   kpg66:[.17,.15,.13], volcanic:[.18,.16,.14], modern:[.15,.22,.09], modernpoll:[.17,.18,.11]
 };
-let skyNow=null, skyGen=0, skyUploaded=-1, vrOn=false, vrYaw=0, vrPitch=8, vrX=0, vrY=0, vrScenery=true, vrClouds=true, cloudScroll=0, cloudStamp=0, vrRelock=false, vrGL=null, vrRAF=0, vrWalk=0, vrWalkStamp=0;
+let skyNow=null, skyGen=0, skyUploaded=-1, vrOn=false, vrYaw=0, vrPitch=8, vrX=0, vrY=0, vrScenery=true, vrClouds=true, cloudScroll=0, cloudMinPrev=null, vrRelock=false, vrGL=null, vrRAF=0, vrWalk=0, vrWalkStamp=0;
 const vrHeld=new Set();
 const VRFS=`#version 300 es
 precision highp float;
@@ -551,12 +551,21 @@ float ellT(vec3 ro,vec3 rd,vec2 c,float R,float H){
 float cloudDen(vec3 p, float detail){
   float ph=clamp((p.z-1500.0)/2700.0, 0.0, 1.0);
   float grad=smoothstep(0.0, 0.10, ph)*smoothstep(1.0, 0.58, ph);
-  vec3 uv=vec3((p.x+cloudDrift)*cloudScale, p.y*cloudScale, ph*0.42+0.17);
+  vec3 uv=vec3((p.x+cloudDrift)*cloudScale, (p.y+cloudDrift*0.42)*cloudScale, ph*0.58+0.13);
+  if(detail>0.5){
+    vec2 w=texture(noise, uv*1.8+vec3(0.6,2.4,1.3)).rg;
+    uv+=vec3(w.x-0.5, w.y-0.5, (w.x-w.y)*0.4)*0.22;
+  }
   vec2 n=texture(noise, uv).rg;
   float edge=0.78-cloudCov*0.62;
   float gate=smoothstep(edge, edge+0.10, n.g);
   float core=smoothstep(0.40, 0.72, n.r);
-  if(detail>0.5) core*=0.78+0.22*texture(noise, uv*2.35+vec3(2.2,0.8,1.1)).r;
+  if(detail>0.5){
+    float mid=texture(noise, uv*2.15+vec3(1.7,3.4,0.5)).r;
+    float fine=texture(noise, uv*3.8+vec3(4.1,0.8,2.6)).r;
+    float lump=mid*0.58+fine*0.42;
+    core=clamp((core-(1.0-lump)*0.40)/0.60, 0.0, 1.0);
+  }
   return core*gate*grad;
 }
 float lightBeer(vec3 p, vec3 sd){
@@ -766,7 +775,7 @@ function paintVR(){
   if(!vrOn||!vrGL||!skyNow) return;
   const {gl,u,tex}=vrGL, c=gl.canvas;
   gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.disable(gl.BLEND);
-  gl.viewport(0,0,c.width,c.height); gl.uniform2f(u.res, c.width, c.height);
+  gl.viewport(0,0,c.width,c.height);
   if(skyUploaded!==skyNow.gen){
     const cg=skyNow.colgrid, h=cg.length, w=cg[0].length, data=new Uint8Array(w*h*4);
     for(let y=0;y<h;y++) for(let x=0;x<w;x++){ const p=cg[y][x], o=(y*w+x)*4; data[o]=p[0]; data[o+1]=p[1]; data[o+2]=p[2]; data[o+3]=255; }
@@ -776,6 +785,7 @@ function paintVR(){
   }
   gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex);
   gl.useProgram(vrGL.prog);
+  gl.uniform2f(u.res, c.width, c.height);
   gl.uniform1f(u.yaw, vrYaw*Math.PI/180); gl.uniform1f(u.pitch, vrPitch*Math.PI/180);
   gl.uniform3f(u.eye, vrX, vrY, 2);
   gl.uniform1f(u.sunAz, skyNow.sunAz); gl.uniform1f(u.sunEl, 90-skyNow.sza);
@@ -788,9 +798,8 @@ function paintVR(){
   gl.drawArrays(gl.TRIANGLES, 0, 6);
   if(vrClouds&&vrGL.cloudProg){
     const cw=Math.max(2,c.width>>1), ch=Math.max(2,c.height>>1);
-    const now=performance.now();
-    if(cloudStamp&&dayPlaying) cloudScroll+=Math.min(0.05,(now-cloudStamp)/1000)*28;
-    cloudStamp=now;
+    if(cloudMinPrev==null) cloudMinPrev=minutes;
+    else { let dm=minutes-cloudMinPrev; if(dm<-800) dm+=960; cloudMinPrev=minutes; cloudScroll+=dm*22; }
     const field=cloudField(EP[dIdx].key), cu=vrGL.cu;
     ensureCloudTarget(cw, ch);
     gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.cloudFbo);
