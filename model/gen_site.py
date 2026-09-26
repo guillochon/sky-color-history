@@ -585,22 +585,25 @@ float shellT(vec3 ro, vec3 rd, float H){
 float cloudNoise(vec2 plane, float z, float detail, float lod, float sc){
   vec3 uv=vec3(plane*sc, z);
   if(detail>0.02){
-    vec2 w=texture(noise, uv*1.8+vec3(0.6,2.4,1.3)).rg;
-    uv+=vec3(w.x-0.5, w.y-0.5, (w.x-w.y)*0.4)*0.22*detail;
+    vec2 w=texture(noise, uv*4.5+vec3(0.6,2.4,1.3)).rg;
+    uv+=vec3(w.x-0.5, w.y-0.5, (w.x-w.y)*0.4)*0.32*detail;
   }
   vec2 n=texture(noise, uv).rg;
   float edge=0.78-cloudCov*0.62;
   float gate=smoothstep(edge, edge+mix(0.10, 0.28, lod), n.g);
   float core=smoothstep(mix(0.40, 0.22, lod), mix(0.72, 0.92, lod), n.r);
-  if(detail>0.02){
-    float mid=texture(noise, uv*2.15+vec3(1.7,3.4,0.5)).r;
-    float lump=mid;
-    if(detail>0.65){
-      float fine=texture(noise, uv*3.8+vec3(4.1,0.8,2.6)).r;
-      lump=mid*0.58+fine*0.42;
-    }
-    core=mix(core, clamp((core-(1.0-lump)*0.40)/0.60, 0.0, 1.0), detail);
+  // The tile is about 28 km. These octaves put the previous cloud sizes back
+  // inside it: about 2 km, then 1 km, then half a kilometer up close.
+  float lump=texture(noise, uv*4.0+vec3(1.7,3.4,0.5)).r;
+  if(detail>0.15){
+    float mid=texture(noise, uv*8.5+vec3(2.2,0.4,1.1)).r;
+    lump=lump*0.62+mid*0.38;
   }
+  if(detail>0.65){
+    float fine=texture(noise, uv*15.0+vec3(4.1,0.8,2.6)).r;
+    lump=lump*0.70+fine*0.30;
+  }
+  core=mix(core, clamp((core-(1.0-lump)*0.50)/0.50, 0.0, 1.0), mix(0.82, 1.0, detail));
   return core*gate;
 }
 float cloudDen(vec3 p, float detail, float lod, float deck){
@@ -657,7 +660,7 @@ void main(){
     float j=fract(ign+float(i)*0.61803398875);
     vec3 p=ro+rd*(t+(j-0.5)*dt);
     float lod=max(smoothstep(7000.0, 26000.0, t), smoothstep(0.28, 0.05, rd.z)*smoothstep(3000.0, 12000.0, t));
-    float detail=smoothstep(15000.0, 4500.0, t)*smoothstep(0.035, 0.16, rd.z);
+    float detail=smoothstep(42000.0, 6000.0, t)*smoothstep(0.01, 0.09, rd.z);
     float den=cloudDen(p, detail, lod, deck);
     if(den>0.02){
       float beer=lightBeer(p, sd, lod, deck);
