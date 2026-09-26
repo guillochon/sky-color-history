@@ -595,15 +595,24 @@ float cloudDen(vec3 p, float detail, float lod, float deck){
     // On the curved deck a degree of pitch covers many times more ground than a
     // degree of yaw, so Cartesian noise is stretched left-right and squashed
     // toward the horizon. Polar coordinates give both axes the same angular size.
+    // The coarse sample sets the bank, about a third of the horizon across; the
+    // finer sample only mottles it, so the rim is not a row of identical cells.
     vec2 hw=dh+wind;
     float r=max(length(hw), 1.0);
     float az=atan(hw.x, hw.y);
-    float g=80000.0*(7.848e-8*r-1500.0/r);
-    float denF=cloudNoise(vec2(az*80000.0, g), zc, 0.0, lod, sc);
+    float S=25000.0;
+    float g=S*(7.848e-8*r-1500.0/r);
+    float zf=zc+0.16*sin(az*4.0);
+    vec2 pol=vec2(az*S, g);
+    float coarse=cloudNoise(pol*0.36, zf, 0.35, lod, sc);
+    float denF=coarse*(0.72+0.28*cloudNoise(pol, zf, 0.5, lod, sc));
     float seam=smoothstep(2.8, 3.1416, abs(az));
     if(seam>0.001){
       float az2=az-sign(az)*6.2831853;
-      denF=mix(denF, cloudNoise(vec2(az2*80000.0, g), zc, 0.0, lod, sc), seam);
+      vec2 pol2=vec2(az2*S, g);
+      float coarse2=cloudNoise(pol2*0.36, zf, 0.35, lod, sc);
+      float den2=coarse2*(0.72+0.28*cloudNoise(pol2, zf, 0.5, lod, sc));
+      denF=mix(denF, den2, seam);
     }
     den=mix(den, denF, far);
   }
