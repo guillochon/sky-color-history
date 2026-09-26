@@ -90,6 +90,9 @@ button.tick.on{background:none;color:var(--ink)}
 .repo{display:inline-flex;align-items:center;gap:.4rem;color:var(--ink2);font-size:.95rem;text-decoration:none;white-space:nowrap}
 .repo svg{width:1.05em;height:1.05em;display:block;fill:currentColor}
 .repo:hover{color:var(--ink)}
+.titlelinks{display:flex;flex-direction:column;align-items:flex-end;gap:.2rem}
+.report{color:var(--ink2);font-size:.95rem;white-space:nowrap}
+.report:hover{color:var(--ink)}
 @keyframes vrpulse{0%,100%{transform:scale(1);box-shadow:0 0 0 4px rgba(255,196,0,.5),0 8px 24px rgba(0,0,0,.45)}50%{transform:scale(1.08);box-shadow:0 0 0 14px rgba(255,196,0,0),0 10px 28px rgba(0,0,0,.5)}}
 .vrbtn{position:absolute;top:.55rem;right:.55rem;z-index:6;color:#1c1400;background:#ffc400;border:2px solid #fff4c2;font-size:1.35rem;font-weight:700;letter-spacing:.14em;padding:.5rem 1.15rem;border-radius:6px;box-shadow:0 0 0 4px rgba(255,196,0,.45),0 8px 24px rgba(0,0,0,.45);animation:vrpulse 1.8s ease-in-out infinite}
 .vrbtn:hover{color:#1c1400;background:#ffd84a}
@@ -105,7 +108,7 @@ button.tick.on{background:none;color:var(--ink)}
 .vrnote{max-width:48ch;text-align:right;font-size:.82rem;opacity:.9}
 #vrclock{font-size:1.25rem}
 </style></head><body><main>
-<div class="titlebar"><h1>Earth's sky <em>through time</em></h1><a class="repo" href="https://github.com/guillochon/sky-color-history"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.65-.18 1.35-.27 2.04-.27.68 0 1.35.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>GitHub</a></div>
+<div class="titlebar"><h1>Earth's sky <em>through time</em></h1><div class="titlelinks"><a class="repo" href="https://github.com/guillochon/sky-color-history"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.65-.18 1.35-.27 2.04-.27.68 0 1.35.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>GitHub</a><a class="report" href="main.pdf">see full report here</a></div></div>
 <p class="lede">An interactive companion to the sky-color reconstruction. Scrub the timeline to watch the atmosphere change from the steam-and-CO₂ Hadean to today, then pick an epoch and scrub through a day to see how its sky moved from dawn to dusk. Every color comes from the same spectral radiative-transfer model as the report.</p>
 
 <h2>Four and a half billion years</h2>
