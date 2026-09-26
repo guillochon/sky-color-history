@@ -90,10 +90,9 @@ button.tick.on{background:none;color:var(--ink)}
 .repo:hover{color:var(--ink)}
 .vrbtn{position:absolute;top:.55rem;right:.55rem;z-index:6;color:#1c1400;background:#ffc400;border:2px solid #fff4c2;font-size:1.35rem;font-weight:700;letter-spacing:.14em;padding:.5rem 1.15rem;border-radius:6px;box-shadow:0 0 0 4px rgba(255,196,0,.45),0 8px 24px rgba(0,0,0,.45)}
 .vrbtn:hover{color:#1c1400;background:#ffd84a}
-#vr{display:none;position:fixed;inset:0;z-index:40;background:#000;overflow:hidden}
+#vr{display:none;position:fixed;inset:0;z-index:40;background:#000;overflow:hidden;cursor:none}
 #vr.on{display:block}
-#vr canvas{position:absolute;inset:0;width:100%;height:100%;cursor:grab}
-#vr.locked canvas{cursor:none}
+#vr canvas{position:absolute;inset:0;width:100%;height:100%;cursor:none}
 .vrhud{position:absolute;inset:0;pointer-events:none;color:#fff;font-size:.98rem}
 .vrtop,.vrbot{position:absolute;left:0;right:0;display:flex;justify-content:space-between;gap:1rem;padding:.85rem 1.15rem;text-shadow:0 1px 3px #000}
 .vrtop{top:0;background:linear-gradient(rgba(8,10,16,.6),transparent);align-items:flex-start}
@@ -161,7 +160,7 @@ button.tick.on{background:none;color:var(--ink)}
 <div class="vrhud">
   <div class="vrtop"><div id="vrplace"></div><div id="vrclock"></div></div>
   <div class="vrbot">
-    <div class="vrkeys"><span>mouse to look</span><span><kbd>w</kbd><kbd>a</kbd><kbd>s</kbd><kbd>d</kbd> move</span><span><kbd>shift</kbd> faster</span><span><kbd>esc</kbd> leave</span><span><kbd>space</kbd> play / pause</span><span><kbd>←</kbd><kbd>→</kbd> step time</span><span><kbd>↑</kbd><kbd>↓</kbd> change era</span></div>
+    <div class="vrkeys"><span>mouse looks</span><span><kbd>w</kbd><kbd>a</kbd><kbd>s</kbd><kbd>d</kbd> move</span><span><kbd>shift</kbd> faster</span><span><kbd>h</kbd> scenery</span><span><kbd>esc</kbd> leave</span><span><kbd>space</kbd> play / pause</span><span><kbd>←</kbd><kbd>→</kbd> step time</span><span><kbd>↑</kbd><kbd>↓</kbd> change era</span></div>
     <div class="vrnote">The plain and the shapes are scenery. The sky is the model.</div>
   </div>
 </div>
@@ -421,12 +420,12 @@ const LAND={ // stand-in surface colour, not from the radiative-transfer model
   proterozoic22:[.16,.18,.11], snowball07:[.78,.82,.86], carbon30:[.12,.22,.08],
   kpg66:[.17,.15,.13], volcanic:[.18,.16,.14], modern:[.15,.22,.09], modernpoll:[.17,.18,.11]
 };
-let skyNow=null, skyGen=0, skyUploaded=-1, vrOn=false, vrYaw=0, vrPitch=8, vrX=0, vrY=0, vrGL=null, vrRAF=0, vrWalk=0, vrWalkStamp=0;
+let skyNow=null, skyGen=0, skyUploaded=-1, vrOn=false, vrYaw=0, vrPitch=8, vrX=0, vrY=0, vrScenery=true, vrGL=null, vrRAF=0, vrWalk=0, vrWalkStamp=0;
 const vrHeld=new Set();
 const VRFS=`#version 300 es
 precision highp float;
 uniform sampler2D sky; uniform vec2 res;
-uniform float yaw,pitch,fov,sunAz,sunEl,sunRad,sunOn,nr,na,sunMu;
+uniform float yaw,pitch,fov,sunAz,sunEl,sunRad,sunOn,nr,na,sunMu,showScn;
 uniform vec3 sunCol,ground,eye;
 uniform vec4 obj[12];
 uniform float kind[12];
@@ -499,6 +498,7 @@ void main(){
     if(t>0.0&&t<tBest&&t<tGround){ tBest=t; kBest=kk; hBest=q.w; nBest=n; pBest=ro+rd*t; if(dot(nBest,rd)>0.0) nBest=-nBest; }
   }
   vec3 col;
+  if(showScn<0.5) kBest=0.0;
   if(kBest>0.5){
     vec3 albedo=vec3(0.46,0.38,0.31);
     if(kBest>4.5) albedo=vec3(0.10,0.26,0.08);
@@ -520,7 +520,7 @@ void main(){
     }
     float hlen=length(rd.xy);
     float toward=hlen>1e-4?dot(rd.xy/hlen, vec2(sin(sunA),cos(sunA))):0.0;
-    vec3 gcol=ground*mix(0.9,1.08,clamp(toward*0.5+0.5,0.0,1.0));
+    vec3 gcol=showScn>0.5?ground*mix(0.9,1.08,clamp(toward*0.5+0.5,0.0,1.0)):vec3(0.02,0.025,0.04);
     float w=max(fwidth(elevDeg),0.04);
     col=mix(gcol, skyC, smoothstep(-w,w,elevDeg));
   }
@@ -547,7 +547,7 @@ function initVR(){
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-  const u={}; for(const n of ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','eye','nr','na','sunMu']) u[n]=gl.getUniformLocation(prog, n);
+  const u={}; for(const n of ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','eye','nr','na','sunMu','showScn']) u[n]=gl.getUniformLocation(prog, n);
   u.obj=gl.getUniformLocation(prog,'obj[0]'); u.kind=gl.getUniformLocation(prog,'kind[0]');
   gl.uniform1i(gl.getUniformLocation(prog,'sky'), 0);
   gl.uniform1f(u.fov, 70*Math.PI/180);
@@ -603,11 +603,13 @@ function paintVR(){
   gl.uniform1f(u.sunMu, Math.max(0, Math.sin(apparentEl(90-skyNow.sza)*Math.PI/180)));
   gl.uniform3fv(u.sunCol, new Float32Array(skyNow.sunRGB.map(v=>v/255)));
   gl.uniform3fv(u.ground, groundRGB());
+  gl.uniform1f(u.showScn, vrScenery?1:0);
   const sc=sceneFor(EP[dIdx].key); gl.uniform4fv(u.obj, sc.o); gl.uniform1fv(u.kind, sc.k);
   gl.drawArrays(gl.TRIANGLES, 0, 6);
   const hh=Math.floor(minutes/60), mm=Math.floor(minutes%60), ss=Math.floor((minutes%1)*60);
   const lat=dLat==='Polar'?'75°':dLat==='Mid-latitude'?'45°':'equator';
   document.getElementById('vrplace').textContent=EP[dIdx].name+' · '+lat;
+  document.querySelector('.vrnote').textContent=vrScenery?'The plain and the shapes are scenery. The sky is the model.':'Scenery is hidden. The sky is the model.';
   document.getElementById('vrclock').textContent=hh+':'+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0')+' · '+(dayPlaying?'playing':'paused');
 }
 function requestVR(){ if(!vrOn||vrRAF) return; vrRAF=requestAnimationFrame(()=>{ vrRAF=0; paintVR(); }); }
@@ -618,10 +620,10 @@ function stepWalk(dt){
   let f=0, s=0;
   if(vrHeld.has('w')) f++; if(vrHeld.has('s')) f--; if(vrHeld.has('d')) s++; if(vrHeld.has('a')) s--;
   if(!f&&!s) return;
-  const yaw=vrYaw*Math.PI/180, sp=(vrHeld.has('shift')?40:8)*dt, inv=Math.hypot(f,s);
+  const yaw=vrYaw*Math.PI/180, sp=(vrHeld.has('shift')?120:24)*dt, inv=Math.hypot(f,s);
   const east=(Math.sin(yaw)*f+Math.cos(yaw)*s)/inv*sp, north=(Math.cos(yaw)*f-Math.sin(yaw)*s)/inv*sp;
   const sc=sceneFor(EP[dIdx].key);
-  const hit=(x,y)=>{ for(let i=0;i<12;i++){ if(sc.k[i]<0.5) continue; const dx=x-sc.o[i*4], dy=y-sc.o[i*4+1], r=sc.o[i*4+2]+0.4; if(dx*dx+dy*dy<r*r) return true; } return false; };
+  const hit=(x,y)=>{ if(!vrScenery) return false; for(let i=0;i<12;i++){ if(sc.k[i]<0.5) continue; const dx=x-sc.o[i*4], dy=y-sc.o[i*4+1], r=sc.o[i*4+2]+0.4; if(dx*dx+dy*dy<r*r) return true; } return false; };
   const nx=vrX+east, ny=vrY+north;
   if(!hit(nx,ny)){ vrX=nx; vrY=ny; } else if(!hit(nx,vrY)) vrX=nx; else if(!hit(vrX,ny)) vrY=ny;
 }
@@ -666,11 +668,7 @@ function exitVR(){
 }
 document.getElementById('vrbtn').addEventListener('click', enterVR);
 const vrc=document.getElementById('vrc');
-let vrDrag=false;
-vrc.addEventListener('mousedown', ()=>{ vrDrag=true; });
-window.addEventListener('mouseup', ()=>{ vrDrag=false; });
-vrc.addEventListener('mousemove', e=>{ if(!vrOn) return; if(document.pointerLockElement!==vrc && !vrDrag) return; lookVR(e.movementX, e.movementY); });
-vrc.addEventListener('click', ()=>{ if(vrOn && document.pointerLockElement!==vrc){ const lk=vrc.requestPointerLock(); if(lk&&lk.catch) lk.catch(()=>{}); } });
+window.addEventListener('mousemove', e=>{ if(!vrOn) return; if(!e.movementX&&!e.movementY) return; lookVR(e.movementX, e.movementY); });
 let vrTX=0, vrTY=0;
 vrc.addEventListener('touchstart', e=>{ const t=e.touches[0]; vrTX=t.clientX; vrTY=t.clientY; }, {passive:true});
 vrc.addEventListener('touchmove', e=>{ if(!vrOn) return; const t=e.touches[0]; lookVR(t.clientX-vrTX, t.clientY-vrTY); vrTX=t.clientX; vrTY=t.clientY; e.preventDefault(); }, {passive:false});
@@ -689,6 +687,7 @@ document.addEventListener('keydown',e=>{
     const k=e.key.length===1?e.key.toLowerCase():e.key;
     if(k==='w'||k==='a'||k==='s'||k==='d'){ e.preventDefault(); vrHeld.add(k); if(e.shiftKey) vrHeld.add('shift'); if(!dayPlaying) pumpWalk(); return; }
     if(e.key==='Shift'){ vrHeld.add('shift'); return; }
+    if(k==='h'&&!e.repeat){ e.preventDefault(); vrScenery=!vrScenery; paintVR(); return; }
     if(e.key==='Escape'){ exitVR(); return; }
     if(e.key===' ' && !e.repeat){ e.preventDefault(); hplay.click(); return; }
     if(e.key==='ArrowRight'){ e.preventDefault(); stepMinutes(5); return; }
