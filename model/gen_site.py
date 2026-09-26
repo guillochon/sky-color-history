@@ -572,11 +572,11 @@ float ellT(vec3 ro,vec3 rd,vec2 c,float R,float H){
   return t;
 }
 float shellT(vec3 ro, vec3 rd, float H){
-  // Distance to a fixed height over the curved Earth. 7.848e-8 is 1/(2*6371 km).
+  // 3.75e-6 drops the 1.5 km base to the horizon at about 20 km.
   float rise=H-ro.z;
   if(rise<=0.0) return -1.0;
   float B=rd.z;
-  float disc=B*B+4.0*dot(rd.xy,rd.xy)*7.848e-8*rise;
+  float disc=B*B+4.0*dot(rd.xy,rd.xy)*3.75e-6*rise;
   if(disc<=0.0) return -1.0;
   return (2.0*rise)/(B+sqrt(disc));
 }
@@ -601,62 +601,16 @@ float cloudNoise(vec2 plane, float z, float detail, float lod, float sc){
   }
   return core*gate;
 }
-float hash13(vec3 p){
-  p=fract(p*0.1031);
-  p+=dot(p, p.zyx+31.32);
-  return fract((p.x+p.y)*p.z);
-}
-float vnoise(vec3 p){
-  vec3 i=floor(p), f=fract(p);
-  f=f*f*(3.0-2.0*f);
-  return mix(
-    mix(mix(hash13(i), hash13(i+vec3(1,0,0)), f.x), mix(hash13(i+vec3(0,1,0)), hash13(i+vec3(1,1,0)), f.x), f.y),
-    mix(mix(hash13(i+vec3(0,0,1)), hash13(i+vec3(1,0,1)), f.x), mix(hash13(i+vec3(0,1,1)), hash13(i+vec3(1,1,1)), f.x), f.y),
-    f.z);
-}
-float farDen(vec3 q){
-  // Warp the lattice so a sweep along the horizon is not a row of even cells.
-  vec3 w=vec3(
-    vnoise(q*0.31+vec3(1.2, 4.0, 0.3)),
-    vnoise(q*0.31+vec3(7.0, 2.1, 5.0)),
-    vnoise(q*0.31+vec3(3.4, 8.2, 1.1)));
-  vec3 qw=q+(w-0.5)*1.7;
-  float n=vnoise(qw);
-  float m=vnoise(qw*2.07+vec3(5.0, 1.2, 9.0));
-  float edge=0.66-cloudCov*0.42;
-  return smoothstep(0.50, 0.82, n)*smoothstep(edge, edge+0.28, m);
-}
 float cloudDen(vec3 p, float detail, float lod, float deck){
   vec2 dh=p.xy-eye.xy;
-  float alt=p.z+dot(dh,dh)*7.848e-8;
+  float alt=p.z+dot(dh,dh)*3.75e-6;
   float ph=clamp((alt-1500.0)/4900.0, 0.0, 1.0);
   float grad=smoothstep(0.0, mix(0.10, 0.20, lod), ph)*smoothstep(1.0, mix(0.58, 0.40, lod), ph);
   float sc=cloudScale*mix(1.0, 0.85, lod);
   float zK=mix(0.58, 0.03, max(smoothstep(0.12, 0.55, lod), deck));
   float zc=ph*zK+0.13;
   vec2 wind=vec2(cloudDrift, cloudDrift*0.42);
-  float den=cloudNoise(p.xy+wind, zc, detail, lod, sc);
-  float rho=length(dh);
-  // Overhead billows stay in world space. The curved rim uses the untiled field.
-  float far=smoothstep(12000.0, 28000.0, rho);
-  if(far>0.02){
-    // az and rad change together per degree. The drift is one slide of that
-    // chart, so the rim does not stretch on one side as time passes.
-    float az=atan(dh.x, dh.y);
-    float rad=7.848e-8*rho-1500.0/rho;
-    float slide=cloudDrift*0.000012;
-    float bow=vnoise(vec3(az*0.45+slide, 1.7, 0.4));
-    vec3 q=vec3(az*1.05+slide, rad*1.2+ph*2.6, bow*1.4+0.3);
-    float denF=farDen(q);
-    float seam=smoothstep(2.8, 3.1416, abs(az));
-    if(seam>0.001){
-      float az2=az-sign(az)*6.2831853;
-      float bow2=vnoise(vec3(az2*0.45+slide, 1.7, 0.4));
-      denF=mix(denF, farDen(vec3(az2*1.05+slide, q.y, bow2*1.4+0.3)), seam);
-    }
-    den=mix(den, denF, far);
-  }
-  return den*grad;
+  return cloudNoise(p.xy+wind, zc, detail, lod, sc)*grad;
 }
 float lightBeer(vec3 p, vec3 sd, float lod, float deck){
   float tau=0.0, ls=mix(240.0, 1100.0, lod);
@@ -688,8 +642,8 @@ void main(){
   }
   if(tHit>tIn) tOut=min(tOut, tHit-2.0);
   if(tOut<=tIn){ fragColor=vec4(0.0); return; }
-  tOut=min(tOut, 300000.0);
-  float dt=clamp((tOut-tIn)/40.0, 120.0, mix(420.0, 2400.0, smoothstep(12000.0, 55000.0, tIn)));
+  tOut=min(tOut, 55000.0);
+  float dt=clamp((tOut-tIn)/40.0, 80.0, mix(280.0, 700.0, smoothstep(4000.0, 18000.0, tIn)));
   float ign=fract(52.9829189*fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
   float t=tIn+dt*ign, T=1.0, tAcc=0.0;
   float deck=smoothstep(0.30, 0.06, rd.z);
@@ -700,7 +654,7 @@ void main(){
     vec3 p=ro+rd*(t+(j-0.5)*dt);
     float lod=max(smoothstep(7000.0, 26000.0, t), smoothstep(0.28, 0.05, rd.z)*smoothstep(3000.0, 12000.0, t));
     float detail=smoothstep(15000.0, 4500.0, t)*smoothstep(0.035, 0.16, rd.z);
-    float den=cloudDen(p, detail, lod, deck)*smoothstep(280000.0, 190000.0, t);
+    float den=cloudDen(p, detail, lod, deck);
     if(den>0.02){
       float beer=lightBeer(p, sd, lod, deck);
       float silver=pow(clamp(dot(rd, sd), 0.0, 1.0), 5.0);
@@ -770,7 +724,7 @@ float shellT(vec3 ro, vec3 rd, float H){
   float rise=H-ro.z;
   if(rise<=0.0) return -1.0;
   float B=rd.z;
-  float disc=B*B+4.0*dot(rd.xy,rd.xy)*7.848e-8*rise;
+  float disc=B*B+4.0*dot(rd.xy,rd.xy)*3.75e-6*rise;
   if(disc<=0.0) return -1.0;
   return (2.0*rise)/(B+sqrt(disc));
 }
