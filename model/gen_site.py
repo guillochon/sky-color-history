@@ -1093,24 +1093,6 @@ function playTone(midi, when, dur, type, level, dest){
     o.connect(g); o.start(when); o.stop(when+dur+0.02);
   }
 }
-function playKick(when){
-  const ctx=music.ctx, o=ctx.createOscillator(), g=ctx.createGain();
-  o.type='sine';
-  o.frequency.setValueAtTime(96, when);
-  o.frequency.exponentialRampToValueAtTime(40, when+0.14);
-  g.gain.setValueAtTime(0.3, when);
-  g.gain.exponentialRampToValueAtTime(0.0001, when+0.32);
-  o.connect(g); g.connect(music.master);
-  o.start(when); o.stop(when+0.34);
-}
-function playHat(when){
-  const ctx=music.ctx, src=ctx.createBufferSource(), hp=ctx.createBiquadFilter(), g=ctx.createGain();
-  src.buffer=music.noiseBuf; hp.type='highpass'; hp.frequency.value=7000;
-  g.gain.setValueAtTime(0.025, when);
-  g.gain.exponentialRampToValueAtTime(0.0001, when+0.045);
-  src.connect(hp); hp.connect(g); g.connect(music.master);
-  src.start(when); src.stop(when+0.05);
-}
 function scheduleVRMusic(){
   if(!music||music.ctx.state!=='running') return;
   const ctx=music.ctx, eighth=60/MUSIC_BPM/2;
@@ -1119,8 +1101,7 @@ function scheduleVRMusic(){
     const step=music.step, when=music.next+(step%2?eighth*0.16:0);
     const chord=MUSIC_CHORDS[Math.floor(step/32)%MUSIC_CHORDS.length];
     if(step%32===0){ for(let i=0;i<chord.length;i++) playTone(chord[i], when, eighth*33, 'sawtooth', 0.03, music.filter); }
-    if(step%8===0){ playKick(when); playTone(chord[0]-12, when, eighth*7.2, 'sine', 0.08, music.master); }
-    if(step%8===4) playHat(when);
+    if(step%8===0) playTone(chord[0]-12, when, eighth*7.2, 'sine', 0.08, music.master);
     const lead=MUSIC_LEAD[step%32];
     if(lead) playTone(lead, when, eighth*2.4, 'triangle', 0.05, music.filter);
     music.step++; music.next+=eighth;
@@ -1147,20 +1128,15 @@ function startVRMusic(){
     const ctx=new AC(), master=ctx.createGain();
     master.gain.value=0.0001;
     const filter=ctx.createBiquadFilter();
-    filter.type='lowpass'; filter.frequency.value=980; filter.Q.value=0.45;
+    filter.type='lowpass'; filter.frequency.value=640; filter.Q.value=0.4;
     const lfo=ctx.createOscillator(), lfoG=ctx.createGain();
-    lfo.frequency.value=0.055; lfoG.gain.value=220;
+    lfo.frequency.value=0.055; lfoG.gain.value=70;
     lfo.connect(lfoG); lfoG.connect(filter.frequency); lfo.start();
     const smear=ctx.createDelay(0.08), sg=ctx.createGain();
     smear.delayTime.value=0.024; sg.gain.value=0.28;
     filter.connect(smear); smear.connect(sg); sg.connect(master);
     filter.connect(master); master.connect(ctx.destination);
-    const noiseBuf=ctx.createBuffer(1, ctx.sampleRate*2, ctx.sampleRate), nd=noiseBuf.getChannelData(0);
-    for(let i=0;i<nd.length;i++) nd[i]=Math.random()*2-1;
-    const hiss=ctx.createBufferSource(), hp=ctx.createBiquadFilter(), hg=ctx.createGain();
-    hiss.buffer=noiseBuf; hiss.loop=true; hp.type='highpass'; hp.frequency.value=1600; hg.gain.value=0.007;
-    hiss.connect(hp); hp.connect(hg); hg.connect(master); hiss.start();
-    music={ctx, master, filter, noiseBuf, step:0, next:0, timer:0};
+    music={ctx, master, filter, step:0, next:0, timer:0};
   }
   if(!music.timer) music.timer=setInterval(scheduleVRMusic, 120);
   pokeVRMusic(); applyMusicGain();
