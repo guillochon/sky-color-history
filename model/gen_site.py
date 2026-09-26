@@ -570,18 +570,30 @@ float ellT(vec3 ro,vec3 rd,vec2 c,float R,float H){
   if(t1>0.05&&ro.z+rd.z*t1>=0.0&&(t<0.0||t1<t)) t=t1;
   return t;
 }
-float cloudDen(vec3 p, float detail){
-  float ph=clamp((p.z-1500.0)/2700.0, 0.0, 1.0);
-  float grad=smoothstep(0.0, 0.10, ph)*smoothstep(1.0, 0.58, ph);
-  vec3 uv=vec3((p.x+cloudDrift)*cloudScale, (p.y+cloudDrift*0.42)*cloudScale, ph*0.58+0.13);
+float shellT(vec3 ro, vec3 rd, float H){
+  // Distance to a fixed height over the curved Earth. 7.848e-8 is 1/(2*6371 km).
+  float rise=H-ro.z;
+  if(rise<=0.0) return -1.0;
+  float B=rd.z;
+  float disc=B*B+4.0*dot(rd.xy,rd.xy)*7.848e-8*rise;
+  if(disc<=0.0) return -1.0;
+  return (2.0*rise)/(B+sqrt(disc));
+}
+float cloudDen(vec3 p, float detail, float lod){
+  vec2 dh=p.xy-eye.xy;
+  float alt=p.z+dot(dh,dh)*7.848e-8;
+  float ph=clamp((alt-1500.0)/2700.0, 0.0, 1.0);
+  float grad=smoothstep(0.0, mix(0.10, 0.20, lod), ph)*smoothstep(1.0, mix(0.58, 0.40, lod), ph);
+  float sc=cloudScale*mix(1.0, 0.14, lod);
+  vec3 uv=vec3((p.x+cloudDrift)*sc, (p.y+cloudDrift*0.42)*sc, ph*mix(0.58, 0.06, lod)+0.13);
   if(detail>0.5){
     vec2 w=texture(noise, uv*1.8+vec3(0.6,2.4,1.3)).rg;
     uv+=vec3(w.x-0.5, w.y-0.5, (w.x-w.y)*0.4)*0.22;
   }
   vec2 n=texture(noise, uv).rg;
   float edge=0.78-cloudCov*0.62;
-  float gate=smoothstep(edge, edge+0.10, n.g);
-  float core=smoothstep(0.40, 0.72, n.r);
+  float gate=smoothstep(edge, edge+mix(0.10, 0.28, lod), n.g);
+  float core=smoothstep(mix(0.40, 0.22, lod), mix(0.72, 0.92, lod), n.r);
   if(detail>0.5){
     float mid=texture(noise, uv*2.15+vec3(1.7,3.4,0.5)).r;
     float fine=texture(noise, uv*3.8+vec3(4.1,0.8,2.6)).r;
@@ -590,9 +602,9 @@ float cloudDen(vec3 p, float detail){
   }
   return core*gate*grad;
 }
-float lightBeer(vec3 p, vec3 sd){
-  float tau=0.0, ls=240.0;
-  for(int i=0;i<5;i++){ p+=sd*ls; tau+=cloudDen(p, 0.0)*ls; }
+float lightBeer(vec3 p, vec3 sd, float lod){
+  float tau=0.0, ls=mix(240.0, 1100.0, lod);
+  for(int i=0;i<5;i++){ p+=sd*ls; tau+=cloudDen(p, 0.0, lod)*ls; }
   return exp(-tau*0.0026);
 }
 void main(){
@@ -604,10 +616,9 @@ void main(){
   vec3 ro=eye;
   float sunA=sunAz*0.01745329252, sunZen=(90.0-sunEl)*0.01745329252;
   vec3 sd=normalize(vec3(sin(sunA)*sin(sunZen), cos(sunA)*sin(sunZen), cos(sunZen)));
-  if(rd.z<0.02){ fragColor=vec4(0.0); return; }
-  float tIn=(1500.0-ro.z)/rd.z, tOut=(4200.0-ro.z)/rd.z;
-  if(tOut<tIn){ float s=tIn; tIn=tOut; tOut=s; }
-  tIn=max(tIn, 0.0);
+  if(rd.z<0.001){ fragColor=vec4(0.0); return; }
+  float tIn=shellT(ro, rd, 1500.0), tOut=shellT(ro, rd, 4200.0);
+  if(tIn<0.0||tOut<tIn){ fragColor=vec4(0.0); return; }
   float tHit=1e8;
   if(showScn>0.5){
     for(int i=0;i<12;i++){
@@ -621,18 +632,19 @@ void main(){
   }
   if(tHit<tIn){ fragColor=vec4(0.0); return; }
   tOut=min(tOut, tHit-2.0);
-  if(tOut<=tIn||tIn>11000.0){ fragColor=vec4(0.0); return; }
-  tOut=min(tOut, 11000.0);
-  float dt=160.0;
+  if(tOut<=tIn){ fragColor=vec4(0.0); return; }
+  tOut=min(tOut, 220000.0);
+  float dt=clamp((tOut-tIn)/36.0, 120.0, 2400.0);
   float ign=fract(52.9829189*fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
   float t=tIn+dt*ign, T=1.0;
   vec3 col=vec3(0.0);
-  for(int i=0;i<28;i++){
+  for(int i=0;i<36;i++){
     if(T<0.04||t>tOut) break;
     vec3 p=ro+rd*t;
-    float den=cloudDen(p, 1.0)*smoothstep(11000.0, 5000.0, t);
+    float lod=smoothstep(10000.0, 36000.0, t);
+    float den=cloudDen(p, lod<0.35?1.0:0.0, lod)*smoothstep(210000.0, 140000.0, t);
     if(den>0.02){
-      float beer=lightBeer(p, sd);
+      float beer=lightBeer(p, sd, lod);
       float silver=pow(clamp(dot(rd, sd), 0.0, 1.0), 5.0);
       vec3 lin=sunCol*beer*mix(0.55, 1.55, silver)*(0.20+0.80*max(sunMu,0.0))+amb*(0.28+0.35*beer);
       float a=1.0-exp(-den*dt*0.0032);
