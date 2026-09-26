@@ -205,17 +205,27 @@ const SZ=DAY.szas, VZ=DAY.vz, AZ=DAY.az;
 function sunGeom(lat,min){ const h=(min/60-12)*15*Math.PI/180, phi=lat*Math.PI/180; const cz=Math.cos(phi)*Math.cos(h); const z=Math.acos(Math.max(-1,Math.min(1,cz)))*180/Math.PI;
   const A=Math.atan2(Math.sin(h), Math.cos(h)*Math.sin(phi)); let comp=180+A*180/Math.PI; if(lat===0){ comp = h<0?90:270; } return {sza:z, az:((comp%360)+360)%360}; }
 function idx(xs,x){ if(x<=xs[0]) return [0,0]; for(let i=0;i<xs.length-1;i++) if(x<xs[i+1]) return [i,(x-xs[i])/(xs[i+1]-xs[i])]; return [xs.length-2,1]; }
-// interpolate XYZ of the dome grid at (sza, vz, azrel): linear in sza, cubic Hermite in vz and az
-function herm(xs, ys, x){ // ys: array of [X,Y,Z]; returns [X,Y,Z]
+// interpolate XYZ of the dome grid at (sza, vz, azrel): linear in sza, monotone cubic in vz and az
+function herm(xs, ys, x){ // PCHIP: ys is an array of [X,Y,Z]; stays between adjacent samples
   const n=xs.length; if(x<=xs[0]) return ys[0]; if(x>=xs[n-1]) return ys[n-1];
   let i=0; while(i<n-2 && x>=xs[i+1]) i++;
-  const h=xs[i+1]-xs[i], t=(x-xs[i])/h;
+  const h=xs[i+1]-xs[i], t=(x-xs[i])/h, t2=t*t, t3=t2*t;
+  const sgn=v=>v<0?-1:v>0?1:0;
+  const slope=(k,q)=>{
+    if(n<3) return (ys[1][q]-ys[0][q])/(xs[1]-xs[0]);
+    const at=k0=>{ const hl=xs[k0]-xs[k0-1], hr=xs[k0+1]-xs[k0];
+      const dl=(ys[k0][q]-ys[k0-1][q])/hl, dr=(ys[k0+1][q]-ys[k0][q])/hr;
+      if(dl*dr<=0) return 0; const w1=2*hr+hl, w2=hr+2*hl; return (w1+w2)/(w1/dl+w2/dr); };
+    if(k>0 && k<n-1) return at(k);
+    const left=k===0, h0=left?xs[1]-xs[0]:xs[n-1]-xs[n-2], h1=left?xs[2]-xs[1]:xs[n-2]-xs[n-3];
+    const d0=(left?ys[1][q]-ys[0][q]:ys[n-1][q]-ys[n-2][q])/h0, d1=(left?ys[2][q]-ys[1][q]:ys[n-2][q]-ys[n-3][q])/h1;
+    let m=((2*h0+h1)*d0-h0*d1)/(h0+h1);
+    if(sgn(m)!==sgn(d0)) m=0; else if(sgn(d0)!==sgn(d1) && Math.abs(m)>3*Math.abs(d0)) m=3*d0;
+    return m;
+  };
   const out=[0,0,0];
   for(let q=0;q<3;q++){
-    const y0=ys[i][q], y1=ys[i+1][q];
-    const m0 = i>0 ? (y1-ys[i-1][q])/(xs[i+1]-xs[i-1]) : (y1-y0)/h;
-    const m1 = i<n-2 ? (ys[i+2][q]-y0)/(xs[i+2]-xs[i]) : (y1-y0)/h;
-    const t2=t*t,t3=t2*t;
+    const y0=ys[i][q], y1=ys[i+1][q], m0=slope(i,q), m1=slope(i+1,q);
     out[q]=Math.max(0,(2*t3-3*t2+1)*y0+(t3-2*t2+t)*h*m0+(-2*t3+3*t2)*y1+(t3-t2)*h*m1);
   }
   return out;
