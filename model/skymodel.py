@@ -1,12 +1,12 @@
 """
-Paleo-sky colour model.
+Paleo-sky color model.
 - Spherical-shell atmosphere, numerical single scattering along the view ray
   (handles twilight geometry properly).
 - Multiple scattering + surface reflection added via a delta-Eddington
   two-stream layer (isotropic remainder), following the usual sky-render trick.
 - Components: Rayleigh gas (N2/O2/CO2/H2O mix), ozone Chappuis, tropospheric
   aerosol, stratospheric sulfate, Archean organic (tholin-like) haze, soot.
-- Colours via CIE 1931 2deg CMF analytic fit (Wyman, Sloan & Shirley 2013),
+- Colors via CIE 1931 2deg CMF analytic fit (Wyman, Sloan & Shirley 2013),
   Bradford-free: we show raw sRGB (D65 white point) with per-scene exposure.
 """
 import numpy as np
@@ -15,7 +15,7 @@ R_E = 6371.0  # km
 LAM = np.arange(380, 781, 10.0)  # nm
 L550 = LAM / 550.0
 
-# ---------------- CIE colour matching (analytic fit) ----------------
+# ---------------- CIE color matching (analytic fit) ----------------
 def _g(x, mu, s1, s2):
     s = np.where(x < mu, s1, s2)
     return np.exp(-0.5 * ((x - mu) / s) ** 2)
@@ -68,13 +68,13 @@ def solar_spectrum(T=5772.0, L=1.0):
     # relative spectral irradiance at top of atmosphere; L scales total luminosity
     S = planck(LAM, T)
     S = S / planck(LAM, 5772.0).max()
-    # crude Fraunhofer-free; normalise so modern Sun peaks at 1
+    # crude Fraunhofer-free; normalize so modern Sun peaks at 1
     return S * L * (5772.0/T)**4 * (planck(LAM,T).max()/planck(LAM,5772).max()) / (planck(LAM,T).max()/planck(LAM,5772).max())
 
 # ---------------- Optical components ----------------
 class Comp:
     """Optical component with column optical depth tau(lam), ssa(lam), HG g, and
-    vertical density profile n(h) (normalised so integral dh = 1)."""
+    vertical density profile n(h) (normalized so integral dh = 1)."""
     def __init__(self, name, tau, ssa, g, profile, rayleigh=False):
         self.name, self.tau, self.ssa, self.g, self.profile, self.rayleigh = name, tau, ssa, g, profile, rayleigh
 
@@ -157,8 +157,8 @@ def path_column(profile, h_start_r, dir_cos_local, hmax=120.0, n=200):
 # ---------------- Two-stream (delta-Eddington) for diffuse flux ----------------
 def delta_eddington(tau, w, g, mu0, albedo):
     """Returns downward diffuse flux at surface (incl. surface reflection contribution
-    handled via albedo) normalised to unit TOA irradiance on a horizontal surface? No:
-    normalised to TOA direct beam flux F0 (perpendicular)."""
+    handled via albedo) normalized to unit TOA irradiance on a horizontal surface? No:
+    normalized to TOA direct beam flux F0 (perpendicular)."""
     tau = np.asarray(tau, float); w = np.asarray(w, float); g = np.asarray(g, float)
     f = g**2
     tau_p = (1-w*f)*tau; w_p = (1-f)*w/(1-w*f); g_p = (g-f)/(1-f)

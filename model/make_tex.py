@@ -40,7 +40,7 @@ for k in order:
 
 \\begin{{figure}}[H]\\centering
 \\includegraphics[width=\\linewidth]{{figures/sky_{k}.png}}
-\\caption{{{tex(r['name'])}: noon sky dome at the equator (solar zenith angle $15^\\circ$), mid-latitude ($45^\\circ$) and polar summer ($75^\\circ$), zenith at top and horizon at bottom, with the Sun's disc drawn in its colour and relative brightness; below, the horizon-to-antisolar sky with the Sun on the horizon and $4^\\circ$ below it. Brightness relative to today's clean sky, gamma-compressed.}}
+\\caption{{{tex(r['name'])}: noon sky dome at the equator (solar zenith angle $15^\\circ$), mid-latitude ($45^\\circ$) and polar summer ($75^\\circ$), zenith at top and horizon at bottom, with the Sun's disk drawn in its color and relative brightness; below, the horizon-to-antisolar sky with the Sun on the horizon and $4^\\circ$ below it. Brightness relative to today's clean sky, gamma-compressed.}}
 \\label{{fig:sky_{k}}}
 \\end{{figure}}
 """
@@ -83,7 +83,7 @@ for k in order:
 {{\\normalsize\\bfseries {tex(r['name'])}\\par}}
 {{\\small\\itshape {tex(r['sub'])}\\par}}\\vspace{{3pt}}
 \\centering\\includegraphics[width=\\linewidth]{{figures/sky_{k}.png}}
-\\captionof{{figure}}{{{tex(r['name'])}. Top: noon sky dome at the equator, mid-latitude and polar summer, zenith at top, horizon at bottom, Sun's disc in its own colour. Below: sky from the solar horizon to the antisolar horizon with the Sun on the horizon and $4^\\circ$ below it.}}
+\\captionof{{figure}}{{{tex(r['name'])}. Top: noon sky dome at the equator, mid-latitude and polar summer, zenith at top, horizon at bottom, Sun's disk in its own color. Below: sky from the solar horizon to the antisolar horizon with the Sun on the horizon and $4^\\circ$ below it.}}
 \\end{{minipage}}\\par\\vspace{{4pt}}
 {tex(PROSE[k])}
 """
@@ -118,7 +118,7 @@ main = r"""\documentclass[9pt,twocolumn]{extarticle}
 \twocolumn[
 \begin{@twocolumnfalse}
 \vspace*{-6mm}
-{\color{sky}\fontsize{28}{30}\selectfont\bfseries The colour of Earth's sky,\\ 4.4 billion years to today\par}
+{\color{sky}\fontsize{28}{30}\selectfont\bfseries The color of Earth's sky,\\ 4.4 billion years to today\par}
 \vspace{6pt}
 {\large\color{ink} What the sky looked like from the ground---straight up and at the horizon, at the equator and the poles, at noon and at dusk---at thirteen moments in Earth's history, reconstructed with a spectral radiative-transfer model.\par}
 \vspace{4pt}
@@ -135,20 +135,20 @@ main = r"""\documentclass[9pt,twocolumn]{extarticle}
 \footnotesize
 \textbf{1.} Under the 30-bar CO$_2$ atmosphere of the early Hadean the sky was a shadowless peach-white glow with no visible Sun.\\
 \textbf{2.} During the hazy Neoarchean the whole dome was cream to apricot, with almost no difference between zenith and horizon.\\
-\textbf{3.} Before the Great Oxidation Event there was no ozone, so every twilight ended with a cream-coloured, not blue, zenith. A blue dusk is an optical fingerprint of oxygen.\\
+\textbf{3.} Before the Great Oxidation Event there was no ozone, so every twilight ended with a cream-colored, not blue, zenith. A blue dusk is an optical fingerprint of oxygen.\\
 \textbf{4.} Snowball Earth had the bluest sky in Earth's history; the K--Pg impact winter had no sunsets at all.\\
-\textbf{5.} The zenith-to-horizon colour gradient is the single best diagnostic of an atmosphere's state: largest in clean air, gone under haze or soot, reversed under volcanic sulfate.
+\textbf{5.} The zenith-to-horizon color gradient is the single best diagnostic of an atmosphere's state: largest in clean air, gone under haze or soot, reversed under volcanic sulfate.
 \end{tcolorbox}
 
 \section*{Has this been done before?}
 """ + sec('Has this been done before?').replace('Lynch \\& Mazuk (2005)', r'\citet{lynch2005}').replace('Peyvandi et al. (2016)', r'\citet{peyvandi2016}').replace('Lee \\& Mollner (2017)', r'\citet{lee2017}').replace('Catling \\& Zahnle (2020)', r'\citet{catling2020}').replace('Arney et al. (2016)', r'\citet{arney2016}').replace('Mak et al. (2023)', r'\citet{mak2023}').replace('Goldblatt et al. (2024)', r'\citet{goldblatt2024}') + r"""
 
-\section*{How the colours were computed}
-""" + sec('How the colours were computed') + r"""
+\section*{How the colors were computed}
+""" + sec('How the colors were computed') + r"""
 
-\textbf{The young Sun.} The Sun is treated as a blackbody whose effective temperature and luminosity follow standard solar-evolution tracks: 5,560\,K and 70\% of today's output at 4.4\,Ga, rising through 5,620\,K (75\%) at 3.8\,Ga, 5,660\,K (80\%) at 2.7\,Ga and 5,700\,K (85\%) at 2.2\,Ga to 5,772\,K today (Table~\ref{tab:epochs}). The colour effect is small: a 5,560\,K Sun is only about 200\,K cooler in colour temperature than the modern one, a difference that is barely perceptible side by side and is swamped by atmospheric effects ten to a hundred times larger. The brightness effect is not small, and is why the early-epoch skies are rendered dimmer. Fraunhofer lines and the young Sun's ultraviolet excess, which matter for haze photochemistry but not for visible colour, are ignored.
+\textbf{The young Sun.} The Sun is treated as a blackbody whose effective temperature and luminosity follow standard solar-evolution tracks: 5,560\,K and 70\% of today's output at 4.4\,Ga, rising through 5,620\,K (75\%) at 3.8\,Ga, 5,660\,K (80\%) at 2.7\,Ga and 5,700\,K (85\%) at 2.2\,Ga to 5,772\,K today (Table~\ref{tab:epochs}). The color effect is small: a 5,560\,K Sun is only about 200\,K cooler in color temperature than the modern one, a difference that is barely perceptible side by side and is swamped by atmospheric effects ten to a hundred times larger. The brightness effect is not small, and is why the early-epoch skies are rendered dimmer. Fraunhofer lines and the young Sun's ultraviolet excess, which matter for haze photochemistry but not for visible color, are ignored.
 
-The model is provided as the Python source \texttt{skymodel.py}; \texttt{run\_epochs.py} produces the sky colours and \texttt{limb\_grid.py} the limb and disk colours for the renderings. Epoch atmospheres are summarised in Table~\ref{tab:epochs}.
+The model is provided as the Python source \texttt{skymodel.py}; \texttt{run\_epochs.py} produces the sky colors and \texttt{limb\_grid.py} the limb and disk colors for the renderings. Epoch atmospheres are summarized in Table~\ref{tab:epochs}.
 
 \begin{table*}[t]\centering\footnotesize
 \caption{Atmospheres used for each epoch. Gas amounts are partial pressures in bar; AOD is tropospheric aerosol optical depth at 550\,nm; haze, sulfate and soot are column optical depths at 550\,nm; $T_{\rm eff}$ and $L_\odot$ are the assumed solar effective temperature and luminosity relative to today.}
@@ -173,7 +173,7 @@ Modern, polluted & modern air & 300 & 0.60 & -- & -- & -- & 5772 & 1.00 \\ \bott
 \end{table*}
 
 \begin{table*}[t]\centering\footnotesize
-\caption{Summary of sky colours by epoch (mid-latitude noon unless stated).}
+\caption{Summary of sky colors by epoch (mid-latitude noon unless stated).}
 \label{tab:summary}
 \rowcolors{2}{rowa}{white}
 \begin{tabularx}{\textwidth}{@{}lYYY@{}}\toprule
@@ -200,7 +200,7 @@ Epoch & Noon zenith & Horizon & Sunset \\ \midrule
 
 \begin{figure*}[t]\centering
 """ + globe_grid + r"""
-\caption{Volumetric renderings of the atmosphere at eight epochs. Equinox geometry with the Sun behind the viewer; the shell is the limb colour along tangent rays, drawn 30 times too thick (100\,km spans half an Earth radius); the disk is the planet's reflected colour over ocean (ice for Snowball Earth). Limb brightness is compressed so faint upper layers remain visible.}
+\caption{Volumetric renderings of the atmosphere at eight epochs. Equinox geometry with the Sun behind the viewer; the shell is the limb color along tangent rays, drawn 30 times too thick (100\,km spans half an Earth radius); the disk is the planet's reflected color over ocean (ice for Snowball Earth). Limb brightness is compressed so faint upper layers remain visible.}
 \label{fig:globes}
 \end{figure*}
 
@@ -209,7 +209,7 @@ Epoch & Noon zenith & Horizon & Sunset \\ \midrule
 
 \Needspace*{20\baselineskip}
 \section*{Epoch by epoch}
-The thirteen panels that follow are laid out identically so they can be compared at a glance. Each panel begins with the epoch's name and a one-line summary of the atmosphere assumed (Table~\ref{tab:epochs} gives the full parameters). The upper row shows the noon sky dome at three latitudes---the equator, a mid-latitude site and the summer pole---with the zenith at the top of each swatch and the horizon at the bottom, the correlated colour temperatures of both printed above, and the Sun's disc drawn in its own colour, at its noon elevation, and with a brightness that reflects how much of it survives the atmosphere (where the Sun would not be visible at all, the swatch says so). The two strips beneath trace the sky from the solar horizon across the zenith to the antisolar horizon at two moments: with the Sun sitting on the horizon, and with it $4^\circ$ below, in civil twilight. All swatches are shown at a brightness relative to today's clean sky, so a dim epoch reads as dim; the paragraph after each panel explains what the colours mean and why they arise.
+The thirteen panels that follow are laid out identically so they can be compared at a glance. Each panel begins with the epoch's name and a one-line summary of the atmosphere assumed (Table~\ref{tab:epochs} gives the full parameters). The upper row shows the noon sky dome at three latitudes---the equator, a mid-latitude site and the summer pole---with the zenith at the top of each swatch and the horizon at the bottom, the correlated color temperatures of both printed above, and the Sun's disk drawn in its own color, at its noon elevation, and with a brightness that reflects how much of it survives the atmosphere (where the Sun would not be visible at all, the swatch says so). The two strips beneath trace the sky from the solar horizon across the zenith to the antisolar horizon at two moments: with the Sun sitting on the horizon, and with it $4^\circ$ below, in civil twilight. All swatches are shown at a brightness relative to today's clean sky, so a dim epoch reads as dim; the paragraph after each panel explains what the colors mean and why they arise.
 """ + epoch_blocks + r"""
 
 \section*{Caveats}
@@ -224,7 +224,7 @@ The thirteen panels that follow are laid out identically so they can be compared
 \scriptsize
 \rowcolors{2}{rowa}{white}
 \begin{longtable}{@{}llllllr@{}}
-\caption{CIE 1931 chromaticity $(x,y)$ and correlated colour temperature of the noon zenith and horizon sky, and direct-Sun brightness relative to the modern equatorial Sun.}\\ \toprule
+\caption{CIE 1931 chromaticity $(x,y)$ and correlated color temperature of the noon zenith and horizon sky, and direct-Sun brightness relative to the modern equatorial Sun.}\\ \toprule
 Epoch & Latitude & Zenith $(x,y)$ & CCT (K) & Horizon $(x,y)$ & CCT (K) & Sun \\ \midrule \endfirsthead
 \toprule Epoch & Latitude & Zenith $(x,y)$ & CCT (K) & Horizon $(x,y)$ & CCT (K) & Sun \\ \midrule \endhead
 """ + data_rows + r"""\bottomrule

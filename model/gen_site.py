@@ -103,10 +103,10 @@ button.tick.on{background:none;color:var(--ink)}
 #vrclock{font-size:1.25rem}
 </style></head><body><main>
 <div class="titlebar"><h1>Earth's sky <em>through time</em></h1><a class="repo" href="https://github.com/guillochon/sky-color-history"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.65-.18 1.35-.27 2.04-.27.68 0 1.35.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>GitHub</a></div>
-<p class="lede">An interactive companion to the sky-colour reconstruction. Scrub the timeline to watch the atmosphere change from the steam-and-CO₂ Hadean to today, then pick an epoch and scrub through a day to see how its sky moved from dawn to dusk. Every colour comes from the same spectral radiative-transfer model as the report.</p>
+<p class="lede">An interactive companion to the sky-color reconstruction. Scrub the timeline to watch the atmosphere change from the steam-and-CO₂ Hadean to today, then pick an epoch and scrub through a day to see how its sky moved from dawn to dusk. Every color comes from the same spectral radiative-transfer model as the report.</p>
 
 <h2>Four and a half billion years</h2>
-<p class="hint">The globe is seen from space at equinox with the Sun behind you, so latitude runs from the equator at the centre line to the poles at top and bottom. The atmosphere is drawn 30× too thick so that altitude structure shows.</p>
+<p class="hint">The globe is seen from space at equinox with the Sun behind you, so latitude runs from the equator at the center line to the poles at top and bottom. The atmosphere is drawn 30× too thick so that altitude structure shows.</p>
 <div class="row">
  <div>
   <div class="stage" id="gstage"><div class="tip" id="gtip"></div><canvas id="globe" width="720" height="720" aria-label="Volumetric rendering of Earth's atmosphere for the selected epoch"></canvas></div>
@@ -118,13 +118,13 @@ button.tick.on{background:none;color:var(--ink)}
   <h3 class="epoch-title" id="tname"></h3>
   <p class="epoch-sub" id="tsub"></p>
   <div class="domes" id="tdomes"></div>
-  <p class="legend">Noon sky, zenith at top and horizon at bottom, at the equator, mid-latitudes and the summer pole; the Sun's disc in its own colour and brightness. Brightness relative to today's clean sky.</p>
+  <p class="legend">Noon sky, zenith at top and horizon at bottom, at the equator, mid-latitudes and the summer pole; the Sun's disk in its own color and brightness. Brightness relative to today's clean sky.</p>
   <p id="tprose"></p>
  </div>
 </div>
 
 <h2>A day under that sky</h2>
-<p class="hint">A whole-sky (fisheye) view: the zenith is at the centre and the horizon is the rim, north at the top. Equinox geometry, so the Sun rises due east at 6:00 and sets due west at 18:00 everywhere; at the poles the noon Sun sits only 15° above the horizon.</p>
+<p class="hint">A whole-sky (fisheye) view: the zenith is at the center and the horizon is the rim, north at the top. Equinox geometry, so the Sun rises due east at 6:00 and sets due west at 18:00 everywhere; at the poles the noon Sun sits only 15° above the horizon.</p>
 <div class="row">
  <div>
   <div class="stage" id="dstage"><button type="button" id="vrbtn" class="vrbtn" title="Full-screen view: look around while the day plays">VR</button><div class="tip" id="dtip"></div><canvas id="dome" width="600" height="600" aria-label="Whole-sky view for the selected epoch, latitude and time of day"></canvas></div>
@@ -133,7 +133,7 @@ button.tick.on{background:none;color:var(--ink)}
   <div class="controls">
    <button id="hplay" aria-pressed="false">Play</button>
    <span id="hclock" style="font-size:1.2rem;min-width:4.5ch"></span>
-   <button id="expo" aria-pressed="true" title="Normalise brightness so that colour is visible in dim skies">Auto-exposure</button>
+   <button id="expo" aria-pressed="true" title="Normalize brightness so that color is visible in dim skies">Auto-exposure</button>
   </div>
  </div>
  <div>
@@ -145,7 +145,7 @@ button.tick.on{background:none;color:var(--ink)}
    <div>Sun elevation<b id="relev"></b></div>
    <div>Zenith<b id="rzen"></b></div>
    <div>Horizon (side)<b id="rhor"></b></div>
-   <div>Sun's disc<b id="rsun"></b></div>
+   <div>Sun's disk<b id="rsun"></b></div>
   </div>
   <div class="swatchbar" id="hbar"></div>
   <p class="legend">Sky along the Sun's vertical: from the horizon under the Sun, up through the zenith, down to the opposite horizon.</p>
@@ -153,7 +153,7 @@ button.tick.on{background:none;color:var(--ink)}
  </div>
 </div>
 
-<div class="foot">Model and data: spherical-shell single scattering with a delta-Eddington multiple-scattering correction, 380–780 nm, CIE 1931 colour matching, sRGB output without chromatic adaptation. Colours are what a daylight-balanced camera would record, not what an adapted eye would perceive. Clouds are omitted; paleoatmosphere compositions carry order-of-magnitude uncertainty. Time of day is interpolated between 21 computed solar zenith angles. The sky is computed down to a solar depression of 10°; from there to 18°, the end of astronomical twilight, that last sky fades out. The plane-parallel multiple-scattering term fades out from 10° above the horizon through sunrise.</div>
+<div class="foot">Model and data: spherical-shell single scattering with a delta-Eddington multiple-scattering correction, 380–780 nm, CIE 1931 color matching, sRGB output without chromatic adaptation. Colors are what a daylight-balanced camera would record, not what an adapted eye would perceive. Clouds are omitted; paleoatmosphere compositions carry order-of-magnitude uncertainty. Time of day is interpolated between 21 computed solar zenith angles. The sky is computed down to a solar depression of 10°; from there to 18°, the end of astronomical twilight, that last sky fades out. The plane-parallel multiple-scattering term fades out from 10° above the horizon through sunrise.</div>
 </main>
 <div id="vr" aria-hidden="true">
 <canvas id="vrc"></canvas>
@@ -220,7 +220,7 @@ function renderGlobe(ep){
 let tPos=11, tIdx=11;
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 let refreshGlobeTip=()=>{}, refreshDomeTip=()=>{};
-function drawGlobeAt(pos){ // blend between neighbouring epochs
+function drawGlobeAt(pos){ // blend between neighboring epochs
   const i=Math.floor(pos), t=pos-i; const a=renderGlobe(EP[i]);
   gctx.globalAlpha=1; gctx.drawImage(a,0,0);
   if(t>0.001 && i<EP.length-1){ const b=renderGlobe(EP[i+1]); gctx.globalAlpha=t; gctx.drawImage(b,0,0); gctx.globalAlpha=1; }
@@ -307,7 +307,7 @@ function renderDay(fast){
   const ep=EP[dIdx], rec=DAY.epochs[ep.key][dLat]; const {sza,az:sunAz}=sunGeom(LATDEG[dLat],minutes);
   const W=dome.width,H=dome.height, cx=W/2, cy=H/2, R=W*0.46;
   // Computed through 10° of solar depression. Past that, keep the last twilight
-  // colour and dim it at the rate the model itself was fading, until astronomical
+  // color and dim it at the rate the model itself was fading, until astronomical
   // twilight ends at 18°. Hold the exposure so auto-exposure does not undo the fade.
   const szaTab=Math.min(sza, SZ[SZ.length-1]);
   const [si,st]=idx(SZ,szaTab);
@@ -334,10 +334,10 @@ function renderDay(fast){
   // sun
   const sunc=rec.sun[Math.min(si+ (st>0.5?1:0), rec.sun.length-1)];
   const sX=xyY2XYZ(sunc); const sunRel = sX[1]/DAY.epochs['modern']['Equator'].sun[0][2];
-  // Blend chromaticity between samples so the disc colour moves continuously.
+  // Blend chromaticity between samples so the disk color moves continuously.
   // Below about 1e-6 the direct beam is a one-wavelength leftover. In the early
   // Hadean that leftover sits on the green part of the spectrum locus, and drawing
-  // it at full brightness makes a green disc. Hold the last sample that still has a hue.
+  // it at full brightness makes a green disk. Hold the last sample that still has a hue.
   const noonY=DAY.epochs['modern']['Equator'].sun[0][2];
   const hue=i=>rec.sun[i][1]>0 && rec.sun[i][2]>=1e-6;
   let i0=si; while(i0>0 && !hue(i0)) i0--;
@@ -412,10 +412,10 @@ hplay.addEventListener('click',()=>{
   hplay.textContent='Pause'; hplay.setAttribute('aria-pressed','true'); adoptPlayRate();
 });
 /* ---------- first-person view of the day sky ---------- */
-const SUNANG=1.5; // displayed solar radius, degrees; real is ~0.27, enlarged so the disc reads
+const SUNANG=1.5; // displayed solar radius, degrees; real is ~0.27, enlarged so the disk reads
 // Sæmundsson 1986: true altitude (degrees) to apparent altitude. Matches Bennett in the shader.
 function apparentEl(h){ if(h>80) return h; const u=h+10.3/(h+5.11); if(u<0.25) return h; return h+(1.02/Math.tan(u*Math.PI/180))/60; }
-const LAND={ // stand-in surface colour, not from the radiative-transfer model
+const LAND={ // stand-in surface color, not from the radiative-transfer model
   hadean44:[.18,.12,.08], hadean40:[.16,.12,.08], archean38:[.15,.13,.10],
   archean27thin:[.20,.16,.11], archean27:[.22,.16,.10], archean27vthick:[.24,.15,.09],
   proterozoic22:[.16,.18,.11], snowball07:[.78,.82,.86], carbon30:[.12,.22,.08],
@@ -438,8 +438,8 @@ float coneT(vec3 ro,vec3 rd,vec2 c,float R,float h){
   if(abs(A)<1e-5) return -1.0;
   float B=2.0*(f.x*rd.x+f.y*rd.y+k*k*f.z*rd.z);
   float C=f.x*f.x+f.y*f.y-k*k*f.z*f.z;
-  float disc=B*B-4.0*A*C; if(disc<0.0) return -1.0;
-  float s=sqrt(disc), t0=(-B-s)/(2.0*A), t1=(-B+s)/(2.0*A), t=-1.0;
+  float disk=B*B-4.0*A*C; if(disk<0.0) return -1.0;
+  float s=sqrt(disk), t0=(-B-s)/(2.0*A), t1=(-B+s)/(2.0*A), t=-1.0;
   if(t0>0.05){ float z=ro.z+rd.z*t0; if(z>=0.0&&z<=h) t=t0; }
   if(t1>0.05){ float z=ro.z+rd.z*t1; if(z>=0.0&&z<=h&&(t<0.0||t1<t)) t=t1; }
   return t;
@@ -464,15 +464,15 @@ vec3 boxN(vec3 p,vec2 c,float r,float h){
 }
 float ellT(vec3 ro,vec3 rd,vec2 c,float R,float H){
   vec3 f=vec3((ro.x-c.x)/R,(ro.y-c.y)/R,ro.z/H), d=vec3(rd.x/R,rd.y/R,rd.z/H);
-  float A=dot(d,d), B=2.0*dot(f,d), C=dot(f,f)-1.0, disc=B*B-4.0*A*C;
-  if(disc<0.0||A<1e-8) return -1.0;
-  float s=sqrt(disc), t0=(-B-s)/(2.0*A), t1=(-B+s)/(2.0*A), t=-1.0;
+  float A=dot(d,d), B=2.0*dot(f,d), C=dot(f,f)-1.0, disk=B*B-4.0*A*C;
+  if(disk<0.0||A<1e-8) return -1.0;
+  float s=sqrt(disk), t0=(-B-s)/(2.0*A), t1=(-B+s)/(2.0*A), t=-1.0;
   if(t0>0.05&&ro.z+rd.z*t0>=0.0) t=t0;
   if(t1>0.05&&ro.z+rd.z*t1>=0.0&&(t<0.0||t1<t)) t=t1;
   return t;
 }
 vec3 ellN(vec3 p,vec2 c,float R,float H){ return normalize(vec3((p.x-c.x)/(R*R),(p.y-c.y)/(R*R),p.z/(H*H))); }
-float trueAlt(float h){ // Bennett 1982, apparent altitude (deg) to true. Lifts and flattens the disc.
+float trueAlt(float h){ // Bennett 1982, apparent altitude (deg) to true. Lifts and flattens the disk.
   float hc=clamp(h,0.0,89.9); float u=hc+7.31/(hc+4.4);
   return h-0.0166666667/tan(u*0.01745329252);
 }
@@ -716,7 +716,7 @@ document.addEventListener('keydown',e=>{
   if(e.key==='ArrowLeft'&&tIdx>0){tslider.value=tIdx-1;showEpoch(tIdx-1);}
 });
 showEpoch(11); renderDay(); warm();
-function colourTip(canvas, tip, inside){
+function colorTip(canvas, tip, inside){
   const ctx=canvas.getContext('2d'); let cur=null, copiedUntil=0, hovering=false, px=0, py=0;
   const refresh=()=>{
     if(!hovering){ tip.style.display='none'; return; }
@@ -735,8 +735,8 @@ function colourTip(canvas, tip, inside){
   canvas.addEventListener('touchstart',e=>{ const t=e.touches[0]; copy({clientX:t.clientX,clientY:t.clientY}); setTimeout(()=>{ hovering=false; tip.style.display='none'; },1500); },{passive:true});
   return refresh;
 }
-refreshGlobeTip=colourTip(globe, document.getElementById('gtip'), (x,y)=>{ const r=Math.hypot(x-globe.width/2,y-globe.height/2); return r<globe.width*0.30*1.5; });
-refreshDomeTip=colourTip(dome, document.getElementById('dtip'), (x,y)=>{ const r=Math.hypot(x-dome.width/2,y-dome.height/2); return r<dome.width*0.46; });
+refreshGlobeTip=colorTip(globe, document.getElementById('gtip'), (x,y)=>{ const r=Math.hypot(x-globe.width/2,y-globe.height/2); return r<globe.width*0.30*1.5; });
+refreshDomeTip=colorTip(dome, document.getElementById('dtip'), (x,y)=>{ const r=Math.hypot(x-dome.width/2,y-dome.height/2); return r<dome.width*0.46; });
 </script>
 </body></html>'''
 html = html.replace('__EP__', json.dumps(EP, separators=(',',':'))).replace('__DAY__', json.dumps(DAY, separators=(',',':'))).replace('__YREF__', repr(YREF))

@@ -53,7 +53,7 @@ for e in EPOCHS:
         hs = atm.sky_color(88, 0, sz)
         ha = atm.sky_color(88, 180, sz)
         sun = spec_to_XYZ(atm.direct_sun(sz))
-        # per-scene exposure: normalise to the zenith of modern clean same latitude later; here store absolute Y
+        # per-scene exposure: normalize to the zenith of modern clean same latitude later; here store absolute Y
         rec['lat'][lname] = dict(zenith=col(z, z[1]), horizon=col(h, h[1]), horizon_solar=col(hs, hs[1]),
                                  horizon_anti=col(ha, ha[1]), sun=col(sun, sun[1]),
                                  sunY=float(sun[1]), zenY=float(z[1]), horY=float(h[1]), sz=sz)

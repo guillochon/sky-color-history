@@ -1,0 +1,22 @@
+---
+description: Use American spelling in project text, comments, and identifiers
+alwaysApply: true
+---
+
+# American spelling
+
+Write American English in prose, comments, UI copy, reports, and identifiers.
+
+- colour → color (colours, colored, coloring)
+- centre → center (centered, centering)
+- grey → gray
+- disc → disk, for the solar disk and similar
+- neighbour → neighbor
+- normalise → normalize, summarise → summarize, and the same -ise / -isation ending when the American form is -ize / -ization
+
+```text
+Bad:  "the disc colour at the centre"
+Good: "the disk color at the center"
+```
+
+Leave the original spelling of cited titles and proper names. Leave abbreviations that are not the word, such as a discriminant named `disc`.

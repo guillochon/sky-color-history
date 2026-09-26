@@ -1,4 +1,4 @@
-# The Colour of Earth's Sky Through Time
+# The Color of Earth's Sky Through Time
 
 A spectral radiative-transfer reconstruction of what Earth's sky looked like from the ground
 at thirteen moments in its history, from the 30-bar CO2 Hadean to a modern megacity.
@@ -9,7 +9,7 @@ at thirteen moments in its history, from the 30-bar CO2 Hadean to a modern megac
 |---|---|
 | `report/sky-color-history.html` | The research report as a self-contained web page (eight volumetric atmosphere renderings drawn live on canvas) |
 | `report/sky-color-history.pdf` | The same report printed to PDF |
-| `site/index.html` | Interactive site: scrub through time (the globe cross-fades between epochs) and through a day (whole-sky fisheye view); hover for colour hex codes, click to copy |
+| `site/index.html` | Interactive site: scrub through time (the globe cross-fades between epochs) and through a day (whole-sky fisheye view); hover for color hex codes, click to copy |
 | `latex/` | Magazine-style LaTeX source (`main.tex`, `refs.bib`, `figures/`) and the compiled `main.pdf` |
 | `model/` | The Python model, every generator script, and the computed data |
 
@@ -18,10 +18,10 @@ at thirteen moments in its history, from the 30-bar CO2 Hadean to a modern megac
 - `skymodel.py` - spherical-shell single scattering along the line of sight with a delta-Eddington
   two-stream multiple-scattering correction; Rayleigh gas mix, ozone Chappuis band, tropospheric
   aerosol, stratospheric sulfate, tholin-like organic haze, soot, dust; limb and planetary-disk
-  radiance; CIE 1931 colour conversion. Needs only numpy and scipy.
+  radiance; CIE 1931 color conversion. Needs only numpy and scipy.
 - `run_epochs.py` - defines the thirteen epoch atmospheres and computes noon, sunset and twilight
-  colours -> `skycolors.json`
-- `limb_grid.py` - limb and disk colour grids for the globe renderings -> `limb_all.json`
+  colors -> `skycolors.json`
+- `limb_grid.py` - limb and disk color grids for the globe renderings -> `limb_all.json`
 - `daycycle.py` - whole-sky dome at 21 solar zenith angles, three surface types, all epochs
   -> `daycycle.json` (about 10 minutes)
 - `gen_report.py`, `gen_site.py`, `make_figs.py`, `make_tex.py` - build the HTML report, the
