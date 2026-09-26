@@ -70,7 +70,9 @@ button.tick.on{background:none;color:var(--ink)}
 .domes figcaption{font-size:.78rem;color:#f2f3f5;margin-top:.3rem;line-height:1.2}
 .domes figcaption small{display:block;color:#cfd3da;font-size:.7rem}
 .epoch-title{margin:.2rem 0 0;font-size:1.45rem;font-weight:400;line-height:1.15}
-.epoch-sub{color:var(--ink2);font-size:.95rem;margin:0 0 .6rem}
+.epoch-sub{color:var(--ink2);font-size:.95rem;margin:0 0 .15rem}
+.epoch-wiki{color:var(--ink2);font-size:.85rem;margin:0 0 .6rem}
+.epoch-wiki a{color:inherit}
 .swatchbar{display:flex;gap:2px;height:26px;border-radius:2px;overflow:hidden;background:var(--stage);padding:2px;margin:.4rem 0}
 .swatchbar i{flex:1}
 .legend{font-size:.8rem;color:var(--ink2)}
@@ -118,6 +120,7 @@ button.tick.on{background:none;color:var(--ink)}
  <div>
   <h3 class="epoch-title" id="tname"></h3>
   <p class="epoch-sub" id="tsub"></p>
+  <p class="epoch-wiki"><a id="twiki" href="https://en.wikipedia.org/wiki/Holocene" target="_blank" rel="noopener noreferrer">Holocene on Wikipedia</a></p>
   <div class="domes" id="tdomes"></div>
   <p class="legend">Noon sky, zenith at top and horizon at bottom, at the equator, mid-latitudes and the summer pole; the Sun's disk in its own color and brightness. Brightness relative to today's clean sky.</p>
   <p id="tprose"></p>
@@ -228,12 +231,29 @@ function drawGlobeAt(pos){ // blend between neighboring epochs
   gctx.font='italic 22px Newsreader, Georgia, serif'; tag(gctx, EP[Math.round(pos)].name, 18, globe.height-18);
   refreshGlobeTip();
 }
+const WIKI={
+  hadean44:['Hadean','https://en.wikipedia.org/wiki/Hadean'],
+  hadean40:['Hadean','https://en.wikipedia.org/wiki/Hadean'],
+  archean38:['Eoarchean','https://en.wikipedia.org/wiki/Eoarchean'],
+  archean27thin:['Neoarchean','https://en.wikipedia.org/wiki/Neoarchean'],
+  archean27:['Neoarchean','https://en.wikipedia.org/wiki/Neoarchean'],
+  archean27vthick:['Neoarchean','https://en.wikipedia.org/wiki/Neoarchean'],
+  proterozoic22:['Paleoproterozoic','https://en.wikipedia.org/wiki/Paleoproterozoic'],
+  snowball07:['Snowball Earth','https://en.wikipedia.org/wiki/Snowball_Earth'],
+  carbon30:['Carboniferous','https://en.wikipedia.org/wiki/Carboniferous'],
+  kpg66:['Cretaceous–Paleogene extinction event','https://en.wikipedia.org/wiki/Cretaceous–Paleogene_extinction_event'],
+  volcanic:['Year Without a Summer','https://en.wikipedia.org/wiki/Year_Without_a_Summer'],
+  modern:['Holocene','https://en.wikipedia.org/wiki/Holocene'],
+  modernpoll:['Air pollution','https://en.wikipedia.org/wiki/Air_pollution']
+};
 function showEpoch(pos){
   tPos=pos; drawGlobeAt(pos);
   const i=Math.round(pos); if(i===tIdx && document.getElementById('tname').textContent) return; tIdx=i;
   const ep=EP[i];
   document.getElementById('tname').textContent=ep.name;
   document.getElementById('tsub').textContent=ep.sub;
+  const wiki=WIKI[ep.key], wa=document.getElementById('twiki');
+  wa.href=wiki[1]; wa.textContent=wiki[0]+' on Wikipedia';
   document.getElementById('tprose').textContent=ep.prose;
   const domes=document.getElementById('tdomes'); domes.innerHTML='';
   for(const L of ['Equator','Mid-latitude','Polar summer']){ const v=ep.lat[L]; const zc=hex(tone(xyY2XYZ(v.z),YREF)), hc=hex(tone(xyY2XYZ(v.h),YREF));
