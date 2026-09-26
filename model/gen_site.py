@@ -165,6 +165,15 @@ const hex = a => '#'+a.map(v=>v.toString(16).padStart(2,'0')).join('');
 /* ---------- Section 1: globe through time ---------- */
 const globe=document.getElementById('globe'), gctx=globe.getContext('2d');
 const cache={};
+function tag(ctx, text, x, y){ // white label on a translucent chip, readable on a bright limb
+  const m=ctx.measureText(text), w=m.width, asc=m.actualBoundingBoxAscent||12, desc=m.actualBoundingBoxDescent||3, px=5, py=2;
+  let left=ctx.textAlign==='center'?x-w/2:ctx.textAlign==='right'?x-w:x;
+  const max=ctx.canvas.width-3;
+  if(left+w+px>max){ x-=left+w+px-max; left=max-w-px; }
+  if(left-px<3){ x+=3-(left-px); left=3+px; }
+  ctx.save(); ctx.fillStyle='rgba(8,10,16,.62)'; ctx.beginPath(); ctx.roundRect(left-px, y-asc-py, w+px*2, asc+desc+py*2, 3); ctx.fill(); ctx.restore();
+  ctx.fillStyle='rgba(255,255,255,.92)'; ctx.fillText(text, x, y);
+}
 function renderGlobe(ep){
   if(cache[ep.key]) return cache[ep.key];
   const W=globe.width,H=globe.height; const off=document.createElement('canvas'); off.width=W; off.height=H; const ctx=off.getContext('2d');
@@ -181,8 +190,8 @@ function renderGlobe(ep){
   }
   ctx.putImageData(img,0,0);
   ctx.strokeStyle='rgba(255,255,255,.5)'; ctx.fillStyle='rgba(255,255,255,.75)'; ctx.font='15px Newsreader, Georgia, serif';
-  [[0,'0'],[20,'20'],[50,'50'],[100,'100 km']].forEach(([h,l],n)=>{const rr=R*(1+EX*h/hmax); ctx.beginPath(); ctx.moveTo(cx+rr,cy); ctx.lineTo(cx+rr,cy+9); ctx.stroke(); ctx.fillText(l,cx+rr-6,cy+26+(n%2?16:0));});
-  ctx.fillText('equator',cx-R*0.98+6,cy-6); ctx.fillText('pole',cx-16,cy-R-8);
+  [[0,'0'],[20,'20'],[50,'50'],[100,'100 km']].forEach(([h,l],n)=>{const rr=R*(1+EX*h/hmax); ctx.beginPath(); ctx.moveTo(cx+rr,cy); ctx.lineTo(cx+rr,cy+9); ctx.stroke(); tag(ctx,l,cx+rr-6,cy+26+(n%2?16:0));});
+  tag(ctx,'equator',cx-R*0.98+6,cy-6); tag(ctx,'pole',cx-16,cy-R-8);
   cache[ep.key]=off; return off;
 }
 let tPos=11, tIdx=11;
@@ -192,7 +201,7 @@ function drawGlobeAt(pos){ // blend between neighbouring epochs
   const i=Math.floor(pos), t=pos-i; const a=renderGlobe(EP[i]);
   gctx.globalAlpha=1; gctx.drawImage(a,0,0);
   if(t>0.001 && i<EP.length-1){ const b=renderGlobe(EP[i+1]); gctx.globalAlpha=t; gctx.drawImage(b,0,0); gctx.globalAlpha=1; }
-  gctx.font='italic 22px Newsreader, Georgia, serif'; gctx.fillStyle='rgba(255,255,255,.9)'; gctx.fillText(EP[Math.round(pos)].name, 18, globe.height-18);
+  gctx.font='italic 22px Newsreader, Georgia, serif'; tag(gctx, EP[Math.round(pos)].name, 18, globe.height-18);
   refreshGlobeTip();
 }
 function showEpoch(pos){
