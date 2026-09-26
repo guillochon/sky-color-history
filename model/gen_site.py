@@ -161,7 +161,7 @@ button.tick.on{background:none;color:var(--ink)}
 <div class="vrhud">
   <div class="vrtop"><div id="vrplace"></div><div id="vrclock"></div></div>
   <div class="vrbot">
-    <div class="vrkeys"><span>mouse to look</span><span><kbd>esc</kbd> leave</span><span><kbd>space</kbd> play / pause</span><span><kbd>←</kbd><kbd>→</kbd> step time</span><span><kbd>↑</kbd><kbd>↓</kbd> change era</span></div>
+    <div class="vrkeys"><span>mouse to look</span><span><kbd>w</kbd><kbd>a</kbd><kbd>s</kbd><kbd>d</kbd> move</span><span><kbd>shift</kbd> faster</span><span><kbd>esc</kbd> leave</span><span><kbd>space</kbd> play / pause</span><span><kbd>←</kbd><kbd>→</kbd> step time</span><span><kbd>↑</kbd><kbd>↓</kbd> change era</span></div>
     <div class="vrnote">The plain and the shapes are scenery. The sky is the model.</div>
   </div>
 </div>
@@ -397,6 +397,7 @@ function adoptPlayRate(){
     const frame=now=>{
       if(!dayPlaying||!vrOn) return;
       let dt=(now-playStamp)/1000; playStamp=now; if(dt>0.05) dt=0.05;
+      stepWalk(dt);
       minutes+=dt*(5/0.06)/5;
       while(minutes>=1200) minutes-=960;
       hslider.value=minutes; renderDay(true);
@@ -406,7 +407,7 @@ function adoptPlayRate(){
   }else hTimer=setInterval(()=>{ minutes+=5; if(minutes>=1200) minutes=240; hslider.value=minutes; renderDay(); },60);
 }
 hplay.addEventListener('click',()=>{
-  if(dayPlaying){ dayPlaying=false; adoptPlayRate(); hplay.textContent='Play'; hplay.setAttribute('aria-pressed','false'); return; }
+  if(dayPlaying){ dayPlaying=false; adoptPlayRate(); hplay.textContent='Play'; hplay.setAttribute('aria-pressed','false'); if(vrOn&&walking()) pumpWalk(); return; }
   dayPlaying=true; if(minutes>=1200) minutes=240;
   hplay.textContent='Pause'; hplay.setAttribute('aria-pressed','true'); adoptPlayRate();
 });
@@ -420,12 +421,13 @@ const LAND={ // stand-in surface colour, not from the radiative-transfer model
   proterozoic22:[.16,.18,.11], snowball07:[.78,.82,.86], carbon30:[.12,.22,.08],
   kpg66:[.17,.15,.13], volcanic:[.18,.16,.14], modern:[.15,.22,.09], modernpoll:[.17,.18,.11]
 };
-let skyNow=null, skyGen=0, skyUploaded=-1, vrOn=false, vrYaw=0, vrPitch=8, vrGL=null, vrRAF=0;
+let skyNow=null, skyGen=0, skyUploaded=-1, vrOn=false, vrYaw=0, vrPitch=8, vrX=0, vrY=0, vrGL=null, vrRAF=0, vrWalk=0, vrWalkStamp=0;
+const vrHeld=new Set();
 const VRFS=`#version 300 es
 precision highp float;
 uniform sampler2D sky; uniform vec2 res;
 uniform float yaw,pitch,fov,sunAz,sunEl,sunRad,sunOn,nr,na,sunMu;
-uniform vec3 sunCol,ground;
+uniform vec3 sunCol,ground,eye;
 uniform vec4 obj[12];
 uniform float kind[12];
 out vec4 fragColor;
@@ -480,7 +482,7 @@ void main(){
   float v=((gl_FragCoord.y/res.y)*2.0-1.0)*fy;
   float cp=cos(pitch), sp=sin(pitch), cy=cos(yaw), sy=sin(yaw);
   vec3 rd=normalize(vec3(sy*cp, cy*cp, sp)+u*vec3(cy,-sy,0.0)+v*vec3(-sy*sp,-cy*sp,cp));
-  vec3 ro=vec3(0.0,0.0,2.0);
+  vec3 ro=eye;
   float comp=atan(rd.x, rd.y); if(comp<0.0) comp+=6.28318530718;
   float elevDeg=asin(clamp(rd.z,-1.0,1.0))*57.2957795;
   float compDeg=comp*57.2957795;
@@ -545,7 +547,7 @@ function initVR(){
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-  const u={}; for(const n of ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','nr','na','sunMu']) u[n]=gl.getUniformLocation(prog, n);
+  const u={}; for(const n of ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','eye','nr','na','sunMu']) u[n]=gl.getUniformLocation(prog, n);
   u.obj=gl.getUniformLocation(prog,'obj[0]'); u.kind=gl.getUniformLocation(prog,'kind[0]');
   gl.uniform1i(gl.getUniformLocation(prog,'sky'), 0);
   gl.uniform1f(u.fov, 70*Math.PI/180);
@@ -595,6 +597,7 @@ function paintVR(){
   }
   gl.useProgram(vrGL.prog);
   gl.uniform1f(u.yaw, vrYaw*Math.PI/180); gl.uniform1f(u.pitch, vrPitch*Math.PI/180);
+  gl.uniform3f(u.eye, vrX, vrY, 2);
   gl.uniform1f(u.sunAz, skyNow.sunAz); gl.uniform1f(u.sunEl, 90-skyNow.sza);
   gl.uniform1f(u.sunOn, skyNow.sunOn?1:0);
   gl.uniform1f(u.sunMu, Math.max(0, Math.sin(apparentEl(90-skyNow.sza)*Math.PI/180)));
@@ -609,6 +612,31 @@ function paintVR(){
 }
 function requestVR(){ if(!vrOn||vrRAF) return; vrRAF=requestAnimationFrame(()=>{ vrRAF=0; paintVR(); }); }
 function lookVR(dx, dy){ vrYaw=(vrYaw+dx*0.1)%360; if(vrYaw<0) vrYaw+=360; vrPitch=Math.max(-80, Math.min(85, vrPitch-dy*0.1)); requestVR(); }
+function walking(){ return vrHeld.has('w')||vrHeld.has('a')||vrHeld.has('s')||vrHeld.has('d'); }
+function stepWalk(dt){
+  if(dt>0.05) dt=0.05;
+  let f=0, s=0;
+  if(vrHeld.has('w')) f++; if(vrHeld.has('s')) f--; if(vrHeld.has('d')) s++; if(vrHeld.has('a')) s--;
+  if(!f&&!s) return;
+  const yaw=vrYaw*Math.PI/180, sp=(vrHeld.has('shift')?40:8)*dt, inv=Math.hypot(f,s);
+  const east=(Math.sin(yaw)*f+Math.cos(yaw)*s)/inv*sp, north=(Math.cos(yaw)*f-Math.sin(yaw)*s)/inv*sp;
+  const sc=sceneFor(EP[dIdx].key);
+  const hit=(x,y)=>{ for(let i=0;i<12;i++){ if(sc.k[i]<0.5) continue; const dx=x-sc.o[i*4], dy=y-sc.o[i*4+1], r=sc.o[i*4+2]+0.4; if(dx*dx+dy*dy<r*r) return true; } return false; };
+  const nx=vrX+east, ny=vrY+north;
+  if(!hit(nx,ny)){ vrX=nx; vrY=ny; } else if(!hit(nx,vrY)) vrX=nx; else if(!hit(vrX,ny)) vrY=ny;
+}
+function pumpWalk(){
+  if(vrWalk||dayPlaying||!vrOn||!walking()) return;
+  vrWalkStamp=performance.now();
+  const frame=now=>{
+    vrWalk=0;
+    if(!vrOn||dayPlaying||!walking()) return;
+    let dt=(now-vrWalkStamp)/1000; vrWalkStamp=now;
+    stepWalk(dt); paintVR();
+    vrWalk=requestAnimationFrame(frame);
+  };
+  vrWalk=requestAnimationFrame(frame);
+}
 function stepMinutes(d){
   if(dayPlaying) hplay.click();
   minutes=Math.max(240, Math.min(1200, minutes+d)); hslider.value=minutes; renderDay();
@@ -618,7 +646,7 @@ function stepEpoch(d){
 }
 function enterVR(){
   if(!initVR()) return;
-  vrOn=true; vrLockedOnce=false; const root=document.getElementById('vr'); root.classList.add('on'); root.setAttribute('aria-hidden','false');
+  vrOn=true; vrLockedOnce=false; vrX=0; vrY=0; vrHeld.clear(); const root=document.getElementById('vr'); root.classList.add('on'); root.setAttribute('aria-hidden','false');
   const g=sunGeom(LATDEG[dLat], minutes); vrYaw=g.az; const elev=90-g.sza; vrPitch=Math.max(-8, Math.min(15, elev-8));
   sizeVR(); document.body.style.overflow='hidden'; root.tabIndex=-1; root.focus();
   if(!dayPlaying){ dayPlaying=true; if(minutes>=1200) minutes=240; hplay.textContent='Pause'; hplay.setAttribute('aria-pressed','true'); }
@@ -628,7 +656,7 @@ function enterVR(){
   const lk=document.getElementById('vrc').requestPointerLock(); if(lk&&lk.catch) lk.catch(()=>{});
 }
 function exitVR(){
-  if(!vrOn) return; vrOn=false;
+  if(!vrOn) return; vrOn=false; vrHeld.clear(); if(vrWalk){ cancelAnimationFrame(vrWalk); vrWalk=0; }
   const root=document.getElementById('vr'); root.classList.remove('on','locked'); root.setAttribute('aria-hidden','true');
   document.body.style.overflow='';
   if(document.pointerLockElement) document.exitPointerLock();
@@ -654,8 +682,13 @@ document.addEventListener('pointerlockchange', ()=>{
   document.getElementById('vr').classList.toggle('locked', locked);
   if(locked) vrLockedOnce=true; else if(vrOn && vrLockedOnce) exitVR();
 });
+document.addEventListener('keyup',e=>{ if(e.key==='Shift') vrHeld.delete('shift'); else vrHeld.delete(e.key.length===1?e.key.toLowerCase():e.key); });
+window.addEventListener('blur',()=>vrHeld.clear());
 document.addEventListener('keydown',e=>{
   if(vrOn){
+    const k=e.key.length===1?e.key.toLowerCase():e.key;
+    if(k==='w'||k==='a'||k==='s'||k==='d'){ e.preventDefault(); vrHeld.add(k); if(e.shiftKey) vrHeld.add('shift'); if(!dayPlaying) pumpWalk(); return; }
+    if(e.key==='Shift'){ vrHeld.add('shift'); return; }
     if(e.key==='Escape'){ exitVR(); return; }
     if(e.key===' ' && !e.repeat){ e.preventDefault(); hplay.click(); return; }
     if(e.key==='ArrowRight'){ e.preventDefault(); stepMinutes(5); return; }
