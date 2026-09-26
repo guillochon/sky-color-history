@@ -580,14 +580,8 @@ float shellT(vec3 ro, vec3 rd, float H){
   if(disc<=0.0) return -1.0;
   return (2.0*rise)/(B+sqrt(disc));
 }
-float cloudDen(vec3 p, float detail, float lod, float deck){
-  vec2 dh=p.xy-eye.xy;
-  float alt=p.z+dot(dh,dh)*7.848e-8;
-  float ph=clamp((alt-1500.0)/2700.0, 0.0, 1.0);
-  float grad=smoothstep(0.0, mix(0.10, 0.20, lod), ph)*smoothstep(1.0, mix(0.58, 0.40, lod), ph);
-  float sc=cloudScale*mix(1.0, 0.14, lod);
-  float zK=mix(0.58, 0.03, max(smoothstep(0.12, 0.55, lod), deck));
-  vec3 uv=vec3((p.x+cloudDrift)*sc, (p.y+cloudDrift*0.42)*sc, ph*zK+0.13);
+float cloudNoise(vec2 plane, float z, float detail, float lod, float sc){
+  vec3 uv=vec3(plane*sc, z);
   if(detail>0.02){
     vec2 w=texture(noise, uv*1.8+vec3(0.6,2.4,1.3)).rg;
     uv+=vec3(w.x-0.5, w.y-0.5, (w.x-w.y)*0.4)*0.22*detail;
@@ -605,7 +599,37 @@ float cloudDen(vec3 p, float detail, float lod, float deck){
     }
     core=mix(core, clamp((core-(1.0-lump)*0.40)/0.60, 0.0, 1.0), detail);
   }
-  return core*gate*grad;
+  return core*gate;
+}
+float cloudDen(vec3 p, float detail, float lod, float deck){
+  vec2 dh=p.xy-eye.xy;
+  float alt=p.z+dot(dh,dh)*7.848e-8;
+  float ph=clamp((alt-1500.0)/2700.0, 0.0, 1.0);
+  float grad=smoothstep(0.0, mix(0.10, 0.20, lod), ph)*smoothstep(1.0, mix(0.58, 0.40, lod), ph);
+  float sc=cloudScale*mix(1.0, 0.85, lod);
+  float zK=mix(0.58, 0.03, max(smoothstep(0.12, 0.55, lod), deck));
+  float zc=ph*zK+0.13;
+  vec2 wind=vec2(cloudDrift, cloudDrift*0.42);
+  float den=cloudNoise(p.xy+wind, zc, detail, lod, sc);
+  float rho=length(dh);
+  float far=smoothstep(10000.0, 28000.0, rho);
+  if(far>0.02){
+    // On the curved deck a degree of pitch covers many times more ground than a
+    // degree of yaw, so Cartesian noise is stretched left-right and squashed
+    // toward the horizon. Polar coordinates give both axes the same angular size.
+    vec2 hw=dh+wind;
+    float r=max(length(hw), 1.0);
+    float az=atan(hw.x, hw.y);
+    float g=80000.0*(7.848e-8*r-1500.0/r);
+    float denF=cloudNoise(vec2(az*80000.0, g), zc, 0.0, lod, sc);
+    float seam=smoothstep(2.8, 3.1416, abs(az));
+    if(seam>0.001){
+      float az2=az-sign(az)*6.2831853;
+      denF=mix(denF, cloudNoise(vec2(az2*80000.0, g), zc, 0.0, lod, sc), seam);
+    }
+    den=mix(den, denF, far);
+  }
+  return den*grad;
 }
 float lightBeer(vec3 p, vec3 sd, float lod, float deck){
   float tau=0.0, ls=mix(240.0, 1100.0, lod);
