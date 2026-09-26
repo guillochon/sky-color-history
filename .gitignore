@@ -1,0 +1,9 @@
+latex/*.aux
+latex/*.log
+latex/*.out
+latex/*.bbl
+latex/*.blg
+latex/*.fls
+latex/*.fdb_latexmk
+__pycache__/
+.DS_Store
