@@ -550,13 +550,15 @@ float ellT(vec3 ro,vec3 rd,vec2 c,float R,float H){
   return t;
 }
 float shellT(vec3 ro, vec3 rd, float H){
-  // 3.75e-6 drops the 1.5 km base to the horizon at about 20 km.
-  float rise=H-ro.z;
-  if(rise<=0.0) return -1.0;
-  float B=rd.z;
-  float disc=B*B+4.0*dot(rd.xy,rd.xy)*3.75e-6*rise;
+  // Sphere of radius 833 km under the viewer. A level view meets the 1.5 km base at about 50 km.
+  float R=833333.0;
+  vec2 dh=ro.xy-eye.xy;
+  float c=dot(dh,dh)+(ro.z-H)*(ro.z+H+2.0*R);
+  if(c>=0.0) return -1.0;
+  float b=dot(vec3(dh, ro.z+R), rd);
+  float disc=b*b-c;
   if(disc<=0.0) return -1.0;
-  return (2.0*rise)/(B+sqrt(disc));
+  return -c/(b+sqrt(disc));
 }
 float cloudNoise(vec2 plane, float z, float detail, float lod, float sc){
   vec3 uv=vec3(plane*sc, z);
@@ -581,7 +583,9 @@ float cloudNoise(vec2 plane, float z, float detail, float lod, float sc){
 }
 float cloudDen(vec3 p, float detail, float lod, float deck){
   vec2 dh=p.xy-eye.xy;
-  float alt=p.z+dot(dh,dh)*3.75e-6;
+  float R=833333.0;
+  float numer=dot(dh,dh)+p.z*(p.z+2.0*R);
+  float alt=numer/(sqrt(dot(dh,dh)+(p.z+R)*(p.z+R))+R);
   float ph=clamp((alt-1500.0)/4900.0, 0.0, 1.0);
   float grad=smoothstep(0.0, mix(0.10, 0.20, lod), ph)*smoothstep(1.0, mix(0.58, 0.40, lod), ph);
   float sc=cloudScale*mix(1.0, 0.85, lod);
@@ -620,8 +624,8 @@ void main(){
   }
   if(tHit>tIn) tOut=min(tOut, tHit-2.0);
   if(tOut<=tIn){ fragColor=vec4(0.0); return; }
-  tOut=min(tOut, 55000.0);
-  float dt=clamp((tOut-tIn)/40.0, 80.0, mix(280.0, 700.0, smoothstep(4000.0, 18000.0, tIn)));
+  tOut=min(tOut, 120000.0);
+  float dt=clamp((tOut-tIn)/40.0, 80.0, mix(280.0, 2200.0, smoothstep(8000.0, 45000.0, tIn)));
   float ign=fract(52.9829189*fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
   float t=tIn+dt*ign, T=1.0, tAcc=0.0;
   float deck=smoothstep(0.30, 0.06, rd.z);
@@ -699,12 +703,14 @@ float ellT(vec3 ro,vec3 rd,vec2 c,float R,float H){
   return t;
 }
 float shellT(vec3 ro, vec3 rd, float H){
-  float rise=H-ro.z;
-  if(rise<=0.0) return -1.0;
-  float B=rd.z;
-  float disc=B*B+4.0*dot(rd.xy,rd.xy)*3.75e-6*rise;
+  float R=833333.0;
+  vec2 dh=ro.xy-eye.xy;
+  float c=dot(dh,dh)+(ro.z-H)*(ro.z+H+2.0*R);
+  if(c>=0.0) return -1.0;
+  float b=dot(vec3(dh, ro.z+R), rd);
+  float disc=b*b-c;
   if(disc<=0.0) return -1.0;
-  return (2.0*rise)/(B+sqrt(disc));
+  return -c/(b+sqrt(disc));
 }
 void main(){
   vec4 c=texture(cloudTex, gl_FragCoord.xy/res);
