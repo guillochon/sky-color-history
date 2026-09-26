@@ -115,7 +115,7 @@ button.tick.on{background:none;color:var(--ink)}
 <div class="row">
  <div>
   <div class="stage" id="dstage"><div class="tip" id="dtip"></div><canvas id="dome" width="600" height="600" aria-label="Whole-sky view for the selected epoch, latitude and time of day"></canvas></div>
-  <input id="hslider" type="range" min="270" max="1170" step="5" value="720" aria-label="Time of day (minutes)">
+  <input id="hslider" type="range" min="240" max="1200" step="5" value="720" aria-label="Time of day (minutes)">
   <div class="track" id="htrack"></div>
   <div class="controls">
    <button id="hplay" aria-pressed="false">Play</button>
@@ -140,7 +140,7 @@ button.tick.on{background:none;color:var(--ink)}
  </div>
 </div>
 
-<div class="foot">Model and data: spherical-shell single scattering with a delta-Eddington multiple-scattering correction, 380–780 nm, CIE 1931 colour matching, sRGB output without chromatic adaptation. Colours are what a daylight-balanced camera would record, not what an adapted eye would perceive. Clouds are omitted; paleoatmosphere compositions carry order-of-magnitude uncertainty. Time of day is interpolated between 21 computed solar zenith angles; the sky is computed down to a solar depression of 10°, after which it is shown dark.</div>
+<div class="foot">Model and data: spherical-shell single scattering with a delta-Eddington multiple-scattering correction, 380–780 nm, CIE 1931 colour matching, sRGB output without chromatic adaptation. Colours are what a daylight-balanced camera would record, not what an adapted eye would perceive. Clouds are omitted; paleoatmosphere compositions carry order-of-magnitude uncertainty. Time of day is interpolated between 21 computed solar zenith angles. The sky is computed down to a solar depression of 10°; from there to 18°, the end of astronomical twilight, that last sky fades out. Multiple scattering is omitted once the Sun is below the horizon.</div>
 </main>
 <script>
 const EP = __EP__;
@@ -275,14 +275,20 @@ function renderDay(){
   const ep=EP[dIdx], rec=DAY.epochs[ep.key][dLat]; const {sza,az:sunAz}=sunGeom(LATDEG[dLat],minutes);
   const W=dome.width,H=dome.height, cx=W/2, cy=H/2, R=W*0.46;
   const img=dctx.createImageData(W,H), px=img.data;
-  const night = sza>=SZ[SZ.length-1];
-  const [si,st]=idx(SZ,Math.min(sza,SZ[SZ.length-1]));
-  // precompute a coarse polar grid then bilinear-expand for speed
+  // Computed through 10° of solar depression. Past that, keep the last twilight
+  // colour and dim it at the rate the model itself was fading, until astronomical
+  // twilight ends at 18°. Hold the exposure so auto-exposure does not undo the fade.
+  const szaTab=Math.min(sza, SZ[SZ.length-1]);
+  const [si,st]=idx(SZ,szaTab);
+  const past=Math.max(0, sza-SZ[SZ.length-1]);
+  const fade = past<=0 ? 1 : Math.pow(10, -0.45*past);
+  const night = sza>=108;
   const NR=72, NA=144; const grid=[];
-  let Ymax=1e-30;
+  let Ymax=1e-30, Yhold=1e-30;
   for(let ir=0;ir<=NR;ir++){ const row=[]; const vz=90*ir/NR; for(let ia=0;ia<=NA;ia++){ const comp=360*ia/NA; let azr=Math.abs(comp-sunAz); if(azr>180) azr=360-azr;
-      const X=night?[0,0,0]:domeXYZ(ep.key,dLat,si,st,Math.min(vz,88),azr); if(X[1]>Ymax) Ymax=X[1]; row.push(X);} grid.push(row); }
-  const Yref = autoExpo ? Math.max(Ymax, 1e-6*YREF) : YREF; const k = autoExpo?0.85:0.85, p = autoExpo?0.5:0.4;
+      const X0=night?[0,0,0]:domeXYZ(ep.key,dLat,si,st,Math.min(vz,88),azr); if(X0[1]>Yhold) Yhold=X0[1];
+      const X=fade===1?X0:[X0[0]*fade,X0[1]*fade,X0[2]*fade]; if(X[1]>Ymax) Ymax=X[1]; row.push(X);} grid.push(row); }
+  const Yref = autoExpo ? Math.max(past>0?Yhold:Ymax, 1e-6*YREF) : YREF; const k = autoExpo?0.85:0.85, p = autoExpo?0.5:0.4;
   const colgrid=grid.map(row=>row.map(X=>tone(X,Yref,k,p,0.95)));
   for(let y=0;y<H;y++)for(let x=0;x<W;x++){
     const dx=x-cx, dy=y-cy, r=Math.hypot(dx,dy); const o=(y*W+x)*4;
@@ -320,14 +326,15 @@ function renderDay(){
   // readouts
   const hh=Math.floor(minutes/60), mm=minutes%60; document.getElementById('hclock').textContent=`${hh}:${String(mm).padStart(2,'0')}`;
   document.getElementById('relev').textContent=(90-sza).toFixed(1)+'°';
-  const zX=night?[0,0,0]:domeXYZ(ep.key,dLat,si,st,0,0), hX=night?[0,0,0]:domeXYZ(ep.key,dLat,si,st,88,90);
+  const dim=X=>fade===1?X:[X[0]*fade,X[1]*fade,X[2]*fade];
+  const zX=night?[0,0,0]:dim(domeXYZ(ep.key,dLat,si,st,0,0)), hX=night?[0,0,0]:dim(domeXYZ(ep.key,dLat,si,st,88,90));
   const fmt=X=>{ if(X[1]<=1e-7*YREF) return 'dark'; const s=X[0]+X[1]+X[2]; const c=cct(X[0]/s,X[1]/s); return (c>800&&c<60000? c.toLocaleString()+' K':'—')+` · ${(100*X[1]/YREF).toPrecision(2)}%`; };
   document.getElementById('rzen').textContent=fmt(zX); document.getElementById('rhor').textContent=fmt(hX);
   document.getElementById('rsun').textContent = sza>=90 ? 'below horizon' : (sunRel<=3e-4 ? 'not visible' : (()=>{const s=sX[0]+sX[1]+sX[2]; return cct(sX[0]/s,sX[1]/s).toLocaleString()+' K · '+(sunRel*100).toPrecision(2)+'%';})());
   // swatch bar along the sun's vertical
   const bar=document.getElementById('hbar'); bar.innerHTML='';
   const pts=[[88,0],[75,0],[60,0],[45,0],[30,0],[15,0],[0,0],[15,180],[30,180],[45,180],[60,180],[75,180],[88,180]];
-  for(const [vz,azr] of pts){ const X=night?[0,0,0]:domeXYZ(ep.key,dLat,si,st,vz,azr); const i=document.createElement('i'); i.style.background=hex(tone(X,Yref,k,p,0.95)); i.title=`${vz}° from zenith, ${azr?'away from':'toward'} the Sun`; bar.appendChild(i); }
+  for(const [vz,azr] of pts){ const X=night?[0,0,0]:dim(domeXYZ(ep.key,dLat,si,st,vz,azr)); const i=document.createElement('i'); i.style.background=hex(tone(X,Yref,k,p,0.95)); i.title=`${vz}° from zenith, ${azr?'away from':'toward'} the Sun`; bar.appendChild(i); }
   document.getElementById('dprose').textContent = ep.prose;
   markHour();
   refreshDomeTip();
@@ -339,13 +346,13 @@ const hslider=document.getElementById('hslider'); hslider.addEventListener('inpu
 const htrack=document.getElementById('htrack');
 const HMIN=+hslider.min, HMAX=+hslider.max;
 function clockLabel(m){ const hh=Math.floor(m/60), mm=m%60; return hh+':'+String(mm).padStart(2,'0'); }
-for(let m=300, n=0; m<=1140; m+=60, n++){ const t=document.createElement('button'); t.type='button'; t.className='tick row'+(n%2); t.style.left=(100*(m-HMIN)/(HMAX-HMIN))+'%'; t.dataset.min=String(m); t.innerHTML=`<i></i><span class="lb">${clockLabel(m)}</span>`; t.addEventListener('click',()=>{ minutes=m; hslider.value=minutes; renderDay(); }); htrack.appendChild(t); }
+for(let m=240, n=0; m<=1200; m+=60, n++){ const t=document.createElement('button'); t.type='button'; t.className='tick row'+(n%2); t.style.left=(100*(m-HMIN)/(HMAX-HMIN))+'%'; t.dataset.min=String(m); t.innerHTML=`<i></i><span class="lb">${clockLabel(m)}</span>`; t.addEventListener('click',()=>{ minutes=m; hslider.value=minutes; renderDay(); }); htrack.appendChild(t); }
 function markHour(){ const ticks=[...htrack.querySelectorAll('.tick')]; let best=0, bd=Infinity; ticks.forEach((t,j)=>{ const d=Math.abs(+t.dataset.min-minutes); if(d<bd){ bd=d; best=j; } }); ticks.forEach((t,j)=>{ const on=j===best; t.classList.toggle('on',on); if(on) t.setAttribute('aria-current','true'); else t.removeAttribute('aria-current'); }); }
 const expo=document.getElementById('expo'); expo.addEventListener('click',()=>{ autoExpo=!autoExpo; expo.setAttribute('aria-pressed',autoExpo); renderDay(); });
 let hTimer=null; const hplay=document.getElementById('hplay');
 hplay.addEventListener('click',()=>{ if(hTimer){clearInterval(hTimer);hTimer=null;hplay.textContent='Play';hplay.setAttribute('aria-pressed','false');return;}
-  hplay.textContent='Pause'; hplay.setAttribute('aria-pressed','true'); if(minutes>=1170) minutes=270;
-  hTimer=setInterval(()=>{ minutes+=5; if(minutes>1170) minutes=270; hslider.value=minutes; renderDay(); },60); });
+  hplay.textContent='Pause'; hplay.setAttribute('aria-pressed','true'); if(minutes>=1200) minutes=240;
+  hTimer=setInterval(()=>{ minutes+=5; if(minutes>1200) minutes=240; hslider.value=minutes; renderDay(); },60); });
 // keyboard on timeline stage
 document.addEventListener('keydown',e=>{ if(document.activeElement.tagName==='INPUT'||document.activeElement.tagName==='SELECT') return; if(e.key==='ArrowRight'&&tIdx<EP.length-1){tslider.value=tIdx+1;showEpoch(tIdx+1);} if(e.key==='ArrowLeft'&&tIdx>0){tslider.value=tIdx-1;showEpoch(tIdx-1);} });
 showEpoch(11); renderDay(); warm();
