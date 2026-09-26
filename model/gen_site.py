@@ -352,7 +352,7 @@ function renderDay(fast){
     const col=hex(sunRGB);
     dctx.globalAlpha=1; dctx.fillStyle=col; dctx.beginPath(); dctx.arc(sx,sy,SUNR,0,Math.PI*2); dctx.fill(); dctx.restore();
   }
-  skyNow={colgrid, sza, sunAz, sunRGB, sunOn:sunRelD>3e-4 && sza<90+SUNANG, gen:++skyGen};
+  skyNow={colgrid, sza, sunAz, sunRGB, sunOn:sunRelD>3e-4 && sza<90+SUNANG+35/60, gen:++skyGen};
   if(vrOn) paintVR();
   if(fast) return;
   // compass + rim
@@ -412,6 +412,8 @@ hplay.addEventListener('click',()=>{
 });
 /* ---------- first-person view of the day sky ---------- */
 const SUNANG=1.5; // displayed solar radius, degrees; real is ~0.27, enlarged so the disc reads
+// Sæmundsson 1986: true altitude (degrees) to apparent altitude. Matches Bennett in the shader.
+function apparentEl(h){ if(h>80) return h; const u=h+10.3/(h+5.11); if(u<0.25) return h; return h+(1.02/Math.tan(u*Math.PI/180))/60; }
 const LAND={ // stand-in surface colour, not from the radiative-transfer model
   hadean44:[.18,.12,.08], hadean40:[.16,.12,.08], archean38:[.15,.13,.10],
   archean27thin:[.20,.16,.11], archean27:[.22,.16,.10], archean27vthick:[.24,.15,.09],
@@ -468,6 +470,10 @@ float ellT(vec3 ro,vec3 rd,vec2 c,float R,float H){
   return t;
 }
 vec3 ellN(vec3 p,vec2 c,float R,float H){ return normalize(vec3((p.x-c.x)/(R*R),(p.y-c.y)/(R*R),p.z/(H*H))); }
+float trueAlt(float h){ // Bennett 1982, apparent altitude (deg) to true. Lifts and flattens the disc.
+  float hc=clamp(h,0.0,89.9); float u=hc+7.31/(hc+4.4);
+  return h-0.0166666667/tan(u*0.01745329252);
+}
 void main(){
   float aspect=res.x/max(res.y,1.0); float fy=tan(fov*0.5); float fx=fy*aspect;
   float u=((gl_FragCoord.x/res.x)*2.0-1.0)*fx;
@@ -505,8 +511,11 @@ void main(){
     float uTex=(fract(compDeg/360.0)*na+0.5)/(na+1.0);
     float vTex=((90.0-max(elevDeg,0.0))/90.0*nr+0.5)/(nr+1.0);
     vec3 skyC=texture(sky, vec2(uTex,vTex)).rgb;
-    float ang=acos(clamp(dot(rd,sd),-1.0,1.0));
-    if(sunOn>0.5&&ang<sunRad&&rd.z>0.0) skyC=sunCol;
+    if(sunOn>0.5&&elevDeg>0.0){
+      float te=trueAlt(elevDeg)*0.01745329252;
+      vec3 src=vec3(sin(comp)*cos(te), cos(comp)*cos(te), sin(te));
+      if(acos(clamp(dot(src,sd),-1.0,1.0))<sunRad) skyC=sunCol;
+    }
     float hlen=length(rd.xy);
     float toward=hlen>1e-4?dot(rd.xy/hlen, vec2(sin(sunA),cos(sunA))):0.0;
     vec3 gcol=ground*mix(0.9,1.08,clamp(toward*0.5+0.5,0.0,1.0));
@@ -570,7 +579,7 @@ function groundRGB(){
   let ar=0,ag=0,ab=0,n=0; const ir=Math.round(NR*0.45);
   for(let ia=0; ia<=NA; ia+=8){ const c=cg[ir][ia]; ar+=c[0]; ag+=c[1]; ab+=c[2]; n++; }
   const z=cg[0][0]; ar=ar/n*0.65+z[0]*0.35; ag=ag/n*0.65+z[1]*0.35; ab=ab/n*0.65+z[2]*0.35;
-  const mu=Math.max(0, Math.cos(skyNow.sza*Math.PI/180)), s=skyNow.sunRGB, amb=[ar,ag,ab];
+  const mu=Math.max(0, Math.sin(apparentEl(90-skyNow.sza)*Math.PI/180)), s=skyNow.sunRGB, amb=[ar,ag,ab];
   return new Float32Array(alb.map((a,i)=>Math.min(255, a*(0.42*amb[i]+1.25*mu*s[i]+16))/255));
 }
 function paintVR(){
@@ -588,7 +597,7 @@ function paintVR(){
   gl.uniform1f(u.yaw, vrYaw*Math.PI/180); gl.uniform1f(u.pitch, vrPitch*Math.PI/180);
   gl.uniform1f(u.sunAz, skyNow.sunAz); gl.uniform1f(u.sunEl, 90-skyNow.sza);
   gl.uniform1f(u.sunOn, skyNow.sunOn?1:0);
-  gl.uniform1f(u.sunMu, Math.max(0, Math.cos(skyNow.sza*Math.PI/180)));
+  gl.uniform1f(u.sunMu, Math.max(0, Math.sin(apparentEl(90-skyNow.sza)*Math.PI/180)));
   gl.uniform3fv(u.sunCol, new Float32Array(skyNow.sunRGB.map(v=>v/255)));
   gl.uniform3fv(u.ground, groundRGB());
   const sc=sceneFor(EP[dIdx].key); gl.uniform4fv(u.obj, sc.o); gl.uniform1fv(u.kind, sc.k);
