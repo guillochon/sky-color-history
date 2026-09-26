@@ -277,11 +277,13 @@ class Atmosphere:
             term = np.where(np.abs(mu0-mu) < 0.02, lim, term)
         F_ss = self.S0*(ts/tt)*0.5*np.trapezoid(mu*term, mu[:,0], axis=0)
         F_ms = np.clip(Fdif*self.S0 - F_ss, 0, None)
-        # spherical-shell twilight: two-stream is invalid when sun below ~6 deg elev
-        if sun_zen_deg > 88:
-            F_ms = F_ms*0.15
-        if sun_zen_deg >= 90:
-            F_ms = F_ms*0.0
+        # The two-stream term is plane-parallel, so it is not valid on the horizon.
+        # A hard cut there drops optically thick skies (the 30-bar Hadean, an impact
+        # winter) by an order of magnitude between the samples on either side of 6:00.
+        # Fold it out exponentially from 10° above the horizon; each degree is a
+        # small step, so sunrise is a fade rather than a jump.
+        if sun_zen_deg > 80:
+            F_ms = F_ms * np.exp(-(sun_zen_deg - 80.0) / 4.0)
         I_ms = F_ms/np.pi
         # horizon brightening for diffuse (mild)
         return I_ss + I_ms

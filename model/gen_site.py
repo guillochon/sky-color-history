@@ -153,7 +153,7 @@ button.tick.on{background:none;color:var(--ink)}
  </div>
 </div>
 
-<div class="foot">Model and data: spherical-shell single scattering with a delta-Eddington multiple-scattering correction, 380–780 nm, CIE 1931 colour matching, sRGB output without chromatic adaptation. Colours are what a daylight-balanced camera would record, not what an adapted eye would perceive. Clouds are omitted; paleoatmosphere compositions carry order-of-magnitude uncertainty. Time of day is interpolated between 21 computed solar zenith angles. The sky is computed down to a solar depression of 10°; from there to 18°, the end of astronomical twilight, that last sky fades out. Multiple scattering is omitted once the Sun is below the horizon.</div>
+<div class="foot">Model and data: spherical-shell single scattering with a delta-Eddington multiple-scattering correction, 380–780 nm, CIE 1931 colour matching, sRGB output without chromatic adaptation. Colours are what a daylight-balanced camera would record, not what an adapted eye would perceive. Clouds are omitted; paleoatmosphere compositions carry order-of-magnitude uncertainty. Time of day is interpolated between 21 computed solar zenith angles. The sky is computed down to a solar depression of 10°; from there to 18°, the end of astronomical twilight, that last sky fades out. The plane-parallel multiple-scattering term fades out from 10° above the horizon through sunrise.</div>
 </main>
 <div id="vr" aria-hidden="true">
 <canvas id="vrc"></canvas>
