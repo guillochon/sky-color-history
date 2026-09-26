@@ -13,7 +13,7 @@ html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:Newsreader,Georgia,"Times New Roman",serif;font-weight:300;font-size:18px;line-height:1.45}
 main{max-width:1100px;margin:0 auto;padding:1rem 1rem 4rem}
-h1{font-weight:300;font-size:clamp(2rem,6vw,3.6rem);line-height:1.02;margin:1rem 0 .4rem;letter-spacing:-.01em}
+h1{font-weight:300;font-size:clamp(2rem,6vw,3.6rem);line-height:1.02;margin:0;letter-spacing:-.01em}
 h1 em{font-style:italic}
 h2{font-weight:400;font-size:1.6rem;margin:2.6rem 0 .3rem;line-height:1.1}
 p{margin:.35rem 0 .8rem;max-width:64ch}
@@ -61,13 +61,13 @@ button.tick.on{background:none;color:var(--ink)}
 .tip{position:absolute;pointer-events:none;background:rgba(20,22,30,.92);color:#fff;font-size:.85rem;padding:.3rem .5rem .3rem .35rem;border-radius:3px;display:none;white-space:nowrap;z-index:5;transform:translate(14px,-50%)}
 .tip i{display:inline-block;width:1.1em;height:1.1em;border-radius:2px;vertical-align:-3px;margin-right:.4em;border:1px solid rgba(255,255,255,.5)}
 .stage canvas{cursor:crosshair}
-.banner{max-width:1100px;margin:0 auto;padding:.75rem 1rem 0;text-align:right}
-.repo{color:var(--ink2);font-size:.95rem;text-decoration:none}
+.titlebar{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin:1rem 0 .4rem}
+.titlebar h1{margin:0}
+.repo{display:inline-flex;align-items:center;gap:.4rem;color:var(--ink2);font-size:.95rem;text-decoration:none;white-space:nowrap}
+.repo svg{width:1.05em;height:1.05em;display:block;fill:currentColor}
 .repo:hover{color:var(--ink)}
-</style></head><body>
-<header class="banner"><a class="repo" href="https://github.com/guillochon/sky-color-history">GitHub</a></header>
-<main>
-<h1>Earth's sky <em>through time</em></h1>
+</style></head><body><main>
+<div class="titlebar"><h1>Earth's sky <em>through time</em></h1><a class="repo" href="https://github.com/guillochon/sky-color-history"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.65-.18 1.35-.27 2.04-.27.68 0 1.35.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>GitHub</a></div>
 <p class="lede">An interactive companion to the sky-colour reconstruction. Scrub the timeline to watch the atmosphere change from the steam-and-CO₂ Hadean to today, then pick an epoch and scrub through a day to see how its sky moved from dawn to dusk. Every colour comes from the same spectral radiative-transfer model as the report.</p>
 
 <h2>Four and a half billion years</h2>
@@ -264,10 +264,18 @@ function renderDay(){
   // sun
   const sunc=rec.sun[Math.min(si+ (st>0.5?1:0), rec.sun.length-1)];
   const sX=xyY2XYZ(sunc); const sunRel = sX[1]/DAY.epochs['modern']['Equator'].sun[0][2];
-  if(sza<90 && sunRel>3e-4){ const rr=R*sza/90, a=sunAz*Math.PI/180; const sx=cx+rr*Math.sin(a), sy=cy-rr*Math.cos(a);
-    const op=Math.min(1,0.35+0.65*(Math.log10(sunRel)+3.5)/3.5); const col=hex(tone(sX, sX[1], 0.95,0.4,0.98));
-    const grd=dctx.createRadialGradient(sx,sy,0,sx,sy,26); grd.addColorStop(0,col); grd.addColorStop(0.35,col); grd.addColorStop(1,col+'00');
-    dctx.globalAlpha=op; dctx.fillStyle=grd; dctx.beginPath(); dctx.arc(sx,sy,26,0,7); dctx.fill(); dctx.globalAlpha=1; }
+  // The tabulated disc is dark once its centre is down. Hold the last lit colour and
+  // clip the sprite to the sky so the setting disc shows as a partial circle.
+  let drawI=Math.min(si+(st>0.5?1:0), rec.sun.length-1);
+  while(drawI>0 && rec.sun[drawI][2]<=0) drawI--;
+  const sXd=xyY2XYZ(rec.sun[drawI]); const sunRelD=sXd[1]/DAY.epochs['modern']['Equator'].sun[0][2];
+  const SUNR=26, rr=R*sza/90, a=sunAz*Math.PI/180, sx=cx+rr*Math.sin(a), sy=cy-rr*Math.cos(a);
+  if(rr-SUNR<R && sunRelD>3e-4){
+    dctx.save(); dctx.beginPath(); dctx.arc(cx,cy,R,0,Math.PI*2); dctx.clip();
+    const op=Math.min(1,0.35+0.65*(Math.log10(sunRelD)+3.5)/3.5); const col=hex(tone(sXd, sXd[1], 0.95,0.4,0.98));
+    const grd=dctx.createRadialGradient(sx,sy,0,sx,sy,SUNR); grd.addColorStop(0,col); grd.addColorStop(0.35,col); grd.addColorStop(1,col+'00');
+    dctx.globalAlpha=op; dctx.fillStyle=grd; dctx.beginPath(); dctx.arc(sx,sy,SUNR,0,Math.PI*2); dctx.fill(); dctx.restore();
+  }
   // compass + rim
   dctx.strokeStyle='rgba(255,255,255,.35)'; dctx.lineWidth=1.5; dctx.beginPath(); dctx.arc(cx,cy,R,0,7); dctx.stroke();
   dctx.fillStyle='rgba(255,255,255,.8)'; dctx.font='16px Newsreader, Georgia, serif'; dctx.textAlign='center';
