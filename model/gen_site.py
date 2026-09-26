@@ -584,26 +584,26 @@ float shellT(vec3 ro, vec3 rd, float H){
 }
 float cloudNoise(vec2 plane, float z, float detail, float lod, float sc){
   vec3 uv=vec3(plane*sc, z);
-  if(detail>0.02){
-    vec2 w=texture(noise, uv*4.5+vec3(0.6,2.4,1.3)).rg;
-    uv+=vec3(w.x-0.5, w.y-0.5, (w.x-w.y)*0.4)*0.32*detail;
-  }
-  vec2 n=texture(noise, uv).rg;
   float edge=0.78-cloudCov*0.62;
-  float gate=smoothstep(edge, edge+mix(0.10, 0.28, lod), n.g);
-  float core=smoothstep(mix(0.40, 0.22, lod), mix(0.72, 0.92, lod), n.r);
-  // The tile is about 28 km. These octaves put the previous cloud sizes back
-  // inside it: about 2 km, then 1 km, then half a kilometer up close.
-  float lump=texture(noise, uv*4.0+vec3(1.7,3.4,0.5)).r;
-  if(detail>0.15){
-    float mid=texture(noise, uv*8.5+vec3(2.2,0.4,1.1)).r;
-    lump=lump*0.62+mid*0.38;
+  float gate=smoothstep(edge, edge+mix(0.10, 0.28, lod), texture(noise, uv).g);
+  // Same billow the clouds had before the tile grew, four times smaller, so the
+  // 28 km coverage still groups them and the cells themselves are not huge coins.
+  float k=mix(4.0, 2.4, lod);
+  vec3 q=vec3(uv.xy*k, uv.z*mix(2.2, 1.1, lod));
+  if(detail>0.35){
+    vec2 w=texture(noise, q*1.8+vec3(0.6,2.4,1.3)).rg;
+    q+=vec3(w.x-0.5, w.y-0.5, (w.x-w.y)*0.4)*0.22*detail;
   }
-  if(detail>0.65){
-    float fine=texture(noise, uv*15.0+vec3(4.1,0.8,2.6)).r;
-    lump=lump*0.70+fine*0.30;
+  float core=smoothstep(mix(0.40, 0.22, lod), mix(0.72, 0.92, lod), texture(noise, q).r);
+  if(detail>0.35){
+    float mid=texture(noise, q*2.15+vec3(1.7,3.4,0.5)).r;
+    float lump=mid;
+    if(detail>0.65){
+      float fine=texture(noise, q*3.8+vec3(4.1,0.8,2.6)).r;
+      lump=mid*0.58+fine*0.42;
+    }
+    core=mix(core, clamp((core-(1.0-lump)*0.40)/0.60, 0.0, 1.0), detail);
   }
-  core=mix(core, clamp((core-(1.0-lump)*0.50)/0.50, 0.0, 1.0), mix(0.82, 1.0, detail));
   return core*gate;
 }
 float cloudDen(vec3 p, float detail, float lod, float deck){
@@ -614,7 +614,7 @@ float cloudDen(vec3 p, float detail, float lod, float deck){
   float ph=clamp((alt-1500.0)/4900.0, 0.0, 1.0);
   float grad=smoothstep(0.0, mix(0.10, 0.20, lod), ph)*smoothstep(1.0, mix(0.58, 0.40, lod), ph);
   float sc=cloudScale*mix(1.0, 0.85, lod);
-  float zK=mix(0.58, 0.03, max(smoothstep(0.12, 0.55, lod), deck));
+  float zK=mix(0.58, 0.22, max(smoothstep(0.12, 0.55, lod), deck));
   float zc=ph*zK+0.13;
   vec2 wind=vec2(cloudDrift, cloudDrift*0.42);
   return cloudNoise(p.xy+wind, zc, detail, lod, sc)*grad;
