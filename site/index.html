@@ -428,20 +428,21 @@ function adoptPlayRate(){
     playStamp=performance.now();
     const frame=now=>{
       if(!dayPlaying||!vrOn) return;
+      playRAF=requestAnimationFrame(frame);
       let dt=(now-playStamp)/1000; playStamp=now; if(dt>0.05) dt=0.05;
       stepWalk(dt);
       minutes+=dt*(5/0.06)/5;
       while(minutes>=1200) minutes-=960;
       hslider.value=minutes; renderDay(true);
-      playRAF=requestAnimationFrame(frame);
     };
     playRAF=requestAnimationFrame(frame);
   }else hTimer=setInterval(()=>{ minutes+=5; if(minutes>=1200) minutes=240; hslider.value=minutes; renderDay(); },60);
 }
 hplay.addEventListener('click',()=>{
-  if(dayPlaying){ dayPlaying=false; adoptPlayRate(); hplay.textContent='Play'; hplay.setAttribute('aria-pressed','false'); if(vrOn&&walking()) pumpWalk(); }
+  if(dayPlaying){ dayPlaying=false; adoptPlayRate(); hplay.textContent='Play'; hplay.setAttribute('aria-pressed','false'); if(vrOn) syncVRLink(true); if(vrOn&&walking()) pumpWalk(); }
   else { dayPlaying=true; if(minutes>=1200) minutes=240; hplay.textContent='Pause'; hplay.setAttribute('aria-pressed','true'); adoptPlayRate(); }
   syncVRPad();
+  if(vrOn) paintVR();
 });
 /* ---------- first-person view of the day sky ---------- */
 const SUNANG=1.5; // displayed solar radius, degrees; real is ~0.27, enlarged so the disk reads
@@ -1004,8 +1005,7 @@ function paintVR(){
   document.getElementById('vrplace').textContent=EP[dIdx].name+' · '+lat;
   document.querySelector('.vrnote').textContent=vrCaption();
   document.getElementById('vrclock').textContent=hh+':'+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0')+' · '+(dayPlaying?'playing':'paused');
-  const linkKey=EP[dIdx].key+'|'+dLat+'|'+(hh*60+mm);
-  if(linkKey!==vrLinkKey){ vrLinkKey=linkKey; syncVRLink(); }
+  syncVRLink(false);
 }
 function requestVR(){ if(!vrOn||vrRAF) return; vrRAF=requestAnimationFrame(()=>{ vrRAF=0; paintVR(); }); }
 function lookVR(dx, dy){ vrYaw=(vrYaw+dx*0.1)%360; if(vrYaw<0) vrYaw+=360; vrPitch=Math.max(-80, Math.min(85, vrPitch-dy*0.1)); requestVR(); }
@@ -1050,10 +1050,22 @@ function vrQuery(){
   return q;
 }
 function vrLinkURL(){ return location.pathname+'?'+vrQuery().toString()+location.hash; }
-function syncVRLink(){
+let vrLinkAt=0;
+function syncVRLink(force){
   if(!vrOn||vrNav) return;
   const url=vrLinkURL();
-  if(location.pathname+location.search+location.hash!==url) history.replaceState({vr:1},'',url);
+  if(location.pathname+location.search+location.hash===url) return;
+  const now=performance.now();
+  // Safari throws after about 100 replaceState calls per 30 seconds, and that error was stopping the clock.
+  // iOS also repaints the page on each query change. On a phone, leave the clock out of the address bar until playback pauses.
+  const q=new URLSearchParams(location.search);
+  const latCode=dLat==='Equator'?'equator':dLat==='Polar'?'75':'45';
+  const samePlace=q.get('epoch')===EP[dIdx].key && q.get('lat')===latCode;
+  if(!force && vrTouch && samePlace) return;
+  if(!force && now-vrLinkAt<500) return;
+  vrLinkAt=now;
+  try{ history.replaceState({vr:1},'',url); }
+  catch(err){}
 }
 function clearVRLink(){
   const q=new URLSearchParams(location.search);
@@ -1201,6 +1213,10 @@ function exitVR(){
   renderDay(false);
 }
 document.getElementById('vrbtn').addEventListener('click', ()=>enterVR(false));
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){ if(vrOn) syncVRLink(true); return; }
+  if(vrOn&&dayPlaying) adoptPlayRate();
+});
 window.addEventListener('popstate',()=>{
   const want=new URLSearchParams(location.search).has('vr');
   vrNav=true;
