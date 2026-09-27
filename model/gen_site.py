@@ -109,12 +109,19 @@ button.tick.on{background:none;color:var(--ink)}
 #vrclock{font-size:1.25rem}
 .vrpad{display:none}
 .vrpad-row{display:flex;justify-content:center;gap:.45rem}
-.vrpad button{width:2.75rem;height:2.75rem;padding:0;display:inline-flex;align-items:center;justify-content:center;color:#fff;background:rgba(8,10,16,.5);border:1px solid rgba(255,255,255,.5);border-radius:10px;touch-action:manipulation}
-.vrpad button[aria-pressed="true"]{color:#1c1400;background:#ffc400;border-color:#fff4c2}
-.vrpad button svg{width:1.4rem;height:1.4rem;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.vrpad button,.vrplay{width:2.75rem;height:2.75rem;padding:0;display:inline-flex;align-items:center;justify-content:center;color:#fff;background:rgba(8,10,16,.5);border:1px solid rgba(255,255,255,.5);border-radius:10px;touch-action:manipulation}
+.vrpad button[aria-pressed="true"],.vrplay[aria-pressed="true"]{color:#1c1400;background:#ffc400;border-color:#fff4c2}
+.vrpad button svg,.vrplay svg{width:1.4rem;height:1.4rem;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.vrtop-right{display:flex;align-items:flex-start;gap:.55rem}
+.vrplay{display:none;pointer-events:auto;flex:none}
+.vrplay .icon-play{display:none}
+.vrplay[aria-pressed="false"] .icon-pause{display:none}
+.vrplay[aria-pressed="false"] .icon-play{display:block}
 @media (hover:none) and (pointer:coarse), (max-width:820px) and (pointer:coarse){
   .vrkeys,.vrnote{display:none}
   .vrpad{display:flex;flex-direction:column;gap:.45rem;width:100%;pointer-events:auto;padding-bottom:env(safe-area-inset-bottom,0px)}
+  .vrplay{display:inline-flex}
+  .vrtop{padding-top:max(.85rem, env(safe-area-inset-top, 0px))}
   #vr,#vr canvas{cursor:auto}
 }
 </style></head><body><main>
@@ -175,7 +182,7 @@ button.tick.on{background:none;color:var(--ink)}
 <div id="vr" aria-hidden="true">
 <canvas id="vrc"></canvas>
 <div class="vrhud">
-  <div class="vrtop"><div id="vrplace"></div><div id="vrclock"></div></div>
+  <div class="vrtop"><div id="vrplace"></div><div class="vrtop-right"><div id="vrclock"></div><button type="button" id="vrpad-play" class="vrplay" data-act="play" aria-pressed="true" aria-label="Pause"><svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg><svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l12 7-12 7z"/></svg></button></div></div>
   <div class="vrbot">
     <div class="vrkeys"><span>mouse looks</span><span><kbd>w</kbd><kbd>a</kbd><kbd>s</kbd><kbd>d</kbd> move</span><span><kbd>shift</kbd> faster</span><span><kbd>h</kbd> scenery</span><span><kbd>c</kbd> clouds</span><span><kbd>m</kbd> <span id="vrmusiclabel">music</span></span><span><kbd>esc</kbd> leave</span><span><kbd>space</kbd> play / pause</span><span><kbd>←</kbd><kbd>→</kbd> step time</span><span><kbd>↑</kbd><kbd>↓</kbd> change era</span></div>
     <div class="vrnote">The plain, the shapes, and the clouds are scenery. The sky is the model.</div>
@@ -454,9 +461,9 @@ function adoptPlayRate(){
   }else hTimer=setInterval(()=>{ minutes+=5; if(minutes>=1200) minutes=240; hslider.value=minutes; renderDay(); },60);
 }
 hplay.addEventListener('click',()=>{
-  if(dayPlaying){ dayPlaying=false; adoptPlayRate(); hplay.textContent='Play'; hplay.setAttribute('aria-pressed','false'); if(vrOn&&walking()) pumpWalk(); return; }
-  dayPlaying=true; if(minutes>=1200) minutes=240;
-  hplay.textContent='Pause'; hplay.setAttribute('aria-pressed','true'); adoptPlayRate();
+  if(dayPlaying){ dayPlaying=false; adoptPlayRate(); hplay.textContent='Play'; hplay.setAttribute('aria-pressed','false'); if(vrOn&&walking()) pumpWalk(); }
+  else { dayPlaying=true; if(minutes>=1200) minutes=240; hplay.textContent='Pause'; hplay.setAttribute('aria-pressed','true'); adoptPlayRate(); }
+  syncVRPad();
 });
 /* ---------- first-person view of the day sky ---------- */
 const SUNANG=1.5; // displayed solar radius, degrees; real is ~0.27, enlarged so the disk reads
@@ -1199,6 +1206,7 @@ function enterVR(fromLink){
   const fs=root.requestFullscreen?root.requestFullscreen():null; if(fs&&fs.catch) fs.catch(()=>{});
   setTimeout(()=>{ vrRelock=false; }, 700);
   if(!musicMuted) startVRMusic();
+  syncVRPad();
 }
 function lockLook(){
   if(vrTouch||!vrOn||document.pointerLockElement===document.getElementById('vrc')) return;
@@ -1271,10 +1279,12 @@ function syncVRPad(){
   set('vrpad-scenery', vrScenery);
   set('vrpad-clouds', vrClouds);
   set('vrpad-music', !musicMuted);
+  const play=document.getElementById('vrpad-play');
+  if(play){ play.setAttribute('aria-pressed', dayPlaying?'true':'false'); play.setAttribute('aria-label', dayPlaying?'Pause':'Play'); }
   const el=document.getElementById('vrmusiclabel');
   if(el) el.textContent=musicMuted?'muted':'music';
 }
-document.querySelectorAll('.vrpad button').forEach(b=>{
+document.querySelectorAll('.vrpad button, .vrplay').forEach(b=>{
   b.addEventListener('pointerdown', e=>e.stopPropagation());
   b.addEventListener('click', e=>{
     e.preventDefault(); e.stopPropagation();
@@ -1282,6 +1292,7 @@ document.querySelectorAll('.vrpad button').forEach(b=>{
     if(act==='scenery'){ vrScenery=!vrScenery; paintVR(); }
     else if(act==='clouds'){ vrClouds=!vrClouds; paintVR(); }
     else if(act==='music'){ toggleVRMusic(); return; }
+    else if(act==='play') hplay.click();
     else if(act==='time') stepMinutes(+b.dataset.dir);
     else if(act==='era') stepEpoch(+b.dataset.dir);
     syncVRPad();
