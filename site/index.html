@@ -193,7 +193,9 @@ function XYZ2rgb(X, expo){ // linear rgb 0..1, soft hue-preserving clip
   const mx=Math.max(r,gg,b); if(mx>1){r/=mx;gg/=mx;b/=mx;} return [r,gg,b];
 }
 function tone(X, Yref, k=0.85, p=0.4, cap=0.92, floor=0){ // returns sRGB 0..255
-  if(X[1]<=1e-7*Yref) return [5,6,10];
+  // The integrator stores a zero there. The tone curve is already black at this
+  // threshold; a stand-in gray sits above it and tears a ragged edge into the antisolar sky.
+  if(X[1]<=1e-7*Yref) return [0,0,0];
   let t=Math.min(cap, k*Math.pow(X[1]/Yref,p)); t=Math.max(t,floor);
   const rgb=XYZ2rgb(X, t/X[1]); return rgb.map(v=>Math.round(255*g(v)));
 }
