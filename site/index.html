@@ -460,6 +460,7 @@ hplay.addEventListener('click',()=>{
 /* ---------- first-person view of the day sky ---------- */
 const SUN_RADIUS_DEG=0.2666; // mean solar angular radius: IAU radius over one astronomical unit
 const SUNANG=SUN_RADIUS_DEG; // VR disk. The fisheye enlarges the Sun and Moon together.
+const VR_FOV_DEG=30; // vertical, about the angle a desktop monitor fills
 // Sæmundsson 1986: true altitude (degrees) to apparent altitude. Matches Bennett in the shader.
 function apparentEl(h){ if(h>80) return h; const u=h+10.3/(h+5.11); if(u<0.25) return h; return h+(1.02/Math.tan(u*Math.PI/180))/60; }
 // Mean Earth-Moon distance in Earth radii. Younger than 3.2 Ga the values are
@@ -1049,7 +1050,7 @@ function initVR(){
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([180,180,180,255]));
   gl.generateMipmap(gl.TEXTURE_2D);
-  gl.uniform1f(u.fov, 70*Math.PI/180);
+  gl.uniform1f(u.fov, VR_FOV_DEG*Math.PI/180);
   gl.uniform1f(u.sunRad, SUNANG*Math.PI/180);
   vrGL={gl,u,tex,prog,buf,moonTex};
   if(moonReady) uploadMoon();
@@ -1070,10 +1071,10 @@ function initVR(){
       gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_S, gl.REPEAT);
       gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_T, gl.REPEAT);
       gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_R, gl.REPEAT);
-      gl.useProgram(cp); gl.uniform1i(gl.getUniformLocation(cp,'noise'), 1); gl.uniform1i(gl.getUniformLocation(cp,'sky'), 0); gl.uniform1f(cu.fov, 70*Math.PI/180);
+      gl.useProgram(cp); gl.uniform1i(gl.getUniformLocation(cp,'noise'), 1); gl.uniform1i(gl.getUniformLocation(cp,'sky'), 0); gl.uniform1f(cu.fov, VR_FOV_DEG*Math.PI/180);
       const compU={}; for(const n of ['res','yaw','pitch','fov','showScn']) compU[n]=gl.getUniformLocation(pp, n);
       compU.eye=gl.getUniformLocation(pp,'eye'); compU.obj=gl.getUniformLocation(pp,'obj[0]'); compU.kind=gl.getUniformLocation(pp,'kind[0]');
-      gl.useProgram(pp); gl.uniform1i(gl.getUniformLocation(pp,'cloudTex'), 2); gl.uniform1f(compU.fov, 70*Math.PI/180);
+      gl.useProgram(pp); gl.uniform1i(gl.getUniformLocation(pp,'cloudTex'), 2); gl.uniform1f(compU.fov, VR_FOV_DEG*Math.PI/180);
       const cloudTex=gl.createTexture();
       gl.bindTexture(gl.TEXTURE_2D, cloudTex);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
@@ -1193,7 +1194,7 @@ function paintVR(){
 function placeSunMark(){
   const mark=document.getElementById('sunmark');
   if(!skyNow){ mark.hidden=true; return; }
-  const fov=70*Math.PI/180, W=window.innerWidth, H=window.innerHeight;
+  const fov=VR_FOV_DEG*Math.PI/180, W=window.innerWidth, H=window.innerHeight;
   const fy=Math.tan(fov*0.5), fx=fy*(W/Math.max(H,1));
   const yaw=vrYaw*Math.PI/180, pitch=vrPitch*Math.PI/180;
   const cp=Math.cos(pitch), sp=Math.sin(pitch), cy=Math.cos(yaw), sy=Math.sin(yaw);
@@ -1225,7 +1226,7 @@ function placeSunMark(){
   mark.style.transform=`rotate(${Math.atan2(nx, ny)}rad)`;
 }
 function requestVR(){ if(!vrOn||vrRAF) return; vrRAF=requestAnimationFrame(()=>{ vrRAF=0; paintVR(); }); }
-function lookVR(dx, dy){ vrYaw=(vrYaw+dx*0.1)%360; if(vrYaw<0) vrYaw+=360; vrPitch=Math.max(-80, Math.min(85, vrPitch-dy*0.1)); requestVR(); }
+function lookVR(dx, dy){ const deg=VR_FOV_DEG/Math.max(window.innerHeight,1); vrYaw=(vrYaw+dx*deg)%360; if(vrYaw<0) vrYaw+=360; vrPitch=Math.max(-80, Math.min(85, vrPitch-dy*deg)); requestVR(); }
 function walking(){ return vrHeld.has('w')||vrHeld.has('a')||vrHeld.has('s')||vrHeld.has('d'); }
 function stepWalk(dt){
   if(dt>0.05) dt=0.05;
