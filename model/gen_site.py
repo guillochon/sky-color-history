@@ -99,6 +99,7 @@ button.tick.on{background:none;color:var(--ink)}
 #vr{display:none;position:fixed;inset:0;z-index:40;background:#000;overflow:hidden;cursor:none}
 #vr.on{display:block}
 #vr canvas{position:absolute;inset:0;width:100%;height:100%;cursor:none}
+#sunmark{position:absolute;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;border:3px solid #000;box-sizing:border-box;pointer-events:none;z-index:6}
 .vrhud{position:absolute;inset:0;pointer-events:none;color:#fff;font-size:.98rem}
 .vrtop,.vrbot{position:absolute;left:0;right:0;display:flex;justify-content:space-between;gap:1rem;padding:.85rem 1.15rem;text-shadow:0 1px 3px #000}
 .vrtop{top:0;background:linear-gradient(rgba(8,10,16,.6),transparent);align-items:flex-start}
@@ -181,6 +182,7 @@ button.tick.on{background:none;color:var(--ink)}
 </main>
 <div id="vr" aria-hidden="true">
 <canvas id="vrc"></canvas>
+<div id="sunmark" hidden></div>
 <div class="vrhud">
   <div class="vrtop"><div id="vrplace"></div><div class="vrtop-right"><div id="vrclock"></div><button type="button" id="vrpad-play" class="vrplay" data-act="play" aria-pressed="true" aria-label="Pause"><svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg><svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l12 7-12 7z"/></svg></button></div></div>
   <div class="vrbot">
@@ -530,9 +532,11 @@ float ellT(vec3 ro,vec3 rd,vec2 c,float R,float H){
   return t;
 }
 vec3 ellN(vec3 p,vec2 c,float R,float H){ return normalize(vec3((p.x-c.x)/(R*R),(p.y-c.y)/(R*R),p.z/(H*H))); }
-float trueAlt(float h){ // Bennett 1982, apparent altitude (deg) to true. Lifts and flattens the disk.
-  float hc=clamp(h,0.0,89.9); float u=hc+7.31/(hc+4.4);
-  return h-0.0166666667/tan(u*0.01745329252);
+float apparentEl(float h){ // Saemundsson 1986, true altitude (deg) to apparent
+  if(h>80.0) return h;
+  float u=h+10.3/(h+5.11);
+  if(u<0.25) return h;
+  return h+(1.02/tan(u*0.01745329252))/60.0;
 }
 void main(){
   float aspect=res.x/max(res.y,1.0); float fy=tan(fov*0.5); float fx=fy*aspect;
@@ -573,9 +577,17 @@ void main(){
     float vTex=((90.0-max(elevDeg,0.0))/90.0*nr+0.5)/(nr+1.0);
     vec3 skyC=texture(sky, vec2(uTex,vTex)).rgb;
     if(sunOn>0.5&&elevDeg>0.0){
-      float te=trueAlt(elevDeg)*0.01745329252;
-      vec3 src=vec3(sin(comp)*cos(te), cos(comp)*cos(te), sin(te));
-      if(acos(clamp(dot(src,sd),-1.0,1.0))<sunRad) skyC=sunCol;
+      // The disk is drawn about six times wider than the real Sun, so the
+      // half-degree of standard refraction barely ovals it. Draw the vertical
+      // axis the way a real disk looks through a strong horizon layer: half
+      // as tall on the horizon, round again by 10° up.
+      float sunApp=apparentEl(sunEl);
+      float dA=mod(compDeg-sunAz+540.0,360.0)-180.0;
+      float xAng=dA*cos(max(sunApp,0.0)*0.01745329252);
+      float yAng=elevDeg-sunApp;
+      float radDeg=sunRad*57.2957795;
+      float oval=mix(0.5, 1.0, smoothstep(0.0, 10.0, max(sunEl,0.0)));
+      if(xAng*xAng+yAng*yAng/(oval*oval)<radDeg*radDeg) skyC=sunCol;
     }
     float hlen=length(rd.xy);
     float toward=hlen>1e-4?dot(rd.xy/hlen, vec2(sin(sunA),cos(sunA))):0.0;
@@ -1044,7 +1056,34 @@ function paintVR(){
   document.getElementById('vrplace').textContent=EP[dIdx].name+' · '+lat;
   document.querySelector('.vrnote').textContent=vrCaption();
   document.getElementById('vrclock').textContent=hh+':'+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0')+' · '+(dayPlaying?'playing':'paused');
+  placeSunMark();
   syncVRLink(false);
+}
+function placeSunMark(){
+  const mark=document.getElementById('sunmark');
+  if(!skyNow||!skyNow.sunOn){ mark.hidden=true; return; }
+  const fov=70*Math.PI/180, W=window.innerWidth, H=window.innerHeight;
+  const fy=Math.tan(fov*0.5), fx=fy*(W/Math.max(H,1));
+  const yaw=vrYaw*Math.PI/180, pitch=vrPitch*Math.PI/180;
+  const cp=Math.cos(pitch), sp=Math.sin(pitch), cy=Math.cos(yaw), sy=Math.sin(yaw);
+  const el=apparentEl(90-skyNow.sza)*Math.PI/180, az=skyNow.sunAz*Math.PI/180;
+  const sd=[Math.sin(az)*Math.cos(el), Math.cos(az)*Math.cos(el), Math.sin(el)];
+  const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+  const depth=dot(sd,[sy*cp, cy*cp, sp]);
+  const camX=dot(sd,[cy, -sy, 0]), camY=dot(sd,[-sy*sp, -cy*sp, cp]);
+  const ahead=depth>0.02;
+  let nx, ny;
+  if(ahead){ nx=(camX/depth)/fx; ny=(camY/depth)/fy; }
+  else { const m=Math.hypot(camX,camY)||1; nx=-camX/m; ny=-camY/m; }
+  const margin=(SUNANG*Math.PI/180)/fy;
+  if(ahead && Math.abs(nx)<1+margin && Math.abs(ny)<1+margin){ mark.hidden=true; return; }
+  const s=Math.max(Math.abs(nx), Math.abs(ny), 1e-6); nx/=s; ny/=s;
+  const inset=46;
+  const rgb=skyNow.sunRGB;
+  mark.hidden=false;
+  mark.style.left=(W/2+nx*(W/2-inset))+'px';
+  mark.style.top=(H/2-ny*(H/2-inset))+'px';
+  mark.style.background=`rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
 }
 function requestVR(){ if(!vrOn||vrRAF) return; vrRAF=requestAnimationFrame(()=>{ vrRAF=0; paintVR(); }); }
 function lookVR(dx, dy){ vrYaw=(vrYaw+dx*0.1)%360; if(vrYaw<0) vrYaw+=360; vrPitch=Math.max(-80, Math.min(85, vrPitch-dy*0.1)); requestVR(); }
@@ -1242,7 +1281,7 @@ function lockLook(){
   const p=document.getElementById('vrc').requestPointerLock(); if(p&&p.catch) p.catch(()=>{});
 }
 function exitVR(){
-  if(!vrOn) return; vrOn=false; stopVRMusic(); vrRelock=false; vrLinkKey=''; vrHeld.clear(); if(vrWalk){ cancelAnimationFrame(vrWalk); vrWalk=0; }
+  if(!vrOn) return; vrOn=false; stopVRMusic(); vrRelock=false; vrLinkKey=''; vrHeld.clear(); document.getElementById('sunmark').hidden=true; if(vrWalk){ cancelAnimationFrame(vrWalk); vrWalk=0; }
   if(!vrNav) clearVRLink();
   const root=document.getElementById('vr'); root.classList.remove('on','locked'); root.setAttribute('aria-hidden','true');
   document.body.style.overflow='';
