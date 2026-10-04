@@ -22,8 +22,8 @@ at thirteen moments in its history, from the 30-bar CO2 Hadean to a modern megac
 - `run_epochs.py` - defines the thirteen epoch atmospheres and computes noon, sunset and twilight
   colors -> `skycolors.json`
 - `limb_grid.py` - limb and disk color grids for the globe renderings -> `limb_all.json`
-- `daycycle.py` - whole-sky dome at 21 solar zenith angles, three surface types, all epochs
-  -> `daycycle.json` (about 10 minutes)
+- `daycycle.py` - whole-sky dome at 34 solar zenith angles (1° from the horizon through 20° below it), three surface types, all epochs
+  -> `daycycle.json` (about 15 minutes from scratch; a later run only fills angles the file does not already have)
 - `gen_report.py`, `gen_site.py`, `make_figs.py`, `make_tex.py` - build the HTML report, the
   interactive site, the PNG figures and the LaTeX source from the JSON data
 
