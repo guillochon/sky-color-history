@@ -77,7 +77,8 @@ button.tick.on{background:none;color:var(--ink)}
 #vr{display:none;position:fixed;inset:0;z-index:40;background:#000;overflow:hidden;cursor:none}
 #vr.on{display:block}
 #vr canvas{position:absolute;inset:0;width:100%;height:100%;cursor:none}
-#sunmark{position:absolute;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;border:3px solid #000;box-sizing:border-box;pointer-events:none;z-index:6}
+#sunmark{position:absolute;width:36px;height:36px;margin:-18px 0 0 -18px;pointer-events:none;z-index:6;color:#fff}
+#sunmark svg{display:block;width:100%;height:100%;overflow:visible}
 #moonDate{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg2);border:1px solid var(--rule);border-radius:3px;padding:.22rem .45rem}
 .vrhud{position:absolute;inset:0;pointer-events:none;color:#fff;font-size:.98rem}
 .vrtop,.vrbot{position:absolute;left:0;right:0;display:flex;justify-content:space-between;gap:1rem;padding:.85rem 1.15rem;text-shadow:0 1px 3px #000}
@@ -163,7 +164,7 @@ button.tick.on{background:none;color:var(--ink)}
 </main>
 <div id="vr" aria-hidden="true">
 <canvas id="vrc"></canvas>
-<div id="sunmark" hidden></div>
+<div id="sunmark" hidden><svg viewBox="0 0 36 36" aria-hidden="true"><path d="M7 24 L18 8 L29 24" fill="none" stroke="#000" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 24 L18 8 L29 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
 <div class="vrhud">
   <div class="vrtop"><div id="vrplace"></div><div class="vrtop-right"><div id="vrclock"></div><button type="button" id="vrpad-play" class="vrplay" data-act="play" aria-pressed="true" aria-label="Pause"><svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg><svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l12 7-12 7z"/></svg></button></div></div>
   <div class="vrbot">
@@ -1191,7 +1192,7 @@ function paintVR(){
 }
 function placeSunMark(){
   const mark=document.getElementById('sunmark');
-  if(!skyNow||!skyNow.sunOn){ mark.hidden=true; return; }
+  if(!skyNow){ mark.hidden=true; return; }
   const fov=70*Math.PI/180, W=window.innerWidth, H=window.innerHeight;
   const fy=Math.tan(fov*0.5), fx=fy*(W/Math.max(H,1));
   const yaw=vrYaw*Math.PI/180, pitch=vrPitch*Math.PI/180;
@@ -1204,16 +1205,24 @@ function placeSunMark(){
   const ahead=depth>0.02;
   let nx, ny;
   if(ahead){ nx=(camX/depth)/fx; ny=(camY/depth)/fy; }
-  else { const m=Math.hypot(camX,camY)||1; nx=-camX/m; ny=-camY/m; }
+  else { const m=Math.hypot(camX,camY)||1; nx=camX/m; ny=camY/m; }
   const margin=(SUNANG*Math.PI/180)/fy;
-  if(ahead && Math.abs(nx)<1+margin && Math.abs(ny)<1+margin){ mark.hidden=true; return; }
-  const s=Math.max(Math.abs(nx), Math.abs(ny), 1e-6); nx/=s; ny/=s;
-  const inset=46;
+  const inView=ahead && Math.abs(nx)<1+margin && Math.abs(ny)<1+margin;
+  // Hide only while the disk itself is on screen. Below the horizon the disk
+  // is not drawn, so the chevron stays and sits on the Sun's direction.
+  if(skyNow.sunOn && inView){ mark.hidden=true; return; }
+  let px, py;
+  if(!skyNow.sunOn && inView){ px=W/2+nx*W/2; py=H/2-ny*H/2; }
+  else {
+    const s=Math.max(Math.abs(nx), Math.abs(ny), 1e-6); nx/=s; ny/=s;
+    const inset=46; px=W/2+nx*(W/2-inset); py=H/2-ny*(H/2-inset);
+  }
   const rgb=skyNow.sunRGB;
   mark.hidden=false;
-  mark.style.left=(W/2+nx*(W/2-inset))+'px';
-  mark.style.top=(H/2-ny*(H/2-inset))+'px';
-  mark.style.background=`rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+  mark.style.left=px+'px';
+  mark.style.top=py+'px';
+  mark.style.color=`rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+  mark.style.transform=`rotate(${Math.atan2(nx, ny)}rad)`;
 }
 function requestVR(){ if(!vrOn||vrRAF) return; vrRAF=requestAnimationFrame(()=>{ vrRAF=0; paintVR(); }); }
 function lookVR(dx, dy){ vrYaw=(vrYaw+dx*0.1)%360; if(vrYaw<0) vrYaw+=360; vrPitch=Math.max(-80, Math.min(85, vrPitch-dy*0.1)); requestVR(); }
