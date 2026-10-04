@@ -1602,7 +1602,9 @@ function colorTip(canvas, tip, inside){
     const d=ctx.getImageData(x,y,1,1).data; cur=hex([d[0],d[1],d[2]]);
     tip.innerHTML=`<i style="background:${cur}"></i>current color ${cur}${performance.now()<copiedUntil?' copied':''}`;
     const b=canvas.getBoundingClientRect();
-    tip.style.left=(px*b.width/canvas.width)+'px'; tip.style.top=(py*b.height/canvas.height)+'px'; tip.style.display='block';
+    tip.style.left=(px*b.width/canvas.width)+'px'; tip.style.top=(py*b.height/canvas.height)+'px';
+    tip.style.transform=px>canvas.width/2?'translate(calc(-100% - 14px), -50%)':'translate(14px, -50%)';
+    tip.style.display='block';
   };
   const show=(e)=>{ const b=canvas.getBoundingClientRect(); px=(e.clientX-b.left)*canvas.width/b.width; py=(e.clientY-b.top)*canvas.height/b.height; hovering=true; refresh(); };
   canvas.addEventListener('mousemove',show);
