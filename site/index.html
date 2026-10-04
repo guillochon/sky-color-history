@@ -550,24 +550,37 @@ void main(){
     if(sunOn>0.5&&elevDeg>0.0){
       float te=trueAlt(elevDeg)*0.01745329252;
       vec3 src=vec3(sin(comp)*cos(te), cos(comp)*cos(te), sin(te));
-      float ang=acos(clamp(dot(src,sd),-1.0,1.0));
-      if(ang<sunRad) skyC=sunCol;
-      else {
-        // The disk is already the brightest sRGB of this chromaticity, so a
-        // whiter core would be a different color. Spread that same color into
-        // a glare so the disk reads as a light without leaving its hue.
-        float dDeg=max(0.0, (ang-sunRad)*57.2957795);
-        // Steep on purpose. A slow blend into blue sky passes through white,
-        // and that would make the color less accurate.
-        float a=smoothstep(2.4, 0.2, dDeg);
-        skyC=mix(skyC, sunCol, a);
-      }
+      if(acos(clamp(dot(src,sd),-1.0,1.0))<sunRad) skyC=sunCol;
     }
     float hlen=length(rd.xy);
     float toward=hlen>1e-4?dot(rd.xy/hlen, vec2(sin(sunA),cos(sunA))):0.0;
     vec3 gcol=showScn>0.5?ground*mix(0.9,1.08,clamp(toward*0.5+0.5,0.0,1.0)):vec3(0.02,0.025,0.04);
     float w=max(fwidth(elevDeg),0.04);
     col=mix(gcol, skyC, smoothstep(-w,w,elevDeg));
+  }
+  // Faint ghosts and a thin cross, in the disk's own color. The disk itself
+  // stays the model color; the flare is only there so the light reads as bright.
+  if(sunOn>0.5){
+    vec3 fwd=vec3(sy*cp, cy*cp, sp);
+    vec3 right=vec3(cy,-sy,0.0);
+    vec3 upv=vec3(-sy*sp,-cy*sp,cp);
+    float zs=dot(sd, fwd);
+    if(zs>0.08){
+      vec2 sunP=vec2(dot(sd,right), dot(sd,upv))/zs;
+      vec2 q=vec2(u,v);
+      float sep=acos(clamp(dot(rd,sd),-1.0,1.0));
+      float ghost=(1.0-smoothstep(0.0,0.055,length(q-sunP*-0.45)))*0.16;
+      ghost+=(1.0-smoothstep(0.0,0.038,length(q-sunP*0.62)))*0.12;
+      ghost+=(1.0-smoothstep(0.0,0.07,length(q-sunP*1.15)))*0.10;
+      vec2 rel=q-sunP;
+      vec2 axis=length(sunP)>1e-4?normalize(sunP):vec2(1.0,0.0);
+      vec2 perp=vec2(-axis.y,axis.x);
+      float along=dot(rel,axis), across=dot(rel,perp);
+      float spike=exp(-across*across*2.2e4)*exp(-along*along*80.0);
+      float spike2=exp(-along*along*2.2e4)*exp(-across*across*80.0);
+      float f=ghost+(spike+spike2)*0.20;
+      if(sep>sunRad) col=mix(col, sunCol, clamp(f,0.0,0.28));
+    }
   }
   fragColor=vec4(col,1.0);
 }`;
@@ -708,7 +721,21 @@ void main(){
     if(den>0.02){
       float beer=lightBeer(p, sd, lod, deck);
       float silver=pow(clamp(dot(rd, sd), 0.0, 1.0), 5.0);
-      vec3 lin=sunCol*beer*mix(0.55, 1.55, silver)*(0.20+0.80*max(sunMu,0.0))+amb*(0.28+0.35*beer);
+      vec3 sunLit=sunCol*beer*mix(0.55, 1.55, silver)*(0.20+0.80*max(sunMu,0.0));
+      vec3 skyLit=amb*(0.28+0.35*beer);
+      vec3 lin=sunLit+skyLit;
+      float sunPeak=max(sunLit.r, max(sunLit.g, sunLit.b));
+      float peak=max(lin.r, max(lin.g, lin.b));
+      float sunShare=peak>1e-4?clamp(sunPeak/peak,0.0,1.0):0.0;
+      if(peak>1.0) lin/=peak;
+      // An 8-bit target clips each channel on its own, which turns this sum white.
+      // Put some of the solar hue back on the sunlit part, at the same lightness.
+      float yLin=dot(lin, vec3(0.2126,0.7152,0.0722));
+      float ySun=max(dot(sunCol, vec3(0.2126,0.7152,0.0722)), 1e-4);
+      vec3 sunHue=sunCol*(yLin/ySun);
+      float huePeak=max(sunHue.r, max(sunHue.g, sunHue.b));
+      if(huePeak>1.0) sunHue/=huePeak;
+      lin=mix(lin, sunHue, sunShare*0.55);
       float a=1.0-exp(-den*dt*0.0032);
       float w=a*T;
       col+=lin*w;
@@ -977,7 +1004,7 @@ function paintVR(){
   if(vrClouds&&vrGL.cloudProg){
     const cw=Math.max(2,c.width>>1), ch=Math.max(2,c.height>>1);
     if(cloudMinPrev==null) cloudMinPrev=minutes;
-    else { let dm=minutes-cloudMinPrev; if(dm<-800) dm+=960; cloudMinPrev=minutes; cloudScroll+=dm*44; }
+    else { let dm=minutes-cloudMinPrev; if(dm<-800) dm+=960; cloudMinPrev=minutes; cloudScroll+=dm*88; }
     const field=cloudField(EP[dIdx].key), cu=vrGL.cu;
     ensureCloudTarget(cw, ch);
     gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.cloudFbo);
