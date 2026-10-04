@@ -155,7 +155,7 @@ button.tick.on{background:none;color:var(--ink)}
  </div>
 </div>
 
-<div class="foot">Model and data: spherical-shell single scattering with a delta-Eddington multiple-scattering correction, 380–780 nm, CIE 1931 color matching, sRGB output without chromatic adaptation. Colors are what a daylight-balanced camera would record, not what an adapted eye would perceive. Clouds are omitted; paleoatmosphere compositions carry order-of-magnitude uncertainty. Time of day is interpolated between 34 computed solar zenith angles. From the horizon to 20° below it, those samples are spaced 1° apart; deeper than that, the sky is black. The plane-parallel multiple-scattering term fades out from 10° above the horizon through sunrise.</div>
+<div class="foot">Model and data: spherical-shell single scattering with a delta-Eddington multiple-scattering correction, 380–780 nm, CIE 1931 color matching, sRGB output without chromatic adaptation. Colors are what a daylight-balanced camera would record, not what an adapted eye would perceive. Clouds are omitted; paleoatmosphere compositions carry order-of-magnitude uncertainty. Time of day is interpolated between 34 computed solar zenith angles. From the horizon to 20° below it, those samples are spaced 1° apart; from 20° to 25° below, that last sky fades to black. The plane-parallel multiple-scattering term fades out from 10° above the horizon through sunrise.</div>
 </main>
 <div id="vr" aria-hidden="true">
 <canvas id="vrc"></canvas>
@@ -341,16 +341,20 @@ function domeXYZ(key, lat, si, st, vz, azr){
 function renderDay(fast){
   const ep=EP[dIdx], rec=DAY.epochs[ep.key][dLat]; const {sza,az:sunAz}=sunGeom(LATDEG[dLat],minutes);
   const W=dome.width,H=dome.height, cx=W/2, cy=H/2, R=W*0.46;
-  // Samples run through 20° below the horizon. Deeper than the last sample is night.
+  // Samples run through 20° below the horizon. From there to 25°, fade that
+  // last sky to black. Hold the exposure so auto-exposure does not undo the fade.
   const last=SZ[SZ.length-1];
   const szaTab=Math.min(sza, last);
   const [si,st]=idx(SZ,szaTab);
-  const night = sza>last;
+  const past=Math.max(0, sza-last);
+  const fade=past<=0 ? 1 : Math.max(0, 1-past/5);
+  const night=fade<=0;
   const NR=72, NA=144; const grid=[];
-  let Ymax=1e-30;
+  let Ymax=1e-30, Yhold=1e-30;
   for(let ir=0;ir<=NR;ir++){ const row=[]; const vz=90*ir/NR; for(let ia=0;ia<=NA;ia++){ const comp=360*ia/NA; let azr=Math.abs(comp-sunAz); if(azr>180) azr=360-azr;
-      const X=night?[0,0,0]:domeXYZ(ep.key,dLat,si,st,Math.min(vz,88),azr); if(X[1]>Ymax) Ymax=X[1]; row.push(X);} grid.push(row); }
-  const Yref = autoExpo ? Math.max(Ymax, 1e-6*YREF) : YREF; const k = autoExpo?0.85:0.85, p = autoExpo?0.5:0.4;
+      const X0=night?[0,0,0]:domeXYZ(ep.key,dLat,si,st,Math.min(vz,88),azr); if(X0[1]>Yhold) Yhold=X0[1];
+      const X=fade===1?X0:[X0[0]*fade,X0[1]*fade,X0[2]*fade]; if(X[1]>Ymax) Ymax=X[1]; row.push(X);} grid.push(row); }
+  const Yref = autoExpo ? Math.max(past>0?Yhold:Ymax, 1e-6*YREF) : YREF; const k = autoExpo?0.85:0.85, p = autoExpo?0.5:0.4;
   const colgrid=grid.map(row=>row.map(X=>tone(X,Yref,k,p,0.95)));
   if(!fast){ const img=dctx.createImageData(W,H), px=img.data;
   for(let y=0;y<H;y++)for(let x=0;x<W;x++){
@@ -394,14 +398,15 @@ function renderDay(fast){
   // readouts
   document.getElementById('hclock').textContent=clockLabel(minutes);
   document.getElementById('relev').textContent=(90-sza).toFixed(1)+'°';
-  const zX=night?[0,0,0]:domeXYZ(ep.key,dLat,si,st,0,0), hX=night?[0,0,0]:domeXYZ(ep.key,dLat,si,st,88,90);
+  const dim=X=>fade===1?X:[X[0]*fade,X[1]*fade,X[2]*fade];
+  const zX=night?[0,0,0]:dim(domeXYZ(ep.key,dLat,si,st,0,0)), hX=night?[0,0,0]:dim(domeXYZ(ep.key,dLat,si,st,88,90));
   const fmt=X=>{ if(X[1]<=1e-7*YREF) return 'dark'; const s=X[0]+X[1]+X[2]; const c=cct(X[0]/s,X[1]/s); return (c>800&&c<60000? c.toLocaleString()+' K':'—')+` · ${(100*X[1]/YREF).toPrecision(2)}%`; };
   document.getElementById('rzen').textContent=fmt(zX); document.getElementById('rhor').textContent=fmt(hX);
   document.getElementById('rsun').textContent = sza>=90 ? 'below horizon' : (sunRel<=3e-4 ? 'not visible' : (()=>{const s=sX[0]+sX[1]+sX[2]; return cct(sX[0]/s,sX[1]/s).toLocaleString()+' K · '+(sunRel*100).toPrecision(2)+'%';})());
   // swatch bar along the sun's vertical
   const bar=document.getElementById('hbar'); bar.innerHTML='';
   const pts=[[88,0],[75,0],[60,0],[45,0],[30,0],[15,0],[0,0],[15,180],[30,180],[45,180],[60,180],[75,180],[88,180]];
-  for(const [vz,azr] of pts){ const X=night?[0,0,0]:domeXYZ(ep.key,dLat,si,st,vz,azr); const i=document.createElement('i'); i.style.background=hex(tone(X,Yref,k,p,0.95)); i.title=`${vz}° from zenith, ${azr?'away from':'toward'} the Sun`; bar.appendChild(i); }
+  for(const [vz,azr] of pts){ const X=night?[0,0,0]:dim(domeXYZ(ep.key,dLat,si,st,vz,azr)); const i=document.createElement('i'); i.style.background=hex(tone(X,Yref,k,p,0.95)); i.title=`${vz}° from zenith, ${azr?'away from':'toward'} the Sun`; bar.appendChild(i); }
   document.getElementById('dprose').textContent = ep.prose;
   markHour();
   refreshDomeTip();
