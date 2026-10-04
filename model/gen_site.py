@@ -151,7 +151,7 @@ button.tick.on{background:none;color:var(--ink)}
 </div>
 
 <h2>A day under that sky</h2>
-<p class="hint">A whole-sky (fisheye) view: the zenith is at the center and the horizon is the rim, north at the top. Equinox geometry, so the Sun rises due east at 6:00 and sets due west at 18:00 everywhere; at the poles the noon Sun sits only 15° above the horizon. The Moon is placed for the selected date and clock time at the selected latitude, on your time zone's central meridian. On this dome the Sun and Moon are enlarged together so the phase stays readable; in the VR view both are their true angular size.</p>
+<p class="hint">A whole-sky (fisheye) view: the zenith is at the center and the horizon is the rim, north at the top. Equinox geometry, so the Sun rises due east at 6:00 and sets due west at 18:00 everywhere; at the poles the noon Sun sits only 15° above the horizon. The Moon is placed for the selected date and clock time at the selected latitude, on your time zone's central meridian. On this dome the Sun and Moon are enlarged together so the phase stays readable; in the VR view both are drawn at four times that angular size.</p>
 <div class="row">
  <div>
   <div class="stage" id="dstage"><button type="button" id="vrbtn" class="vrbtn" title="Full-screen view: look around while the day plays">VR</button><div class="tip" id="dtip"></div><canvas id="dome" width="600" height="600" aria-label="Whole-sky view for the selected epoch, latitude and time of day"></canvas></div>
@@ -417,7 +417,7 @@ function renderDay(fast){
     const col=hex(sunRGB);
     dctx.globalAlpha=1; dctx.fillStyle=col; dctx.beginPath(); dctx.arc(sx,sy,SUNR,0,Math.PI*2); dctx.fill(); dctx.restore();
   }
-  skyNow={colgrid, sza, sunAz, sunRGB, sunOn:sunRelD>3e-4 && sza<90+SUNANG+35/60, moon, gen:++skyGen};
+  skyNow={colgrid, sza, sunAz, sunRGB, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE+35/60, moon, gen:++skyGen};
   document.getElementById('rmoon').textContent = moon.el<-moon.radDeg ? 'below horizon' : moon.el.toFixed(1)+'° · '+Math.round(moonLit(moon, sunAz, 90-sza)*100)+'% lit';
   if(vrOn) paintVR();
   if(fast) return;
@@ -482,7 +482,8 @@ hplay.addEventListener('click',()=>{
 /* ---------- first-person view of the day sky ---------- */
 const SUN_RADIUS_DEG=0.2666; // mean solar angular radius: IAU radius over one astronomical unit
 const SUNANG=SUN_RADIUS_DEG; // VR disk. The fisheye enlarges the Sun and Moon together.
-const VR_FOV_DEG=30; // vertical, about the angle a desktop monitor fills
+const VR_FOV_DEG=60; // twice the angle a desktop monitor fills
+const DISK_SCALE=4; // Sun and Moon are drawn at four times their angular size
 // Sæmundsson 1986: true altitude (degrees) to apparent altitude. Matches Bennett in the shader.
 function apparentEl(h){ if(h>80) return h; const u=h+10.3/(h+5.11); if(u<0.25) return h; return h+(1.02/Math.tan(u*Math.PI/180))/60; }
 // Mean Earth-Moon distance in Earth radii. Younger than 3.2 Ga the values are
@@ -546,7 +547,7 @@ function lunarPlace(lat){
   const GMST=rev(eq.Ls+180+ins.ut*15), LST=rev(GMST+ins.lon);
   let H=rev(LST-rev(eq.RA)); if(H>180) H-=360;
   const p=altaz(lat, eq.Dec, H), radDeg=moonRadiusDeg(EP[dIdx].key);
-  return {az:p.az, el:p.alt, radDeg, rad:radDeg*Math.PI/180, on:apparentEl(p.alt)>-radDeg};
+  return {az:p.az, el:p.alt, radDeg, rad:radDeg*Math.PI/180, on:apparentEl(p.alt)>-radDeg*DISK_SCALE};
 }
 const vdot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
 const vscale=(a,s)=>[a[0]*s,a[1]*s,a[2]*s];
@@ -726,7 +727,13 @@ void main(){
         vec3 alb=texture(moonMap, vec2(x*0.5+0.5, y*0.5+0.5)).rgb;
         vec3 nrm=normalize(east*x+north*y+md*sqrt(max(1.0-rr*rr,0.0)));
         float lit=smoothstep(-0.02, 0.05, dot(nrm,sd));
-        skyC=mix(skyC, alb, 0.10+0.90*lit);
+        // The air in front of the Moon extincts it (blue first) and the sky
+        // already drawn is that same air, so a bright sky veils the disk.
+        float mu=max(sin(max(te,0.0)*0.01745329252), 0.04);
+        vec3 T=exp(-vec3(0.12, 0.22, 0.48)/mu);
+        vec3 moonC=alb*(0.06+0.94*lit)*T;
+        float skyY=dot(skyC, vec3(0.2126, 0.7152, 0.0722));
+        skyC+=moonC*(1.0-smoothstep(0.0, 1.15, skyY));
       }
     }
     if(sunOn>0.5&&te>-1.0&&dot(src,sd)>cos(sunRad)) skyC=sunCol;
@@ -1073,7 +1080,7 @@ function initVR(){
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([180,180,180,255]));
   gl.generateMipmap(gl.TEXTURE_2D);
   gl.uniform1f(u.fov, VR_FOV_DEG*Math.PI/180);
-  gl.uniform1f(u.sunRad, SUNANG*Math.PI/180);
+  gl.uniform1f(u.sunRad, SUN_RADIUS_DEG*DISK_SCALE*Math.PI/180);
   vrGL={gl,u,tex,prog,buf,moonTex};
   if(moonReady) uploadMoon();
   const cfs=glShader(gl, gl.FRAGMENT_SHADER, CLOUDFS), compFs=glShader(gl, gl.FRAGMENT_SHADER, COMPFS);
@@ -1159,7 +1166,7 @@ function paintVR(){
   gl.uniform3f(u.eye, vrX, vrY, 2);
   gl.uniform1f(u.sunAz, skyNow.sunAz); gl.uniform1f(u.sunEl, 90-skyNow.sza);
   gl.uniform1f(u.moonAz, skyNow.moon.az); gl.uniform1f(u.moonEl, skyNow.moon.el);
-  gl.uniform1f(u.moonRad, skyNow.moon.rad); gl.uniform1f(u.moonOn, skyNow.moon.on?1:0);
+  gl.uniform1f(u.moonRad, skyNow.moon.rad*DISK_SCALE); gl.uniform1f(u.moonOn, skyNow.moon.on?1:0);
   gl.uniform1f(u.latRad, LATDEG[dLat]*Math.PI/180);
   gl.uniform1f(u.sunOn, skyNow.sunOn?1:0);
   gl.uniform1f(u.sunMu, Math.max(0, Math.sin(apparentEl(90-skyNow.sza)*Math.PI/180)));
@@ -1229,7 +1236,7 @@ function placeSunMark(){
   let nx, ny;
   if(ahead){ nx=(camX/depth)/fx; ny=(camY/depth)/fy; }
   else { const m=Math.hypot(camX,camY)||1; nx=camX/m; ny=camY/m; }
-  const margin=(SUNANG*Math.PI/180)/fy;
+  const margin=(SUN_RADIUS_DEG*DISK_SCALE*Math.PI/180)/fy;
   const inView=ahead && Math.abs(nx)<1+margin && Math.abs(ny)<1+margin;
   // Hide only while the disk itself is on screen. Below the horizon the disk
   // is not drawn, so the chevron stays and sits on the Sun's direction.
