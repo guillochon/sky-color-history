@@ -199,9 +199,9 @@ function XYZ2rgb(X, expo){ // linear rgb 0..1, soft hue-preserving clip
   const mx=Math.max(r,gg,b); if(mx>1){r/=mx;gg/=mx;b/=mx;} return [r,gg,b];
 }
 function tone(X, Yref, k=0.85, p=0.4, cap=0.92, floor=0){ // returns sRGB 0..255
-  // The integrator stores a zero there. The tone curve is already black at this
-  // threshold; a stand-in gray sits above it and tears a ragged edge into the antisolar sky.
-  if(X[1]<=1e-7*Yref) return [0,0,0];
+  // Non-positive luminance has no color. A hard floor above that cut a contour
+  // into moonlight, so anything dimmer follows the same curve down to black.
+  if(!(X[1]>0)) return [0,0,0];
   let t=Math.min(cap, k*Math.pow(X[1]/Yref,p)); t=Math.max(t,floor);
   const rgb=XYZ2rgb(X, t/X[1]); return rgb.map(v=>Math.round(255*g(v)));
 }
@@ -464,11 +464,11 @@ function adoptPlayRate(){
       hslider.value=minutes; renderDay(true);
     };
     playRAF=requestAnimationFrame(frame);
-  }else hTimer=setInterval(()=>{ minutes+=5; if(minutes>=DAYMIN) minutes=0; hslider.value=minutes; renderDay(); },60);
+  }else hTimer=setInterval(()=>{ minutes+=5; while(minutes>=DAYMIN){ minutes-=DAYMIN; shiftMoonDate(1); } hslider.value=minutes; renderDay(); },60);
 }
 hplay.addEventListener('click',()=>{
   if(dayPlaying){ dayPlaying=false; adoptPlayRate(); hplay.textContent='Play'; hplay.setAttribute('aria-pressed','false'); if(vrOn) syncVRLink(true); if(vrOn&&walking()) pumpWalk(); }
-  else { dayPlaying=true; if(minutes>=DAYMIN){ minutes-=DAYMIN; if(vrOn) shiftMoonDate(1); } hplay.textContent='Pause'; hplay.setAttribute('aria-pressed','true'); adoptPlayRate(); }
+  else { dayPlaying=true; if(minutes>=DAYMIN){ minutes-=DAYMIN; shiftMoonDate(1); } hplay.textContent='Pause'; hplay.setAttribute('aria-pressed','true'); adoptPlayRate(); }
   syncVRPad();
   if(vrOn) paintVR();
 });
