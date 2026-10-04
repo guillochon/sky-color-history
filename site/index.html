@@ -135,7 +135,7 @@ button.tick.on{background:none;color:var(--ink)}
   <div class="controls">
    <button id="hplay" aria-pressed="false">Play</button>
    <span id="hclock" style="font-size:1.2rem;min-width:5.5ch"></span>
-   <button id="expo" aria-pressed="true" title="Normalize brightness so that color is visible in dim skies">Auto-exposure</button>
+   <button id="expo" aria-pressed="false" title="Normalize brightness so that color is visible in dim skies">Auto-exposure</button>
   </div>
  </div>
  <div>
@@ -286,7 +286,7 @@ tplay.addEventListener('click',()=>{ if(tRAF){cancelAnimationFrame(tRAF);tRAF=nu
 /* ---------- Section 2: a day under that sky ---------- */
 const dome=document.getElementById('dome'), dctx=dome.getContext('2d');
 const sel=document.getElementById('depoch'); EP.forEach((ep,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=`${ep.age} — ${ep.name}`; sel.appendChild(o); });
-let dIdx=11, dLat='Mid-latitude', minutes=720, autoExpo=true;
+let dIdx=11, dLat='Mid-latitude', minutes=720, autoExpo=false;
 const DAYMIN=1440; // midnight to midnight
 sel.value=dIdx;
 const LATDEG={'Equator':0,'Mid-latitude':45,'Polar':75};
