@@ -179,6 +179,7 @@ button.tick.on{background:none;color:var(--ink)}
         <button type="button" id="vrpad-scenery" data-act="scenery" aria-pressed="true" aria-label="Scenery"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 19l6-11 4 6 3-4 5 9z"/></svg></button>
         <button type="button" id="vrpad-clouds" data-act="clouds" aria-pressed="true" aria-label="Clouds"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .5-8 5.5 5.5 0 0 0-10.6-1.6A3.5 3.5 0 0 0 7 18z"/></svg></button>
         <button type="button" id="vrpad-music" data-act="music" aria-pressed="true" aria-label="Music"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V6l10-2v10"/><circle cx="7" cy="18" r="2.4" fill="currentColor" stroke="none"/><circle cx="17" cy="14" r="2.4" fill="currentColor" stroke="none"/></svg></button>
+        <button type="button" data-act="eclipse" aria-label="Next eclipse"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9.2" cy="12" r="4.5"/><circle cx="14.8" cy="12" r="4.5"/></svg></button>
       </div>
       <div class="vrpad-row">
         <button type="button" data-act="time" data-dir="-5" aria-label="Earlier"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 7 L6 12 L11 17"/><circle cx="16.5" cy="12" r="3.2"/></svg></button>
@@ -1714,6 +1715,7 @@ document.querySelectorAll('.vrpad button, .vrplay').forEach(b=>{
     else if(act==='play') hplay.click();
     else if(act==='time') stepMinutes(+b.dataset.dir);
     else if(act==='era') stepEpoch(+b.dataset.dir);
+    else if(act==='eclipse') jumpNextEclipse();
     syncVRPad();
   });
 });
