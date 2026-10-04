@@ -132,7 +132,7 @@ button.tick.on{background:none;color:var(--ink)}
 </div>
 
 <h2>A day under that sky</h2>
-<p class="hint">A whole-sky (fisheye) view: the zenith is at the center and the horizon is the rim, north at the top. Equinox geometry, so the Sun rises due east at 6:00 and sets due west at 18:00 everywhere; at the poles the noon Sun sits only 15° above the horizon. The Moon is placed for the selected date and clock time at the selected latitude, on your time zone's central meridian. On this dome the Sun and Moon are enlarged together so the phase stays readable; in the VR view both are drawn at four times their true angular size. Moonlight is the same sky grid as sunlight, added on top, with the Moon at its own place in the sky. Its brightness follows the lunar phase and the Moon's angular size at that epoch. When the Moon covers part of the Sun, sunlight throughout the sky is scaled by the fraction of that drawn solar disk still visible, so a partial eclipse is more common than for the true sizes, and a true overlap is still covered.</p>
+<p class="hint">A whole-sky (fisheye) view: the zenith is at the center and the horizon is the rim, north at the top. Equinox geometry, so the Sun rises due east at 6:00 and sets due west at 18:00 everywhere; at the poles the noon Sun sits only 15° above the horizon. The Moon is placed for the selected date and clock time at the selected latitude, on your time zone's central meridian. On this dome the Sun and Moon are enlarged together so the phase stays readable; in the VR view both are drawn at four times their true angular size. Moonlight is the same sky grid as sunlight, added on top, with the Moon at its own place in the sky. Its brightness follows the lunar phase and the Moon's angular size at that epoch. When the Moon covers part of the Sun, sunlight throughout the sky is scaled by the fraction of that drawn solar disk still visible, so a partial eclipse is more common than for the true sizes, and a true overlap is still covered. The hundred brightest stars are drawn on this dome and in the VR view at their present-day places, brightened together so the faintest of them still shows at night.</p>
 <div class="row">
  <div>
   <div class="stage" id="dstage"><button type="button" id="vrbtn" class="vrbtn" title="Full-screen view: look around while the day plays">VR</button><div class="tip" id="dtip"></div><canvas id="dome" width="600" height="600" aria-label="Whole-sky view for the selected epoch, latitude and time of day"></canvas></div>
@@ -163,7 +163,7 @@ button.tick.on{background:none;color:var(--ink)}
  </div>
 </div>
 
-<div class="foot">Model and data: spherical-shell single scattering with a delta-Eddington multiple-scattering correction, 380–780 nm, CIE 1931 color matching, sRGB output without chromatic adaptation. Colors are what a daylight-balanced camera would record, not what an adapted eye would perceive. Clouds are omitted; paleoatmosphere compositions carry order-of-magnitude uncertainty. Time of day is interpolated between 34 computed solar zenith angles. From the horizon to 20° below it, those samples are spaced 1° apart; from 20° to 30° below, that last sky fades to black. The plane-parallel multiple-scattering term fades out from 10° above the horizon through sunrise. The Moon is a NASA LROC color map (SVS CGI Moon Kit). Moonlight is that same sky grid with the Moon in place of the Sun, added to the sunlight, and scaled by the Allen phase law (Krisciunas &amp; Schaefer 1991) and by the square of the Moon's angular size at that epoch. Its phase is the angle between it and the Sun drawn here. A partial solar eclipse scales that sunlight by the fraction of the drawn solar disk the Moon leaves uncovered. Its size follows the Earth–Moon distance at each epoch: cyclostratigraphic distances from Farhat et al. 2022, and about 70% of today's distance at 3.2 Ga from the Moodies Group (Eulenfeld &amp; Heubeck 2023). Ages older than 3.2 Ga extend that trend and stay beyond 30 Earth radii.</div>
+<div class="foot">Model and data: spherical-shell single scattering with a delta-Eddington multiple-scattering correction, 380–780 nm, CIE 1931 color matching, sRGB output without chromatic adaptation. Colors are what a daylight-balanced camera would record, not what an adapted eye would perceive. Clouds are omitted; paleoatmosphere compositions carry order-of-magnitude uncertainty. Time of day is interpolated between 34 computed solar zenith angles. From the horizon to 20° below it, those samples are spaced 1° apart; from 20° to 30° below, that last sky fades to black. The plane-parallel multiple-scattering term fades out from 10° above the horizon through sunrise. The Moon is a NASA LROC color map (SVS CGI Moon Kit). Moonlight is that same sky grid with the Moon in place of the Sun, added to the sunlight, and scaled by the Allen phase law (Krisciunas &amp; Schaefer 1991) and by the square of the Moon's angular size at that epoch. Its phase is the angle between it and the Sun drawn here. A partial solar eclipse scales that sunlight by the fraction of the drawn solar disk the Moon leaves uncovered. Its size follows the Earth–Moon distance at each epoch: cyclostratigraphic distances from Farhat et al. 2022, and about 70% of today's distance at 3.2 Ga from the Moodies Group (Eulenfeld &amp; Heubeck 2023). Ages older than 3.2 Ga extend that trend and stay beyond 30 Earth radii. The hundred brightest stars are Yale Bright Star Catalogue places (Hoffleit &amp; Warren 1991), carried from J2000 to the year on the clock by precession and proper motion, and brightened together so the faintest still shows at night.</div>
 </main>
 <div id="vr" aria-hidden="true">
 <canvas id="vrc"></canvas>
@@ -417,6 +417,8 @@ function renderDay(fast){
   const sunRelD=rec.sun[visI][2]/noonY;
   const SUNR=DOME_DISK, rr=R*sza/90, a=sunAz*Math.PI/180, sx=cx+rr*Math.sin(a), sy=cy-rr*Math.cos(a);
   const sunRGB=tone(sXd, sXd[1], 0.95,0.4,0.98);
+  const stars=placeStars(LATDEG[dLat]);
+  if(!fast) drawStarsOnDome(stars.marks, colgrid);
   const sunUpPix=!fast && rr-SUNR<R && sunRelD>3e-4;
   if(sunUpPix){
     dctx.save(); dctx.beginPath(); dctx.arc(cx,cy,R,0,Math.PI*2); dctx.clip();
@@ -424,7 +426,7 @@ function renderDay(fast){
     dctx.globalAlpha=1; dctx.fillStyle=col; dctx.beginPath(); dctx.arc(sx,sy,SUNR,0,Math.PI*2); dctx.fill(); dctx.restore();
   }
   if(!fast) drawMoonOnDome(moon, sunAz, 90-sza, sunUpPix?{x:sx,y:sy,r:SUNR}:null);
-  skyNow={colgrid, sza, sunAz, sunRGB, sunVis, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE+35/60, moon, gen:++skyGen};
+  skyNow={colgrid, sza, sunAz, sunRGB, sunVis, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE+35/60, moon, stars:stars.tex, gen:++skyGen};
   document.getElementById('rmoon').textContent = (moon.el<-moon.radDeg ? 'below horizon' : moon.el.toFixed(1)+'°')+' · '+Math.round(moonLit(moon, sunAz, 90-sza)*100)+'% lit · '+(mScale/MOON_SUN_FULL).toPrecision(2)+'× full';
   if(vrOn) paintVR();
   if(fast) return;
@@ -568,6 +570,202 @@ function lunarPlace(lat){
   let H=rev(LST-rev(eq.RA)); if(H>180) H-=360;
   const p=altaz(lat, eq.Dec, H), radDeg=moonRadiusDeg(EP[dIdx].key);
   return {az:p.az, el:p.alt, radDeg, rad:radDeg*Math.PI/180, on:apparentEl(p.alt)>-radDeg*DISK_SCALE};
+}
+
+// Yale Bright Star Catalogue, 5th revised ed. (Hoffleit & Warren 1991): the hundred
+// brightest stars at J2000.0. T CrB is left out; the catalog magnitude is its 1946
+// outburst, and the star is about tenth magnitude the rest of the time. Each row is
+// right ascension and declination in degrees, V, B-V, proper motion in arcseconds
+// per year (mu alpha cos delta, then mu delta), color temperature in kelvin, and a name.
+const STARS=[
+[101.2871,-16.7161,-1.46,0.00,-0.553,-1.205,9750,"Sirius"],
+[95.9879,-52.6958,-0.72,0.15,0.022,0.021,7500,"Canopus"],
+[213.9154,19.1825,-0.04,1.23,-1.093,-1.998,4850,"Arcturus"],
+[219.8996,-60.8353,-0.01,0.71,-3.642,0.699,5800,"Rigel Kentaurus"],
+[279.2346,38.7836,0.03,0.00,0.202,0.286,10000,"Vega"],
+[79.1725,45.9981,0.08,0.80,0.076,-0.425,5500,"Capella"],
+[78.6346,-8.2017,0.12,-0.03,0.000,-0.001,14000,"Rigel"],
+[114.8254,5.2250,0.38,0.42,-0.710,-1.023,6750,"Procyon"],
+[24.4288,-57.2367,0.46,-0.16,0.095,-0.035,24000,"Achernar"],
+[88.7929,7.4069,0.50,1.85,0.026,0.009,3350,"Betelgeuse"],
+[210.9558,-60.3731,0.61,-0.23,-0.032,-0.019,28000,"Agena"],
+[297.6958,8.8683,0.77,0.22,0.538,0.386,8250,"Altair"],
+[68.9800,16.5092,0.85,1.54,0.063,-0.190,4250,"Aldebaran"],
+[247.3517,-26.4319,0.96,1.83,-0.010,-0.020,3350,"Antares"],
+[201.2983,-11.1614,0.98,-0.23,-0.041,-0.028,28000,"Spica"],
+[116.3287,28.0261,1.14,1.00,-0.628,-0.046,5000,"Pollux"],
+[344.4129,-29.6222,1.16,0.09,0.333,-0.165,9250,"Fomalhaut"],
+[191.9300,-59.6886,1.25,-0.23,-0.048,-0.014,30000,"Becrux"],
+[310.3579,45.2803,1.25,0.09,0.003,0.002,9500,"Deneb"],
+[186.6496,-63.0992,1.33,-0.24,-0.036,-0.012,30000,"Acrux"],
+[219.9004,-60.8356,1.33,0.88,-3.646,0.700,4850,"Alp2Cen"],
+[152.0929,11.9672,1.35,-0.11,-0.248,0.006,16000,"Regulus"],
+[104.6562,-28.9722,1.50,-0.21,0.004,0.003,26000,"Adara"],
+[187.7913,-57.1133,1.63,1.59,0.023,-0.262,3050,"Gacrux"],
+[263.4021,-37.1039,1.63,-0.22,-0.001,-0.029,26000,"Shaula"],
+[81.2829,6.3497,1.64,-0.22,-0.009,-0.014,26000,"Bellatrix"],
+[81.5729,28.6075,1.65,-0.13,0.022,-0.175,16000,"Alnath"],
+[138.3000,-69.7172,1.68,0.00,-0.162,0.108,9500,"Miaplacidus"],
+[84.0533,-1.2019,1.70,-0.19,0.001,-0.002,30000,"Alnilam"],
+[186.6521,-63.0994,1.73,-0.26,-0.034,-0.007,28000,"Alp2Cru"],
+[332.0583,-46.9611,1.74,-0.13,0.129,-0.151,16000,"Alnair"],
+[193.5071,55.9597,1.77,-0.02,0.112,-0.006,10000,"Alioth"],
+[122.3833,-47.3367,1.78,-0.22,-0.004,0.006,14086,"Suhail al Muhlif"],
+[51.0808,49.8611,1.79,0.48,0.024,-0.025,6750,"Mirphak"],
+[165.9321,61.7508,1.79,1.07,-0.119,-0.067,5000,"Dubhe"],
+[107.0979,-26.3933,1.84,0.68,-0.003,0.004,6300,"Wezen"],
+[276.0429,-34.3847,1.85,-0.03,-0.038,-0.124,12000,"Kaus Australis"],
+[125.6283,-59.5097,1.86,1.28,-0.026,0.014,4550,"Avior"],
+[206.8850,49.3133,1.86,-0.19,-0.122,-0.011,24000,"Alkaid"],
+[264.3300,-42.9978,1.87,0.40,0.015,-0.002,7350,"Sargas"],
+[89.8821,44.9475,1.90,0.03,-0.057,0.000,9500,"Menkalinan"],
+[252.1662,-69.0278,1.92,1.44,0.014,-0.034,4700,"Alp TrA"],
+[99.4279,16.3992,1.93,0.00,0.042,-0.042,10000,"Alhena"],
+[306.4121,-56.7350,1.94,-0.20,0.007,-0.089,26000,"Peacock"],
+[131.1758,-54.7083,1.96,0.04,0.023,-0.078,9750,"Del Vel"],
+[95.6750,-17.9558,1.98,-0.23,-0.006,0.000,28000,"Murzim"],
+[113.6500,31.8883,1.98,0.03,-0.171,-0.098,9750,"Castor"],
+[141.8967,-8.6586,1.98,1.44,-0.014,0.033,4550,"Alphard"],
+[31.7933,23.4625,2.00,1.15,0.190,-0.148,4700,"Hamal"],
+[37.9529,89.2642,2.02,0.60,0.038,-0.015,6450,"Polaris"],
+[283.8163,-26.2967,2.02,-0.22,0.013,-0.054,26000,"Nunki"],
+[10.8975,-17.9867,2.04,1.02,0.234,0.033,5100,"Diphda"],
+[85.1896,-1.9428,2.05,-0.21,0.003,-0.002,33000,"Alnitak"],
+[2.0971,29.0906,2.06,-0.11,0.136,-0.163,14000,"Alpheratz"],
+[17.4329,35.6206,2.06,1.58,0.178,-0.114,3500,"Mirach"],
+[86.9392,-9.6697,2.06,-0.17,0.002,-0.002,30000,"Saiph"],
+[211.6708,-36.3700,2.06,1.01,-0.519,-0.519,5000,"Menkent"],
+[222.6763,74.1556,2.08,1.47,-0.031,0.012,4400,"Kocab"],
+[263.7337,12.5600,2.08,0.15,0.120,-0.226,8750,"Rasalhague"],
+[340.6671,-46.8847,2.10,1.60,0.137,-0.008,2750,"Bet Gru"],
+[47.0421,40.9556,2.12,-0.05,0.004,-0.001,14000,"Algol"],
+[177.2650,14.5719,2.14,0.09,-0.497,-0.114,9250,"Denebola"],
+[190.3792,-48.9597,2.17,-0.01,-0.189,-0.005,9750,"Gam Cen"],
+[305.5571,40.2567,2.20,0.68,0.004,0.000,6300,"Sadr"],
+[136.9992,-43.4325,2.21,1.66,-0.019,0.013,4400,"Alsuhail"],
+[10.1271,56.5372,2.23,1.17,0.053,-0.032,5000,"Shedir"],
+[83.0017,-0.2992,2.23,-0.22,0.001,-0.002,33000,"Mintaka"],
+[233.6721,26.7147,2.23,-0.02,0.121,-0.089,10000,"Alphekka"],
+[269.1517,51.4889,2.23,1.52,-0.008,-0.019,4250,"Etamin"],
+[120.8963,-40.0033,2.25,-0.26,-0.027,0.012,45000,"Naos"],
+[139.2725,-59.2753,2.25,0.18,-0.020,0.008,8000,"Turais"],
+[30.9750,42.3297,2.26,1.37,0.045,-0.052,4550,"Almaak"],
+[2.2946,59.1497,2.27,0.34,0.525,-0.181,7200,"Caph"],
+[200.9812,54.9253,2.27,0.02,0.122,-0.020,9750,"Mizar"],
+[252.5408,-34.2933,2.29,1.15,-0.611,-0.255,4700,"Eps Sco"],
+[204.9717,-53.4664,2.30,-0.22,-0.028,-0.016,28000,"Eps Cen"],
+[220.4825,-47.3883,2.30,-0.20,-0.021,-0.018,28000,"Alp Lup"],
+[218.8767,-42.1578,2.31,-0.19,-0.035,-0.035,28000,"Eta Cen"],
+[240.0833,-22.6217,2.32,-0.12,-0.012,-0.022,30000,"Dschubba"],
+[165.4604,56.3825,2.37,-0.02,0.082,0.034,9750,"Merak"],
+[6.5708,-42.3061,2.39,1.09,0.203,-0.396,5000,"Ankaa"],
+[326.0467,9.8750,2.39,1.53,0.031,-0.001,4700,"Enif"],
+[265.6221,-39.0300,2.41,-0.22,-0.006,-0.027,28000,"Kap Sco"],
+[345.9438,28.0828,2.42,1.67,0.189,0.137,3200,"Scheat"],
+[257.5946,-15.7247,2.43,0.06,0.039,0.098,9500,"Sabik"],
+[178.4575,53.6947,2.44,0.00,0.095,0.012,10000,"Phad"],
+[319.6450,62.5856,2.44,0.22,0.151,0.049,8250,"Alderamin"],
+[111.0238,-29.3031,2.45,-0.08,-0.004,0.005,20000,"Aludra"],
+[311.5529,33.9703,2.46,1.03,0.356,0.328,5000,"Gienah Cygni"],
+[14.1771,60.7167,2.47,-0.15,0.026,-0.005,30000,"Gam Cas"],
+[346.1904,15.2053,2.49,-0.04,0.063,-0.042,12000,"Markab"],
+[140.5283,-55.0108,2.50,-0.18,-0.008,0.009,26000,"Kap Vel"],
+[45.5700,4.0897,2.53,1.64,-0.009,-0.078,3350,"Menkar"],
+[208.8850,-47.2883,2.55,-0.22,-0.057,-0.042,26000,"Zet Cen"],
+[168.5271,20.5236,2.56,0.12,0.142,-0.130,9000,"Zosma"],
+[249.2896,-10.5672,2.56,0.02,0.014,0.026,33000,"Zet Oph"],
+[83.1825,-17.8222,2.58,0.21,0.001,0.002,7500,"Arneb"],
+[183.9517,-17.5419,2.59,-0.11,-0.161,0.023,14000,"Gienah Ghurab"],
+[182.0896,-50.7225,2.60,-0.12,-0.034,-0.008,26000,"Del Cen"],
+[285.6529,-29.8803,2.60,0.08,-0.015,-0.002,9500,"Ascella"]
+];
+const STAR_N=100;
+const STAR_VFAINT=STARS.reduce((m,s)=>s[2]>m?s[2]:m,-99);
+// Tanner Helland's blackbody curve, divided by its luminance so equal V means equal brightness.
+function starTint(kelvin){
+  const t=Math.max(1000,Math.min(40000,kelvin))/100;
+  let r,g,b;
+  if(t<=66){
+    r=255; g=99.4708025861*Math.log(t)-161.1195681661;
+    b=t<=19?0:138.5177312231*Math.log(t-10)-305.0447927307;
+  }else{
+    r=329.698727446*Math.pow(t-60,-0.1332047592);
+    g=288.1221695283*Math.pow(t-60,-0.0755148492); b=255;
+  }
+  r=Math.max(0,Math.min(255,r)); g=Math.max(0,Math.min(255,g)); b=Math.max(0,Math.min(255,b));
+  const y=0.2126*r+0.7152*g+0.0722*b||1;
+  return [r/y,g/y,b/y];
+}
+// Present-day mean place. epochKey is the geological scene; every scene uses this
+// catalog for now. Proper motion is applied in the J2000 frame, then equatorial
+// precession (Lieske, as given by Meeus) carries the place to `year`. Those series
+// only hold for centuries, so a historical sky replaces this function and keeps the call.
+function starMeanPlace(star, epochKey, year){
+  void epochKey;
+  const dt=year-2000, cosDec=Math.cos(star[1]*Math.PI/180);
+  const ra0=star[0]+(star[4]/3600)*dt/(Math.abs(cosDec)<1e-4?(cosDec<0?-1e-4:1e-4):cosDec);
+  const dec0=star[1]+(star[5]/3600)*dt;
+  const T=dt/100, T2=T*T, T3=T2*T, arc=Math.PI/180/3600;
+  const zeta=(2306.2181*T+0.30188*T2+0.017998*T3)*arc;
+  const zed=(2306.2181*T+1.09468*T2+0.018203*T3)*arc;
+  const theta=(2004.3109*T-0.42665*T2-0.041833*T3)*arc;
+  const a=ra0*Math.PI/180+zeta, sd=Math.sin(dec0*Math.PI/180), cd=Math.cos(dec0*Math.PI/180);
+  const A=cd*Math.sin(a), B=Math.cos(theta)*cd*Math.cos(a)-Math.sin(theta)*sd, C=Math.sin(theta)*cd*Math.cos(a)+Math.cos(theta)*sd;
+  let ra=(Math.atan2(A,B)+zed)*180/Math.PI; ra=((ra%360)+360)%360;
+  return {ra, dec:Math.asin(Math.max(-1,Math.min(1,C)))*180/Math.PI};
+}
+// Daylight exposure would hide every star. Flux is relative to the faintest of
+// these hundred; a square-root curve keeps that star visible and the brighter ones brighter.
+function starDisplay(star){
+  const flux=Math.pow(10, -0.4*(star[2]-STAR_VFAINT));
+  const amp=Math.min(1, 0.62*Math.pow(flux, 0.5));
+  const px=1.8*Math.pow(Math.min(flux, 42), 0.22);
+  const tint=starTint(star[6]||10000);
+  return {px, rgb:tint.map(c=>Math.min(2.4, c)*amp)};
+}
+function placeStars(lat){
+  const epochKey=EP[dIdx].key, ins=instantUT();
+  const year=+(document.getElementById('moonDate').value||localISODate(new Date())).slice(0,4);
+  const eq=moonEquatorial(dayNumber(ins.y,ins.m,ins.D,ins.ut));
+  const LST=rev(rev(eq.Ls+180+ins.ut*15)+ins.lon);
+  const tex=new Float32Array(STAR_N*8), marks=[];
+  for(let i=0;i<STARS.length && i<STAR_N;i++){
+    const star=STARS[i], place=starMeanPlace(star, epochKey, year);
+    let H=rev(LST-rev(place.ra)); if(H>180) H-=360;
+    const p=altaz(lat, place.dec, H), show=starDisplay(star), o=i*4;
+    if(!(p.alt>0)) continue;
+    const dir=horizDir(p.az, p.alt);
+    tex[o]=dir[0]; tex[o+1]=dir[1]; tex[o+2]=dir[2]; tex[o+3]=show.px;
+    tex[STAR_N*4+o]=show.rgb[0]; tex[STAR_N*4+o+1]=show.rgb[1]; tex[STAR_N*4+o+2]=show.rgb[2]; tex[STAR_N*4+o+3]=1;
+    marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb});
+  }
+  return {tex, marks};
+}
+function skyByte(colgrid, el, az){
+  const NR=colgrid.length-1, NA=colgrid[0].length-1, vz=Math.max(0,Math.min(90,90-el));
+  let ang=az%360; if(ang<0) ang+=360;
+  const fr=vz/90*NR, ir=Math.min(NR-1,Math.floor(fr)), tr=fr-ir;
+  const fa=ang/360*NA, ia=Math.min(NA-1,Math.floor(fa)), ta=fa-ia;
+  const chan=q=>{ const a=colgrid[ir][ia][q]*(1-ta)+colgrid[ir][ia+1][q]*ta, b=colgrid[ir+1][ia][q]*(1-ta)+colgrid[ir+1][ia+1][q]*ta; return a*(1-tr)+b*tr; };
+  return 0.2126*chan(0)+0.7152*chan(1)+0.0722*chan(2);
+}
+function drawStarsOnDome(marks, colgrid){
+  const W=dome.width, H=dome.height, cx=W/2, cy=H/2, R=W*0.46;
+  dctx.save();
+  dctx.beginPath(); dctx.arc(cx,cy,R,0,Math.PI*2); dctx.clip();
+  dctx.globalCompositeOperation='lighter';
+  for(const s of marks){
+    const night=1-smooth01(0.05, 0.22, skyByte(colgrid, s.el, s.az)/255);
+    if(night<0.03) continue;
+    const rr=R*(90-s.el)/90, a=s.az*Math.PI/180, x=cx+rr*Math.sin(a), y=cy-rr*Math.cos(a);
+    const col=s.rgb.map(c=>Math.round(Math.min(255, c*night*255)));
+    const g=dctx.createRadialGradient(x,y,0,x,y,s.px);
+    g.addColorStop(0, 'rgb('+col[0]+','+col[1]+','+col[2]+')');
+    g.addColorStop(0.35, 'rgba('+col[0]+','+col[1]+','+col[2]+',0.45)');
+    g.addColorStop(1, 'rgba('+col[0]+','+col[1]+','+col[2]+',0)');
+    dctx.fillStyle=g; dctx.beginPath(); dctx.arc(x,y,s.px,0,Math.PI*2); dctx.fill();
+  }
+  dctx.restore();
 }
 const vdot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
 const vscale=(a,s)=>[a[0]*s,a[1]*s,a[2]*s];
@@ -730,9 +928,9 @@ let skyNow=null, skyGen=0, skyUploaded=-1, vrNote='', vrOn=false, vrYaw=0, vrPit
 const vrHeld=new Set();
 const VRFS=`#version 300 es
 precision highp float;
-uniform sampler2D sky; uniform sampler2D moonMap; uniform vec2 res;
+uniform sampler2D sky; uniform sampler2D moonMap; uniform sampler2D starMap; uniform vec2 res;
 uniform float yaw,pitch,fov,sunAz,sunEl,sunRad,sunOn,nr,na,sunMu,showScn;
-uniform float moonAz,moonEl,moonRad,moonOn,latRad;
+uniform float moonAz,moonEl,moonRad,moonOn,latRad,starPx;
 uniform vec3 sunCol,ground,eye;
 uniform vec4 obj[12];
 uniform float kind[12];
@@ -826,14 +1024,17 @@ void main(){
     float uTex=(fract(compDeg/360.0)*na+0.5)/(na+1.0);
     float vTex=((90.0-max(elevDeg,0.0))/90.0*nr+0.5)/(nr+1.0);
     vec3 skyC=texture(sky, vec2(uTex,vTex)).rgb;
+    float skyL=dot(skyC, vec3(0.2126, 0.7152, 0.0722));
     float te=trueAlt(elevDeg), teR=te*0.01745329252, cth=cos(teR);
     vec3 src=vec3(sin(comp)*cth, cos(comp)*cth, sin(teR));
     bool inSun=sunOn>0.5&&te>-1.0&&dot(src,sd)>cos(sunRad);
+    bool onBody=inSun;
     if(inSun) skyC=sunCol;
     if(moonOn>0.5&&te>-1.2){
       float mA=moonAz*0.01745329252, mZ=(90.0-moonEl)*0.01745329252;
       vec3 md=normalize(vec3(sin(mA)*sin(mZ), cos(mA)*sin(mZ), cos(mZ)));
       if(dot(src,md)>cos(moonRad)){
+        onBody=true;
         if(inSun) skyC=vec3(0.0);
         else {
         vec3 ncp=vec3(0.0, cos(latRad), sin(latRad));
@@ -854,6 +1055,20 @@ void main(){
         vec3 moonC=alb*(0.06+0.94*lit)*T;
         float skyY=dot(skyC, vec3(0.2126, 0.7152, 0.0722));
         skyC+=moonC*(1.0-smoothstep(0.0, 1.15, skyY));
+        }
+      }
+    }
+    if(!onBody && te>0.0){
+      float night=1.0-smoothstep(0.05, 0.22, skyL);
+      if(night>0.02){
+        for(int i=0;i<100;i++){
+          vec4 sp=texelFetch(starMap, ivec2(i, 0), 0);
+          float sig=sp.w*starPx;
+          if(sig<=0.0) continue;
+          float c=dot(src, sp.xyz);
+          if(c<1.0-8.0*sig*sig) continue;
+          float wgt=exp(-0.5*max(0.0, 2.0*(1.0-c))/(sig*sig));
+          skyC+=texelFetch(starMap, ivec2(i, 1), 0).rgb*wgt*night;
         }
       }
     }
@@ -1188,7 +1403,7 @@ function initVR(){
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-  const u={}; for(const n of ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','eye','nr','na','sunMu','showScn','moonAz','moonEl','moonRad','moonOn','latRad']) u[n]=gl.getUniformLocation(prog, n);
+  const u={}; for(const n of ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','eye','nr','na','sunMu','showScn','moonAz','moonEl','moonRad','moonOn','latRad','starPx']) u[n]=gl.getUniformLocation(prog, n);
   u.obj=gl.getUniformLocation(prog,'obj[0]'); u.kind=gl.getUniformLocation(prog,'kind[0]');
   gl.uniform1i(gl.getUniformLocation(prog,'sky'), 0);
   gl.uniform1i(gl.getUniformLocation(prog,'moonMap'), 1);
@@ -1199,9 +1414,18 @@ function initVR(){
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([180,180,180,255]));
   gl.generateMipmap(gl.TEXTURE_2D);
+  const starTex=gl.createTexture();
+  gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, starTex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, STAR_N, 2, 0, gl.RGBA, gl.FLOAT, new Float32Array(STAR_N*8));
+  gl.uniform1i(gl.getUniformLocation(prog,'starMap'), 3);
+  gl.activeTexture(gl.TEXTURE0);
   gl.uniform1f(u.fov, VR_FOV_DEG*Math.PI/180);
   gl.uniform1f(u.sunRad, SUN_RADIUS_DEG*DISK_SCALE*Math.PI/180);
-  vrGL={gl,u,tex,prog,buf,moonTex};
+  vrGL={gl,u,tex,prog,buf,moonTex,starTex};
   if(moonReady) uploadMoon();
   const cfs=glShader(gl, gl.FRAGMENT_SHADER, CLOUDFS), compFs=glShader(gl, gl.FRAGMENT_SHADER, COMPFS);
   if(cfs&&compFs){
@@ -1294,6 +1518,12 @@ function paintVR(){
   gl.uniform3fv(u.ground, groundRGB());
   gl.uniform1f(u.showScn, vrScenery?1:0);
   const sc=sceneFor(EP[dIdx].key); gl.uniform4fv(u.obj, sc.o); gl.uniform1fv(u.kind, sc.k);
+  gl.uniform1f(u.starPx, (VR_FOV_DEG*Math.PI/180)/Math.max(window.innerHeight,1));
+  if(skyNow.stars && vrGL.starTex){
+    gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, vrGL.starTex);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, STAR_N, 2, gl.RGBA, gl.FLOAT, skyNow.stars);
+    gl.activeTexture(gl.TEXTURE0);
+  }
   gl.drawArrays(gl.TRIANGLES, 0, 6);
   if(vrClouds&&vrGL.cloudProg){
     const cw=Math.max(2,c.width>>1), ch=Math.max(2,c.height>>1);
