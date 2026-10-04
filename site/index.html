@@ -130,11 +130,11 @@ button.tick.on{background:none;color:var(--ink)}
 <div class="row">
  <div>
   <div class="stage" id="dstage"><button type="button" id="vrbtn" class="vrbtn" title="Full-screen view: look around while the day plays">VR</button><div class="tip" id="dtip"></div><canvas id="dome" width="600" height="600" aria-label="Whole-sky view for the selected epoch, latitude and time of day"></canvas></div>
-  <input id="hslider" type="range" min="240" max="1200" step="5" value="720" aria-label="Time of day (minutes)">
+  <input id="hslider" type="range" min="0" max="1440" step="5" value="720" aria-label="Time of day (minutes)">
   <div class="track" id="htrack"></div>
   <div class="controls">
    <button id="hplay" aria-pressed="false">Play</button>
-   <span id="hclock" style="font-size:1.2rem;min-width:4.5ch"></span>
+   <span id="hclock" style="font-size:1.2rem;min-width:5.5ch"></span>
    <button id="expo" aria-pressed="true" title="Normalize brightness so that color is visible in dim skies">Auto-exposure</button>
   </div>
  </div>
@@ -287,6 +287,7 @@ tplay.addEventListener('click',()=>{ if(tRAF){cancelAnimationFrame(tRAF);tRAF=nu
 const dome=document.getElementById('dome'), dctx=dome.getContext('2d');
 const sel=document.getElementById('depoch'); EP.forEach((ep,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=`${ep.age} — ${ep.name}`; sel.appendChild(o); });
 let dIdx=11, dLat='Mid-latitude', minutes=720, autoExpo=true;
+const DAYMIN=1440; // midnight to midnight
 sel.value=dIdx;
 const LATDEG={'Equator':0,'Mid-latitude':45,'Polar':75};
 const SZ=DAY.szas, VZ=DAY.vz, AZ=DAY.az;
@@ -395,7 +396,7 @@ function renderDay(fast){
   dctx.fillText('N',cx,cy-R-6); dctx.fillText('S',cx,cy+R+18); dctx.fillText('E',cx+R+12,cy+6); dctx.fillText('W',cx-R-12,cy+6); dctx.textAlign='left';
   dctx.font='italic 20px Newsreader, Georgia, serif'; dctx.fillText(`${ep.name} · ${dLat==='Polar'?'75° latitude':dLat==='Mid-latitude'?'45° latitude':'equator'}`, 16, H-16);
   // readouts
-  const hh=Math.floor(minutes/60), mm=Math.floor(minutes%60); document.getElementById('hclock').textContent=`${hh}:${String(mm).padStart(2,'0')}`;
+  document.getElementById('hclock').textContent=clockLabel(minutes);
   document.getElementById('relev').textContent=(90-sza).toFixed(1)+'°';
   const dim=X=>fade===1?X:[X[0]*fade,X[1]*fade,X[2]*fade];
   const zX=night?[0,0,0]:dim(domeXYZ(ep.key,dLat,si,st,0,0)), hX=night?[0,0,0]:dim(domeXYZ(ep.key,dLat,si,st,88,90));
@@ -416,8 +417,8 @@ document.querySelectorAll('[data-lat]').forEach(b=>b.addEventListener('click',()
 const hslider=document.getElementById('hslider'); hslider.addEventListener('input',()=>{ minutes=+hslider.value; renderDay(); });
 const htrack=document.getElementById('htrack');
 const HMIN=+hslider.min, HMAX=+hslider.max;
-function clockLabel(m){ const hh=Math.floor(m/60), mm=m%60; return hh+':'+String(mm).padStart(2,'0'); }
-for(let m=240, n=0; m<=1200; m+=60, n++){ const t=document.createElement('button'); t.type='button'; t.className='tick row'+(n%2); t.style.left=(100*(m-HMIN)/(HMAX-HMIN))+'%'; t.dataset.min=String(m); t.innerHTML=`<i></i><span class="lb">${clockLabel(m)}</span>`; t.addEventListener('click',()=>{ minutes=m; hslider.value=minutes; renderDay(); }); htrack.appendChild(t); }
+function clockLabel(m){ if(m>=DAYMIN) return '24:00'; const hh=Math.floor(m/60), mm=Math.floor(m%60); return hh+':'+String(mm).padStart(2,'0'); }
+for(let m=HMIN, n=0; m<=HMAX; m+=60, n++){ const t=document.createElement('button'); t.type='button'; t.className='tick row'+(n%2); t.style.left=(100*(m-HMIN)/(HMAX-HMIN))+'%'; t.dataset.min=String(m); t.innerHTML=`<i></i><span class="lb">${clockLabel(m)}</span>`; t.addEventListener('click',()=>{ minutes=m; hslider.value=minutes; renderDay(); }); htrack.appendChild(t); }
 function markHour(){ const ticks=[...htrack.querySelectorAll('.tick')]; let best=0, bd=Infinity; ticks.forEach((t,j)=>{ const d=Math.abs(+t.dataset.min-minutes); if(d<bd){ bd=d; best=j; } }); ticks.forEach((t,j)=>{ const on=j===best; t.classList.toggle('on',on); if(on) t.setAttribute('aria-current','true'); else t.removeAttribute('aria-current'); }); }
 const expo=document.getElementById('expo'); expo.addEventListener('click',()=>{ autoExpo=!autoExpo; expo.setAttribute('aria-pressed',autoExpo); renderDay(); });
 let hTimer=null, dayPlaying=false, playRAF=0, playStamp=0; const hplay=document.getElementById('hplay');
@@ -434,15 +435,15 @@ function adoptPlayRate(){
       let dt=(now-playStamp)/1000; playStamp=now; if(dt>0.05) dt=0.05;
       stepWalk(dt);
       minutes+=dt*(5/0.06)/5;
-      while(minutes>=1200) minutes-=960;
+      while(minutes>=DAYMIN) minutes-=DAYMIN;
       hslider.value=minutes; renderDay(true);
     };
     playRAF=requestAnimationFrame(frame);
-  }else hTimer=setInterval(()=>{ minutes+=5; if(minutes>=1200) minutes=240; hslider.value=minutes; renderDay(); },60);
+  }else hTimer=setInterval(()=>{ minutes+=5; if(minutes>=DAYMIN) minutes=0; hslider.value=minutes; renderDay(); },60);
 }
 hplay.addEventListener('click',()=>{
   if(dayPlaying){ dayPlaying=false; adoptPlayRate(); hplay.textContent='Play'; hplay.setAttribute('aria-pressed','false'); if(vrOn) syncVRLink(true); if(vrOn&&walking()) pumpWalk(); }
-  else { dayPlaying=true; if(minutes>=1200) minutes=240; hplay.textContent='Pause'; hplay.setAttribute('aria-pressed','true'); adoptPlayRate(); }
+  else { dayPlaying=true; if(minutes>=DAYMIN) minutes=0; hplay.textContent='Pause'; hplay.setAttribute('aria-pressed','true'); adoptPlayRate(); }
   syncVRPad();
   if(vrOn) paintVR();
 });
@@ -982,7 +983,7 @@ function paintVR(){
   if(vrClouds&&vrGL.cloudProg){
     const cw=Math.max(2,c.width>>1), ch=Math.max(2,c.height>>1);
     if(cloudMinPrev==null) cloudMinPrev=minutes;
-    else { let dm=minutes-cloudMinPrev; if(dm<-800) dm+=960; cloudMinPrev=minutes; cloudScroll+=dm*88; }
+    else { let dm=minutes-cloudMinPrev; if(dm<-DAYMIN/2) dm+=DAYMIN; cloudMinPrev=minutes; cloudScroll+=dm*88; }
     const field=cloudField(EP[dIdx].key), cu=vrGL.cu;
     ensureCloudTarget(cw, ch);
     gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.cloudFbo);
@@ -1016,7 +1017,7 @@ function paintVR(){
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     gl.disable(gl.BLEND);
   }
-  const hh=Math.floor(minutes/60), mm=Math.floor(minutes%60), ss=Math.floor((minutes%1)*60);
+  const hh=minutes>=DAYMIN?24:Math.floor(minutes/60), mm=minutes>=DAYMIN?0:Math.floor(minutes%60), ss=minutes>=DAYMIN?0:Math.floor((minutes%1)*60);
   const lat=dLat==='Polar'?'75°':dLat==='Mid-latitude'?'45°':'equator';
   document.getElementById('vrplace').textContent=EP[dIdx].name+' · '+lat;
   document.querySelector('.vrnote').textContent=vrCaption();
@@ -1052,7 +1053,7 @@ function pumpWalk(){
 }
 function stepMinutes(d){
   if(dayPlaying) hplay.click();
-  minutes=Math.max(240, Math.min(1200, minutes+d)); hslider.value=minutes; renderDay();
+  minutes=Math.max(0, Math.min(DAYMIN, minutes+d)); hslider.value=minutes; renderDay();
 }
 function stepEpoch(d){
   dIdx=(dIdx+d%EP.length+EP.length)%EP.length; sel.value=String(dIdx); renderDay(); warm();
@@ -1109,7 +1110,7 @@ function applyLink(){
     let m=NaN;
     if(raw.includes(':')){ const p=raw.split(':'); m=(+p[0])*60+(+p[1]||0); }
     else m=+raw;
-    if(m>=240 && m<=1200){ minutes=m; hslider.value=String(minutes); }
+    if(m>=0 && m<=DAYMIN){ minutes=m; hslider.value=String(minutes); }
   }
   return q.has('vr');
 }
@@ -1200,7 +1201,7 @@ function enterVR(fromLink){
   sizeVR(); document.body.style.overflow='hidden'; root.tabIndex=-1; root.focus();
   // Capture the pointer before the slow sky render, while the click is still a user gesture, so yaw is not stopped by the edge of the window.
   vrRelock=true; lockLook();
-  if(!dayPlaying){ dayPlaying=true; if(minutes>=1200) minutes=240; hplay.textContent='Pause'; hplay.setAttribute('aria-pressed','true'); }
+  if(!dayPlaying){ dayPlaying=true; if(minutes>=DAYMIN) minutes=0; hplay.textContent='Pause'; hplay.setAttribute('aria-pressed','true'); }
   if(!vrNav){
     const url=vrLinkURL();
     if(fromLink===true) history.replaceState({vr:1},'',url);
