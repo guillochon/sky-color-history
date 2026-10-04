@@ -386,7 +386,7 @@ function renderDay(fast){
   const sXd=xyY2XYZ([c0[0]*(1-u)+c1[0]*u, c0[1]*(1-u)+c1[1]*u, 1]);
   let visI=si; while(visI>0 && rec.sun[visI][2]/noonY<=3e-4) visI--;
   const sunRelD=rec.sun[visI][2]/noonY;
-  const SUNR=22, rr=R*sza/90, a=sunAz*Math.PI/180, sx=cx+rr*Math.sin(a), sy=cy-rr*Math.cos(a);
+  const SUNR=DOME_DISK, rr=R*sza/90, a=sunAz*Math.PI/180, sx=cx+rr*Math.sin(a), sy=cy-rr*Math.cos(a);
   const sunRGB=tone(sXd, sXd[1], 0.95,0.4,0.98);
   const moon=lunarPlace(LATDEG[dLat]);
   if(!fast) drawMoonOnDome(moon, sunAz, 90-sza);
@@ -445,7 +445,7 @@ function adoptPlayRate(){
       let dt=(now-playStamp)/1000; playStamp=now; if(dt>0.05) dt=0.05;
       stepWalk(dt);
       minutes+=dt*(5/0.06)/5;
-      while(minutes>=DAYMIN) minutes-=DAYMIN;
+      while(minutes>=DAYMIN){ minutes-=DAYMIN; shiftMoonDate(1); }
       hslider.value=minutes; renderDay(true);
     };
     playRAF=requestAnimationFrame(frame);
@@ -453,7 +453,7 @@ function adoptPlayRate(){
 }
 hplay.addEventListener('click',()=>{
   if(dayPlaying){ dayPlaying=false; adoptPlayRate(); hplay.textContent='Play'; hplay.setAttribute('aria-pressed','false'); if(vrOn) syncVRLink(true); if(vrOn&&walking()) pumpWalk(); }
-  else { dayPlaying=true; if(minutes>=DAYMIN) minutes=0; hplay.textContent='Pause'; hplay.setAttribute('aria-pressed','true'); adoptPlayRate(); }
+  else { dayPlaying=true; if(minutes>=DAYMIN){ minutes-=DAYMIN; if(vrOn) shiftMoonDate(1); } hplay.textContent='Pause'; hplay.setAttribute('aria-pressed','true'); adoptPlayRate(); }
   syncVRPad();
   if(vrOn) paintVR();
 });
@@ -462,6 +462,7 @@ const SUN_RADIUS_DEG=0.2666; // mean solar angular radius: IAU radius over one a
 const SUNANG=SUN_RADIUS_DEG; // VR disk. The fisheye enlarges the Sun and Moon together.
 const VR_FOV_DEG=60; // twice the angle a desktop monitor fills
 const DISK_SCALE=4; // Sun and Moon are drawn at four times their angular size
+const DOME_DISK=11; // fisheye solar radius in pixels, half the previous enlargement
 // Sæmundsson 1986: true altitude (degrees) to apparent altitude. Matches Bennett in the shader.
 function apparentEl(h){ if(h>80) return h; const u=h+10.3/(h+5.11); if(u<0.25) return h; return h+(1.02/Math.tan(u*Math.PI/180))/60; }
 // Mean Earth-Moon distance in Earth radii. Younger than 3.2 Ga the values are
@@ -482,6 +483,12 @@ function sind(x){ return Math.sin(x*Math.PI/180); }
 function cosd(x){ return Math.cos(x*Math.PI/180); }
 function dayNumber(y,m,D,ut){ const div=(a,b)=>Math.trunc(a/b); return 367*y - div(7*(y+div(m+9,12)),4) + div(275*m,9) + D - 730530 + ut/24; }
 function localISODate(t){ const p=n=>String(n).padStart(2,'0'); return t.getFullYear()+'-'+p(t.getMonth()+1)+'-'+p(t.getDate()); }
+function shiftMoonDate(days){
+  const el=document.getElementById('moonDate');
+  const raw=el.value||localISODate(new Date());
+  const [Y,M,D]=raw.split('-').map(Number);
+  el.value=localISODate(new Date(Y, M-1, D+days));
+}
 function instantUT(){
   const raw=(document.getElementById('moonDate').value)||localISODate(new Date());
   const [Y,M,D]=raw.split('-').map(Number);
@@ -554,7 +561,7 @@ function paintMoonSprite(moon, sunAz, sunEl){
     if(u*u+v*v>1){ px[o+3]=0; continue; }
     const nrm=vnorm(vadd(vscale(b.east,u), vscale(b.north,v), vscale(b.md, Math.sqrt(1-u*u-v*v))));
     const lit=smooth01(-0.02,0.05, vdot(nrm,sd));
-    px[o+3]=Math.round((0.10+0.90*lit)*255);
+    px[o+3]=Math.round(lit*255);
   }
   sctx.putImageData(img,0,0);
 }
@@ -562,15 +569,41 @@ function drawMoonOnDome(moon, sunAz, sunEl){
   if(!moonReady||moon.el<-moon.radDeg) return;
   const W=dome.width, H=dome.height, cx=W/2, cy=H/2, R=W*0.46;
   const rr=R*(90-moon.el)/90, a=moon.az*Math.PI/180, mx=cx+rr*Math.sin(a), my=cy-rr*Math.cos(a);
-  const rad=moon.radDeg*(22/SUN_RADIUS_DEG);
+  const rad=moon.radDeg*(DOME_DISK/SUN_RADIUS_DEG);
   const b=moonBasis(moon), step=vnorm(vadd(b.md, vscale(b.north,0.02), [0,0,0]));
   const el2=Math.asin(Math.max(-1,Math.min(1,step[2])))*180/Math.PI;
   let az2=Math.atan2(step[0], step[1])*180/Math.PI; if(az2<0) az2+=360;
   const rr2=R*(90-el2)/90, p1x=cx+rr2*Math.sin(az2*Math.PI/180), p1y=cy-rr2*Math.cos(az2*Math.PI/180);
   paintMoonSprite(moon, sunAz, sunEl);
-  dctx.save(); dctx.beginPath(); dctx.arc(cx,cy,R,0,Math.PI*2); dctx.clip();
-  dctx.translate(mx,my); dctx.rotate(Math.atan2(p1x-mx, -(p1y-my)));
-  dctx.drawImage(moonSprite, -rad, -rad, rad*2, rad*2); dctx.restore();
+  // Same veil as the VR sky: extinct the Moon (blue first) and add it onto the
+  // air already drawn, so a bright sky hides the photograph.
+  const spr=moonSprite.getContext('2d',{willReadFrequently:true}).getImageData(0,0,96,96).data;
+  const ang=Math.atan2(p1x-mx, -(p1y-my)), ca=Math.cos(ang), sa=Math.sin(ang);
+  const x0=Math.max(0,Math.floor(mx-rad-1)), y0=Math.max(0,Math.floor(my-rad-1));
+  const x1=Math.min(W-1,Math.ceil(mx+rad+1)), y1=Math.min(H-1,Math.ceil(my+rad+1));
+  if(x1<x0||y1<y0) return;
+  const bw=x1-x0+1, bh=y1-y0+1, img=dctx.getImageData(x0,y0,bw,bh), px=img.data;
+  const samp=(u,v)=>{
+    const x=(u*0.5+0.5)*96-0.5, y=((1-v)*0.5)*96-0.5, i0=Math.floor(x), j0=Math.floor(y), tx=x-i0, ty=y-j0;
+    const at=(i,j)=>{ if(i<0||j<0||i>95||j>95) return [0,0,0,0]; const o=(j*96+i)*4; return [spr[o],spr[o+1],spr[o+2],spr[o+3]]; };
+    const A=at(i0,j0), B=at(i0+1,j0), C=at(i0,j0+1), D=at(i0+1,j0+1), m=(p,q,t)=>p*(1-t)+q*t;
+    return [0,1,2,3].map(k=>m(m(A[k],B[k],tx),m(C[k],D[k],tx),ty));
+  };
+  for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++){
+    const dx=x-cx, dy=y-cy; if(dx*dx+dy*dy>R*R) continue;
+    const qx=x-mx, qy=y-my, lx=qx*ca+qy*sa, ly=-qx*sa+qy*ca, u=lx/rad, v=-ly/rad;
+    if(u*u+v*v>1) continue;
+    const s=samp(u,v), lit=s[3]/255, wlit=0.06+0.94*lit;
+    const el=90*(1-Math.hypot(dx,dy)/R), mu=Math.max(Math.sin(Math.max(el,0)*Math.PI/180), 0.04);
+    const Tr=Math.exp(-0.12/mu), Tg=Math.exp(-0.22/mu), Tb=Math.exp(-0.48/mu);
+    const o=((y-y0)*bw+(x-x0))*4;
+    const skyY=(0.2126*px[o]+0.7152*px[o+1]+0.0722*px[o+2])/255;
+    const t=Math.max(0,Math.min(1,skyY/1.15)), veil=1-t*t*(3-2*t);
+    px[o]=Math.min(255, px[o]+s[0]/255*wlit*Tr*veil*255);
+    px[o+1]=Math.min(255, px[o+1]+s[1]/255*wlit*Tg*veil*255);
+    px[o+2]=Math.min(255, px[o+2]+s[2]/255*wlit*Tb*veil*255);
+  }
+  dctx.putImageData(img,x0,y0);
 }
 function uploadMoon(){
   if(!vrGL||!moonReady) return;
@@ -1261,7 +1294,10 @@ function pumpWalk(){
 }
 function stepMinutes(d){
   if(dayPlaying) hplay.click();
-  minutes=Math.max(0, Math.min(DAYMIN, minutes+d)); hslider.value=minutes; renderDay();
+  minutes+=d;
+  while(minutes>=DAYMIN){ minutes-=DAYMIN; shiftMoonDate(1); }
+  while(minutes<0){ minutes+=DAYMIN; shiftMoonDate(-1); }
+  hslider.value=minutes; renderDay();
 }
 function stepEpoch(d){
   dIdx=(dIdx+d%EP.length+EP.length)%EP.length; sel.value=String(dIdx); renderDay(); warm();
@@ -1409,7 +1445,7 @@ function enterVR(fromLink){
   sizeVR(); document.body.style.overflow='hidden'; root.tabIndex=-1; root.focus();
   // Capture the pointer before the slow sky render, while the click is still a user gesture, so yaw is not stopped by the edge of the window.
   vrRelock=true; lockLook();
-  if(!dayPlaying){ dayPlaying=true; if(minutes>=DAYMIN) minutes=0; hplay.textContent='Pause'; hplay.setAttribute('aria-pressed','true'); }
+  if(!dayPlaying){ dayPlaying=true; if(minutes>=DAYMIN){ minutes-=DAYMIN; shiftMoonDate(1); } hplay.textContent='Pause'; hplay.setAttribute('aria-pressed','true'); }
   if(!vrNav){
     const url=vrLinkURL();
     if(fromLink===true) history.replaceState({vr:1},'',url);
