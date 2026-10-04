@@ -580,30 +580,6 @@ void main(){
     float w=max(fwidth(elevDeg),0.04);
     col=mix(gcol, skyC, smoothstep(-w,w,elevDeg));
   }
-  // Faint ghosts and a thin cross, in the disk's own color. The disk itself
-  // stays the model color; the flare is only there so the light reads as bright.
-  if(sunOn>0.5){
-    vec3 fwd=vec3(sy*cp, cy*cp, sp);
-    vec3 right=vec3(cy,-sy,0.0);
-    vec3 upv=vec3(-sy*sp,-cy*sp,cp);
-    float zs=dot(sd, fwd);
-    if(zs>0.08){
-      vec2 sunP=vec2(dot(sd,right), dot(sd,upv))/zs;
-      vec2 q=vec2(u,v);
-      float sep=acos(clamp(dot(rd,sd),-1.0,1.0));
-      float ghost=(1.0-smoothstep(0.0,0.055,length(q-sunP*-0.45)))*0.16;
-      ghost+=(1.0-smoothstep(0.0,0.038,length(q-sunP*0.62)))*0.12;
-      ghost+=(1.0-smoothstep(0.0,0.07,length(q-sunP*1.15)))*0.10;
-      vec2 rel=q-sunP;
-      vec2 axis=length(sunP)>1e-4?normalize(sunP):vec2(1.0,0.0);
-      vec2 perp=vec2(-axis.y,axis.x);
-      float along=dot(rel,axis), across=dot(rel,perp);
-      float spike=exp(-across*across*2.2e4)*exp(-along*along*80.0);
-      float spike2=exp(-along*along*2.2e4)*exp(-across*across*80.0);
-      float f=ghost+(spike+spike2)*0.20;
-      if(sep>sunRad) col=mix(col, sunCol, clamp(f,0.0,0.28));
-    }
-  }
   fragColor=vec4(col,1.0);
 }`;
 
