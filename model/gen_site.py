@@ -1157,13 +1157,14 @@ float shellT(vec3 ro, vec3 rd, float H){
   return -c/(b+sqrt(disc));
 }
 float cloudNoise(vec2 plane, float z, float detail, float lod, float sc){
-  vec3 uv=vec3(plane*sc, z);
+  vec3 uv=vec3(plane*sc, z*0.22+0.11);
   float edge=0.78-cloudCov*0.62;
   float gate=smoothstep(edge, edge+mix(0.10, 0.28, lod), texture(noise, uv).g);
   // Same billow the clouds had before the tile grew, four times smaller, so the
   // 28 km coverage still groups them and the cells themselves are not huge coins.
+  // The coverage stays coherent with height; the billow itself changes as it rises.
   float k=mix(4.0, 2.4, lod);
-  vec3 q=vec3(uv.xy*k, uv.z*mix(2.2, 1.1, lod));
+  vec3 q=vec3(uv.xy*k, z*mix(1.35, 0.85, lod));
   if(detail>0.35){
     vec2 w=texture(noise, q*1.8+vec3(0.6,2.4,1.3)).rg;
     q+=vec3(w.x-0.5, w.y-0.5, (w.x-w.y)*0.4)*0.22*detail;
@@ -1186,12 +1187,21 @@ float cloudDen(vec3 p, float detail, float lod, float deck){
   float numer=dot(dh,dh)+p.z*(p.z+2.0*R);
   float alt=numer/(sqrt(dot(dh,dh)+(p.z+R)*(p.z+R))+R);
   float ph=clamp((alt-1500.0)/14700.0, 0.0, 1.0);
-  float grad=smoothstep(0.0, mix(0.10, 0.20, lod), ph)*smoothstep(1.0, mix(0.58, 0.40, lod), ph);
   float sc=cloudScale*mix(1.0, 0.85, lod);
-  float zK=mix(0.58, 0.22, max(smoothstep(0.12, 0.55, lod), deck));
-  float zc=ph*zK+0.13;
   vec2 wind=vec2(cloudDrift, cloudDrift*0.42);
-  return cloudNoise(p.xy+wind, zc, detail, lod, sc)*grad;
+  vec2 plane=p.xy+wind;
+  // A broad field picks the top of this column, so some clouds stay low and
+  // others pile much higher instead of every column reaching the same ceiling.
+  float shelf=texture(noise, vec3(plane*sc*0.37, 0.41)).r;
+  float crown=texture(noise, vec3(plane*sc*1.15+vec2(3.7, 1.2), 0.73)).r;
+  float top=mix(0.32, 0.97, shelf*0.62+crown*0.38);
+  float foot=crown*0.08;
+  float rise=smoothstep(foot, foot+mix(0.07, 0.14, lod), ph);
+  float fall=1.0-smoothstep(max(top-mix(0.20, 0.32, lod), foot+0.05), top, ph);
+  float grad=rise*fall;
+  float zK=mix(4.2, 2.8, max(lod*0.7, deck*0.25));
+  float zc=ph*zK+0.17;
+  return cloudNoise(plane, zc, detail, lod, sc)*grad;
 }
 float lightBeer(vec3 p, vec3 sd, float lod, float deck){
   float tau=0.0, ls=mix(720.0, 3300.0, lod);
@@ -1225,15 +1235,15 @@ void main(){
   }
   if(tHit>tIn) tOut=min(tOut, tHit-2.0);
   if(tOut<=tIn){ fragColor=vec4(0.0); return; }
-  float dt=max((tOut-tIn)/40.0, 80.0);
+  float dt=max((tOut-tIn)/64.0, 80.0);
   float ign=fract(52.9829189*fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
-  float t=tIn+dt*ign, T=1.0, tAcc=0.0;
+  float t=tIn+dt*ign*0.35, T=1.0, tAcc=0.0;
   float deck=smoothstep(0.30, 0.06, rd.z);
   vec3 col=vec3(0.0);
-  for(int i=0;i<40;i++){
+  for(int i=0;i<64;i++){
     if(T<0.04||t>tOut) break;
     float j=fract(ign+float(i)*0.61803398875);
-    vec3 p=ro+rd*(t+(j-0.5)*dt);
+    vec3 p=ro+rd*(t+(j-0.5)*dt*0.2);
     float lod=max(smoothstep(7000.0, 26000.0, t), smoothstep(0.28, 0.05, rd.z)*smoothstep(3000.0, 12000.0, t));
     float detail=smoothstep(42000.0, 6000.0, t)*smoothstep(0.01, 0.09, rd.z);
     float den=cloudDen(p, detail, lod, deck);
@@ -1549,7 +1559,7 @@ function paintVR(){
   }
   gl.drawArrays(gl.TRIANGLES, 0, 6);
   if(vrClouds&&vrGL.cloudProg){
-    const cw=Math.max(2,c.width>>1), ch=Math.max(2,c.height>>1);
+    const cw=Math.max(2,c.width), ch=Math.max(2,c.height);
     if(cloudMinPrev==null) cloudMinPrev=minutes;
     else { let dm=minutes-cloudMinPrev; if(dm<-DAYMIN/2) dm+=DAYMIN; cloudMinPrev=minutes; cloudScroll+=dm*88; }
     const field=cloudField(EP[dIdx].key), cu=vrGL.cu;
