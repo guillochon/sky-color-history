@@ -42,22 +42,15 @@ def pack(X):
             float('%.3g' % float(X[1]))]
 
 
-# Below the horizon the published grid is single-scatter, except these two
-# optically thick epochs. Their stored twilight follows the exponential fade
-# in skymodel.radiance, and new samples have to follow it too.
-FADE_BELOW = {'hadean44', 'kpg66'}
-
-
-def sample_dome(atm, sz, key):
-    # Leaving the two-stream term on after sunset for a clear sky paints an
-    # isotropic glow the neighboring samples do not have. The thick epochs are
-    # the exception: that glow is already in their grid.
-    ms = sz < 90 or key in FADE_BELOW
+def sample_dome(atm, sz, key=None):
+    # Keep the model's multiple-scattering fade below the horizon. Single
+    # scattering alone goes exactly to zero over more of the dome each degree,
+    # and those holes read as bands.
     grid = []
     for vz in VZ:
         row = []
         for az in AZ:
-            row.append(pack(spec_to_XYZ(atm.radiance(vz, az, sz, ms=ms))))
+            row.append(pack(spec_to_XYZ(atm.radiance(vz, az, sz))))
         grid.append(row)
     if sz < 90:
         sun = pack(spec_to_XYZ(atm.direct_sun(min(sz, 89.7))))
