@@ -154,7 +154,7 @@ button.tick.on{background:none;color:var(--ink)}
 </div>
 
 <h2>A day under that sky</h2>
-<p class="hint">A whole-sky (fisheye) view: the zenith is at the center and the horizon is the rim, north at the top. Equinox geometry, so the Sun rises due east at 6:00 and sets due west at 18:00 everywhere; at the poles the noon Sun sits only 15° above the horizon. The Moon is placed for the selected date and clock time at the selected latitude, on your time zone's central meridian. On this dome the Sun and Moon are enlarged together so the phase stays readable; in the VR view both are drawn at four times that angular size. Moonlight is the same sky grid as sunlight, added on top, with the Moon at its own place in the sky. Its brightness follows the lunar phase and the Moon's angular size at that epoch.</p>
+<p class="hint">A whole-sky (fisheye) view: the zenith is at the center and the horizon is the rim, north at the top. Equinox geometry, so the Sun rises due east at 6:00 and sets due west at 18:00 everywhere; at the poles the noon Sun sits only 15° above the horizon. The Moon is placed for the selected date and clock time at the selected latitude, on your time zone's central meridian. On this dome the Sun and Moon are enlarged together so the phase stays readable; in the VR view both are drawn at four times their true angular size. Moonlight is the same sky grid as sunlight, added on top, with the Moon at its own place in the sky. Its brightness follows the lunar phase and the Moon's angular size at that epoch. When the Moon covers part of the Sun, sunlight throughout the sky is scaled by the fraction of that drawn solar disk still visible, so a partial eclipse is more common than for the true sizes, and a true overlap is still covered.</p>
 <div class="row">
  <div>
   <div class="stage" id="dstage"><button type="button" id="vrbtn" class="vrbtn" title="Full-screen view: look around while the day plays">VR</button><div class="tip" id="dtip"></div><canvas id="dome" width="600" height="600" aria-label="Whole-sky view for the selected epoch, latitude and time of day"></canvas></div>
@@ -185,7 +185,7 @@ button.tick.on{background:none;color:var(--ink)}
  </div>
 </div>
 
-<div class="foot">Model and data: spherical-shell single scattering with a delta-Eddington multiple-scattering correction, 380–780 nm, CIE 1931 color matching, sRGB output without chromatic adaptation. Colors are what a daylight-balanced camera would record, not what an adapted eye would perceive. Clouds are omitted; paleoatmosphere compositions carry order-of-magnitude uncertainty. Time of day is interpolated between 34 computed solar zenith angles. From the horizon to 20° below it, those samples are spaced 1° apart; from 20° to 30° below, that last sky fades to black. The plane-parallel multiple-scattering term fades out from 10° above the horizon through sunrise. The Moon is a NASA LROC color map (SVS CGI Moon Kit). Moonlight is that same sky grid with the Moon in place of the Sun, added to the sunlight, and scaled by the Allen phase law (Krisciunas &amp; Schaefer 1991) and by the square of the Moon's angular size at that epoch. Its phase is the angle between it and the Sun drawn here. Its size follows the Earth–Moon distance at each epoch: cyclostratigraphic distances from Farhat et al. 2022, and about 70% of today's distance at 3.2 Ga from the Moodies Group (Eulenfeld &amp; Heubeck 2023). Ages older than 3.2 Ga extend that trend and stay beyond 30 Earth radii.</div>
+<div class="foot">Model and data: spherical-shell single scattering with a delta-Eddington multiple-scattering correction, 380–780 nm, CIE 1931 color matching, sRGB output without chromatic adaptation. Colors are what a daylight-balanced camera would record, not what an adapted eye would perceive. Clouds are omitted; paleoatmosphere compositions carry order-of-magnitude uncertainty. Time of day is interpolated between 34 computed solar zenith angles. From the horizon to 20° below it, those samples are spaced 1° apart; from 20° to 30° below, that last sky fades to black. The plane-parallel multiple-scattering term fades out from 10° above the horizon through sunrise. The Moon is a NASA LROC color map (SVS CGI Moon Kit). Moonlight is that same sky grid with the Moon in place of the Sun, added to the sunlight, and scaled by the Allen phase law (Krisciunas &amp; Schaefer 1991) and by the square of the Moon's angular size at that epoch. Its phase is the angle between it and the Sun drawn here. A partial solar eclipse scales that sunlight by the fraction of the drawn solar disk the Moon leaves uncovered. Its size follows the Earth–Moon distance at each epoch: cyclostratigraphic distances from Farhat et al. 2022, and about 70% of today's distance at 3.2 Ga from the Moodies Group (Eulenfeld &amp; Heubeck 2023). Ages older than 3.2 Ga extend that trend and stay beyond 30 Earth radii.</div>
 </main>
 <div id="vr" aria-hidden="true">
 <canvas id="vrc"></canvas>
@@ -194,7 +194,7 @@ button.tick.on{background:none;color:var(--ink)}
 <div class="vrhud">
   <div class="vrtop"><div id="vrplace"></div><div class="vrtop-right"><div id="vrclock"></div><button type="button" id="vrpad-play" class="vrplay" data-act="play" aria-pressed="true" aria-label="Pause"><svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg><svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l12 7-12 7z"/></svg></button></div></div>
   <div class="vrbot">
-    <div class="vrkeys"><span>mouse looks</span><span><kbd>w</kbd><kbd>a</kbd><kbd>s</kbd><kbd>d</kbd> move</span><span><kbd>shift</kbd> faster</span><span><kbd>h</kbd> scenery</span><span><kbd>c</kbd> clouds</span><span><kbd>m</kbd> <span id="vrmusiclabel">music</span></span><span><kbd>esc</kbd> leave</span><span><kbd>space</kbd> play / pause</span><span><kbd>←</kbd><kbd>→</kbd> step time</span><span><kbd>↑</kbd><kbd>↓</kbd> change era</span></div>
+    <div class="vrkeys"><span>mouse looks</span><span><kbd>w</kbd><kbd>a</kbd><kbd>s</kbd><kbd>d</kbd> move</span><span><kbd>shift</kbd> faster</span><span><kbd>h</kbd> scenery</span><span><kbd>c</kbd> clouds</span><span><kbd>m</kbd> <span id="vrmusiclabel">music</span></span><span><kbd>esc</kbd> leave</span><span><kbd>space</kbd> play / pause</span><span><kbd>←</kbd><kbd>→</kbd> step time</span><span><kbd>↑</kbd><kbd>↓</kbd> change era</span><span><kbd>e</kbd> next eclipse</span></div>
     <div class="vrnote">The plain, the shapes, and the clouds are scenery. The sky is the model.</div>
     <div class="vrpad" role="toolbar" aria-label="View controls">
       <div class="vrpad-row">
@@ -378,6 +378,7 @@ function skySource(sza, az){
   return {si, st, fade, az, past};
 }
 function renderDay(fast){
+  vrNote='';
   const ep=EP[dIdx], rec=DAY.epochs[ep.key][dLat]; const {sza,az:sunAz}=sunGeom(LATDEG[dLat],minutes);
   const W=dome.width,H=dome.height, cx=W/2, cy=H/2, R=W*0.46;
   // Moonlight is the Sun's sky field, evaluated at the Moon and added. Hold the
@@ -388,21 +389,28 @@ function renderDay(fast){
   const mScale=moonSkyScale(moon, sunAz, 90-sza);
   const si=sunSrc.si, st=sunSrc.st, past=sunSrc.past;
   const NR=72, NA=144; const grid=[];
-  let Ymax=1e-30, Yhold=1e-30;
   const addField=(X, src, scale, vz, comp)=>{
-    if(!src || src.fade<=0 || scale<=0) return null;
+    if(!src || src.fade<=0) return null;
     let azr=Math.abs(comp-src.az); if(azr>180) azr=360-azr;
     const S=domeXYZ(ep.key,dLat,src.si,src.st,Math.min(vz,88),azr);
-    const f=src.fade*scale;
-    X[0]+=S[0]*f; X[1]+=S[1]*f; X[2]+=S[2]*f;
+    if(scale>0){ const f=src.fade*scale; X[0]+=S[0]*f; X[1]+=S[1]*f; X[2]+=S[2]*f; }
     return S;
   };
+  // Partial eclipse: the Moon is outside the air, so it only hides part of the
+  // photosphere. The whole sunlit sky scales by the fraction still visible.
+  // The disks are the ones drawn in this view, which are larger than the true disks.
+  const diskScale=vrOn?DISK_SCALE:(DOME_DISK/(dome.width*0.46))*90/SUN_RADIUS_DEG;
+  const sepDeg=Math.acos(Math.max(-1,Math.min(1,vdot(horizDir(moon.az,moon.el),horizDir(sunAz,90-sza)))))*180/Math.PI;
+  const sunVis=1-sunCovered(sepDeg, SUN_RADIUS_DEG*diskScale, moon.radDeg*diskScale);
+  let Ymax=1e-30, Yhold=1e-30, Ysun=1e-30;
   for(let ir=0;ir<=NR;ir++){ const row=[]; const vz=90*ir/NR; for(let ia=0;ia<=NA;ia++){ const comp=360*ia/NA;
       const X=[0,0,0];
-      const Xsun=addField(X, sunSrc, 1, vz, comp); if(Xsun && Xsun[1]>Yhold) Yhold=Xsun[1];
+      const Xsun=addField(X, sunSrc, sunVis, vz, comp);
+      if(Xsun){ const y=Xsun[1]*sunSrc.fade; if(y>Ysun) Ysun=y; if(Xsun[1]>Yhold) Yhold=Xsun[1]; }
       addField(X, moonSrc, mScale, vz, comp);
       if(X[1]>Ymax) Ymax=X[1]; row.push(X);} grid.push(row); }
-  const Yref = autoExpo ? Math.max(past>0?Yhold:Ymax, 1e-6*YREF) : YREF; const k = autoExpo?0.85:0.85, p = autoExpo?0.5:0.4;
+  const Ybase=past>0?Yhold:Math.max(Ysun,Ymax);
+  const Yref = autoExpo ? Math.max(Ybase, 1e-6*YREF) : YREF; const k = autoExpo?0.85:0.85, p = autoExpo?0.5:0.4;
   const colgrid=grid.map(row=>row.map(X=>tone(X,Yref,k,p,0.95)));
   if(!fast){ const img=dctx.createImageData(W,H), px=img.data;
   for(let y=0;y<H;y++)for(let x=0;x<W;x++){
@@ -430,13 +438,14 @@ function renderDay(fast){
   const sunRelD=rec.sun[visI][2]/noonY;
   const SUNR=DOME_DISK, rr=R*sza/90, a=sunAz*Math.PI/180, sx=cx+rr*Math.sin(a), sy=cy-rr*Math.cos(a);
   const sunRGB=tone(sXd, sXd[1], 0.95,0.4,0.98);
-  if(!fast) drawMoonOnDome(moon, sunAz, 90-sza);
-  if(!fast && rr-SUNR<R && sunRelD>3e-4){
+  const sunUpPix=!fast && rr-SUNR<R && sunRelD>3e-4;
+  if(sunUpPix){
     dctx.save(); dctx.beginPath(); dctx.arc(cx,cy,R,0,Math.PI*2); dctx.clip();
     const col=hex(sunRGB);
     dctx.globalAlpha=1; dctx.fillStyle=col; dctx.beginPath(); dctx.arc(sx,sy,SUNR,0,Math.PI*2); dctx.fill(); dctx.restore();
   }
-  skyNow={colgrid, sza, sunAz, sunRGB, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE+35/60, moon, gen:++skyGen};
+  if(!fast) drawMoonOnDome(moon, sunAz, 90-sza, sunUpPix?{x:sx,y:sy,r:SUNR}:null);
+  skyNow={colgrid, sza, sunAz, sunRGB, sunVis, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE+35/60, moon, gen:++skyGen};
   document.getElementById('rmoon').textContent = (moon.el<-moon.radDeg ? 'below horizon' : moon.el.toFixed(1)+'°')+' · '+Math.round(moonLit(moon, sunAz, 90-sza)*100)+'% lit · '+(mScale/MOON_SUN_FULL).toPrecision(2)+'× full';
   if(vrOn) paintVR();
   if(fast) return;
@@ -448,11 +457,12 @@ function renderDay(fast){
   // readouts
   document.getElementById('hclock').textContent=clockLabel(minutes);
   document.getElementById('relev').textContent=(90-sza).toFixed(1)+'°';
-  const sumAt=(vz,comp)=>{ const X=[0,0,0]; addField(X,sunSrc,1,vz,comp); addField(X,moonSrc,mScale,vz,comp); return X; };
+  const sumAt=(vz,comp)=>{ const X=[0,0,0]; addField(X,sunSrc,sunVis,vz,comp); addField(X,moonSrc,mScale,vz,comp); return X; };
   const zX=sumAt(0, sunAz), hX=sumAt(88, sunAz+90);
   const fmt=X=>{ if(X[1]<=1e-7*YREF) return 'dark'; const s=X[0]+X[1]+X[2]; const c=cct(X[0]/s,X[1]/s); return (c>800&&c<60000? c.toLocaleString()+' K':'—')+` · ${(100*X[1]/YREF).toPrecision(2)}%`; };
   document.getElementById('rzen').textContent=fmt(zX); document.getElementById('rhor').textContent=fmt(hX);
   document.getElementById('rsun').textContent = sza>=90 ? 'below horizon' : (sunRel<=3e-4 ? 'not visible' : (()=>{const s=sX[0]+sX[1]+sX[2]; return cct(sX[0]/s,sX[1]/s).toLocaleString()+' K · '+(sunRel*100).toPrecision(2)+'%';})());
+  if(sza<90 && sunVis<0.999) document.getElementById('rsun').textContent+=' · '+Math.round((1-sunVis)*100)+'% covered';
   // swatch bar along the sun's vertical
   const bar=document.getElementById('hbar'); bar.innerHTML='';
   const pts=[[88,0],[75,0],[60,0],[45,0],[30,0],[15,0],[0,0],[15,180],[30,180],[45,180],[60,180],[75,180],[88,180]];
@@ -596,6 +606,67 @@ function moonSkyScale(moon, sunAz, sunEl){
   const re=MOON_RE[EP[dIdx].key]||MOON_RE_NOW;
   return MOON_SUN_FULL*phase*opp*(MOON_RE_NOW/re)*(MOON_RE_NOW/re);
 }
+// Fraction of a solar disk of radius rSun covered by a lunar disk of radius rMoon.
+// Separation and radii are in the same units. A true overlap is a subset of an
+// enlarged one, since both radii are scaled by the same factor.
+function sunCovered(sep, rSun, rMoon){
+  if(!(rSun>0)) return 0;
+  const d=sep, R=rMoon;
+  if(d>=rSun+R) return 0;
+  if(d<=Math.abs(R-rSun)) return R>=rSun?1:(R*R)/(rSun*rSun);
+  const r2=rSun*rSun, R2=R*R, d2=d*d;
+  const ang=Math.acos(Math.min(1, Math.max(-1, (d2+r2-R2)/(2*d*rSun))));
+  const bng=Math.acos(Math.min(1, Math.max(-1, (d2+R2-r2)/(2*d*R))));
+  const area=r2*ang+R2*bng-0.5*Math.sqrt(Math.max(0,(-d+rSun+R)*(d+rSun-R)*(d-rSun+R)*(d+rSun+R)));
+  return Math.min(1, Math.max(0, area/(Math.PI*r2)));
+}
+function moonSunSep(lat, ms){
+  const t=new Date(ms);
+  const min=t.getHours()*60+t.getMinutes()+t.getSeconds()/60+t.getMilliseconds()/60000;
+  const ut=t.getUTCHours()+t.getUTCMinutes()/60+t.getUTCSeconds()/3600+t.getUTCMilliseconds()/3600000;
+  const lon=-t.getTimezoneOffset()/60*15;
+  const eq=moonEquatorial(dayNumber(t.getUTCFullYear(), t.getUTCMonth()+1, t.getUTCDate(), ut));
+  const GMST=rev(eq.Ls+180+ut*15), LST=rev(GMST+lon);
+  let H=rev(LST-rev(eq.RA)); if(H>180) H-=360;
+  const p=altaz(lat, eq.Dec, H), sun=sunGeom(lat, min);
+  return Math.acos(Math.max(-1,Math.min(1,vdot(horizDir(p.az,p.alt), horizDir(sun.az, 90-sun.sza)))))*180/Math.PI;
+}
+// Equinox Sun is above the horizon strictly between 06:00 and 18:00 local time.
+function sunUpDuring(a, b){
+  if(!(b>a)) return false;
+  const rise=6*3600000, day=86400000;
+  let t=a;
+  for(let n=0;n<3;n++){
+    const d=new Date(t), sod=((d.getHours()*60+d.getMinutes())*60+d.getSeconds())*1000+d.getMilliseconds();
+    const up0=t-sod+rise, up1=up0+12*3600000;
+    if(up0<b && up1>a) return true;
+    t=up0+day;
+    if(t>=b) break;
+  }
+  return false;
+}
+function findNextEclipse(afterMs){
+  const lat=LATDEG[dLat], limit=DISK_SCALE*(SUN_RADIUS_DEG+moonRadiusDeg(EP[dIdx].key));
+  const hit=ms=>moonSunSep(lat, ms)<limit;
+  const step=10*60*1000, horizon=afterMs+8*365.25*86400000;
+  let prev=hit(afterMs), t=afterMs+step;
+  while(t<=horizon){
+    const now=hit(t);
+    if(now && !prev){
+      let lo=t-step, hi=t;
+      for(let i=0;i<18;i++){ const mid=(lo+hi)/2; if(hit(mid)) hi=mid; else lo=mid; }
+      const start=hi;
+      let end=t, guard=start+20*3600000;
+      while(end<guard && hit(end)) end+=step;
+      lo=Math.max(start, end-step); hi=Math.min(end, guard);
+      for(let i=0;i<18;i++){ const mid=(lo+hi)/2; if(hit(mid)) lo=mid; else hi=mid; }
+      if(sunUpDuring(start, hi)) return start;
+      t=hi+step; prev=false; continue;
+    }
+    prev=now; t+=step;
+  }
+  return null;
+}
 const moonImg=new Image(), moonSprite=document.createElement('canvas');
 moonSprite.width=moonSprite.height=96;
 let moonReady=false;
@@ -619,7 +690,7 @@ function paintMoonSprite(moon, sunAz, sunEl){
   }
   sctx.putImageData(img,0,0);
 }
-function drawMoonOnDome(moon, sunAz, sunEl){
+function drawMoonOnDome(moon, sunAz, sunEl, sunDisk){
   if(!moonReady||moon.el<-moon.radDeg) return;
   const W=dome.width, H=dome.height, cx=W/2, cy=H/2, R=W*0.46;
   const rr=R*(90-moon.el)/90, a=moon.az*Math.PI/180, mx=cx+rr*Math.sin(a), my=cy-rr*Math.cos(a);
@@ -651,6 +722,7 @@ function drawMoonOnDome(moon, sunAz, sunEl){
     const el=90*(1-Math.hypot(dx,dy)/R), mu=Math.max(Math.sin(Math.max(el,0)*Math.PI/180), 0.04);
     const Tr=Math.exp(-0.12/mu), Tg=Math.exp(-0.22/mu), Tb=Math.exp(-0.48/mu);
     const o=((y-y0)*bw+(x-x0))*4;
+    if(sunDisk){ const bx=x-sunDisk.x, by=y-sunDisk.y; if(bx*bx+by*by<=sunDisk.r*sunDisk.r){ px[o]=0; px[o+1]=0; px[o+2]=0; continue; } }
     const skyY=(0.2126*px[o]+0.7152*px[o+1]+0.0722*px[o+2])/255;
     const t=Math.max(0,Math.min(1,skyY/1.15)), veil=1-t*t*(3-2*t);
     px[o]=Math.min(255, px[o]+s[0]/255*wlit*Tr*veil*255);
@@ -675,7 +747,7 @@ const LAND={ // stand-in surface color, not from the radiative-transfer model
   proterozoic22:[.16,.18,.11], snowball07:[.78,.82,.86], carbon30:[.12,.22,.08],
   kpg66:[.17,.15,.13], volcanic:[.18,.16,.14], modern:[.15,.22,.09], modernpoll:[.17,.18,.11]
 };
-let skyNow=null, skyGen=0, skyUploaded=-1, vrOn=false, vrYaw=0, vrPitch=8, vrX=0, vrY=0, vrScenery=true, vrClouds=true, cloudScroll=0, cloudMinPrev=null, vrRelock=false, vrGL=null, vrRAF=0, vrWalk=0, vrWalkStamp=0, vrNav=false, vrLinkKey='';
+let skyNow=null, skyGen=0, skyUploaded=-1, vrNote='', vrOn=false, vrYaw=0, vrPitch=8, vrX=0, vrY=0, vrScenery=true, vrClouds=true, cloudScroll=0, cloudMinPrev=null, vrRelock=false, vrGL=null, vrRAF=0, vrWalk=0, vrWalkStamp=0, vrNav=false, vrLinkKey='';
 const vrHeld=new Set();
 const VRFS=`#version 300 es
 precision highp float;
@@ -777,10 +849,14 @@ void main(){
     vec3 skyC=texture(sky, vec2(uTex,vTex)).rgb;
     float te=trueAlt(elevDeg), teR=te*0.01745329252, cth=cos(teR);
     vec3 src=vec3(sin(comp)*cth, cos(comp)*cth, sin(teR));
+    bool inSun=sunOn>0.5&&te>-1.0&&dot(src,sd)>cos(sunRad);
+    if(inSun) skyC=sunCol;
     if(moonOn>0.5&&te>-1.2){
       float mA=moonAz*0.01745329252, mZ=(90.0-moonEl)*0.01745329252;
       vec3 md=normalize(vec3(sin(mA)*sin(mZ), cos(mA)*sin(mZ), cos(mZ)));
       if(dot(src,md)>cos(moonRad)){
+        if(inSun) skyC=vec3(0.0);
+        else {
         vec3 ncp=vec3(0.0, cos(latRad), sin(latRad));
         vec3 north=ncp-md*dot(ncp,md);
         if(dot(north,north)<1e-6) north=vec3(1.0,0.0,0.0);
@@ -799,9 +875,9 @@ void main(){
         vec3 moonC=alb*(0.06+0.94*lit)*T;
         float skyY=dot(skyC, vec3(0.2126, 0.7152, 0.0722));
         skyC+=moonC*(1.0-smoothstep(0.0, 1.15, skyY));
+        }
       }
     }
-    if(sunOn>0.5&&te>-1.0&&dot(src,sd)>cos(sunRad)) skyC=sunCol;
     float hlen=length(rd.xy);
     float toward=hlen>1e-4?dot(rd.xy/hlen, vec2(sin(sunA),cos(sunA))):0.0;
     vec3 gcol=showScn>0.5?ground*mix(0.9,1.08,clamp(toward*0.5+0.5,0.0,1.0)):vec3(0.02,0.025,0.04);
@@ -1208,7 +1284,7 @@ function groundRGB(){
   let ar=0,ag=0,ab=0,n=0; const ir=Math.round(NR*0.45);
   for(let ia=0; ia<=NA; ia+=8){ const c=cg[ir][ia]; ar+=c[0]; ag+=c[1]; ab+=c[2]; n++; }
   const z=cg[0][0]; ar=ar/n*0.65+z[0]*0.35; ag=ag/n*0.65+z[1]*0.35; ab=ab/n*0.65+z[2]*0.35;
-  const mu=Math.max(0, Math.sin(apparentEl(90-skyNow.sza)*Math.PI/180)), s=skyNow.sunRGB, amb=[ar,ag,ab];
+  const mu=Math.max(0, Math.sin(apparentEl(90-skyNow.sza)*Math.PI/180))*(skyNow.sunVis==null?1:skyNow.sunVis), s=skyNow.sunRGB, amb=[ar,ag,ab];
   return new Float32Array(alb.map((a,i)=>Math.min(255, a*(0.42*amb[i]+1.25*mu*s[i]+16))/255));
 }
 function paintVR(){
@@ -1234,7 +1310,7 @@ function paintVR(){
   gl.uniform1f(u.moonRad, skyNow.moon.rad*DISK_SCALE); gl.uniform1f(u.moonOn, skyNow.moon.on?1:0);
   gl.uniform1f(u.latRad, LATDEG[dLat]*Math.PI/180);
   gl.uniform1f(u.sunOn, skyNow.sunOn?1:0);
-  gl.uniform1f(u.sunMu, Math.max(0, Math.sin(apparentEl(90-skyNow.sza)*Math.PI/180)));
+  gl.uniform1f(u.sunMu, Math.max(0, Math.sin(apparentEl(90-skyNow.sza)*Math.PI/180))*(skyNow.sunVis==null?1:skyNow.sunVis));
   gl.uniform3fv(u.sunCol, new Float32Array(skyNow.sunRGB.map(v=>v/255)));
   gl.uniform3fv(u.ground, groundRGB());
   gl.uniform1f(u.showScn, vrScenery?1:0);
@@ -1254,7 +1330,7 @@ function paintVR(){
     gl.uniform1f(cu.yaw, vrYaw*Math.PI/180); gl.uniform1f(cu.pitch, vrPitch*Math.PI/180);
     gl.uniform3f(cu.eye, vrX, vrY, 2);
     gl.uniform1f(cu.sunAz, skyNow.sunAz); gl.uniform1f(cu.sunEl, 90-skyNow.sza);
-    gl.uniform1f(cu.sunMu, Math.max(0, Math.sin(apparentEl(90-skyNow.sza)*Math.PI/180)));
+    gl.uniform1f(cu.sunMu, Math.max(0, Math.sin(apparentEl(90-skyNow.sza)*Math.PI/180))*(skyNow.sunVis==null?1:skyNow.sunVis));
     gl.uniform3fv(cu.sunCol, new Float32Array(skyNow.sunRGB.map(v=>v/255)));
     const cg=skyNow.colgrid, ay=Math.min(cg.length-1, Math.round((cg.length-1)*0.25)), ap=cg[ay][Math.floor(cg[ay].length/2)];
     gl.uniform3f(cu.amb, ap[0]/255, ap[1]/255, ap[2]/255);
@@ -1281,7 +1357,7 @@ function paintVR(){
   const lat=dLat==='Polar'?'75°':dLat==='Mid-latitude'?'45°':'equator';
   document.getElementById('vrplace').textContent=EP[dIdx].name+' · '+lat;
   document.querySelector('.vrnote').textContent=vrCaption();
-  document.getElementById('vrclock').textContent=(document.getElementById('moonDate').value||'')+' · '+hh+':'+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0')+' · '+(dayPlaying?'playing':'paused');
+  document.getElementById('vrclock').textContent=(document.getElementById('moonDate').value||'')+' · '+hh+':'+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0')+' · '+(dayPlaying?'playing':'paused')+(vrNote?' · '+vrNote:'');
   placeBodyMarks();
   syncVRLink(false);
 }
@@ -1389,6 +1465,27 @@ function stepMinutes(d){
 }
 function stepEpoch(d){
   dIdx=(dIdx+d%EP.length+EP.length)%EP.length; sel.value=String(dIdx); renderDay(); warm();
+}
+function jumpNextEclipse(){
+  if(dayPlaying){ dayPlaying=false; adoptPlayRate(); hplay.textContent='Play'; hplay.setAttribute('aria-pressed','false'); syncVRPad(); }
+  const raw=(document.getElementById('moonDate').value)||localISODate(new Date());
+  const [Y,M,D]=raw.split('-').map(Number);
+  let after=new Date(Y,M-1,D,0,0,0,0).getTime()+minutes*60000+1000;
+  let start=null;
+  for(let n=0;n<6;n++){
+    start=findNextEclipse(after);
+    if(start==null) break;
+    if(Math.abs(start-30*60*1000-(after-1000))>90*1000) break;
+    after=start+1000;
+  }
+  if(start==null){ vrNote='no eclipse in the next eight years'; paintVR(); return; }
+  const t=new Date(start-30*60*1000);
+  document.getElementById('moonDate').value=localISODate(t);
+  minutes=t.getHours()*60+t.getMinutes()+t.getSeconds()/60+t.getMilliseconds()/60000;
+  hslider.value=minutes;
+  const g=sunGeom(LATDEG[dLat], minutes), elev=90-g.sza;
+  vrYaw=g.az; vrPitch=Math.max(-8, Math.min(15, elev-8));
+  renderDay();
 }
 function vrQuery(){
   const q=new URLSearchParams(location.search);
@@ -1611,6 +1708,7 @@ document.addEventListener('keydown',e=>{
     if(e.key==='ArrowLeft'){ e.preventDefault(); stepMinutes(-5); return; }
     if(e.key==='ArrowUp'||e.key===']'){ e.preventDefault(); stepEpoch(1); return; }
     if(e.key==='ArrowDown'||e.key==='['){ e.preventDefault(); stepEpoch(-1); return; }
+    if(k==='e'&&!e.repeat){ e.preventDefault(); jumpNextEclipse(); return; }
     return;
   }
   if(document.activeElement.tagName==='INPUT'||document.activeElement.tagName==='SELECT') return;
