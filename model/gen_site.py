@@ -177,7 +177,7 @@ button.tick.on{background:none;color:var(--ink)}
  </div>
 </div>
 
-<div class="foot">Model and data: spherical-shell single scattering with a delta-Eddington multiple-scattering correction, 380–780 nm, CIE 1931 color matching, sRGB output without chromatic adaptation. Colors are what a daylight-balanced camera would record, not what an adapted eye would perceive. Clouds are omitted; paleoatmosphere compositions carry order-of-magnitude uncertainty. Time of day is interpolated between 34 computed solar zenith angles. From the horizon to 20° below it, those samples are spaced 1° apart; from 20° to 25° below, that last sky fades to black. The plane-parallel multiple-scattering term fades out from 10° above the horizon through sunrise.</div>
+<div class="foot">Model and data: spherical-shell single scattering with a delta-Eddington multiple-scattering correction, 380–780 nm, CIE 1931 color matching, sRGB output without chromatic adaptation. Colors are what a daylight-balanced camera would record, not what an adapted eye would perceive. Clouds are omitted; paleoatmosphere compositions carry order-of-magnitude uncertainty. Time of day is interpolated between 34 computed solar zenith angles. From the horizon to 20° below it, those samples are spaced 1° apart; from 20° to 30° below, that last sky fades to black. The plane-parallel multiple-scattering term fades out from 10° above the horizon through sunrise.</div>
 </main>
 <div id="vr" aria-hidden="true">
 <canvas id="vrc"></canvas>
@@ -363,13 +363,13 @@ function domeXYZ(key, lat, si, st, vz, azr){
 function renderDay(fast){
   const ep=EP[dIdx], rec=DAY.epochs[ep.key][dLat]; const {sza,az:sunAz}=sunGeom(LATDEG[dLat],minutes);
   const W=dome.width,H=dome.height, cx=W/2, cy=H/2, R=W*0.46;
-  // Samples run through 20° below the horizon. From there to 25°, fade that
+  // Samples run through 20° below the horizon. From there to 30°, fade that
   // last sky to black. Hold the exposure so auto-exposure does not undo the fade.
   const last=SZ[SZ.length-1];
   const szaTab=Math.min(sza, last);
   const [si,st]=idx(SZ,szaTab);
   const past=Math.max(0, sza-last);
-  const fade=past<=0 ? 1 : Math.max(0, 1-past/5);
+  const fade=past<=0 ? 1 : Math.max(0, 1-past/10);
   const night=fade<=0;
   const NR=72, NA=144; const grid=[];
   let Ymax=1e-30, Yhold=1e-30;
