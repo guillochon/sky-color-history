@@ -572,7 +572,18 @@ void main(){
     if(sunOn>0.5&&elevDeg>0.0){
       float te=trueAlt(elevDeg)*0.01745329252;
       vec3 src=vec3(sin(comp)*cos(te), cos(comp)*cos(te), sin(te));
-      if(acos(clamp(dot(src,sd),-1.0,1.0))<sunRad) skyC=sunCol;
+      float ang=acos(clamp(dot(src,sd),-1.0,1.0));
+      if(ang<sunRad) skyC=sunCol;
+      else {
+        // The disk is already the brightest sRGB of this chromaticity, so a
+        // whiter core would be a different color. Spread that same color into
+        // a glare so the disk reads as a light without leaving its hue.
+        float dDeg=max(0.0, (ang-sunRad)*57.2957795);
+        // Steep on purpose. A slow blend into blue sky passes through white,
+        // and that would make the color less accurate.
+        float a=smoothstep(2.4, 0.2, dDeg);
+        skyC=mix(skyC, sunCol, a);
+      }
     }
     float hlen=length(rd.xy);
     float toward=hlen>1e-4?dot(rd.xy/hlen, vec2(sin(sunA),cos(sunA))):0.0;
@@ -988,7 +999,7 @@ function paintVR(){
   if(vrClouds&&vrGL.cloudProg){
     const cw=Math.max(2,c.width>>1), ch=Math.max(2,c.height>>1);
     if(cloudMinPrev==null) cloudMinPrev=minutes;
-    else { let dm=minutes-cloudMinPrev; if(dm<-800) dm+=960; cloudMinPrev=minutes; cloudScroll+=dm*22; }
+    else { let dm=minutes-cloudMinPrev; if(dm<-800) dm+=960; cloudMinPrev=minutes; cloudScroll+=dm*44; }
     const field=cloudField(EP[dIdx].key), cu=vrGL.cu;
     ensureCloudTarget(cw, ch);
     gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.cloudFbo);
