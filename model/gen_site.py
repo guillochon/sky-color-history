@@ -1185,7 +1185,7 @@ float cloudDen(vec3 p, float detail, float lod, float deck){
   float R=833333.0;
   float numer=dot(dh,dh)+p.z*(p.z+2.0*R);
   float alt=numer/(sqrt(dot(dh,dh)+(p.z+R)*(p.z+R))+R);
-  float ph=clamp((alt-1500.0)/4900.0, 0.0, 1.0);
+  float ph=clamp((alt-1500.0)/14700.0, 0.0, 1.0);
   float grad=smoothstep(0.0, mix(0.10, 0.20, lod), ph)*smoothstep(1.0, mix(0.58, 0.40, lod), ph);
   float sc=cloudScale*mix(1.0, 0.85, lod);
   float zK=mix(0.58, 0.22, max(smoothstep(0.12, 0.55, lod), deck));
@@ -1194,9 +1194,9 @@ float cloudDen(vec3 p, float detail, float lod, float deck){
   return cloudNoise(p.xy+wind, zc, detail, lod, sc)*grad;
 }
 float lightBeer(vec3 p, vec3 sd, float lod, float deck){
-  float tau=0.0, ls=mix(240.0, 1100.0, lod);
+  float tau=0.0, ls=mix(720.0, 3300.0, lod);
   for(int i=0;i<5;i++){ p+=sd*ls; tau+=cloudDen(p, 0.0, lod, deck)*ls; }
-  return exp(-tau*0.0026);
+  return exp(-tau*(0.0026/3.0));
 }
 void main(){
   float aspect=res.x/max(res.y,1.0); float fy=tan(fov*0.5); float fx=fy*aspect;
@@ -1208,7 +1208,9 @@ void main(){
   float sunA=sunAz*0.01745329252, sunZen=(90.0-sunEl)*0.01745329252;
   vec3 sd=normalize(vec3(sin(sunA)*sin(sunZen), cos(sunA)*sin(sunZen), cos(sunZen)));
   if(rd.z<0.001){ fragColor=vec4(0.0); return; }
-  float tIn=shellT(ro, rd, 1500.0), tOut=shellT(ro, rd, 6400.0);
+  // 1.5 km to 16.2 km, three times the old thickness. Density eases off toward
+  // the top, and the march below runs to the far side instead of stopping short.
+  float tIn=shellT(ro, rd, 1500.0), tOut=shellT(ro, rd, 16200.0);
   if(tIn<0.0||tOut<tIn){ fragColor=vec4(0.0); return; }
   float tHit=1e8;
   if(showScn>0.5){
@@ -1223,8 +1225,7 @@ void main(){
   }
   if(tHit>tIn) tOut=min(tOut, tHit-2.0);
   if(tOut<=tIn){ fragColor=vec4(0.0); return; }
-  tOut=min(tOut, 120000.0);
-  float dt=clamp((tOut-tIn)/40.0, 80.0, mix(280.0, 2200.0, smoothstep(8000.0, 45000.0, tIn)));
+  float dt=max((tOut-tIn)/40.0, 80.0);
   float ign=fract(52.9829189*fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
   float t=tIn+dt*ign, T=1.0, tAcc=0.0;
   float deck=smoothstep(0.30, 0.06, rd.z);
@@ -1254,7 +1255,7 @@ void main(){
       float huePeak=max(sunHue.r, max(sunHue.g, sunHue.b));
       if(huePeak>1.0) sunHue/=huePeak;
       lin=mix(lin, sunHue, sunShare*0.55);
-      float a=1.0-exp(-den*dt*0.0032);
+      float a=1.0-exp(-den*dt*(0.0032/3.0));
       float w=a*T;
       col+=lin*w;
       tAcc+=t*w;
