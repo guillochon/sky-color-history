@@ -684,7 +684,7 @@ function paintMoonSprite(moon, sunAz, sunEl){
   for(let j=0;j<96;j++) for(let i=0;i<96;i++){
     const u=(i+0.5)/96*2-1, v=1-(j+0.5)/96*2, o=(j*96+i)*4;
     if(u*u+v*v>1){ px[o+3]=0; continue; }
-    const nrm=vnorm(vadd(vscale(b.east,u), vscale(b.north,v), vscale(b.md, Math.sqrt(1-u*u-v*v))));
+    const nrm=vnorm(vadd(vscale(b.east,u), vscale(b.north,v), vscale(b.md, -Math.sqrt(1-u*u-v*v))));
     const lit=smooth01(-0.02,0.05, vdot(nrm,sd));
     px[o+3]=Math.round(lit*255);
   }
@@ -866,7 +866,7 @@ void main(){
         float x=dot(src,east)/s, y=dot(src,north)/s, rr=sqrt(x*x+y*y);
         if(rr>1.0){ x/=rr; y/=rr; rr=1.0; }
         vec3 alb=texture(moonMap, vec2(x*0.5+0.5, y*0.5+0.5)).rgb;
-        vec3 nrm=normalize(east*x+north*y+md*sqrt(max(1.0-rr*rr,0.0)));
+        vec3 nrm=normalize(east*x+north*y-md*sqrt(max(1.0-rr*rr,0.0)));
         float lit=smoothstep(-0.02, 0.05, dot(nrm,sd));
         // The air in front of the Moon extincts it (blue first) and the sky
         // already drawn is that same air, so a bright sky veils the disk.
