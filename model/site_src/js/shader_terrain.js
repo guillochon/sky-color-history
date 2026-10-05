@@ -1,5 +1,5 @@
 // Shared by the view, cloud, and composite shaders.
-// massifRad must match scRad, and landH must match landHeight in vr_paint.js.
+// massifRad must match scRad. The dome grids must match landHeight in vr_paint.js.
 const TERR=`
 float h12(vec2 p){
   vec3 q=fract(vec3(p.xyx)*vec3(0.1031, 0.1030, 0.0973));
@@ -11,78 +11,68 @@ float vN(vec2 p){
   return mix(mix(h12(i), h12(i+vec2(1.0,0.0)), u.x), mix(h12(i+vec2(0.0,1.0)), h12(i+vec2(1.0,1.0)), u.x), u.y);
 }
 float massifRad(float R, float volc){ return R*mix(1.28, 1.12, volc); }
-float hillH(vec2 p){
-  const float cell=1200.0;
-  vec2 g=floor(p/cell);
-  float h=0.0;
-  for(int j=-1;j<=1;j++){
-    for(int i=-1;i<=1;i++){
-      vec2 id=g+vec2(float(i), float(j));
-      if(h12(id)<0.34) continue;
-      vec2 jit=vec2(h12(id+1.7), h12(id+3.1));
-      vec2 c=(id+0.5+(jit-0.5)*0.50)*cell;
-      float R=mix(280.0, 640.0, h12(id+5.5));
-      float H=mix(48.0, 170.0, h12(id+8.2));
-      float u=length(p-c)/R;
-      if(u<1.0) h=max(h, pow(1.0-u*u, 1.55)*H);
-    }
-  }
-  return h;
+float rollAt(vec2 p){
+  return vN(p*0.00028)*16.0+vN(p*0.0001+vec2(3.0, 1.2))*12.0;
 }
-float rollH(vec2 p){
-  float a=vN(p*0.00042);
-  float b=vN(p*0.00017+vec2(4.2, 2.6));
-  float c=vN(p*0.00008+vec2(9.0, 1.4));
-  float d=vN(p*0.0017+vec2(2.2, 7.1));
-  float e=vN(p*0.00085+vec2(5.0, 0.4));
-  return (a*0.34+b*0.24+c*0.18)*28.0+(d*0.60+e*0.40)*32.0;
-}
-float landH(vec2 p){
-  float roll=rollH(p);
-  float h=roll+hillH(p);
-  for(int i=0;i<12;i++){
-    float kk=kind[i];
-    if(kk<0.5) continue;
-    vec4 q=obj[i];
-    float dist=length(p-q.xy);
-    if(kk<2.5){
-      float R=massifRad(q.z, step(1.5, kk));
-      float w=1.0-smoothstep(R*0.90, R*1.06, dist);
-      h=mix(h, roll, w);
-    }else{
-      float inner=max(q.z*1.6, 55.0), outer=inner+90.0;
-      float w=1.0-smoothstep(inner, outer, dist);
-      h=mix(h, rollH(q.xy), w);
-    }
-  }
-  return h;
-}
-float marchLand(vec3 ro, vec3 rd, float tMax){
-  if(tMax<0.8) return -1.0;
-  if(ro.z<=landH(ro.xy)+0.15) return 0.35;
-  float t=1.2, prev=0.2;
-  for(int i=0;i<56;i++){
-    if(t>=tMax) return -1.0;
-    vec3 p=ro+rd*t;
-    if(p.z<=landH(p.xy)){
-      float lo=prev, hi=t;
-      for(int j=0;j<6;j++){
-        float mid=0.5*(lo+hi);
-        vec3 m=ro+rd*mid;
-        if(m.z<=landH(m.xy)) hi=mid; else lo=mid;
-      }
-      return hi;
-    }
-    prev=t;
-    t+=min(420.0, max(12.0, t*0.11));
-  }
-  return -1.0;
-}
-vec3 landN(vec2 p){
-  float e=16.0;
-  float hx=landH(p+vec2(e,0.0))-landH(p-vec2(e,0.0));
-  float hy=landH(p+vec2(0.0,e))-landH(p-vec2(0.0,e));
+vec3 rollN(vec2 p){
+  float e=90.0;
+  float hx=rollAt(p+vec2(e,0.0))-rollAt(p-vec2(e,0.0));
+  float hy=rollAt(p+vec2(0.0,e))-rollAt(p-vec2(0.0,e));
   return normalize(vec3(-hx, -hy, 2.0*e));
+}
+float domeT(vec3 ro, vec3 rd, vec2 c, float R, float H){
+  vec3 f=vec3((ro.x-c.x)/R, (ro.y-c.y)/R, ro.z/H);
+  vec3 d=vec3(rd.x/R, rd.y/R, rd.z/H);
+  float A=dot(d,d), B=2.0*dot(f,d), C=dot(f,f)-1.0, disc=B*B-4.0*A*C;
+  if(disc<0.0||A<1e-8) return -1.0;
+  float s=sqrt(disc), t0=(-B-s)/(2.0*A), t1=(-B+s)/(2.0*A);
+  float t=t0>0.2?t0:(t1>0.2?t1:-1.0);
+  if(t<0.0||ro.z+rd.z*t<0.0) return -1.0;
+  return t;
+}
+vec3 domeN(vec3 p, vec2 c, float R, float H){
+  return normalize(vec3((p.x-c.x)/(R*R), (p.y-c.y)/(R*R), p.z/(H*H)));
+}
+float gridDomes(vec3 ro, vec3 rd, float tMax, float cell, float thresh, float r0, float r1, float h0, float h1, float seed, out vec3 nOut){
+  float best=-1.0;
+  nOut=vec3(0.0, 0.0, 1.0);
+  vec2 r=rd.xy;
+  vec2 g=floor(ro.xy/cell);
+  vec2 stp=vec2(r.x>=0.0?1.0:-1.0, r.y>=0.0?1.0:-1.0);
+  float ax=abs(r.x), ay=abs(r.y);
+  float tx=ax<1e-5?1e8:(((r.x>=0.0?g.x+1.0:g.x)*cell)-ro.x)/r.x;
+  float ty=ay<1e-5?1e8:(((r.y>=0.0?g.y+1.0:g.y)*cell)-ro.y)/r.y;
+  float tdx=ax<1e-5?1e8:cell/ax;
+  float tdy=ay<1e-5?1e8:cell/ay;
+  for(int i=0;i<12;i++){
+    float tExit=min(tx, ty);
+    if(ro.z+rd.z*max(tExit-min(tdx, tdy), 0.0)>h1+30.0 && rd.z>=0.0) break;
+    if(h12(g+seed)>=thresh){
+      vec2 jit=vec2(h12(g+seed+1.7), h12(g+seed+3.1));
+      vec2 c=(g+0.5+(jit-0.5)*0.44)*cell;
+      float R=mix(r0, r1, h12(g+seed+5.5));
+      float H=mix(h0, h1, h12(g+seed+8.2));
+      float t=domeT(ro, rd, c, R, H);
+      if(t>0.2 && t<tMax && (best<0.0||t<best)){
+        best=t;
+        nOut=domeN(ro+rd*t, c, R, H);
+      }
+    }
+    if(tExit>tMax || (best>0.0 && tExit>best)) break;
+    if(tx<ty){ g.x+=stp.x; tx+=tdx; }
+    else { g.y+=stp.y; ty+=tdy; }
+  }
+  return best;
+}
+float marchLand(vec3 ro, vec3 rd, float tMax, out vec3 n){
+  n=vec3(0.0, 0.0, 1.0);
+  if(tMax<0.4||rd.z>0.5) return -1.0;
+  vec3 nH, nS;
+  float tH=gridDomes(ro, rd, tMax, 1500.0, 0.42, 220.0, 400.0, 46.0, 155.0, 0.0, nH);
+  float tS=gridDomes(ro, rd, tMax, 2800.0, 0.0, 520.0, 760.0, 16.0, 40.0, 19.0, nS);
+  if(tH>0.0 && (tS<0.0||tH<=tS)){ n=nH; return tH; }
+  if(tS>0.0){ n=nS; return tS; }
+  return -1.0;
 }
 float ridge(vec2 p){
   float a=texture(weather, p).b;
@@ -162,22 +152,21 @@ float marchMassif(vec3 ro, vec3 rd, vec4 q, float volc){
   float t0=span.x, t1=min(span.y, tPlane);
   if(t1<t0) return -1.0;
   vec3 p0=ro+rd*t0;
-  float s0=massifH(p0.xy, q, volc);
-  if(s0>0.3 && p0.z<=s0+rollH(p0.xy)) return t0;
+  float h0=massifH(p0.xy, q, volc);
+  if(h0>0.3 && p0.z<=h0) return t0;
   const int N=28;
   float dt=(t1-t0)/float(N);
   float prev=t0;
   for(int i=1;i<=28;i++){
     float t=min(t0+dt*float(i), t1);
     vec3 p=ro+rd*t;
-    float s=massifH(p.xy, q, volc);
-    if(s>0.3 && p.z<=s+rollH(p.xy)){
+    float h=massifH(p.xy, q, volc);
+    if(h>0.3 && p.z<=h){
       float lo=prev, hi=t;
       for(int j=0;j<6;j++){
         float mid=0.5*(lo+hi);
         vec3 m=ro+rd*mid;
-        float ms=massifH(m.xy, q, volc);
-        if(ms>0.3 && ms+rollH(m.xy)>=m.z) hi=mid; else lo=mid;
+        if(massifH(m.xy, q, volc)>=m.z) hi=mid; else lo=mid;
       }
       return hi;
     }
