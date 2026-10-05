@@ -2230,11 +2230,11 @@ float cloudDen(vec3 p, bool fine, out float hOut){
 }
 float lightTau(vec3 p, vec3 sd, float j){
   float tau=0.0, prev=0.0, dump;
-  float s=55.0;
-  for(int i=0;i<6;i++){
+  float s=18.0;
+  for(int i=0;i<8;i++){
     float x=prev+(s-prev)*j;
-    tau+=cloudDen(p+sd*x, i<2, dump)*(s-prev);
-    prev=s; s*=2.2;
+    tau+=cloudDen(p+sd*x, i<3, dump)*(s-prev);
+    prev=s; s*=2.0;
   }
   return tau;
 }
@@ -2282,21 +2282,26 @@ void main(){
   float ph0=phase(cosT), ph1=phase(cosT*0.55), ph2=phase(cosT*0.3);
   const float SIGMA=0.05;
 
-  float ign=fract(52.9829189*fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))+cloudFrame*0.61803398875);
+  // Interleaved gradient noise, moved across the screen each frame (not just
+  // offset), so successive frames decorrelate and the history averages it away.
+  vec2 jp=gl_FragCoord.xy+5.588238*mod(cloudFrame, 64.0);
+  float ign=fract(52.9829189*fract(dot(jp, vec2(0.06711056, 0.00583715))));
   float t=tIn, T=1.0, tAcc=0.0, wAcc=0.0;
-  float dt=clamp(t*0.011, 45.0, 900.0);
+  float dt=clamp(t*0.007, 35.0, 700.0);
   t+=dt*ign;
   vec3 col=vec3(0.0);
-  for(int i=0;i<140;i++){
+  for(int i=0;i<200;i++){
     if(T<0.02||t>tEnd) break;
-    dt=clamp(t*0.011, 45.0, 900.0);
+    dt=clamp(t*0.007, 35.0, 700.0);
     vec3 p=ro+rd*t;
     float h;
     float coarse=cloudDen(p, false, h);
     if(coarse>0.0){
       float den=cloudDen(p, true, h);
       if(den>0.003){
-        float tau=lightTau(p, sd, fract(ign+float(i)*0.618034)*0.8+0.1)*SIGMA;
+        // Fixed shadow-sample positions: jittering them speckled the lit faces,
+        // and the short first steps keep sunset rims from combing without it.
+        float tau=lightTau(p, sd, 0.5)*SIGMA;
         float powder=1.0-0.6*exp(-den*SIGMA*900.0);
         vec2 dh=p.xy-eye.xy;
         vec3 sunP=sunBase*smoothstep(-250.0, 250.0, p.z+dot(dh,dh)/(2.0*833333.0)-shadowAlt);
@@ -2444,7 +2449,7 @@ const TEMPFS=`#version 300 es
 precision highp float;
 uniform sampler2D currTex, histTex, metaTex;
 uniform vec2 res;
-uniform float yaw,pitch,prevYaw,prevPitch,fov,histValid;
+uniform float yaw,pitch,prevYaw,prevPitch,fov,histValid,histW;
 uniform vec3 eye, prevEye;
 out vec4 fragColor;
 void main(){
@@ -2483,7 +2488,7 @@ void main(){
   float ha=clamp(h.a, aLo, aHi);
   vec3 hc=h.a>0.01?h.rgb/h.a:cur.rgb/max(cur.a, 0.01);
   if(cHi.x>=cLo.x) hc=clamp(hc, cLo, cHi);
-  fragColor=mix(cur, vec4(hc*ha, ha), 0.9);
+  fragColor=mix(cur, vec4(hc*ha, ha), histW);
 }`;
 const NOISEFS=`#version 300 es
 precision highp float;
@@ -2749,7 +2754,7 @@ function initVR(){
       gl.useProgram(pp); gl.uniform1i(gl.getUniformLocation(pp,'cloudTex'), 2); gl.uniform1f(compU.fov, VR_FOV_DEG*Math.PI/180);
       let tu=null;
       if(tp){
-        tu={}; for(const n of ['res','yaw','pitch','prevYaw','prevPitch','fov','histValid']) tu[n]=gl.getUniformLocation(tp, n);
+        tu={}; for(const n of ['res','yaw','pitch','prevYaw','prevPitch','fov','histValid','histW']) tu[n]=gl.getUniformLocation(tp, n);
         tu.eye=gl.getUniformLocation(tp,'eye'); tu.prevEye=gl.getUniformLocation(tp,'prevEye');
         gl.useProgram(tp);
         gl.uniform1i(gl.getUniformLocation(tp,'currTex'), 2);
@@ -2894,6 +2899,10 @@ function paintVR(){
       gl.uniform3f(tu.eye, vrX, vrY, 2);
       gl.uniform3f(tu.prevEye, vrGL.prevEyeX||vrX, vrGL.prevEyeY||vrY, 2);
       gl.uniform1f(tu.histValid, vrGL.histOk?1:0);
+      // 0.9 while the view moves; once it holds still, a running average up to 0.97.
+      const ak=[vrYaw,vrPitch,vrX,vrY,minutes,dIdx,dLat,cw,ch].join('|');
+      vrGL.accN=ak===vrGL.accKey?(vrGL.accN||9)+1:9; vrGL.accKey=ak;
+      gl.uniform1f(tu.histW, Math.min(0.97, vrGL.accN/(vrGL.accN+1)));
       gl.drawArrays(gl.TRIANGLES, 0, 6);
       gl.bindFramebuffer(gl.READ_FRAMEBUFFER, vrGL.accumFbo);
       gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, vrGL.histFbo);
@@ -2904,7 +2913,7 @@ function paintVR(){
     vrGL.prevYaw=vrYaw*Math.PI/180; vrGL.prevPitch=vrPitch*Math.PI/180; vrGL.prevEyeX=vrX; vrGL.prevEyeY=vrY;
     // The march is jittered per frame; repaint a few times after the view settles so it converges.
     const sk=[vrYaw,vrPitch,vrX,vrY,minutes,dIdx,dLat,cw,ch].join('|');
-    if(sk!==vrGL.settleKey){ vrGL.settleKey=sk; vrGL.settle=24; }
+    if(sk!==vrGL.settleKey){ vrGL.settleKey=sk; vrGL.settle=48; }
     if(vrGL.settle>0){ vrGL.settle--; requestVR(); }
     gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.drawBuffers([gl.BACK]); gl.viewport(0,0,c.width,c.height);
     gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
