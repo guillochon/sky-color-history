@@ -9,7 +9,7 @@ uniform sampler2D sky;
 uniform sampler2D hitInfo;
 uniform vec2 res;
 uniform float yaw,pitch,fov,sunAz,sunEl,sunMu,showScn,cloudCov,cloudScale,cloudDrift,cloudTime,cloudFrame,nr,na;
-uniform float cloudType,cloudBase,cloudTop,cloudCirrus,useHDR;
+uniform float cloudType,cloudBase,cloudTop,cloudCirrus,useHDR,cloudDeck;
 uniform vec3 sunCol,groundCol,eye;
 layout(location=0) out vec4 fragColor;
 layout(location=1) out vec4 fragDepth;
@@ -69,6 +69,8 @@ float cloudDen(vec3 p, bool fine, out float hOut){
   float wf=(n.g*0.5+n.b*0.3+n.a*0.2-0.30)/0.36;
   float shape=sat((pw*0.55+wf*0.45-0.5)*1.5+0.5);
   float d=sat(remap(shape, 1.0-profile, 1.0, 0.0, 1.0));
+  // Near overcast the noise still leaves gaps, so cloudDeck fills the layer with a textured sheet.
+  d=max(d, cloudDeck*stratus*cov*(0.35+0.45*shape));
   if(d<=0.0) return 0.0;
   if(fine){
     vec3 dn=texture(noiseDetail, q*6.5+vec3(n.gb-0.5, 0.0)*0.12).rgb;

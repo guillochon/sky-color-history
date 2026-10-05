@@ -179,7 +179,7 @@ function setupHitProg(gl, hp){
 function setupCloudProgs(gl, cp, pp, tp, np){
   const vols=makeCloudVolumes(gl, np);
   if(!vols){ console.warn('cloud noise build failed'); return; }
-  const names=['res','yaw','pitch','fov','eye','sunAz','sunEl','sunCol','sunMu','showScn','cloudCov','cloudScale','cloudDrift','cloudTime','cloudFrame','nr','na','cloudType','cloudBase','cloudTop','cloudCirrus','useHDR','groundCol','sunVis'];
+  const names=['res','yaw','pitch','fov','eye','sunAz','sunEl','sunCol','sunMu','showScn','cloudCov','cloudScale','cloudDrift','cloudTime','cloudFrame','nr','na','cloudType','cloudBase','cloudTop','cloudCirrus','useHDR','groundCol','sunVis','cloudDeck'];
   const cu={}; for(const n of names) cu[n]=gl.getUniformLocation(cp, n);
   cu.obj=gl.getUniformLocation(cp,'obj[0]'); cu.kind=gl.getUniformLocation(cp,'kind[0]');
   const weather=ensureWeather(gl);

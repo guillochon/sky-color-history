@@ -310,7 +310,7 @@ function paintVR(){
     gl.uniform1f(cu.showScn, vrScenery?1:0);
     gl.uniform1f(cu.cloudCov, field.cov); gl.uniform1f(cu.cloudScale, field.scale); gl.uniform1f(cu.cloudDrift, cloudScroll);
     gl.uniform1f(cu.cloudTime, vrGL.cloudTime||0); gl.uniform1f(cu.cloudFrame, vrGL.cloudFrame||0);
-    gl.uniform1f(cu.cloudType, field.type); gl.uniform1f(cu.cloudBase, field.base); gl.uniform1f(cu.cloudTop, field.top); gl.uniform1f(cu.cloudCirrus, field.cirrus);
+    gl.uniform1f(cu.cloudType, field.type); gl.uniform1f(cu.cloudDeck, field.deck); gl.uniform1f(cu.cloudBase, field.base); gl.uniform1f(cu.cloudTop, field.top); gl.uniform1f(cu.cloudCirrus, field.cirrus);
     gl.uniform1f(cu.useHDR, vrGL.cloudHDR?1:0);
     gl.uniform1f(cu.sunVis, skyNow.sunVis==null?1:skyNow.sunVis);
     gl.uniform4fv(cu.obj, sc.o); gl.uniform1fv(cu.kind, sc.k);
@@ -366,7 +366,7 @@ function paintVR(){
   const lat=dLat==='Polar'?'75°':dLat==='Mid-latitude'?'45°':'equator';
   document.getElementById('vrplace').textContent=EP[dIdx].name+' · '+lat;
   document.querySelector('.vrnote').textContent=vrCaption();
-  document.getElementById('vrclock').textContent=(document.getElementById('moonDate').value||'')+' · '+hh+':'+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0')+' · '+(dayPlaying?'playing':'paused')+(vrNote?' · '+vrNote:'');
+  document.getElementById('vrclock').textContent=(document.getElementById('moonDate').value||'')+' · '+hh+':'+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0')+' · '+(dayPlaying?'playing':'paused')+(vrClouds&&vrGL.field?' · clouds '+Math.round(vrGL.field.cov*100)+'%':'')+(vrNote?' · '+vrNote:'');
   placeBodyMarks();
   syncVRLink(false);
   // Water and magma move in real time, so keep painting at about 30 fps while one is in view.
