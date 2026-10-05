@@ -6,7 +6,7 @@ precision highp float;
 uniform sampler2D noiseTex;
 uniform sampler2D sky; uniform sampler2D moonMap; uniform sampler2D starMap; uniform sampler2D starBin; uniform sampler2D starIdx; uniform sampler2D weather; uniform sampler2D hitInfo; uniform sampler2D hitNrm; uniform vec2 res;
 uniform float yaw,pitch,fov,sunAz,sunEl,sunRad,sunOn,nr,na,sunMu,showScn,mtnSnow;
-uniform float moonAz,moonEl,moonRad,moonOn,latRad,starPx,cloudCov,cloudScale,cloudDrift,cloudOn,clockH,snowCover;
+uniform float moonAz,moonEl,moonRad,moonOn,latRad,starPx,cloudCov,cloudScale,cloudDrift,cloudOn,clockH,snowCover,waterT;
 uniform vec3 sunCol,ground,eye;
 uniform vec4 obj[12];
 uniform vec4 pond[8];
@@ -203,20 +203,27 @@ void main(){
       }
       float light=0.42+0.58*sunMu, detail=1.0-smoothstep(0.3, 1.5, foot);
       if(pk>-0.5 && (pk<0.5 || pk>2.5)){
-        vec3 r1=vNd(gp*0.45), r2=vNd(gp*1.3+7.0);
-        vec3 wn=normalize(vec3(-(r1.yz*0.45+r2.yz*0.35)*0.12*detail, 1.0));
+        // Two ripple layers drifting different ways over a slow swell. waterT is real seconds;
+        // swamp water moves at a third of the speed.
+        float wt=waterT*(pk>2.5?0.3:1.0);
+        vec3 r1=vNd(gp*0.45+vec2(0.31, 0.17)*wt), r2=vNd(gp*1.3+7.0-vec2(0.22, 0.41)*wt), r3=vNd(gp*0.12+vec2(-0.05, 0.04)*wt);
+        vec3 wn=normalize(vec3(-((r1.yz*0.45+r2.yz*0.35)*detail+r3.yz*0.25)*0.12, 1.0));
         vec3 refl=reflect(rd, wn);
         float fres=0.02+0.98*pow(1.0-clamp(-dot(rd, wn), 0.0, 1.0), 5.0);
         vec3 deep=pk>2.5?vec3(0.035, 0.045, 0.02):vec3(0.012, 0.035, 0.05);
         vec3 wc=mix(deep*light, skyLook(refl), fres);
         wc+=sunCol*pow(max(dot(refl, sd), 0.0), 300.0)*step(0.0, sd.z)*2.0;
-        if(pk>2.5) wc=mix(wc, vec3(0.10, 0.16, 0.05)*light, smoothstep(0.55, 0.72, vN(gp/7.0))*0.75);
+        if(pk>2.5) wc=mix(wc, vec3(0.10, 0.16, 0.05)*light, smoothstep(0.55, 0.72, vN(gp/7.0+vec2(0.02, 0.01)*waterT))*0.75);
         gcol=mix(gcol*0.55, wc, smoothstep(0.0, 3.0, edge));
       }else if(pk>0.5 && pk<1.5){
-        float crust=vN(gp/9.0)*0.6+vN(gp/3.1)*0.4;
-        float crack=mix(0.1, 1.0-smoothstep(0.0, 0.05, abs(vN(gp/5.0+3.3)-0.5)), detail);
-        float pool=smoothstep(6.0, 40.0, edge)*smoothstep(0.45, 0.7, vN(gp/30.0+9.1));
+        // The crust and its cracks creep together at about 3.5 cm/s, the open melt churns,
+        // and the glow pulses.
+        vec2 creep=vec2(0.035, 0.018)*waterT;
+        float crust=vN((gp-creep)/9.0)*0.6+vN((gp-creep)/3.1)*0.4;
+        float crack=mix(0.1, 1.0-smoothstep(0.0, 0.05, abs(vN((gp-creep)/5.0+3.3)-0.5)), detail);
+        float pool=smoothstep(6.0, 40.0, edge)*smoothstep(0.45, 0.7, vN(gp/30.0+9.1+vec2(0.013, -0.009)*waterT));
         float glow=max(pool, crack*0.8)*(0.75+0.25*crust)*smoothstep(0.0, 3.0, edge);
+        glow*=0.82+0.18*sin(waterT*1.3+vN(gp/12.0)*12.0);
         gcol=gcol*0.3*(0.8+0.4*crust)+vec3(1.9, 0.55, 0.08)*glow*(0.6+0.6*pool);
       }else if(pk>1.5 && pk<2.5){
         vec3 refl=reflect(rd, vec3(0.0, 0.0, 1.0));

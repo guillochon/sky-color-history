@@ -189,6 +189,21 @@ function ensureHitTarget(w, h){
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   if(!vrGL.hitMRT&&vrGL.hitFloat){ vrGL.hitFloat=false; vrGL.hitW=0; ensureHitTarget(w, h); }
 }
+// Whether a pool that moves (water, swamp, or magma) is on screen and within 6 km.
+function movingPoolInView(){
+  if(!vrScenery || vrPitch-VR_FOV_DEG*0.5>0) return false;
+  const sc=sceneFor(EP[dIdx].key), c=document.getElementById('vrc');
+  const half=Math.atan(Math.tan(VR_FOV_DEG*Math.PI/360)*c.width/Math.max(c.height, 1))*180/Math.PI;
+  for(let i=0;i<sc.pn;i++){
+    if(sc.p[i*4+3]===POND_KIND.ice) continue;
+    const dx=sc.p[i*4]-vrX, dy=sc.p[i*4+1]-vrY, d=Math.hypot(dx, dy), R=sc.p[i*4+2]*1.3;
+    if(d<R) return true;
+    if(d>6000) continue;
+    const off=Math.abs(((Math.atan2(dx, dy)*180/Math.PI-vrYaw)%360+540)%360-180);
+    if(off<half+Math.asin(R/d)*180/Math.PI) return true;
+  }
+  return false;
+}
 function paintVR(){
   if(!vrOn||!vrGL||!skyNow) return;
   const {gl,u,tex}=vrGL, c=gl.canvas;
@@ -219,6 +234,7 @@ function paintVR(){
   gl.uniform1f(u.showScn, vrScenery?1:0);
   gl.uniform1f(u.mtnSnow, mtnSnowFor(EP[dIdx].key));
   gl.uniform1f(u.snowCover, EP[dIdx].key==='snowball07'?1:0);
+  gl.uniform1f(u.waterT, (performance.now()/1000)%1000);
   { const sz=sceneFor(EP[dIdx].key); gl.uniform4fv(u.pond, sz.p); gl.uniform1f(u.pondN, sz.pn); }
   gl.uniform1f(u.clockH, (minutes%DAYMIN)/60);
   const sc=sceneFor(EP[dIdx].key); gl.uniform4fv(u.obj, sc.o); gl.uniform1fv(u.kind, sc.k);
@@ -353,4 +369,6 @@ function paintVR(){
   document.getElementById('vrclock').textContent=(document.getElementById('moonDate').value||'')+' · '+hh+':'+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0')+' · '+(dayPlaying?'playing':'paused')+(vrNote?' · '+vrNote:'');
   placeBodyMarks();
   syncVRLink(false);
+  // Water and magma move in real time, so keep painting at about 30 fps while one is in view.
+  if(!vrGL.poolTimer && movingPoolInView()) vrGL.poolTimer=setTimeout(()=>{ vrGL.poolTimer=0; requestVR(); }, 33);
 }
