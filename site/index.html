@@ -2012,8 +2012,8 @@ const LAND={ // stand-in surface color, not from the radiative-transfer model
 };
 let skyNow=null, skyGen=0, skyUploaded=-1, vrNote='', vrOn=false, vrYaw=0, vrPitch=8, vrX=0, vrY=0, vrScenery=true, vrClouds=true, cloudScroll=0, cloudMinPrev=null, vrRelock=false, vrGL=null, vrRAF=0, vrWalk=0, vrWalkStamp=0, vrNav=false, vrLinkKey='';
 const vrHeld=new Set();
-// Shared by the view, cloud, and composite shaders.
-// massifRad must match scRad. The dome grids must match landHeight in vr_paint.js.
+// Marched by the hit shader. massifRad must match scRad.
+// The dome grids must match landHeight in vr_paint.js.
 const TERR=`
 float h12(vec2 p){
   vec3 q=fract(vec3(p.xyx)*vec3(0.1031, 0.1030, 0.0973));
@@ -2196,15 +2196,19 @@ vec3 massifN(vec2 p, vec4 q, float volc){
   return normalize(vec3(-hx, -hy, 2.0*e));
 }
 `;
-const VRFS=`#version 300 es
+// Mountains and hills are marched in this pass. Folding the same code into the
+// sky shader makes the driver take about fifteen seconds to link the program.
+const HITFS=`#version 300 es
 precision highp float;
-uniform sampler2D sky; uniform sampler2D moonMap; uniform sampler2D starMap; uniform sampler2D starBin; uniform sampler2D starIdx; uniform sampler2D weather; uniform vec2 res;
-uniform float yaw,pitch,fov,sunAz,sunEl,sunRad,sunOn,nr,na,sunMu,showScn,mtnSnow;
-uniform float moonAz,moonEl,moonRad,moonOn,latRad,starPx,cloudCov,cloudScale,cloudDrift,cloudOn;
-uniform vec3 sunCol,ground,eye;
+uniform sampler2D weather;
+uniform vec2 res;
+uniform float yaw,pitch,fov,showScn,sunAz,sunEl;
+uniform vec3 eye;
 uniform vec4 obj[12];
 uniform float kind[12];
-out vec4 fragColor;
+uniform float scnCount;
+layout(location=0) out vec4 hitInfo;
+layout(location=1) out vec4 hitNrm;
 ${TERR}
 float scnShadow(vec3 p, vec3 sd){
   if(sd.z<=0.04) return 1.0;
@@ -2268,6 +2272,91 @@ float ellT(vec3 ro,vec3 rd,vec2 c,float R,float H){
   return t;
 }
 vec3 ellN(vec3 p,vec2 c,float R,float H){ return normalize(vec3((p.x-c.x)/(R*R),(p.y-c.y)/(R*R),p.z/(H*H))); }
+void main(){
+  float aspect=res.x/max(res.y,1.0); float fy=tan(fov*0.5); float fx=fy*aspect;
+  float u=((gl_FragCoord.x/res.x)*2.0-1.0)*fx;
+  float v=((gl_FragCoord.y/res.y)*2.0-1.0)*fy;
+  float cp=cos(pitch), sp=sin(pitch), cy=cos(yaw), sy=sin(yaw);
+  vec3 rd=normalize(vec3(sy*cp, cy*cp, sp)+u*vec3(cy,-sy,0.0)+v*vec3(-sy*sp,-cy*sp,cp));
+  vec3 ro=eye;
+  float sunA=sunAz*0.01745329252, sunZen=(90.0-sunEl)*0.01745329252;
+  vec3 sd=normalize(vec3(sin(sunA)*sin(sunZen), cos(sunA)*sin(sunZen), cos(sunZen)));
+  float tGround=rd.z<0.0?-ro.z/rd.z:1e8;
+  float tObj=-1.0, kObj=0.0, iObj=0.0, tBest=1e8;
+  vec3 nObj=vec3(0.0,0.0,1.0); vec4 qObj=vec4(0.0);
+  if(showScn>0.5){
+    for(int i=0;i<int(scnCount);i++){
+      float kk=kind[i]; if(kk<0.5) continue;
+      vec4 q=obj[i]; float t=-1.0; vec3 n=vec3(0.0,0.0,1.0);
+      if(kk>3.5&&kk<4.5){ t=boxT(ro,rd,q.xy,q.z,q.w); if(t>0.0) n=boxN(ro+rd*t,q.xy,q.z,q.w); }
+      else if(kk>2.5&&kk<3.5){ t=ellT(ro,rd,q.xy,q.z,q.w); if(t>0.0) n=ellN(ro+rd*t,q.xy,q.z,q.w); }
+      else if(kk<2.5) t=marchMassif(ro,rd,q,step(1.5,kk));
+      else { t=coneT(ro,rd,q.xy,q.z,q.w); if(t>0.0) n=coneN(ro+rd*t,q.xy,q.z,q.w); }
+      if(t>0.0&&t<tBest&&t<tGround){
+        tBest=t; tObj=t; kObj=kk; iObj=float(i); qObj=q; nObj=n;
+      }
+    }
+  }
+  float tLand=-1.0; vec3 nLand=vec3(0.0,0.0,1.0);
+  if(showScn>0.5 && rd.z<0.5){
+    float cap=min(tBest, 9000.0);
+    if(rd.z>0.02) cap=min(cap, (210.0-ro.z)/rd.z);
+    else if(rd.z<-0.0001) cap=min(cap, (-6.0-ro.z)/rd.z);
+    vec3 nL;
+    float tL=marchLand(ro, rd, cap, nL);
+    if(tL>0.0&&tL<tBest){ tLand=tL; nLand=nL; if(dot(nLand, rd)>0.0) nLand=-nLand; }
+  }
+  bool landWins=tLand>0.0 && (tObj<0.0 || tLand<tObj);
+  bool objWins=tObj>0.0 && !landWins;
+  vec3 nOut=vec3(0.0,0.0,1.0), pShade=ro;
+  float kShade=0.0;
+  if(objWins){
+    pShade=ro+rd*tObj; kShade=kObj;
+    nOut=kObj<2.5?massifN(pShade.xy, qObj, step(1.5, kObj)):nObj;
+    if(dot(nOut, rd)>0.0) nOut=-nOut;
+  }else if(landWins){
+    pShade=ro+rd*tLand; nOut=nLand;
+  }else if(rd.z<0.0){
+    pShade=ro+rd*(-ro.z/rd.z);
+  }else{
+    hitInfo=vec4(-1.0, 0.0, 1.0, 0.0);
+    hitNrm=vec4(0.0, 0.0, 1.0, -1.0);
+    return;
+  }
+  float sh=1.0;
+  if(kShade<0.5 || (kShade>=0.5 && kShade<2.5)) sh=scnShadow(vec3(pShade.xy, max(pShade.z, 0.0)), sd);
+  hitInfo=vec4(tObj, kObj, sh, iObj);
+  hitNrm=vec4(nOut, landWins?tLand:-1.0);
+}
+`;
+const VRFS=`#version 300 es
+precision highp float;
+uniform sampler2D sky; uniform sampler2D moonMap; uniform sampler2D starMap; uniform sampler2D starBin; uniform sampler2D starIdx; uniform sampler2D weather; uniform sampler2D hitInfo; uniform sampler2D hitNrm; uniform vec2 res;
+uniform float yaw,pitch,fov,sunAz,sunEl,sunRad,sunOn,nr,na,sunMu,showScn,mtnSnow;
+uniform float moonAz,moonEl,moonRad,moonOn,latRad,starPx,cloudCov,cloudScale,cloudDrift,cloudOn;
+uniform vec3 sunCol,ground,eye;
+uniform vec4 obj[12];
+uniform float kind[12];
+out vec4 fragColor;
+float h12(vec2 p){
+  vec3 q=fract(vec3(p.xyx)*vec3(0.1031, 0.1030, 0.0973));
+  q+=dot(q, q.yzx+33.33);
+  return fract((q.x+q.y)*q.z);
+}
+float vN(vec2 p){
+  vec2 i=floor(p), f=fract(p), u=f*f*(3.0-2.0*f);
+  return mix(mix(h12(i), h12(i+vec2(1.0,0.0)), u.x), mix(h12(i+vec2(0.0,1.0)), h12(i+vec2(1.0,1.0)), u.x), u.y);
+}
+float rollAt(vec2 p){
+  return vN(p*0.00028)*16.0+vN(p*0.0001+vec2(3.0, 1.2))*12.0;
+}
+vec3 rollN(vec2 p){
+  float e=90.0;
+  float hx=rollAt(p+vec2(e,0.0))-rollAt(p-vec2(e,0.0));
+  float hy=rollAt(p+vec2(0.0,e))-rollAt(p-vec2(0.0,e));
+  return normalize(vec3(-hx, -hy, 2.0*e));
+}
+float massifRad(float R, float volc){ return R*mix(1.28, 1.12, volc); }
 float apparentEl(float h){ // Saemundsson 1986, true altitude (deg) to apparent
   if(h>80.0) return h;
   float u=h+10.3/(h+5.11);
@@ -2313,36 +2402,20 @@ void main(){
   float compDeg=comp*57.2957795;
   float sunA=sunAz*0.01745329252, sunZen=(90.0-sunEl)*0.01745329252;
   vec3 sd=normalize(vec3(sin(sunA)*sin(sunZen), cos(sunA)*sin(sunZen), cos(sunZen)));
-  float tGround=rd.z<0.0?-ro.z/rd.z:1e8;
-  float tBest=1e8, kBest=0.0, hBest=1.0, tLand=-1.0; vec3 nBest=vec3(0.0,0.0,1.0), pBest=ro; vec4 qBest=vec4(0.0);
-  for(int i=0;i<12;i++){
-    float kk=kind[i]; if(kk<0.5) continue;
-    vec4 q=obj[i]; float t=-1.0; vec3 n=vec3(0.0,0.0,1.0);
-    if(kk>3.5&&kk<4.5){ t=boxT(ro,rd,q.xy,q.z,q.w); if(t>0.0) n=boxN(ro+rd*t,q.xy,q.z,q.w); }
-    else if(kk>2.5&&kk<3.5){ t=ellT(ro,rd,q.xy,q.z,q.w); if(t>0.0) n=ellN(ro+rd*t,q.xy,q.z,q.w); }
-    else if(kk<2.5) t=marchMassif(ro,rd,q,step(1.5,kk));
-    else { t=coneT(ro,rd,q.xy,q.z,q.w); if(t>0.0) n=coneN(ro+rd*t,q.xy,q.z,q.w); }
-    if(t>0.0&&t<tBest&&t<tGround){
-      tBest=t; kBest=kk; hBest=q.w; pBest=ro+rd*t; qBest=q;
-      if(kk>=2.5){ nBest=n; if(dot(nBest,rd)>0.0) nBest=-nBest; }
-    }
+  vec4 hit=texelFetch(hitInfo, ivec2(gl_FragCoord.xy), 0);
+  vec4 hn=texelFetch(hitNrm, ivec2(gl_FragCoord.xy), 0);
+  float tBest=1e8, kBest=0.0, hBest=1.0, tLand=-1.0, shBest=hit.b;
+  vec3 nBest=vec3(0.0,0.0,1.0), pBest=ro; vec4 qBest=vec4(0.0);
+  if(showScn>0.5 && hit.r>0.0){
+    tBest=hit.r; kBest=hit.g; nBest=hn.rgb; pBest=ro+rd*hit.r;
+    qBest=obj[int(hit.a+0.5)]; hBest=qBest.w;
   }
-  if(showScn>0.5 && rd.z<0.5){
-    float cap=min(tBest, 9000.0);
-    if(rd.z>0.02) cap=min(cap, (210.0-ro.z)/rd.z);
-    else if(rd.z<-0.0001) cap=min(cap, (-6.0-ro.z)/rd.z);
-    vec3 nL;
-    float tL=marchLand(ro, rd, cap, nL);
-    if(tL>0.0&&tL<tBest){
-      tLand=tL; kBest=0.0; pBest=ro+rd*tL; nBest=nL;
-      if(dot(nBest, rd)>0.0) nBest=-nBest;
-    }
+  if(showScn>0.5 && hn.a>0.0 && hn.a<tBest){
+    tLand=hn.a; kBest=0.0; tBest=hn.a; pBest=ro+rd*hn.a; nBest=hn.rgb;
   }
   vec3 col;
   if(showScn<0.5){ kBest=0.0; tLand=-1.0; }
   if(kBest>0.5&&kBest<2.5){
-    nBest=massifN(pBest.xy, qBest, step(1.5, kBest));
-    if(dot(nBest, rd)>0.0) nBest=-nBest;
     float wl=clamp(tBest*0.034, 8.0, 220.0);
     float a=vN(pBest.xy/wl), b=vN(pBest.xy/wl+vec2(0.5,0.15)), c=vN(pBest.xy/wl+vec2(0.15,0.5));
     nBest=normalize(nBest+vec3(a-b, a-c, 0.0)*0.28);
@@ -2370,7 +2443,7 @@ void main(){
       float ndl=max(dot(nG, sd), 0.0);
       float rel=clamp((0.20+ndl)/(0.20+max(sd.z, 0.05)), 0.32, 1.9);
       gcol*=rel*mix(0.80, 1.0, nG.z);
-      gcol*=mix(0.58, 1.0, scnShadow(vec3(gp, max(gp3.z, 0.0)), sd));
+      gcol*=mix(0.58, 1.0, shBest);
     }
   }
   if(kBest>0.5){
@@ -2410,7 +2483,7 @@ void main(){
       }
     }
     float ndl=max(dot(nBest,sd),0.0);
-    float sh=kBest<2.5?scnShadow(pBest, sd):1.0;
+    float sh=kBest<2.5?shBest:1.0;
     float ao=mix(0.58, 1.0, clamp(nBest.z,0.0,1.0));
     float lit=(0.40*ao+0.95*ndl*sh)*(0.42+0.58*sunMu);
     if(kBest>2.5&&kBest<3.5) lit=(0.78+0.35*ndl)*(0.85+0.15*sunMu);
@@ -2502,48 +2575,13 @@ uniform sampler3D noiseBase;
 uniform sampler3D noiseDetail;
 uniform sampler2D weather;
 uniform sampler2D sky;
+uniform sampler2D hitInfo;
 uniform vec2 res;
 uniform float yaw,pitch,fov,sunAz,sunEl,sunMu,showScn,cloudCov,cloudScale,cloudDrift,cloudTime,cloudFrame,nr,na;
 uniform float cloudType,cloudBase,cloudTop,cloudCirrus,useHDR;
 uniform vec3 sunCol,groundCol,eye;
-uniform vec4 obj[12];
-uniform float kind[12];
 layout(location=0) out vec4 fragColor;
 layout(location=1) out vec4 fragDepth;
-${TERR}
-float coneT(vec3 ro,vec3 rd,vec2 c,float R,float h){
-  float k=R/max(h,0.001);
-  vec3 f=vec3(ro.x-c.x, ro.y-c.y, h-ro.z);
-  float A=rd.x*rd.x+rd.y*rd.y-k*k*rd.z*rd.z;
-  if(abs(A)<1e-5) return -1.0;
-  float B=2.0*(f.x*rd.x+f.y*rd.y+k*k*f.z*rd.z);
-  float C=f.x*f.x+f.y*f.y-k*k*f.z*f.z;
-  float disk=B*B-4.0*A*C; if(disk<0.0) return -1.0;
-  float s=sqrt(disk), t0=(-B-s)/(2.0*A), t1=(-B+s)/(2.0*A), t=-1.0;
-  if(t0>0.05){ float z=ro.z+rd.z*t0; if(z>=0.0&&z<=h) t=t0; }
-  if(t1>0.05){ float z=ro.z+rd.z*t1; if(z>=0.0&&z<=h&&(t<0.0||t1<t)) t=t1; }
-  return t;
-}
-float boxT(vec3 ro,vec3 rd,vec2 c,float r,float h){
-  vec3 mn=vec3(c.x-r,c.y-r,0.0), mx=vec3(c.x+r,c.y+r,h);
-  float tn=0.0, tf=1e8;
-  if(abs(rd.x)<1e-5){ if(ro.x<mn.x||ro.x>mx.x) return -1.0; }
-  else { float a=(mn.x-ro.x)/rd.x, b=(mx.x-ro.x)/rd.x; if(a>b){ float s=a; a=b; b=s; } tn=max(tn,a); tf=min(tf,b); if(tn>tf) return -1.0; }
-  if(abs(rd.y)<1e-5){ if(ro.y<mn.y||ro.y>mx.y) return -1.0; }
-  else { float a=(mn.y-ro.y)/rd.y, b=(mx.y-ro.y)/rd.y; if(a>b){ float s=a; a=b; b=s; } tn=max(tn,a); tf=min(tf,b); if(tn>tf) return -1.0; }
-  if(abs(rd.z)<1e-5){ if(ro.z<mn.z||ro.z>mx.z) return -1.0; }
-  else { float a=(mn.z-ro.z)/rd.z, b=(mx.z-ro.z)/rd.z; if(a>b){ float s=a; a=b; b=s; } tn=max(tn,a); tf=min(tf,b); if(tn>tf) return -1.0; }
-  return tn>0.05?tn:(tf>0.05?tf:-1.0);
-}
-float ellT(vec3 ro,vec3 rd,vec2 c,float R,float H){
-  vec3 f=vec3((ro.x-c.x)/R,(ro.y-c.y)/R,ro.z/H), d=vec3(rd.x/R,rd.y/R,rd.z/H);
-  float A=dot(d,d), B=2.0*dot(f,d), C=dot(f,f)-1.0, disk=B*B-4.0*A*C;
-  if(disk<0.0||A<1e-8) return -1.0;
-  float s=sqrt(disk), t0=(-B-s)/(2.0*A), t1=(-B+s)/(2.0*A), t=-1.0;
-  if(t0>0.05&&ro.z+rd.z*t0>=0.0) t=t0;
-  if(t1>0.05&&ro.z+rd.z*t1>=0.0&&(t<0.0||t1<t)) t=t1;
-  return t;
-}
 float shellT(vec3 ro, vec3 rd, float H){
   float R=833333.0;
   vec2 dh=ro.xy-eye.xy;
@@ -2636,15 +2674,8 @@ void main(){
   if(tIn<0.0||tOut<tIn) return;
   float tHit=1e8;
   if(showScn>0.5){
-    for(int i=0;i<12;i++){
-      float kk=kind[i]; if(kk<0.5) continue;
-      vec4 q=obj[i]; float t=-1.0;
-      if(kk>3.5&&kk<4.5) t=boxT(ro,rd,q.xy,q.z,q.w);
-      else if(kk>2.5&&kk<3.5) t=ellT(ro,rd,q.xy,q.z,q.w);
-      else if(kk<2.5) t=marchMassif(ro,rd,q,step(1.5,kk));
-      else t=coneT(ro,rd,q.xy,q.z,q.w);
-      if(t>0.0&&t<tHit) tHit=t;
-    }
+    vec4 occ=texture(hitInfo, gl_FragCoord.xy/res);
+    if(occ.g>0.5 && occ.r>0.0) tHit=occ.r;
   }
   if(tHit<tIn) return;
   float tEnd=min(tOut, tIn+75000.0);
@@ -2747,46 +2778,10 @@ void main(){
 
 const COMPFS=`#version 300 es
 precision highp float;
-uniform sampler2D cloudTex; uniform sampler2D weather; uniform vec2 res;
+uniform sampler2D cloudTex; uniform sampler2D hitInfo; uniform vec2 res;
 uniform float yaw,pitch,fov,showScn;
 uniform vec3 eye;
-uniform vec4 obj[12];
-uniform float kind[12];
 out vec4 fragColor;
-${TERR}
-float coneT(vec3 ro,vec3 rd,vec2 c,float R,float h){
-  float k=R/max(h,0.001);
-  vec3 f=vec3(ro.x-c.x, ro.y-c.y, h-ro.z);
-  float A=rd.x*rd.x+rd.y*rd.y-k*k*rd.z*rd.z;
-  if(abs(A)<1e-5) return -1.0;
-  float B=2.0*(f.x*rd.x+f.y*rd.y+k*k*f.z*rd.z);
-  float C=f.x*f.x+f.y*f.y-k*k*f.z*f.z;
-  float disk=B*B-4.0*A*C; if(disk<0.0) return -1.0;
-  float s=sqrt(disk), t0=(-B-s)/(2.0*A), t1=(-B+s)/(2.0*A), t=-1.0;
-  if(t0>0.05){ float z=ro.z+rd.z*t0; if(z>=0.0&&z<=h) t=t0; }
-  if(t1>0.05){ float z=ro.z+rd.z*t1; if(z>=0.0&&z<=h&&(t<0.0||t1<t)) t=t1; }
-  return t;
-}
-float boxT(vec3 ro,vec3 rd,vec2 c,float r,float h){
-  vec3 mn=vec3(c.x-r,c.y-r,0.0), mx=vec3(c.x+r,c.y+r,h);
-  float tn=0.0, tf=1e8;
-  if(abs(rd.x)<1e-5){ if(ro.x<mn.x||ro.x>mx.x) return -1.0; }
-  else { float a=(mn.x-ro.x)/rd.x, b=(mx.x-ro.x)/rd.x; if(a>b){ float s=a; a=b; b=s; } tn=max(tn,a); tf=min(tf,b); if(tn>tf) return -1.0; }
-  if(abs(rd.y)<1e-5){ if(ro.y<mn.y||ro.y>mx.y) return -1.0; }
-  else { float a=(mn.y-ro.y)/rd.y, b=(mx.y-ro.y)/rd.y; if(a>b){ float s=a; a=b; b=s; } tn=max(tn,a); tf=min(tf,b); if(tn>tf) return -1.0; }
-  if(abs(rd.z)<1e-5){ if(ro.z<mn.z||ro.z>mx.z) return -1.0; }
-  else { float a=(mn.z-ro.z)/rd.z, b=(mx.z-ro.z)/rd.z; if(a>b){ float s=a; a=b; b=s; } tn=max(tn,a); tf=min(tf,b); if(tn>tf) return -1.0; }
-  return tn>0.05?tn:(tf>0.05?tf:-1.0);
-}
-float ellT(vec3 ro,vec3 rd,vec2 c,float R,float H){
-  vec3 f=vec3((ro.x-c.x)/R,(ro.y-c.y)/R,ro.z/H), d=vec3(rd.x/R,rd.y/R,rd.z/H);
-  float A=dot(d,d), B=2.0*dot(f,d), C=dot(f,f)-1.0, disk=B*B-4.0*A*C;
-  if(disk<0.0||A<1e-8) return -1.0;
-  float s=sqrt(disk), t0=(-B-s)/(2.0*A), t1=(-B+s)/(2.0*A), t=-1.0;
-  if(t0>0.05&&ro.z+rd.z*t0>=0.0) t=t0;
-  if(t1>0.05&&ro.z+rd.z*t1>=0.0&&(t<0.0||t1<t)) t=t1;
-  return t;
-}
 float shellT(vec3 ro, vec3 rd, float H){
   float R=833333.0;
   vec2 dh=ro.xy-eye.xy;
@@ -2815,17 +2810,8 @@ void main(){
     vec3 ro=eye;
     float tIn=shellT(ro, rd, 1200.0);
     if(tIn>=0.0){
-      float tHit=1e8;
-      for(int i=0;i<12;i++){
-        float kk=kind[i]; if(kk<0.5) continue;
-        vec4 q=obj[i]; float t=-1.0;
-        if(kk>3.5&&kk<4.5) t=boxT(ro,rd,q.xy,q.z,q.w);
-        else if(kk>2.5&&kk<3.5) t=ellT(ro,rd,q.xy,q.z,q.w);
-        else if(kk<2.5) t=marchMassif(ro,rd,q,step(1.5,kk));
-        else t=coneT(ro,rd,q.xy,q.z,q.w);
-        if(t>0.0&&t<tHit) tHit=t;
-      }
-      if(tHit<tIn){ fragColor=vec4(0.0); return; }
+      vec4 occ=texture(hitInfo, gl_FragCoord.xy/res);
+      if(occ.g>0.5 && occ.r>0.0 && occ.r<tIn){ fragColor=vec4(0.0); return; }
     }
   }
   fragColor=toneCloud(c);
@@ -3086,6 +3072,8 @@ function initVR(){
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, STAR_MAP_W, 2, 0, gl.RGBA, gl.FLOAT, new Float32Array(STAR_MAP_W*8));
   gl.uniform1i(gl.getUniformLocation(prog,'starMap'), 3);
+  gl.uniform1i(gl.getUniformLocation(prog,'hitInfo'), 10);
+  gl.uniform1i(gl.getUniformLocation(prog,'hitNrm'), 11);
   const starBinTex=gl.createTexture();
   gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, starBinTex);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
@@ -3107,6 +3095,21 @@ function initVR(){
   gl.uniform1f(u.sunRad, SUN_RADIUS_DEG*DISK_SCALE*Math.PI/180);
   vrGL={gl,u,tex,prog,buf,moonTex,starTex,starBinTex,starIdxTex,starUploaded:-1};
   if(moonReady) uploadMoon();
+  const hfs=glShader(gl, gl.FRAGMENT_SHADER, HITFS);
+  if(hfs){
+    const hp=gl.createProgram(); gl.attachShader(hp,vs); gl.attachShader(hp,hfs); gl.bindAttribLocation(hp,0,'a'); gl.linkProgram(hp);
+    if(!gl.getProgramParameter(hp, gl.LINK_STATUS)) console.warn(gl.getProgramInfoLog(hp));
+    else {
+      const hu={}; for(const n of ['res','yaw','pitch','fov','eye','showScn','sunAz','sunEl']) hu[n]=gl.getUniformLocation(hp, n);
+      hu.obj=gl.getUniformLocation(hp,'obj[0]'); hu.kind=gl.getUniformLocation(hp,'kind[0]');
+      gl.useProgram(hp);
+      gl.uniform1i(gl.getUniformLocation(hp,'weather'), 7);
+      gl.uniform1f(hu.fov, VR_FOV_DEG*Math.PI/180);
+      gl.uniform1f(gl.getUniformLocation(hp,'scnCount'), 12);
+      vrGL.hitProg=hp; vrGL.hu=hu; vrGL.hitFbo=gl.createFramebuffer(); vrGL.hitFloat=!!gl.getExtension('EXT_color_buffer_float');
+      gl.useProgram(prog);
+    }
+  }
   const cfs=glShader(gl, gl.FRAGMENT_SHADER, CLOUDFS), compFs=glShader(gl, gl.FRAGMENT_SHADER, COMPFS), tempFs=glShader(gl, gl.FRAGMENT_SHADER, TEMPFS);
   if(cfs&&compFs){
     const cp=gl.createProgram(); gl.attachShader(cp,vs); gl.attachShader(cp,cfs); gl.bindAttribLocation(cp,0,'a'); gl.linkProgram(cp);
@@ -3134,11 +3137,12 @@ function initVR(){
       gl.uniform1i(gl.getUniformLocation(cp,'noiseDetail'), 6);
       gl.uniform1i(gl.getUniformLocation(cp,'weather'), 7);
       gl.uniform1i(gl.getUniformLocation(cp,'sky'), 0);
+      gl.uniform1i(gl.getUniformLocation(cp,'hitInfo'), 10);
       gl.uniform1f(cu.fov, VR_FOV_DEG*Math.PI/180);
       gl.uniform1f(cu.useHDR, hdr?1:0);
       const compU={}; for(const n of ['res','yaw','pitch','fov','showScn']) compU[n]=gl.getUniformLocation(pp, n);
       compU.eye=gl.getUniformLocation(pp,'eye'); compU.obj=gl.getUniformLocation(pp,'obj[0]'); compU.kind=gl.getUniformLocation(pp,'kind[0]');
-      gl.useProgram(pp); gl.uniform1i(gl.getUniformLocation(pp,'cloudTex'), 2); gl.uniform1i(gl.getUniformLocation(pp,'weather'), 7); gl.uniform1f(compU.fov, VR_FOV_DEG*Math.PI/180);
+      gl.useProgram(pp); gl.uniform1i(gl.getUniformLocation(pp,'cloudTex'), 2); gl.uniform1i(gl.getUniformLocation(pp,'hitInfo'), 10); gl.uniform1f(compU.fov, VR_FOV_DEG*Math.PI/180);
       let tu=null;
       if(tp){
         tu={}; for(const n of ['res','yaw','pitch','prevYaw','prevPitch','fov','histValid','histW']) tu[n]=gl.getUniformLocation(tp, n);
@@ -3222,6 +3226,30 @@ function groundRGB(){
   const mu=Math.max(0, Math.sin(apparentEl(90-skyNow.sza)*Math.PI/180))*(skyNow.sunVis==null?1:skyNow.sunVis), s=skyNow.sunRGB, amb=[ar,ag,ab];
   return new Float32Array(alb.map((a,i)=>Math.min(255, a*(0.42*amb[i]+1.25*mu*s[i]+16))/255));
 }
+function ensureHitTarget(w, h){
+  const gl=vrGL.gl;
+  if(vrGL.hitW===w&&vrGL.hitH===h&&vrGL.hitInfo) return;
+  vrGL.hitW=w; vrGL.hitH=h;
+  const alloc=()=>{
+    const t=gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, vrGL.hitFloat?gl.RGBA32F:gl.RGBA16F, w, h, 0, gl.RGBA, vrGL.hitFloat?gl.FLOAT:gl.HALF_FLOAT, null);
+    return t;
+  };
+  if(vrGL.hitInfo) gl.deleteTexture(vrGL.hitInfo);
+  if(vrGL.hitNrm) gl.deleteTexture(vrGL.hitNrm);
+  vrGL.hitInfo=alloc(); vrGL.hitNrm=alloc();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.hitFbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, vrGL.hitInfo, 0);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, vrGL.hitNrm, 0);
+  vrGL.hitMRT=gl.checkFramebufferStatus(gl.FRAMEBUFFER)===gl.FRAMEBUFFER_COMPLETE;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  if(!vrGL.hitMRT&&vrGL.hitFloat){ vrGL.hitFloat=false; vrGL.hitW=0; ensureHitTarget(w, h); }
+}
 function paintVR(){
   if(!vrOn||!vrGL||!skyNow) return;
   const {gl,u,tex}=vrGL, c=gl.canvas;
@@ -3272,6 +3300,28 @@ function paintVR(){
     gl.uniform1f(u.cloudCov, vrGL.field.cov); gl.uniform1f(u.cloudScale, vrGL.field.scale); gl.uniform1f(u.cloudDrift, cloudScroll); gl.uniform1f(u.cloudOn, vrClouds?1:0);
     gl.activeTexture(gl.TEXTURE0);
   }
+  if(vrGL.hitProg&&vrScenery){
+    ensureHitTarget(c.width, c.height);
+    if(vrGL.hitMRT){
+      gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.hitFbo);
+      gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
+      gl.viewport(0,0,c.width,c.height);
+      gl.useProgram(vrGL.hitProg);
+      const hu=vrGL.hu;
+      if(vrGL.weather){ gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, vrGL.weather); }
+      gl.uniform2f(hu.res, c.width, c.height);
+      gl.uniform1f(hu.yaw, vrYaw*Math.PI/180); gl.uniform1f(hu.pitch, vrPitch*Math.PI/180);
+      gl.uniform3f(hu.eye, vrX, vrY, ez);
+      gl.uniform1f(hu.showScn, 1);
+      gl.uniform1f(hu.sunAz, skyNow.sunAz); gl.uniform1f(hu.sunEl, 90-skyNow.sza);
+      gl.uniform4fv(hu.obj, sc.o); gl.uniform1fv(hu.kind, sc.k);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.drawBuffers([gl.BACK]);
+      gl.viewport(0,0,c.width,c.height);
+      gl.useProgram(vrGL.prog);
+    }
+  }
+  if(vrGL.hitInfo){ gl.activeTexture(gl.TEXTURE10); gl.bindTexture(gl.TEXTURE_2D, vrGL.hitInfo); gl.activeTexture(gl.TEXTURE11); gl.bindTexture(gl.TEXTURE_2D, vrGL.hitNrm); gl.activeTexture(gl.TEXTURE0); }
   gl.drawArrays(gl.TRIANGLES, 0, 6);
   if(vrClouds&&vrGL.cloudProg&&vrGL.noise){
     vrGL.cloudFrame=(vrGL.cloudFrame||0)+1;
@@ -3287,6 +3337,7 @@ function paintVR(){
     gl.activeTexture(gl.TEXTURE6); gl.bindTexture(gl.TEXTURE_3D, vrGL.noiseDetail);
     gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, vrGL.weather);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex);
+    if(vrGL.hitInfo){ gl.activeTexture(gl.TEXTURE10); gl.bindTexture(gl.TEXTURE_2D, vrGL.hitInfo); gl.activeTexture(gl.TEXTURE0); }
     gl.uniform2f(cu.res, cw, ch);
     gl.uniform1f(cu.yaw, vrYaw*Math.PI/180); gl.uniform1f(cu.pitch, vrPitch*Math.PI/180);
     gl.uniform3f(cu.eye, vrX, vrY, ez);
@@ -3340,6 +3391,7 @@ function paintVR(){
     gl.useProgram(vrGL.compProg);
     gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, vrGL.weather);
     gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, shown);
+    if(vrGL.hitInfo){ gl.activeTexture(gl.TEXTURE10); gl.bindTexture(gl.TEXTURE_2D, vrGL.hitInfo); gl.activeTexture(gl.TEXTURE2); }
     const pu=vrGL.compU;
     gl.uniform2f(pu.res, c.width, c.height);
     gl.uniform1f(pu.yaw, vrYaw*Math.PI/180); gl.uniform1f(pu.pitch, vrPitch*Math.PI/180);
@@ -3621,12 +3673,22 @@ function toggleVRMusic(){
   pokeVRMusic(); applyMusicGain();
 }
 function enterVR(fromLink){
-  if(!initVR()) return;
-  vrOn=true; vrLockedOnce=false; vrX=0; vrY=0; vrHeld.clear(); const root=document.getElementById('vr'); root.classList.add('on'); root.setAttribute('aria-hidden','false');
-  const g=sunGeom(LATDEG[dLat], minutes); vrYaw=g.az; const elev=90-g.sza; vrPitch=Math.max(-8, Math.min(15, elev-8));
-  sizeVR(); document.body.style.overflow='hidden'; root.tabIndex=-1; root.focus();
-  // Capture the pointer before the slow sky render, while the click is still a user gesture, so yaw is not stopped by the edge of the window.
+  const root=document.getElementById('vr'); root.classList.add('on'); root.setAttribute('aria-hidden','false');
+  document.body.style.overflow='hidden';
+  vrOn=true; vrLockedOnce=false; vrX=0; vrY=0; vrHeld.clear();
+  // Lock before any shader work. A long link used to expire the click, so the pointer never captured and yaw stopped at the window edge.
   vrRelock=true; lockLook();
+  const fsNow=root.requestFullscreen?root.requestFullscreen():null; if(fsNow&&fsNow.catch) fsNow.catch(()=>{});
+  if(!initVR()){
+    vrOn=false; vrRelock=false;
+    root.classList.remove('on','locked'); root.setAttribute('aria-hidden','true');
+    document.body.style.overflow='';
+    if(document.pointerLockElement) document.exitPointerLock();
+    if(document.fullscreenElement){ const p=document.exitFullscreen(); if(p&&p.catch) p.catch(()=>{}); }
+    return;
+  }
+  const g=sunGeom(LATDEG[dLat], minutes); vrYaw=g.az; const elev=90-g.sza; vrPitch=Math.max(-8, Math.min(15, elev-8));
+  sizeVR(); root.tabIndex=-1; root.focus();
   if(!dayPlaying){ dayPlaying=true; if(minutes>=DAYMIN){ minutes-=DAYMIN; shiftMoonDate(1); } hplay.textContent='Pause'; hplay.setAttribute('aria-pressed','true'); }
   if(!vrNav){
     const url=vrLinkURL();
@@ -3636,7 +3698,6 @@ function enterVR(fromLink){
   }
   renderDay(false);
   adoptPlayRate();
-  const fs=root.requestFullscreen?root.requestFullscreen():null; if(fs&&fs.catch) fs.catch(()=>{});
   setTimeout(()=>{ vrRelock=false; }, 700);
   if(!musicMuted) startVRMusic();
   syncVRPad();

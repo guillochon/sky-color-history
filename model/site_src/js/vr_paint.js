@@ -59,6 +59,30 @@ function groundRGB(){
   const mu=Math.max(0, Math.sin(apparentEl(90-skyNow.sza)*Math.PI/180))*(skyNow.sunVis==null?1:skyNow.sunVis), s=skyNow.sunRGB, amb=[ar,ag,ab];
   return new Float32Array(alb.map((a,i)=>Math.min(255, a*(0.42*amb[i]+1.25*mu*s[i]+16))/255));
 }
+function ensureHitTarget(w, h){
+  const gl=vrGL.gl;
+  if(vrGL.hitW===w&&vrGL.hitH===h&&vrGL.hitInfo) return;
+  vrGL.hitW=w; vrGL.hitH=h;
+  const alloc=()=>{
+    const t=gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, vrGL.hitFloat?gl.RGBA32F:gl.RGBA16F, w, h, 0, gl.RGBA, vrGL.hitFloat?gl.FLOAT:gl.HALF_FLOAT, null);
+    return t;
+  };
+  if(vrGL.hitInfo) gl.deleteTexture(vrGL.hitInfo);
+  if(vrGL.hitNrm) gl.deleteTexture(vrGL.hitNrm);
+  vrGL.hitInfo=alloc(); vrGL.hitNrm=alloc();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.hitFbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, vrGL.hitInfo, 0);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, vrGL.hitNrm, 0);
+  vrGL.hitMRT=gl.checkFramebufferStatus(gl.FRAMEBUFFER)===gl.FRAMEBUFFER_COMPLETE;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  if(!vrGL.hitMRT&&vrGL.hitFloat){ vrGL.hitFloat=false; vrGL.hitW=0; ensureHitTarget(w, h); }
+}
 function paintVR(){
   if(!vrOn||!vrGL||!skyNow) return;
   const {gl,u,tex}=vrGL, c=gl.canvas;
@@ -109,6 +133,28 @@ function paintVR(){
     gl.uniform1f(u.cloudCov, vrGL.field.cov); gl.uniform1f(u.cloudScale, vrGL.field.scale); gl.uniform1f(u.cloudDrift, cloudScroll); gl.uniform1f(u.cloudOn, vrClouds?1:0);
     gl.activeTexture(gl.TEXTURE0);
   }
+  if(vrGL.hitProg&&vrScenery){
+    ensureHitTarget(c.width, c.height);
+    if(vrGL.hitMRT){
+      gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.hitFbo);
+      gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
+      gl.viewport(0,0,c.width,c.height);
+      gl.useProgram(vrGL.hitProg);
+      const hu=vrGL.hu;
+      if(vrGL.weather){ gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, vrGL.weather); }
+      gl.uniform2f(hu.res, c.width, c.height);
+      gl.uniform1f(hu.yaw, vrYaw*Math.PI/180); gl.uniform1f(hu.pitch, vrPitch*Math.PI/180);
+      gl.uniform3f(hu.eye, vrX, vrY, ez);
+      gl.uniform1f(hu.showScn, 1);
+      gl.uniform1f(hu.sunAz, skyNow.sunAz); gl.uniform1f(hu.sunEl, 90-skyNow.sza);
+      gl.uniform4fv(hu.obj, sc.o); gl.uniform1fv(hu.kind, sc.k);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.drawBuffers([gl.BACK]);
+      gl.viewport(0,0,c.width,c.height);
+      gl.useProgram(vrGL.prog);
+    }
+  }
+  if(vrGL.hitInfo){ gl.activeTexture(gl.TEXTURE10); gl.bindTexture(gl.TEXTURE_2D, vrGL.hitInfo); gl.activeTexture(gl.TEXTURE11); gl.bindTexture(gl.TEXTURE_2D, vrGL.hitNrm); gl.activeTexture(gl.TEXTURE0); }
   gl.drawArrays(gl.TRIANGLES, 0, 6);
   if(vrClouds&&vrGL.cloudProg&&vrGL.noise){
     vrGL.cloudFrame=(vrGL.cloudFrame||0)+1;
@@ -124,6 +170,7 @@ function paintVR(){
     gl.activeTexture(gl.TEXTURE6); gl.bindTexture(gl.TEXTURE_3D, vrGL.noiseDetail);
     gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, vrGL.weather);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex);
+    if(vrGL.hitInfo){ gl.activeTexture(gl.TEXTURE10); gl.bindTexture(gl.TEXTURE_2D, vrGL.hitInfo); gl.activeTexture(gl.TEXTURE0); }
     gl.uniform2f(cu.res, cw, ch);
     gl.uniform1f(cu.yaw, vrYaw*Math.PI/180); gl.uniform1f(cu.pitch, vrPitch*Math.PI/180);
     gl.uniform3f(cu.eye, vrX, vrY, ez);
@@ -177,6 +224,7 @@ function paintVR(){
     gl.useProgram(vrGL.compProg);
     gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, vrGL.weather);
     gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, shown);
+    if(vrGL.hitInfo){ gl.activeTexture(gl.TEXTURE10); gl.bindTexture(gl.TEXTURE_2D, vrGL.hitInfo); gl.activeTexture(gl.TEXTURE2); }
     const pu=vrGL.compU;
     gl.uniform2f(pu.res, c.width, c.height);
     gl.uniform1f(pu.yaw, vrYaw*Math.PI/180); gl.uniform1f(pu.pitch, vrPitch*Math.PI/180);

@@ -31,8 +31,8 @@ for k in order:
                    limb=LIMB[k]))
 YREF = byk['modern']['lat']['Equator']['zenith']['Y']
 # The interactive page, in the order the browser receives it.
-# shader_terrain.js is a JavaScript template string. It has to stay ahead of the
-# sky, cloud, and composite shaders, which interpolate it.
+# shader_terrain.js is a JavaScript template string. It has to stay ahead of
+# shader_hit.js, which interpolates it.
 PARTS = [
     'document/head.html',
     'document/style.css',
@@ -47,6 +47,7 @@ PARTS = [
     'js/dome_bodies.js',
     'js/scenery.js',
     'js/shader_terrain.js',
+    'js/shader_hit.js',
     'js/shader_sky.js',
     'js/shader_clouds.js',
     'js/shader_present.js',

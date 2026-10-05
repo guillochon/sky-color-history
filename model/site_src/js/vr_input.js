@@ -79,12 +79,22 @@ function toggleVRMusic(){
   pokeVRMusic(); applyMusicGain();
 }
 function enterVR(fromLink){
-  if(!initVR()) return;
-  vrOn=true; vrLockedOnce=false; vrX=0; vrY=0; vrHeld.clear(); const root=document.getElementById('vr'); root.classList.add('on'); root.setAttribute('aria-hidden','false');
-  const g=sunGeom(LATDEG[dLat], minutes); vrYaw=g.az; const elev=90-g.sza; vrPitch=Math.max(-8, Math.min(15, elev-8));
-  sizeVR(); document.body.style.overflow='hidden'; root.tabIndex=-1; root.focus();
-  // Capture the pointer before the slow sky render, while the click is still a user gesture, so yaw is not stopped by the edge of the window.
+  const root=document.getElementById('vr'); root.classList.add('on'); root.setAttribute('aria-hidden','false');
+  document.body.style.overflow='hidden';
+  vrOn=true; vrLockedOnce=false; vrX=0; vrY=0; vrHeld.clear();
+  // Lock before any shader work. A long link used to expire the click, so the pointer never captured and yaw stopped at the window edge.
   vrRelock=true; lockLook();
+  const fsNow=root.requestFullscreen?root.requestFullscreen():null; if(fsNow&&fsNow.catch) fsNow.catch(()=>{});
+  if(!initVR()){
+    vrOn=false; vrRelock=false;
+    root.classList.remove('on','locked'); root.setAttribute('aria-hidden','true');
+    document.body.style.overflow='';
+    if(document.pointerLockElement) document.exitPointerLock();
+    if(document.fullscreenElement){ const p=document.exitFullscreen(); if(p&&p.catch) p.catch(()=>{}); }
+    return;
+  }
+  const g=sunGeom(LATDEG[dLat], minutes); vrYaw=g.az; const elev=90-g.sza; vrPitch=Math.max(-8, Math.min(15, elev-8));
+  sizeVR(); root.tabIndex=-1; root.focus();
   if(!dayPlaying){ dayPlaying=true; if(minutes>=DAYMIN){ minutes-=DAYMIN; shiftMoonDate(1); } hplay.textContent='Pause'; hplay.setAttribute('aria-pressed','true'); }
   if(!vrNav){
     const url=vrLinkURL();
@@ -94,7 +104,6 @@ function enterVR(fromLink){
   }
   renderDay(false);
   adoptPlayRate();
-  const fs=root.requestFullscreen?root.requestFullscreen():null; if(fs&&fs.catch) fs.catch(()=>{});
   setTimeout(()=>{ vrRelock=false; }, 700);
   if(!musicMuted) startVRMusic();
   syncVRPad();

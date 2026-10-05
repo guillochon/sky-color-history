@@ -1,75 +1,31 @@
 const VRFS=`#version 300 es
 precision highp float;
-uniform sampler2D sky; uniform sampler2D moonMap; uniform sampler2D starMap; uniform sampler2D starBin; uniform sampler2D starIdx; uniform sampler2D weather; uniform vec2 res;
+uniform sampler2D sky; uniform sampler2D moonMap; uniform sampler2D starMap; uniform sampler2D starBin; uniform sampler2D starIdx; uniform sampler2D weather; uniform sampler2D hitInfo; uniform sampler2D hitNrm; uniform vec2 res;
 uniform float yaw,pitch,fov,sunAz,sunEl,sunRad,sunOn,nr,na,sunMu,showScn,mtnSnow;
 uniform float moonAz,moonEl,moonRad,moonOn,latRad,starPx,cloudCov,cloudScale,cloudDrift,cloudOn;
 uniform vec3 sunCol,ground,eye;
 uniform vec4 obj[12];
 uniform float kind[12];
 out vec4 fragColor;
-${TERR}
-float scnShadow(vec3 p, vec3 sd){
-  if(sd.z<=0.04) return 1.0;
-  float sh=1.0;
-  vec2 dir=sd.xy; float hl=length(dir);
-  if(hl<1e-3) return 1.0;
-  dir/=hl; float rise=sd.z/hl;
-  for(int i=0;i<12;i++){
-    float kk=kind[i];
-    if(kk<0.5||kk>=2.5) continue;
-    vec4 q=obj[i]; float volc=step(1.5, kk);
-    float R=massifRad(q.z, volc);
-    if(length(p.xy-q.xy)>R+q.w*min(5.5, 1.15/max(sd.z, 0.04))) continue;
-    for(int s=1;s<=5;s++){
-      float dist=R*(0.04*float(s)+0.018*float(s*s));
-      float h=massifH(p.xy+dir*dist, q, volc);
-      float pen=smoothstep(0.0, dist*0.18+3.0, h-(p.z+rise*dist));
-      sh=min(sh, mix(1.0, 0.28, pen));
-    }
-  }
-  return sh;
+float h12(vec2 p){
+  vec3 q=fract(vec3(p.xyx)*vec3(0.1031, 0.1030, 0.0973));
+  q+=dot(q, q.yzx+33.33);
+  return fract((q.x+q.y)*q.z);
 }
-float coneT(vec3 ro,vec3 rd,vec2 c,float R,float h){
-  float k=R/max(h,0.001);
-  vec3 f=vec3(ro.x-c.x, ro.y-c.y, h-ro.z);
-  float A=rd.x*rd.x+rd.y*rd.y-k*k*rd.z*rd.z;
-  if(abs(A)<1e-5) return -1.0;
-  float B=2.0*(f.x*rd.x+f.y*rd.y+k*k*f.z*rd.z);
-  float C=f.x*f.x+f.y*f.y-k*k*f.z*f.z;
-  float disk=B*B-4.0*A*C; if(disk<0.0) return -1.0;
-  float s=sqrt(disk), t0=(-B-s)/(2.0*A), t1=(-B+s)/(2.0*A), t=-1.0;
-  if(t0>0.05){ float z=ro.z+rd.z*t0; if(z>=0.0&&z<=h) t=t0; }
-  if(t1>0.05){ float z=ro.z+rd.z*t1; if(z>=0.0&&z<=h&&(t<0.0||t1<t)) t=t1; }
-  return t;
+float vN(vec2 p){
+  vec2 i=floor(p), f=fract(p), u=f*f*(3.0-2.0*f);
+  return mix(mix(h12(i), h12(i+vec2(1.0,0.0)), u.x), mix(h12(i+vec2(0.0,1.0)), h12(i+vec2(1.0,1.0)), u.x), u.y);
 }
-vec3 coneN(vec3 p,vec2 c,float R,float h){ float k=R/max(h,0.001); vec2 d=p.xy-c; return normalize(vec3(d, k*max(length(d),0.001))); }
-float boxT(vec3 ro,vec3 rd,vec2 c,float r,float h){
-  vec3 mn=vec3(c.x-r,c.y-r,0.0), mx=vec3(c.x+r,c.y+r,h);
-  float tn=0.0, tf=1e8;
-  if(abs(rd.x)<1e-5){ if(ro.x<mn.x||ro.x>mx.x) return -1.0; }
-  else { float a=(mn.x-ro.x)/rd.x, b=(mx.x-ro.x)/rd.x; if(a>b){ float s=a; a=b; b=s; } tn=max(tn,a); tf=min(tf,b); if(tn>tf) return -1.0; }
-  if(abs(rd.y)<1e-5){ if(ro.y<mn.y||ro.y>mx.y) return -1.0; }
-  else { float a=(mn.y-ro.y)/rd.y, b=(mx.y-ro.y)/rd.y; if(a>b){ float s=a; a=b; b=s; } tn=max(tn,a); tf=min(tf,b); if(tn>tf) return -1.0; }
-  if(abs(rd.z)<1e-5){ if(ro.z<mn.z||ro.z>mx.z) return -1.0; }
-  else { float a=(mn.z-ro.z)/rd.z, b=(mx.z-ro.z)/rd.z; if(a>b){ float s=a; a=b; b=s; } tn=max(tn,a); tf=min(tf,b); if(tn>tf) return -1.0; }
-  float t=tn>0.05?tn:(tf>0.05?tf:-1.0); return t;
+float rollAt(vec2 p){
+  return vN(p*0.00028)*16.0+vN(p*0.0001+vec2(3.0, 1.2))*12.0;
 }
-vec3 boxN(vec3 p,vec2 c,float r,float h){
-  vec3 q=(p-vec3(c,h*0.5))/vec3(r,r,max(h*0.5,0.001)); vec3 a=abs(q);
-  if(a.x>=a.y&&a.x>=a.z) return vec3(sign(q.x),0.0,0.0);
-  if(a.y>=a.z) return vec3(0.0,sign(q.y),0.0);
-  return vec3(0.0,0.0,sign(q.z));
+vec3 rollN(vec2 p){
+  float e=90.0;
+  float hx=rollAt(p+vec2(e,0.0))-rollAt(p-vec2(e,0.0));
+  float hy=rollAt(p+vec2(0.0,e))-rollAt(p-vec2(0.0,e));
+  return normalize(vec3(-hx, -hy, 2.0*e));
 }
-float ellT(vec3 ro,vec3 rd,vec2 c,float R,float H){
-  vec3 f=vec3((ro.x-c.x)/R,(ro.y-c.y)/R,ro.z/H), d=vec3(rd.x/R,rd.y/R,rd.z/H);
-  float A=dot(d,d), B=2.0*dot(f,d), C=dot(f,f)-1.0, disk=B*B-4.0*A*C;
-  if(disk<0.0||A<1e-8) return -1.0;
-  float s=sqrt(disk), t0=(-B-s)/(2.0*A), t1=(-B+s)/(2.0*A), t=-1.0;
-  if(t0>0.05&&ro.z+rd.z*t0>=0.0) t=t0;
-  if(t1>0.05&&ro.z+rd.z*t1>=0.0&&(t<0.0||t1<t)) t=t1;
-  return t;
-}
-vec3 ellN(vec3 p,vec2 c,float R,float H){ return normalize(vec3((p.x-c.x)/(R*R),(p.y-c.y)/(R*R),p.z/(H*H))); }
+float massifRad(float R, float volc){ return R*mix(1.28, 1.12, volc); }
 float apparentEl(float h){ // Saemundsson 1986, true altitude (deg) to apparent
   if(h>80.0) return h;
   float u=h+10.3/(h+5.11);
@@ -115,36 +71,20 @@ void main(){
   float compDeg=comp*57.2957795;
   float sunA=sunAz*0.01745329252, sunZen=(90.0-sunEl)*0.01745329252;
   vec3 sd=normalize(vec3(sin(sunA)*sin(sunZen), cos(sunA)*sin(sunZen), cos(sunZen)));
-  float tGround=rd.z<0.0?-ro.z/rd.z:1e8;
-  float tBest=1e8, kBest=0.0, hBest=1.0, tLand=-1.0; vec3 nBest=vec3(0.0,0.0,1.0), pBest=ro; vec4 qBest=vec4(0.0);
-  for(int i=0;i<12;i++){
-    float kk=kind[i]; if(kk<0.5) continue;
-    vec4 q=obj[i]; float t=-1.0; vec3 n=vec3(0.0,0.0,1.0);
-    if(kk>3.5&&kk<4.5){ t=boxT(ro,rd,q.xy,q.z,q.w); if(t>0.0) n=boxN(ro+rd*t,q.xy,q.z,q.w); }
-    else if(kk>2.5&&kk<3.5){ t=ellT(ro,rd,q.xy,q.z,q.w); if(t>0.0) n=ellN(ro+rd*t,q.xy,q.z,q.w); }
-    else if(kk<2.5) t=marchMassif(ro,rd,q,step(1.5,kk));
-    else { t=coneT(ro,rd,q.xy,q.z,q.w); if(t>0.0) n=coneN(ro+rd*t,q.xy,q.z,q.w); }
-    if(t>0.0&&t<tBest&&t<tGround){
-      tBest=t; kBest=kk; hBest=q.w; pBest=ro+rd*t; qBest=q;
-      if(kk>=2.5){ nBest=n; if(dot(nBest,rd)>0.0) nBest=-nBest; }
-    }
+  vec4 hit=texelFetch(hitInfo, ivec2(gl_FragCoord.xy), 0);
+  vec4 hn=texelFetch(hitNrm, ivec2(gl_FragCoord.xy), 0);
+  float tBest=1e8, kBest=0.0, hBest=1.0, tLand=-1.0, shBest=hit.b;
+  vec3 nBest=vec3(0.0,0.0,1.0), pBest=ro; vec4 qBest=vec4(0.0);
+  if(showScn>0.5 && hit.r>0.0){
+    tBest=hit.r; kBest=hit.g; nBest=hn.rgb; pBest=ro+rd*hit.r;
+    qBest=obj[int(hit.a+0.5)]; hBest=qBest.w;
   }
-  if(showScn>0.5 && rd.z<0.5){
-    float cap=min(tBest, 9000.0);
-    if(rd.z>0.02) cap=min(cap, (210.0-ro.z)/rd.z);
-    else if(rd.z<-0.0001) cap=min(cap, (-6.0-ro.z)/rd.z);
-    vec3 nL;
-    float tL=marchLand(ro, rd, cap, nL);
-    if(tL>0.0&&tL<tBest){
-      tLand=tL; kBest=0.0; pBest=ro+rd*tL; nBest=nL;
-      if(dot(nBest, rd)>0.0) nBest=-nBest;
-    }
+  if(showScn>0.5 && hn.a>0.0 && hn.a<tBest){
+    tLand=hn.a; kBest=0.0; tBest=hn.a; pBest=ro+rd*hn.a; nBest=hn.rgb;
   }
   vec3 col;
   if(showScn<0.5){ kBest=0.0; tLand=-1.0; }
   if(kBest>0.5&&kBest<2.5){
-    nBest=massifN(pBest.xy, qBest, step(1.5, kBest));
-    if(dot(nBest, rd)>0.0) nBest=-nBest;
     float wl=clamp(tBest*0.034, 8.0, 220.0);
     float a=vN(pBest.xy/wl), b=vN(pBest.xy/wl+vec2(0.5,0.15)), c=vN(pBest.xy/wl+vec2(0.15,0.5));
     nBest=normalize(nBest+vec3(a-b, a-c, 0.0)*0.28);
@@ -172,7 +112,7 @@ void main(){
       float ndl=max(dot(nG, sd), 0.0);
       float rel=clamp((0.20+ndl)/(0.20+max(sd.z, 0.05)), 0.32, 1.9);
       gcol*=rel*mix(0.80, 1.0, nG.z);
-      gcol*=mix(0.58, 1.0, scnShadow(vec3(gp, max(gp3.z, 0.0)), sd));
+      gcol*=mix(0.58, 1.0, shBest);
     }
   }
   if(kBest>0.5){
@@ -212,7 +152,7 @@ void main(){
       }
     }
     float ndl=max(dot(nBest,sd),0.0);
-    float sh=kBest<2.5?scnShadow(pBest, sd):1.0;
+    float sh=kBest<2.5?shBest:1.0;
     float ao=mix(0.58, 1.0, clamp(nBest.z,0.0,1.0));
     float lit=(0.40*ao+0.95*ndl*sh)*(0.42+0.58*sunMu);
     if(kBest>2.5&&kBest<3.5) lit=(0.78+0.35*ndl)*(0.85+0.15*sunMu);

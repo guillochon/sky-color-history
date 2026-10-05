@@ -1,5 +1,5 @@
-// Shared by the view, cloud, and composite shaders.
-// massifRad must match scRad. The dome grids must match landHeight in vr_paint.js.
+// Marched by the hit shader. massifRad must match scRad.
+// The dome grids must match landHeight in vr_paint.js.
 const TERR=`
 float h12(vec2 p){
   vec3 q=fract(vec3(p.xyx)*vec3(0.1031, 0.1030, 0.0973));

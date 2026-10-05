@@ -39,6 +39,8 @@ function initVR(){
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, STAR_MAP_W, 2, 0, gl.RGBA, gl.FLOAT, new Float32Array(STAR_MAP_W*8));
   gl.uniform1i(gl.getUniformLocation(prog,'starMap'), 3);
+  gl.uniform1i(gl.getUniformLocation(prog,'hitInfo'), 10);
+  gl.uniform1i(gl.getUniformLocation(prog,'hitNrm'), 11);
   const starBinTex=gl.createTexture();
   gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, starBinTex);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
@@ -60,6 +62,21 @@ function initVR(){
   gl.uniform1f(u.sunRad, SUN_RADIUS_DEG*DISK_SCALE*Math.PI/180);
   vrGL={gl,u,tex,prog,buf,moonTex,starTex,starBinTex,starIdxTex,starUploaded:-1};
   if(moonReady) uploadMoon();
+  const hfs=glShader(gl, gl.FRAGMENT_SHADER, HITFS);
+  if(hfs){
+    const hp=gl.createProgram(); gl.attachShader(hp,vs); gl.attachShader(hp,hfs); gl.bindAttribLocation(hp,0,'a'); gl.linkProgram(hp);
+    if(!gl.getProgramParameter(hp, gl.LINK_STATUS)) console.warn(gl.getProgramInfoLog(hp));
+    else {
+      const hu={}; for(const n of ['res','yaw','pitch','fov','eye','showScn','sunAz','sunEl']) hu[n]=gl.getUniformLocation(hp, n);
+      hu.obj=gl.getUniformLocation(hp,'obj[0]'); hu.kind=gl.getUniformLocation(hp,'kind[0]');
+      gl.useProgram(hp);
+      gl.uniform1i(gl.getUniformLocation(hp,'weather'), 7);
+      gl.uniform1f(hu.fov, VR_FOV_DEG*Math.PI/180);
+      gl.uniform1f(gl.getUniformLocation(hp,'scnCount'), 12);
+      vrGL.hitProg=hp; vrGL.hu=hu; vrGL.hitFbo=gl.createFramebuffer(); vrGL.hitFloat=!!gl.getExtension('EXT_color_buffer_float');
+      gl.useProgram(prog);
+    }
+  }
   const cfs=glShader(gl, gl.FRAGMENT_SHADER, CLOUDFS), compFs=glShader(gl, gl.FRAGMENT_SHADER, COMPFS), tempFs=glShader(gl, gl.FRAGMENT_SHADER, TEMPFS);
   if(cfs&&compFs){
     const cp=gl.createProgram(); gl.attachShader(cp,vs); gl.attachShader(cp,cfs); gl.bindAttribLocation(cp,0,'a'); gl.linkProgram(cp);
@@ -87,11 +104,12 @@ function initVR(){
       gl.uniform1i(gl.getUniformLocation(cp,'noiseDetail'), 6);
       gl.uniform1i(gl.getUniformLocation(cp,'weather'), 7);
       gl.uniform1i(gl.getUniformLocation(cp,'sky'), 0);
+      gl.uniform1i(gl.getUniformLocation(cp,'hitInfo'), 10);
       gl.uniform1f(cu.fov, VR_FOV_DEG*Math.PI/180);
       gl.uniform1f(cu.useHDR, hdr?1:0);
       const compU={}; for(const n of ['res','yaw','pitch','fov','showScn']) compU[n]=gl.getUniformLocation(pp, n);
       compU.eye=gl.getUniformLocation(pp,'eye'); compU.obj=gl.getUniformLocation(pp,'obj[0]'); compU.kind=gl.getUniformLocation(pp,'kind[0]');
-      gl.useProgram(pp); gl.uniform1i(gl.getUniformLocation(pp,'cloudTex'), 2); gl.uniform1i(gl.getUniformLocation(pp,'weather'), 7); gl.uniform1f(compU.fov, VR_FOV_DEG*Math.PI/180);
+      gl.useProgram(pp); gl.uniform1i(gl.getUniformLocation(pp,'cloudTex'), 2); gl.uniform1i(gl.getUniformLocation(pp,'hitInfo'), 10); gl.uniform1f(compU.fov, VR_FOV_DEG*Math.PI/180);
       let tu=null;
       if(tp){
         tu={}; for(const n of ['res','yaw','pitch','prevYaw','prevPitch','fov','histValid','histW']) tu[n]=gl.getUniformLocation(tp, n);
