@@ -51,6 +51,7 @@ const WIKI={
   snowball07:['Snowball Earth','https://en.wikipedia.org/wiki/Snowball_Earth'],
   carbon30:['Carboniferous','https://en.wikipedia.org/wiki/Carboniferous'],
   kpg66:['Cretaceous–Paleogene extinction event','https://en.wikipedia.org/wiki/Cretaceous–Paleogene_extinction_event'],
+  zetaoph:['Zeta Ophiuchi','https://en.wikipedia.org/wiki/Zeta_Ophiuchi'],
   geminga:['Geminga','https://en.wikipedia.org/wiki/Geminga'],
   volcanic:['Year Without a Summer','https://en.wikipedia.org/wiki/Year_Without_a_Summer'],
   modern:['Holocene','https://en.wikipedia.org/wiki/Holocene'],

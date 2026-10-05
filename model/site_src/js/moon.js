@@ -12,7 +12,7 @@ function apparentEl(h){ if(h>80) return h; const u=h+10.3/(h+5.11); if(u<0.25) r
 // present distance, from Eulenfeld & Heubeck 2023, JGR Planets. Older ages
 // extend the long-term drift and stay beyond 30 Earth radii.
 const MOON_RE={
-  modern:60.14, modernpoll:60.14, ozonehole:60.14, y2100:60.14, volcanic:60.14, geminga:60.14,
+  modern:60.14, modernpoll:60.14, ozonehole:60.14, y2100:60.14, volcanic:60.14, geminga:60.14, zetaoph:60.14,
   kpg66:59.93, carbon30:58.56, snowball07:57.71,
   proterozoic22:50.98, archean27thin:47.60, archean27:47.60, archean27vthick:47.60,
   archean38:40.4, hadean40:39.8, hadean44:38.7

@@ -6,7 +6,7 @@ function sizeVR(){
 }
 function mtnSnowFor(key){
   if(key==='kpg66'||key==='snowball07') return 1;
-  if(key==='modern'||key==='ozonehole'||key==='geminga') return 1;
+  if(key==='modern'||key==='ozonehole'||key==='geminga'||key==='zetaoph') return 1;
   if(key==='modernpoll'||key==='y2100') return 0.75;
   if(key==='carbon30') return 0.35;
   if(key==='proterozoic22') return 0.2;
@@ -26,6 +26,7 @@ const ZONES={
   snowball07:[[30,320,'ice',120],[300,520,'ice',200],[60,700,'ice',160]],
   carbon30:[[0,560,'carb',300],[70,520,'carb',230],[140,720,'carb',350],[205,560,'carb',260],[265,860,'carb',420],[325,620,'carb',270],[105,170,'swamp',55],[235,150,'swamp',45],[350,130,'swamp',40]],
   kpg66:[[20,520,'dead',260],[300,650,'dead',300],[110,300,'water',70]],
+  zetaoph:[[20,520,'wood',260],[300,650,'wood',300],[80,800,'wood',280],[110,330,'water',90],[240,500,'water',130]],
   geminga:[[20,520,'wood',260],[300,650,'wood',300],[80,800,'wood',280],[110,330,'water',90],[240,500,'water',130]],
   volcanic:[[20,520,'wood',260],[80,720,'wood',300],[320,640,'wood',280],[120,330,'water',90]],
   ozonehole:[[60,3000,'city'],[190,2600,'city'],[150,620,'hood'],[230,950,'hood'],[310,1400,'hood'],[10,900,'wood',280],[100,1300,'wood',300],[270,520,'water',140]],

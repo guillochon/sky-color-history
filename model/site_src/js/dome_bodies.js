@@ -59,7 +59,15 @@ function vnorm(a){ const m=Math.hypot(a[0],a[1],a[2])||1; return [a[0]/m,a[1]/m,
 // Galactic l 198°, b -12°, which is J2000 RA 85.25°, Dec +7.44°, in Orion. Peak V about -10.9:
 // a Type II-P supernova (M -16.75, Richardson et al. 2014) at 147 pc, the geometric middle
 // of their 90-240 pc. Early on a II-P is hot, so it is drawn blue-white.
-const SUPERNOVA={geminga:{ra:85.25, dec:7.44, mag:-10.9, rgb:[0.86, 0.92, 1.0]}};
+//
+// The supernova that ejected the runaway zeta Oph and PSR B1706-16, 1.78 Myr ago at 107 pc
+// (Neuhauser et al. 2019). Peak V about -11.6 for a Type II-P at 107 pc. Their abstract gives no
+// position; RA 242.4, Dec -21.0 is where a straight-line trace of zeta Oph's Hipparcos motion
+// (RV -9 to -15 km/s) puts it 1.78 Myr ago, in Scorpius about 7 degrees NW of Antares.
+const SUPERNOVA={
+  geminga:{ra:85.25, dec:7.44, mag:-10.9, rgb:[0.86, 0.92, 1.0]},
+  zetaoph:{ra:242.4, dec:-21.0, mag:-11.6, rgb:[0.86, 0.92, 1.0]},
+};
 function supernovaPlace(lat){
   const sn=SUPERNOVA[EP[dIdx].key];
   if(!sn) return null;

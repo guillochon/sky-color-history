@@ -14,12 +14,15 @@ y2100.update(key='y2100', name='Year 2100',
              sub="today's clean air, with the filed megaconstellation and the Sunrise orbital datacenters",
              note='Same atmosphere as the modern clean sky.')
 byk['y2100'] = y2100
-# The Geminga supernova keeps clean modern air. The explosion itself is drawn in the site.
-geminga = copy.deepcopy(byk['modern'])
-geminga.update(key='geminga', name='Geminga supernova, ~342 ka',
-               sub='clean Middle Pleistocene air, under a magnitude −11 supernova in Orion',
-               note='Same atmosphere as the modern clean sky.')
-byk['geminga'] = geminga
+# The supernova epochs keep clean modern air. The explosions themselves are drawn in the site.
+SUPERNOVA_EPOCHS = [
+    ('zetaoph', 'ζ Ophiuchi supernova, ~1.78 Ma', 'clean Early Pleistocene air, under a magnitude −11.6 supernova in Scorpius'),
+    ('geminga', 'Geminga supernova, ~342 ka', 'clean Middle Pleistocene air, under a magnitude −11 supernova in Orion'),
+]
+for key, name, sub in SUPERNOVA_EPOCHS:
+    rec = copy.deepcopy(byk['modern'])
+    rec.update(key=key, name=name, sub=sub, note='Same atmosphere as the modern clean sky.')
+    byk[key] = rec
 
 def xyY(c, Y=None):
     Y = c['Y'] if Y is None else Y
@@ -77,6 +80,7 @@ PROSE = {
 'snowball07': "A frozen planet has a dry, exceptionally clean atmosphere and a surface albedo near 0.75. The result is the bluest sky in Earth's history: 9,000 K at the equatorial zenith and over 20,000 K over polar ice, with horizons that stay distinctly blue instead of whitening, because the sunlit ice floods the sky from below with blue-white light. Sunsets are golden and comparatively pale; there is little aerosol to redden them.",
 'carbon30': "Thirty-plus percent O₂ raises the total pressure and Rayleigh scattering by ~10%, so skies are marginally brighter and horizons a touch whiter than today; the effect is subtle. Frequent wildfire smoke in the high-O₂ world would have produced red suns and brown-orange horizons far more often than in the modern era.",
 'kpg66': "Months after the Chicxulub impact, a global stratospheric layer of soot and sulfate turns the sky into a dim, uniform amber-beige (4,200–5,100 K) with no blue at all, about one-fifth as bright as a clear sky at the equator and 20× dimmer at high latitudes. The Sun is a pale orange disk at low latitudes and effectively gone near the poles. Sunsets do not happen as color events: the whole dome simply fades to dark brown, and the twilight sky is gray.",
+'zetaoph': "About 1.78 million years ago a star of 16 to 18 solar masses exploded in a binary in the Scorpius-Centaurus association. The explosion unbound its companion, which is now the runaway O star ζ Ophiuchi, and left a neutron star that is now the pulsar PSR B1706-16; tracing both back puts the explosion 1.78 ± 0.21 Myr ago at 107 ± 4 pc (Neuhäuser et al. 2019). Its iron-60 may be part of the 1.5 to 3.2 Myr old ⁶⁰Fe found in deep-sea crusts and on the Moon. A typical Type II-P supernova (Richardson et al. 2014) at that distance peaks near −11.6, about twice as bright as Geminga's, or −12.3 if the binary stripped the star and made it a Type Ib. The paper's abstract gives no sky position, so the star is drawn where a straight-line trace of ζ Oph's present motion puts it, near RA 16h10m, Dec −21°, about 7° northwest of Antares among today's stars. That trace lands at 130 to 140 pc rather than 107, so the position is approximate. From mid-northern latitudes it stays low in the south. The air is clean Early Pleistocene air.",
 'geminga': "About 342,000 years ago, going by the spin-down age of the pulsar it left behind (Salvati and Sacco 2008), a star of at most 15 solar masses exploded 90 to 240 pc away, in the direction of Orion (Pellizza et al. 2005). Type II-P supernovae peak near absolute magnitude −16.75 (Richardson et al. 2014), so from the middle of that range, 147 pc, it reached about −11: a fifth of the full Moon's light, all from a point. The −13 often quoted needs both the near end of the distance range and an unusually bright explosion. It burned in the daytime sky as a dazzling star, cast sharp shadows at night, and held near peak for the three months of its plateau. The air is clean Middle Pleistocene air; at this distance the explosion barely touches the atmosphere (Thomas et al. 2016), so the sky's colors are today's. The star is drawn at the birthplace, 3.5° west of where Betelgeuse is now, among today's star positions.",
 'volcanic': "A Tambora-scale sulfate veil (τ≈0.4) is what most people picture as a spectacular sky, and the model agrees. Noon skies are milky, whiter at the zenith than the horizon (the reverse of a clean sky). Sunsets glow salmon-orange, and the after-sunset sky 15–30° above the horizon turns a luminous pink-lavender: the high sulfate layer is still lit when the lower atmosphere is in shadow. This is the sky of Turner's 1816 paintings and of the Krakatoa twilights of 1883.",
 'modern': "Baseline. Equatorial zenith ~9,000 K; mid-latitude ~15,000 K; polar summer ~19,000 K. Horizons run 7,400–8,400 K, essentially white. Setting Sun ~1,700 K; solar horizon orange; antisolar horizon pink.",
@@ -130,8 +134,8 @@ document.querySelectorAll('canvas[data-epoch]').forEach(render);
 </script>
 """
 
-order = ['hadean44','hadean40','archean38','archean27thin','archean27','archean27vthick','proterozoic22','snowball07','carbon30','kpg66','geminga','volcanic','ozonehole','modern','modernpoll','y2100']
-ages = {'hadean44':'4.4 Ga','hadean40':'4.0 Ga','archean38':'3.8 Ga','archean27thin':'2.7 Ga','archean27':'2.7 Ga','archean27vthick':'2.7 Ga','proterozoic22':'2.2 Ga','snowball07':'700 Ma','carbon30':'300 Ma','kpg66':'66 Ma','geminga':'342 ka','volcanic':'1815','modern':'today','modernpoll':'today','ozonehole':'1980–2000','y2100':'2100'}
+order = ['hadean44','hadean40','archean38','archean27thin','archean27','archean27vthick','proterozoic22','snowball07','carbon30','kpg66','zetaoph','geminga','volcanic','ozonehole','modern','modernpoll','y2100']
+ages = {'hadean44':'4.4 Ga','hadean40':'4.0 Ga','archean38':'3.8 Ga','archean27thin':'2.7 Ga','archean27':'2.7 Ga','archean27vthick':'2.7 Ga','proterozoic22':'2.2 Ga','snowball07':'700 Ma','carbon30':'300 Ma','kpg66':'66 Ma','zetaoph':'1.78 Ma','geminga':'342 ka','volcanic':'1815','modern':'today','modernpoll':'today','ozonehole':'1980–2000','y2100':'2100'}
 
 hero = ''
 for k in order:
@@ -279,6 +283,7 @@ th{{color:var(--ink2);font-weight:300}}
 <p>Zhu Y. et al. (2020). Persisting volcanic ash particles impact stratospheric SO₂ lifetime and aerosol optical properties. <i>Nature Communications</i>.</p>
 <p>Serdyuchenko A., Gorshelev V., Weber M., Burrows J.P. (2014). High spectral resolution ozone absorption cross-sections — Part 2. <i>Atmospheric Measurement Techniques</i> 7, 625.</p>
 <p>Cooke G.J., Marsh D.R., Walsh C., Black B., Lamarque J.-F. (2021). A revised lower estimate of ozone columns during Earth's oxygenated history. <i>Royal Society Open Science</i> 9, 211165.</p>
+<p>Neuhäuser R., Gießler F., Hambaryan V.V. (2019). A nearby recent supernova that ejected the runaway star ζ Oph, the pulsar PSR B1706-16, and ⁶⁰Fe found on Earth. <i>Monthly Notices of the Royal Astronomical Society</i>, doi:10.1093/mnras/stz2629.</p>
 <p>Pellizza L.J., Mignani R.P., Grenier I.A., Mirabel I.F. (2005). On the local birth place of Geminga. <i>Astronomy &amp; Astrophysics</i>, doi:10.1051/0004-6361:20042377.</p>
 <p>Salvati M. &amp; Sacco B. (2008). The Milagro anticenter hot spots: cosmic rays from the Geminga supernova? <i>Astronomy &amp; Astrophysics</i>, doi:10.1051/0004-6361:200809586.</p>
 <p>Richardson D., Jenkins R.L., Wright J., Maddox L. (2014). Absolute-magnitude distributions of supernovae. <i>Astronomical Journal</i> 147, 118.</p>

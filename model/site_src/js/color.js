@@ -2,6 +2,7 @@ const EP = __EP__;
 const DAY = __DAY__;
 if(!DAY.epochs.y2100) DAY.epochs.y2100=DAY.epochs.modern;
 if(!DAY.epochs.geminga) DAY.epochs.geminga=DAY.epochs.modern;
+if(!DAY.epochs.zetaoph) DAY.epochs.zetaoph=DAY.epochs.modern;
 const YREF = __YREF__;
 const M = [[3.2406,-1.5372,-0.4986],[-0.9689,1.8758,0.0415],[0.0557,-0.2040,1.0570]];
 const g = v => v<=0.0031308 ? 12.92*v : 1.055*Math.pow(v,1/2.4)-0.055;

@@ -57,6 +57,7 @@ const CLOUD_ERA={
   snowball07:{cov:0.22,vary:0.12,type:0.04,base:1400,top:0.20,cirrus:0.15},
   carbon30:{cov:0.82,vary:0.15,type:0.78,base:1500,top:0.90,cirrus:0.45},
   kpg66:{cov:0.08,vary:0.04,type:0.02,base:2200,top:0.15,cirrus:0.05},
+  zetaoph:{cov:0.50,vary:0.25,type:0.50,base:1600,top:0.55,cirrus:0.55},
   geminga:{cov:0.50,vary:0.25,type:0.50,base:1600,top:0.55,cirrus:0.55},
   volcanic:{cov:0.52,vary:0.15,type:0.22,base:1700,top:0.40,cirrus:0.70},
   modern:{cov:0.50,vary:0.25,type:0.50,base:1600,top:0.55,cirrus:0.55},
