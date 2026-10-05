@@ -25,6 +25,37 @@ vec3 rollN(vec2 p){
   float hy=rollAt(p+vec2(0.0,e))-rollAt(p-vec2(0.0,e));
   return normalize(vec3(-hx, -hy, 2.0*e));
 }
+vec3 vNd(vec2 p){ // value noise and its gradient
+  vec2 i=floor(p), f=fract(p), u=f*f*(3.0-2.0*f), du=6.0*f*(1.0-f);
+  float a=h12(i), b=h12(i+vec2(1.0,0.0)), c=h12(i+vec2(0.0,1.0)), d=h12(i+vec2(1.0,1.0)), k=a-b-c+d;
+  return vec3(a+(b-a)*u.x+(c-a)*u.y+k*u.x*u.y, du*vec2(b-a+k*u.y, c-a+k*u.x));
+}
+// Metre-scale relief on the open ground: xy is the height gradient, z the height in metres.
+// Octaves finer than the pixel footprint fade out so the far field doesn't shimmer.
+vec3 groundRelief(vec2 p, float foot){
+  const mat2 rot=mat2(0.8, 0.6, -0.6, 0.8);
+  mat2 R=mat2(1.0);
+  vec2 g=vec2(0.0); float h=0.0, wl=34.0, amp=1.8;
+  for(int i=0;i<6;i++){
+    float f=1.0/wl, fade=1.0-smoothstep(0.15, 0.45, foot*f);
+    if(fade<=0.0) break;
+    vec3 n=vNd(R*p*f+float(i)*7.31);
+    h+=(n.x-0.5)*amp*fade;
+    g+=(n.yz*R)*f*amp*fade;
+    R=rot*R; wl*=0.36; amp*=0.40;
+  }
+  return vec3(g, h);
+}
+float groundMottle(vec2 p, float foot){
+  float m=0.0, wl=22.0, amp=0.5;
+  for(int i=0;i<5;i++){
+    float fade=1.0-smoothstep(0.15, 0.45, foot/wl);
+    if(fade<=0.0) break;
+    m+=(vN(p/wl+float(i)*4.13+11.0)-0.5)*amp*fade;
+    wl*=0.32; amp*=0.8;
+  }
+  return m;
+}
 float massifRad(float R, float volc){ return R*mix(1.28, 1.12, volc); }
 float apparentEl(float h){ // Saemundsson 1986, true altitude (deg) to apparent
   if(h>80.0) return h;
@@ -99,6 +130,16 @@ void main(){
     vec3 nG=tLand>0.0?nBest:rollN(gp);
     gcol*=mix(0.90, 1.06, texture(weather, gp*0.00028+0.12).b);
     gcol*=mix(0.84, 1.10, vN(gp*0.00115+3.0));
+    float foot=tG*2.0*fy/res.y/sqrt(max(abs(rd.z), 0.002));
+    vec3 relief=groundRelief(gp, foot);
+    if(tLand<0.0) nG=normalize(nG+vec3(-relief.xy, 0.0));
+    // Bare and grassy patches, scaled by how colourful the ground is so snow stays white.
+    float gmx=max(gcol.r, max(gcol.g, gcol.b)), chroma=(gmx-min(gcol.r, min(gcol.g, gcol.b)))/max(gmx, 1e-4);
+    float patchy=smoothstep(0.38, 0.66, vN(gp/120.0+7.7)+(vN(gp/31.0+2.3)-0.5)*0.55-relief.z*0.12);
+    float colourful=clamp(chroma*1.6, 0.0, 1.0);
+    gcol*=mix(vec3(1.0), mix(vec3(0.88, 1.04, 0.94), vec3(1.24, 1.06, 0.72), patchy), colourful);
+    gcol*=1.0+groundMottle(gp, foot)*mix(0.3, 0.8, colourful);
+    gcol*=1.0+clamp(relief.z*0.18, -0.14, 0.08);
     gcol=mix(gcol, gcol*vec3(0.84, 0.78, 0.70), (1.0-smoothstep(0.55, 0.92, nG.z))*0.5);
     gcol=mix(gcol, gcol*vec3(1.06, 1.02, 0.95), smoothstep(28.0, 130.0, gp3.z)*0.4);
     if(cloudOn>0.5){
