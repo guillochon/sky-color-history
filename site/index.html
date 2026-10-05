@@ -1135,32 +1135,38 @@ float shellT(vec3 ro, vec3 rd, float H){
   if(disc<=0.0) return -1.0;
   return -c/(b+sqrt(disc));
 }
-float cloudNoise(vec2 plane, float z, float detail, float lod, float sc){
-  vec3 uv=vec3(plane*sc, z*0.22+0.11);
+float cloudNoise(vec2 plane, float z, float detail, float lod, float sc, float dt){
+  // Coverage is a horizontal map. Repeating it with height drew sheets that
+  // line up with the horizon when the view is shallow.
+  vec3 uv=vec3(plane*sc, 0.17);
   float edge=0.78-cloudCov*0.62;
   float gate=smoothstep(edge, edge+mix(0.10, 0.28, lod), texture(noise, uv).g);
-  // Same billow the clouds had before the tile grew, four times smaller, so the
-  // 28 km coverage still groups them and the cells themselves are not huge coins.
-  // The coverage stays coherent with height; the billow itself changes as it rises.
-  float k=mix(4.0, 2.4, lod);
-  vec3 q=vec3(uv.xy*k, z*mix(1.35, 0.85, lod));
-  if(detail>0.35){
-    vec2 w=texture(noise, q*1.8+vec3(0.6,2.4,1.3)).rg;
-    q+=vec3(w.x-0.5, w.y-0.5, (w.x-w.y)*0.4)*0.22*detail;
+  // About as wide as the deck is thick, so a shallow view shows a cloud body
+  // and not a flattened streak. Finer than the step, the same cells broke
+  // into bands parallel to the horizon.
+  float cell=1.0/(sc*4.0);
+  float kMax=cell/max(dt*2.2, 1.0);
+  float k=min(mix(1.35, 0.9, lod), kMax);
+  vec3 q=vec3(uv.xy*k, 0.37+z*0.05);
+  float midK=min(k*2.15, kMax);
+  if(detail>0.35 && midK>k*1.25){
+    vec2 w=texture(noise, vec3(uv.xy*min(k*1.8, kMax)+vec2(0.6,2.4), 1.3)).rg;
+    q.xy+=(w-0.5)*0.22*detail;
   }
   float core=smoothstep(mix(0.40, 0.22, lod), mix(0.72, 0.92, lod), texture(noise, q).r);
-  if(detail>0.35){
-    float mid=texture(noise, q*2.15+vec3(1.7,3.4,0.5)).r;
+  if(detail>0.35 && midK>k*1.25){
+    float mid=texture(noise, vec3(uv.xy*midK+vec2(1.7,3.4), 0.5)).r;
     float lump=mid;
-    if(detail>0.65){
-      float fine=texture(noise, q*3.8+vec3(4.1,0.8,2.6)).r;
+    float fineK=min(k*3.8, kMax);
+    if(detail>0.65 && fineK>midK*1.25){
+      float fine=texture(noise, vec3(uv.xy*fineK+vec2(4.1,0.8), 2.6)).r;
       lump=mid*0.58+fine*0.42;
     }
     core=mix(core, clamp((core-(1.0-lump)*0.40)/0.60, 0.0, 1.0), detail);
   }
   return core*gate;
 }
-float cloudDen(vec3 p, float detail, float lod, float deck){
+float cloudDen(vec3 p, float detail, float lod, float deck, float dt){
   vec2 dh=p.xy-eye.xy;
   float R=833333.0;
   float numer=dot(dh,dh)+p.z*(p.z+2.0*R);
@@ -1174,17 +1180,18 @@ float cloudDen(vec3 p, float detail, float lod, float deck){
   float shelf=texture(noise, vec3(plane*sc*0.37, 0.41)).r;
   float crown=texture(noise, vec3(plane*sc*1.15+vec2(3.7, 1.2), 0.73)).r;
   float top=mix(0.32, 0.97, shelf*0.62+crown*0.38);
-  float foot=crown*0.08;
-  float rise=smoothstep(foot, foot+mix(0.07, 0.14, lod), ph);
-  float fall=1.0-smoothstep(max(top-mix(0.20, 0.32, lod), foot+0.05), top, ph);
+  float foot=crown*0.06;
+  float rise=smoothstep(foot, foot+mix(0.08, 0.16, lod)+deck*0.04, ph);
+  float fall=1.0-smoothstep(max(top-mix(0.22, 0.36, lod), foot+0.05), top, ph);
   float grad=rise*fall;
-  float zK=mix(4.2, 2.8, max(lod*0.7, deck*0.25));
-  float zc=ph*zK+0.17;
-  return cloudNoise(plane, zc, detail, lod, sc)*grad;
+  if(grad<0.015) return 0.0;
+  float zc=clamp(ph/max(top, 0.2), 0.0, 1.0);
+  return cloudNoise(plane, zc, detail, lod, sc, dt)*grad;
 }
-float lightBeer(vec3 p, vec3 sd, float lod, float deck){
-  float tau=0.0, ls=mix(720.0, 3300.0, lod);
-  for(int i=0;i<5;i++){ p+=sd*ls; tau+=cloudDen(p, 0.0, lod, deck)*ls; }
+float lightBeer(vec3 p, vec3 sd, float lod, float deck, float dt){
+  float ls=mix(1600.0, 5200.0, lod);
+  float tau=cloudDen(p+sd*ls, 0.0, lod, deck, dt)*ls;
+  tau+=cloudDen(p+sd*(ls*2.2), 0.0, lod, deck, dt)*ls;
   return exp(-tau*(0.0026/3.0));
 }
 void main(){
@@ -1214,20 +1221,19 @@ void main(){
   }
   if(tHit>tIn) tOut=min(tOut, tHit-2.0);
   if(tOut<=tIn){ fragColor=vec4(0.0); return; }
-  float dt=max((tOut-tIn)/64.0, 80.0);
+  float dt=max((tOut-tIn)/36.0, 160.0);
   float ign=fract(52.9829189*fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
-  float t=tIn+dt*ign*0.35, T=1.0, tAcc=0.0;
+  float t=tIn+dt*ign, T=1.0, tAcc=0.0;
   float deck=smoothstep(0.30, 0.06, rd.z);
   vec3 col=vec3(0.0);
-  for(int i=0;i<64;i++){
+  for(int i=0;i<36;i++){
     if(T<0.04||t>tOut) break;
-    float j=fract(ign+float(i)*0.61803398875);
-    vec3 p=ro+rd*(t+(j-0.5)*dt*0.2);
+    vec3 p=ro+rd*t;
     float lod=max(smoothstep(7000.0, 26000.0, t), smoothstep(0.28, 0.05, rd.z)*smoothstep(3000.0, 12000.0, t));
     float detail=smoothstep(42000.0, 6000.0, t)*smoothstep(0.01, 0.09, rd.z);
-    float den=cloudDen(p, detail, lod, deck);
+    float den=cloudDen(p, detail, lod, deck, dt);
     if(den>0.02){
-      float beer=lightBeer(p, sd, lod, deck);
+      float beer=lightBeer(p, sd, lod, deck, dt);
       float silver=pow(clamp(dot(rd, sd), 0.0, 1.0), 5.0);
       vec3 sunLit=sunCol*beer*mix(0.55, 1.55, silver)*(0.20+0.80*max(sunMu,0.0));
       vec3 skyLit=amb*(0.28+0.35*beer);
@@ -1538,7 +1544,7 @@ function paintVR(){
   }
   gl.drawArrays(gl.TRIANGLES, 0, 6);
   if(vrClouds&&vrGL.cloudProg){
-    const cw=Math.max(2,c.width), ch=Math.max(2,c.height);
+    const cw=Math.max(2,(c.width*2)/3), ch=Math.max(2,(c.height*2)/3);
     if(cloudMinPrev==null) cloudMinPrev=minutes;
     else { let dm=minutes-cloudMinPrev; if(dm<-DAYMIN/2) dm+=DAYMIN; cloudMinPrev=minutes; cloudScroll+=dm*88; }
     const field=cloudField(EP[dIdx].key), cu=vrGL.cu;
