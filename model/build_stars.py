@@ -1,7 +1,8 @@
-"""Pull the 100 brightest stars from the Yale Bright Star Catalogue JSON.
+"""Pull the 1000 brightest stars from the Yale Bright Star Catalogue JSON.
 
-The catalog file is a local download used only to build model/stars100.json.
-Positions are J2000. Proper motions are arcseconds per year.
+The catalog file is a local download used only to build model/stars1000.json.
+Positions are J2000. Proper motions are arcseconds per year
+(mu alpha cos delta, then mu delta). The site embeds this list.
 """
 import json
 import re
@@ -54,14 +55,15 @@ for star in rows_in:
     if str(star.get("HR")) == "5958":
         continue
     magnitude = num(star.get("Vmag"), None)
-    if magnitude is None:
+    if magnitude is None or not star.get("RA") or not star.get("Dec"):
         continue
     ranked.append((magnitude, star))
 ranked.sort(key=lambda item: item[0])
 
 catalog = []
-for magnitude, star in ranked[:100]:
+for magnitude, star in ranked[:1000]:
     name = common_name(star) or bayer(star) or ("HR " + str(star["HR"]))
+    name = name.replace("<", "").replace("'", "")
     catalog.append({
         "name": name,
         "ra": round(parse_ra(star["RA"]), 4),
@@ -73,7 +75,8 @@ for magnitude, star in ranked[:100]:
         "k": int(round(num(star.get("K"), 10000))),
     })
 
-out = Path(__file__).with_name("stars100.json")
+out = Path(__file__).with_name("stars1000.json")
 out.write_text(json.dumps(catalog, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 print(f"wrote {len(catalog)} stars, faintest {catalog[-1]['v']} {catalog[-1]['name']}")
 print("brightest", catalog[0]["name"], catalog[0]["v"], catalog[0]["ra"], catalog[0]["dec"])
+print("anchor", catalog[99]["name"], catalog[99]["v"])
