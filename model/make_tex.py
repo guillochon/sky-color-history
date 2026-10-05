@@ -5,12 +5,10 @@ ns = {'__file__': str(ROOT / 'gen_report.py')}
 with contextlib.redirect_stdout(io.StringIO()):
     exec((ROOT / 'gen_report.py').read_text(encoding='utf-8'), ns)
 PROSE, LIMB_CAP, order, ages = ns['PROSE'], ns['LIMB_CAP'], ns['order'], ns['ages']
-D = json.load(open(ROOT / 'skycolors.json', encoding='utf-8')); byk = {r['key']: r for r in D}
-if 'y2100' not in byk:
-    rec = copy.deepcopy(byk['modern'])
-    rec.update(key='y2100', name='Year 2100',
-               sub="today's clean air, with the filed megaconstellation and the Sunrise orbital datacenters")
-    byk['y2100'] = rec
+# gen_report adds the epochs that reuse today's air (Year 2100 and the supernovae) to its records.
+byk = ns['byk']
+SAME_AIR = {'y2100'} | {key for key, _, _ in ns['SUPERNOVA_EPOCHS']}
+def sky_fig(k): return 'modern' if k in SAME_AIR else k
 L = str(ROOT.parent / 'latex')
 
 def tex(s):
@@ -21,6 +19,8 @@ def tex(s):
            '–': '--', '—': '---', '’': "'", '‘': '`', '“': '``', '”': "''", '·': r'$\cdot$', '…': r'\ldots',
            '₂': r'$_2$', '₃': r'$_3$', '₄': r'$_4$', 'τ': r'$\tau$', 'μ': r'$\mu$', 'λ': r'$\lambda$', 'ω': r'$\omega$',
            '⁻': '^{-', '⁶': '6}', '²': r'$^2$', '³': r'$^3$', '⁴': r'$^4$'}
+    s = s.replace('⁶⁰', '$^{60}$')
+    rep.update({'−': '$-$', '±': r'$\pm$', 'ζ': r'$\zeta$'})
     for a, b in rep.items(): s = s.replace(a, b)
     s = s.replace('$_2$$_2$', '$_{22}$')
     s = re.sub(r'10\^\{-(\d)\}', r'$10^{-\1}$', s)
@@ -45,7 +45,7 @@ for k in order:
 {tex(PROSE[k])}
 
 \\begin{{figure}}[H]\\centering
-\\includegraphics[width=\\linewidth]{{figures/sky_{'modern' if k=='y2100' else k}.png}}
+\\includegraphics[width=\\linewidth]{{figures/sky_{sky_fig(k)}.png}}
 \\caption{{{tex(r['name'])}: noon sky dome at the equator (solar zenith angle $15^\\circ$), mid-latitude ($45^\\circ$) and polar summer ($75^\\circ$), zenith at top and horizon at bottom, with the Sun's disk drawn in its color and relative brightness; below, the horizon-to-antisolar sky with the Sun on the horizon and $4^\\circ$ below it. Brightness relative to today's clean sky, gamma-compressed.}}
 \\label{{fig:sky_{k}}}
 \\end{{figure}}
@@ -88,12 +88,13 @@ for k in order:
 \\par\\vspace{{6pt}}\\noindent\\begin{{minipage}}{{\\linewidth}}
 {{\\normalsize\\bfseries {tex(r['name'])}\\par}}
 {{\\small\\itshape {tex(r['sub'])}\\par}}\\vspace{{3pt}}
-\\centering\\includegraphics[width=\\linewidth]{{figures/sky_{'modern' if k=='y2100' else k}.png}}
+\\centering\\includegraphics[width=\\linewidth]{{figures/sky_{sky_fig(k)}.png}}
 \\captionof{{figure}}{{{tex(r['name'])}. Top: noon sky dome at the equator, mid-latitude and polar summer, zenith at top, horizon at bottom, Sun's disk in its own color. Below: sky from the solar horizon to the antisolar horizon with the Sun on the horizon and $4^\\circ$ below it.}}
 \\end{{minipage}}\\par\\vspace{{4pt}}
 {tex(PROSE[k])}
 """
 
+NUMBER_WORDS = {13: 'thirteen', 14: 'fourteen', 15: 'fifteen', 16: 'sixteen', 17: 'seventeen', 18: 'eighteen', 19: 'nineteen', 20: 'twenty'}
 main = r"""\documentclass[9pt,twocolumn]{extarticle}
 \usepackage[a4paper,margin=14mm,top=16mm,bottom=16mm,columnsep=7mm]{geometry}
 \usepackage[T1]{fontenc}
@@ -215,7 +216,7 @@ Epoch & Noon zenith & Horizon & Sunset \\ \midrule
 
 \Needspace*{20\baselineskip}
 \section*{Epoch by epoch}
-The thirteen panels that follow are laid out identically so they can be compared at a glance. Each panel begins with the epoch's name and a one-line summary of the atmosphere assumed (Table~\ref{tab:epochs} gives the full parameters). The upper row shows the noon sky dome at three latitudes---the equator, a mid-latitude site and the summer pole---with the zenith at the top of each swatch and the horizon at the bottom, the correlated color temperatures of both printed above, and the Sun's disk drawn in its own color, at its noon elevation, and with a brightness that reflects how much of it survives the atmosphere (where the Sun would not be visible at all, the swatch says so). The two strips beneath trace the sky from the solar horizon across the zenith to the antisolar horizon at two moments: with the Sun sitting on the horizon, and with it $4^\circ$ below, in civil twilight. All swatches are shown at a brightness relative to today's clean sky, so a dim epoch reads as dim; the paragraph after each panel explains what the colors mean and why they arise.
+The """ + NUMBER_WORDS[len(order)] + r""" panels that follow are laid out identically so they can be compared at a glance. Each panel begins with the epoch's name and a one-line summary of the atmosphere assumed (Table~\ref{tab:epochs} gives the full parameters). The upper row shows the noon sky dome at three latitudes---the equator, a mid-latitude site and the summer pole---with the zenith at the top of each swatch and the horizon at the bottom, the correlated color temperatures of both printed above, and the Sun's disk drawn in its own color, at its noon elevation, and with a brightness that reflects how much of it survives the atmosphere (where the Sun would not be visible at all, the swatch says so). The two strips beneath trace the sky from the solar horizon across the zenith to the antisolar horizon at two moments: with the Sun sitting on the horizon, and with it $4^\circ$ below, in civil twilight. All swatches are shown at a brightness relative to today's clean sky, so a dim epoch reads as dim; the paragraph after each panel explains what the colors mean and why they arise.
 """ + epoch_blocks + r"""
 
 \section*{Caveats}
@@ -223,7 +224,8 @@ The thirteen panels that follow are laid out identically so they can be compared
 
 \nocite{*}
 \bibliographystyle{plainnat}
-{\footnotesize\bibliography{refs}}
+% Font expansion fails on the bibliography's small slanted Helvetica, a virtual font.
+{\footnotesize\microtypesetup{expansion=false}\bibliography{refs}}
 
 \onecolumn
 \section*{Appendix: computed chromaticities}
@@ -238,7 +240,7 @@ Epoch & Latitude & Zenith $(x,y)$ & CCT (K) & Horizon $(x,y)$ & CCT (K) & Sun \\
 \end{document}
 """
 
-open(f'{L}/main.tex', 'w').write(main)
+open(f'{L}/main.tex', 'w', encoding='utf-8').write(main)
 
 bib = r"""@article{arney2016, author={Arney, Giada and Domagal-Goldman, Shawn D. and Meadows, Victoria S. and others}, title={The Pale Orange Dot: The Spectrum and Habitability of Hazy {Archean} {Earth}}, journal={Astrobiology}, volume={16}, pages={873--899}, year={2016}}
 @article{catling2020, author={Catling, David C. and Zahnle, Kevin J.}, title={The {Archean} atmosphere}, journal={Science Advances}, volume={6}, pages={eaax1420}, year={2020}}
@@ -255,7 +257,12 @@ bib = r"""@article{arney2016, author={Arney, Giada and Domagal-Goldman, Shawn D.
 @article{cooke2021, author={Cooke, Gregory J. and Marsh, Daniel R. and Walsh, Catherine and Black, Benjamin and Lamarque, Jean-Francois}, title={A revised lower estimate of ozone columns during {Earth}'s oxygenated history}, journal={Royal Society Open Science}, volume={9}, pages={211165}, year={2021}}
 @article{lawler2022, author={Lawler, Samantha M. and Boley, Aaron C. and Rein, Hanno}, title={Visibility predictions for near-future satellite megaconstellations: latitudes near 50 degrees will experience the worst light pollution}, journal={Astronomical Journal}, volume={163}, pages={21}, year={2022}}
 @article{boley2026, author={Boley, Aaron C. and Lawler, Samantha M. and Rein, Hanno}, title={Rings in the sky: orbital data centres and potential impacts to astronomy and the sky}, journal={arXiv e-prints}, pages={arXiv:2608.02757}, year={2026}}
+@article{pellizza2005, author={Pellizza, L. J. and Mignani, R. P. and Grenier, I. A. and Mirabel, I. F.}, title={On the local birth place of {Geminga}}, journal={Astronomy \& Astrophysics}, year={2005}, doi={10.1051/0004-6361:20042377}}
+@article{salvati2008, author={Salvati, M. and Sacco, B.}, title={The {Milagro} anticenter hot spots: cosmic rays from the {Geminga} supernova?}, journal={Astronomy \& Astrophysics}, year={2008}, doi={10.1051/0004-6361:200809586}}
+@article{richardson2014, author={Richardson, Dean and Jenkins, Robert L. and Wright, John and Maddox, Larry}, title={Absolute-magnitude distributions of supernovae}, journal={Astronomical Journal}, volume={147}, pages={118}, year={2014}}
+@article{thomas2016, author={Thomas, Brian C. and others}, title={Terrestrial effects of nearby supernovae in the early {Pleistocene}}, journal={Astrophysical Journal Letters}, volume={826}, pages={L3}, year={2016}}
+@article{neuhauser2019, author={Neuh{\"a}user, Ralph and Gie{\ss}ler, Frank and Hambaryan, Valeri V.}, title={A nearby recent supernova that ejected the runaway star $\zeta$ {Oph}, the pulsar {PSR B1706-16}, and $^{60}${Fe} found on {Earth}}, journal={Monthly Notices of the Royal Astronomical Society}, year={2019}, doi={10.1093/mnras/stz2629}}
 @article{wyman2013, author={Wyman, Chris and Sloan, Peter-Pike and Shirley, Peter}, title={Simple analytic approximations to the {CIE} {XYZ} color matching functions}, journal={Journal of Computer Graphics Techniques}, volume={2}, pages={1--11}, year={2013}}
 """
-open(f'{L}/refs.bib', 'w').write(bib)
+open(f'{L}/refs.bib', 'w', encoding='utf-8').write(bib)
 print('ok')
