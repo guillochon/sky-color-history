@@ -7,7 +7,7 @@ uniform sampler2D noiseTex;
 uniform sampler2D sky; uniform sampler2D moonMap; uniform sampler2D starMap; uniform sampler2D starBin; uniform sampler2D starIdx; uniform sampler2D weather; uniform sampler2D hitInfo; uniform sampler2D hitNrm; uniform vec2 res;
 uniform float yaw,pitch,fov,sunAz,sunEl,sunRad,sunOn,nr,na,sunMu,showScn,mtnSnow;
 uniform float moonAz,moonEl,moonRad,moonOn,latRad,starPx,cloudCov,cloudScale,cloudDrift,cloudOn,clockH,snowCover,waterT,snOn;
-uniform vec3 snDir,snCol,snLight;
+uniform vec3 snDir,snCol,snLight,mlDir,mlLight;
 uniform vec3 sunCol,ground,eye;
 uniform vec4 obj[12];
 uniform vec4 pond[8];
@@ -114,6 +114,8 @@ float windowMean(float frac, float offAt, float dark){
   float pOn=0.08+(clockH>=12.0?clamp(0.92-(clockH-offAt+1.0)*0.5, 0.0, 0.92):0.0);
   return frac*clamp((dark-0.1)/0.8, 0.0, 1.0)*pOn;
 }
+// Light at night from the Moon (ml) and a supernova (sn), on a surface with normal n.
+vec3 nightLit(vec3 n){ return snLight*max(dot(n, snDir), 0.0)+mlLight*max(dot(n, mlDir), 0.0); }
 vec3 skyLook(vec3 d){
   float c=atan(d.x, d.y); if(c<0.0) c+=6.28318530718;
   float el=asin(clamp(d.z, -1.0, 1.0))*57.2957795;
@@ -187,7 +189,7 @@ void main(){
       float rel=clamp((0.20+ndl)/(0.20+max(sd.z, 0.05)), 0.32, 1.9);
       gcol*=rel*mix(0.80, 1.0, nG.z);
       gcol*=mix(0.58, 1.0, shBest);
-      gcol+=snLight*0.16*max(dot(nG, snDir), 0.0);
+      gcol+=nightLit(nG)*0.16;
     }
 #if SCENERY
     // Pools: pond[i] is (centre, radius, kind) with kind 0 water, 1 magma, 2 ice, 3 swamp.
@@ -215,7 +217,7 @@ void main(){
         vec3 deep=pk>2.5?vec3(0.035, 0.045, 0.02):vec3(0.012, 0.035, 0.05);
         vec3 wc=mix(deep*light, skyLook(refl), fres);
         wc+=sunCol*pow(max(dot(refl, sd), 0.0), 300.0)*step(0.0, sd.z)*2.0;
-        wc+=snLight*pow(max(dot(refl, snDir), 0.0), 300.0)*6.0;
+        wc+=snLight*pow(max(dot(refl, snDir), 0.0), 300.0)*6.0+mlLight*pow(max(dot(refl, mlDir), 0.0), 120.0)*4.0;
         if(pk>2.5) wc=mix(wc, vec3(0.10, 0.16, 0.05)*light, smoothstep(0.55, 0.72, vN(gp/7.0+vec2(0.02, 0.01)*waterT))*0.75);
         gcol=mix(gcol*0.55, wc, smoothstep(0.0, 3.0, edge));
       }else if(pk>0.5 && pk<1.5){
@@ -265,7 +267,7 @@ void main(){
     }
     float wrap=part>0.5?clamp(dot(n, sd)*0.65+0.35, 0.0, 1.0):max(dot(n, sd), 0.0);
     float ao=mix(0.5, 1.0, n.z*0.5+0.5)*mix(0.7, 1.0, smoothstep(0.0, 2.0, pBest.z));
-    col=albedo*(0.45*ao+0.9*wrap)*(0.42+0.58*sunMu)+albedo*snLight*max(dot(n, snDir)*0.65+0.35, 0.0);
+    col=albedo*(0.45*ao+0.9*wrap)*(0.42+0.58*sunMu)+albedo*(snLight*max(dot(n, snDir)*0.65+0.35, 0.0)+mlLight*max(dot(n, mlDir)*0.65+0.35, 0.0));
     col=mix(col, skyLook(rd), clamp(1.0-exp(-tBest/16000.0), 0.0, 0.8));
   }else if(kBest>5.5){
     // Towers (6) and houses (7). Wall coordinates are world x or y, which line up with the bays
@@ -310,7 +312,7 @@ void main(){
     }
     float ndl=max(dot(n, sd), 0.0);
     float ao=mix(0.62, 1.0, clamp(n.z, 0.0, 1.0))*mix(0.7, 1.0, smoothstep(0.0, 2.5, z));
-    col=mix(albedo*((0.40*ao+0.95*ndl)*(0.42+0.58*sunMu)+snLight*max(dot(n, snDir), 0.0)), glass, win);
+    col=mix(albedo*((0.40*ao+0.95*ndl)*(0.42+0.58*sunMu)+nightLit(n)), glass, win);
     col+=vec3(1.0, 0.74, 0.42)*win*lit*0.9;
     col=mix(col, skyLook(rd), clamp(1.0-exp(-tBest/16000.0), 0.0, 0.8));
   }else if(kBest>0.5){
@@ -377,7 +379,7 @@ void main(){
     float ao=mix(0.58, 1.0, clamp(nBest.z,0.0,1.0));
     float lit=(0.40*ao+0.95*ndl*sh)*(0.42+0.58*sunMu);
     if(kBest>2.5&&kBest<3.5) lit=(0.62+0.6*ndl*sh)*(0.42+0.58*sunMu); // ice scatters light into its shade
-    col=albedo*(lit+snLight*max(dot(nBest, snDir), 0.0))+emit;
+    col=albedo*(lit+nightLit(nBest))+emit;
     if(kBest<3.5){
       float uTex=(fract(compDeg/360.0)*na+0.5)/(na+1.0);
       float vTex=((90.0-max(elevDeg,0.0))/90.0*nr+0.5)/(nr+1.0);

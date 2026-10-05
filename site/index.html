@@ -434,7 +434,7 @@ function renderDay(fast){
   if(!fast) drawMoonOnDome(moon, sunAz, 90-sza, sunUpPix?{x:sx,y:sy,r:SUNR}:null);
   const sn=supernovaPlace(LATDEG[dLat]);
   if(!fast) drawSupernovaOnDome(sn);
-  skyNow={colgrid, sza, sunAz, sunRGB, sunVis, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE+35/60, moon, stars:stars.tex, starBins:stars.bins, starIdx:stars.idx, starIdxCount:stars.idxCount, sn, gen:++skyGen};
+  skyNow={colgrid, sza, sunAz, sunRGB, sunVis, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE+35/60, moon, stars:stars.tex, starBins:stars.bins, starIdx:stars.idx, starIdxCount:stars.idxCount, sn, moonRel:mScale/MOON_SUN_FULL, gen:++skyGen};
   document.getElementById('rmoon').textContent = (moon.el<-moon.radDeg ? 'below horizon' : moon.el.toFixed(1)+'°')+' · '+Math.round(moonLit(moon, sunAz, 90-sza)*100)+'% lit · '+(mScale/MOON_SUN_FULL).toPrecision(2)+'× full';
   if(vrOn) paintVR();
   if(fast) return;
@@ -2654,7 +2654,7 @@ uniform sampler2D noiseTex;
 uniform sampler2D sky; uniform sampler2D moonMap; uniform sampler2D starMap; uniform sampler2D starBin; uniform sampler2D starIdx; uniform sampler2D weather; uniform sampler2D hitInfo; uniform sampler2D hitNrm; uniform vec2 res;
 uniform float yaw,pitch,fov,sunAz,sunEl,sunRad,sunOn,nr,na,sunMu,showScn,mtnSnow;
 uniform float moonAz,moonEl,moonRad,moonOn,latRad,starPx,cloudCov,cloudScale,cloudDrift,cloudOn,clockH,snowCover,waterT,snOn;
-uniform vec3 snDir,snCol,snLight;
+uniform vec3 snDir,snCol,snLight,mlDir,mlLight;
 uniform vec3 sunCol,ground,eye;
 uniform vec4 obj[12];
 uniform vec4 pond[8];
@@ -2761,6 +2761,8 @@ float windowMean(float frac, float offAt, float dark){
   float pOn=0.08+(clockH>=12.0?clamp(0.92-(clockH-offAt+1.0)*0.5, 0.0, 0.92):0.0);
   return frac*clamp((dark-0.1)/0.8, 0.0, 1.0)*pOn;
 }
+// Light at night from the Moon (ml) and a supernova (sn), on a surface with normal n.
+vec3 nightLit(vec3 n){ return snLight*max(dot(n, snDir), 0.0)+mlLight*max(dot(n, mlDir), 0.0); }
 vec3 skyLook(vec3 d){
   float c=atan(d.x, d.y); if(c<0.0) c+=6.28318530718;
   float el=asin(clamp(d.z, -1.0, 1.0))*57.2957795;
@@ -2834,7 +2836,7 @@ void main(){
       float rel=clamp((0.20+ndl)/(0.20+max(sd.z, 0.05)), 0.32, 1.9);
       gcol*=rel*mix(0.80, 1.0, nG.z);
       gcol*=mix(0.58, 1.0, shBest);
-      gcol+=snLight*0.16*max(dot(nG, snDir), 0.0);
+      gcol+=nightLit(nG)*0.16;
     }
 #if SCENERY
     // Pools: pond[i] is (centre, radius, kind) with kind 0 water, 1 magma, 2 ice, 3 swamp.
@@ -2862,7 +2864,7 @@ void main(){
         vec3 deep=pk>2.5?vec3(0.035, 0.045, 0.02):vec3(0.012, 0.035, 0.05);
         vec3 wc=mix(deep*light, skyLook(refl), fres);
         wc+=sunCol*pow(max(dot(refl, sd), 0.0), 300.0)*step(0.0, sd.z)*2.0;
-        wc+=snLight*pow(max(dot(refl, snDir), 0.0), 300.0)*6.0;
+        wc+=snLight*pow(max(dot(refl, snDir), 0.0), 300.0)*6.0+mlLight*pow(max(dot(refl, mlDir), 0.0), 120.0)*4.0;
         if(pk>2.5) wc=mix(wc, vec3(0.10, 0.16, 0.05)*light, smoothstep(0.55, 0.72, vN(gp/7.0+vec2(0.02, 0.01)*waterT))*0.75);
         gcol=mix(gcol*0.55, wc, smoothstep(0.0, 3.0, edge));
       }else if(pk>0.5 && pk<1.5){
@@ -2912,7 +2914,7 @@ void main(){
     }
     float wrap=part>0.5?clamp(dot(n, sd)*0.65+0.35, 0.0, 1.0):max(dot(n, sd), 0.0);
     float ao=mix(0.5, 1.0, n.z*0.5+0.5)*mix(0.7, 1.0, smoothstep(0.0, 2.0, pBest.z));
-    col=albedo*(0.45*ao+0.9*wrap)*(0.42+0.58*sunMu)+albedo*snLight*max(dot(n, snDir)*0.65+0.35, 0.0);
+    col=albedo*(0.45*ao+0.9*wrap)*(0.42+0.58*sunMu)+albedo*(snLight*max(dot(n, snDir)*0.65+0.35, 0.0)+mlLight*max(dot(n, mlDir)*0.65+0.35, 0.0));
     col=mix(col, skyLook(rd), clamp(1.0-exp(-tBest/16000.0), 0.0, 0.8));
   }else if(kBest>5.5){
     // Towers (6) and houses (7). Wall coordinates are world x or y, which line up with the bays
@@ -2957,7 +2959,7 @@ void main(){
     }
     float ndl=max(dot(n, sd), 0.0);
     float ao=mix(0.62, 1.0, clamp(n.z, 0.0, 1.0))*mix(0.7, 1.0, smoothstep(0.0, 2.5, z));
-    col=mix(albedo*((0.40*ao+0.95*ndl)*(0.42+0.58*sunMu)+snLight*max(dot(n, snDir), 0.0)), glass, win);
+    col=mix(albedo*((0.40*ao+0.95*ndl)*(0.42+0.58*sunMu)+nightLit(n)), glass, win);
     col+=vec3(1.0, 0.74, 0.42)*win*lit*0.9;
     col=mix(col, skyLook(rd), clamp(1.0-exp(-tBest/16000.0), 0.0, 0.8));
   }else if(kBest>0.5){
@@ -3024,7 +3026,7 @@ void main(){
     float ao=mix(0.58, 1.0, clamp(nBest.z,0.0,1.0));
     float lit=(0.40*ao+0.95*ndl*sh)*(0.42+0.58*sunMu);
     if(kBest>2.5&&kBest<3.5) lit=(0.62+0.6*ndl*sh)*(0.42+0.58*sunMu); // ice scatters light into its shade
-    col=albedo*(lit+snLight*max(dot(nBest, snDir), 0.0))+emit;
+    col=albedo*(lit+nightLit(nBest))+emit;
     if(kBest<3.5){
       float uTex=(fract(compDeg/360.0)*na+0.5)/(na+1.0);
       float vTex=((90.0-max(elevDeg,0.0))/90.0*nr+0.5)/(nr+1.0);
@@ -3127,7 +3129,7 @@ uniform sampler2D hitInfo;
 uniform vec2 res;
 uniform float yaw,pitch,fov,sunAz,sunEl,sunMu,showScn,cloudCov,cloudScale,cloudDrift,cloudTime,cloudFrame,nr,na;
 uniform float cloudType,cloudBase,cloudTop,cloudCirrus,useHDR,cloudDeck;
-uniform vec3 snDir,snLight;
+uniform vec3 snDir,snLight,mlDir,mlLight;
 uniform vec3 sunCol,groundCol,eye;
 layout(location=0) out vec4 fragColor;
 layout(location=1) out vec4 fragDepth;
@@ -3209,6 +3211,14 @@ float lightTau(vec3 p, vec3 sd, float j){
   }
   return tau;
 }
+// Light from a night source (the Moon or a supernova) scattered at p toward the viewer. Two
+// density samples toward it stand in for a shadow march; the phase function gives the bright
+// rim when the cloud is in front of it.
+vec3 nightScatter(vec3 p, vec3 rd, vec3 dir, vec3 light){
+  float hs, s1=cloudDen(p+dir*280.0, false, hs), s2=cloudDen(p+dir*900.0, false, hs);
+  float tau=(s1*280.0+s2*620.0)*0.05, c=dot(rd, dir);
+  return toLin(light)*0.6*(exp(-tau)*phase(c)+0.4*exp(-tau*0.3)*phase(c*0.55));
+}
 void main(){
   float aspect=res.x/max(res.y,1.0); float fy=tan(fov*0.5); float fx=fy*aspect;
   float u=((gl_FragCoord.x/res.x)*2.0-1.0)*fx;
@@ -3277,12 +3287,10 @@ void main(){
         float occ=exp(-(u1*280.0+u2*620.0)*SIGMA*0.10);
         vec3 A=mix(ambBot, ambTop, smoothstep(0.0, 0.85, h))*mix(0.4, 1.0, occ)+bounce;
         vec3 L=S+A;
-        // A supernova lights the clouds like a bright moon. Two density samples toward it
-        // stand in for a shadow march; the phase function gives the bright rim near it.
-        if(snLight.g>0.0005){
-          float hs, s1=cloudDen(p+snDir*280.0, false, hs), s2=cloudDen(p+snDir*900.0, false, hs);
-          float tauS=(s1*280.0+s2*620.0)*SIGMA, cS=dot(rd, snDir);
-          L+=toLin(snLight)*0.6*(exp(-tauS)*phase(cS)+0.4*exp(-tauS*0.3)*phase(cS*0.55));
+        // The Moon and a supernova light the clouds at night.
+        for(int k=0;k<2;k++){
+          vec3 nd=k==0?mlDir:snDir, nl=k==0?mlLight:snLight;
+          if(nl.g>0.0005) L+=nightScatter(p, rd, nd, nl);
         }
         float ext=exp(-den*SIGMA*dt);
         float a=1.0-ext;
@@ -3309,7 +3317,7 @@ void main(){
       cir*=smoothstep(0.0, 0.06, rd.z);
       if(cir>0.002){
         vec3 Lc=sunBase*smoothstep(-400.0, 400.0, 9500.0-shadowAlt)*mix(phase(cosT), 1.0, 0.3)*0.9+ambTop*1.1;
-        Lc+=toLin(snLight)*0.6*mix(phase(dot(rd, snDir)), 1.0, 0.3);
+        Lc+=toLin(snLight)*0.6*mix(phase(dot(rd, snDir)), 1.0, 0.3)+toLin(mlLight)*0.6*mix(phase(dot(rd, mlDir)), 1.0, 0.3);
         float a=cir*0.55;
         col+=T*a*Lc; tAcc+=tC*T*a; wAcc+=T*a;
         T*=1.0-a;
@@ -3648,7 +3656,7 @@ function vrRestoreGL(gl){
 // Uniform locations, texture units, and fixed values for a sky program (boot or full).
 function setupSkyProg(gl, prog){
   gl.useProgram(prog);
-  const u={}; for(const n of ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','eye','nr','na','sunMu','showScn','mtnSnow','moonAz','moonEl','moonRad','moonOn','latRad','starPx','cloudCov','cloudScale','cloudDrift','cloudOn','clockH','pondN','snowCover','waterT','snOn','snDir','snCol','snLight']) u[n]=gl.getUniformLocation(prog, n);
+  const u={}; for(const n of ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','eye','nr','na','sunMu','showScn','mtnSnow','moonAz','moonEl','moonRad','moonOn','latRad','starPx','cloudCov','cloudScale','cloudDrift','cloudOn','clockH','pondN','snowCover','waterT','snOn','snDir','snCol','snLight','mlDir','mlLight']) u[n]=gl.getUniformLocation(prog, n);
   u.pond=gl.getUniformLocation(prog,'pond[0]');
   u.obj=gl.getUniformLocation(prog,'obj[0]'); u.kind=gl.getUniformLocation(prog,'kind[0]');
   for(const [n, unit] of [['sky',0],['moonMap',1],['starMap',3],['starBin',4],['starIdx',5],['weather',7],['hitInfo',10],['hitNrm',11],['noiseTex',12]]) gl.uniform1i(gl.getUniformLocation(prog, n), unit);
@@ -3788,7 +3796,7 @@ function setupHitProg(gl, hp){
 function setupCloudProgs(gl, cp, pp, tp, np){
   const vols=makeCloudVolumes(gl, np);
   if(!vols){ console.warn('cloud noise build failed'); return; }
-  const names=['res','yaw','pitch','fov','eye','sunAz','sunEl','sunCol','sunMu','showScn','cloudCov','cloudScale','cloudDrift','cloudTime','cloudFrame','nr','na','cloudType','cloudBase','cloudTop','cloudCirrus','useHDR','groundCol','sunVis','cloudDeck','snDir','snLight'];
+  const names=['res','yaw','pitch','fov','eye','sunAz','sunEl','sunCol','sunMu','showScn','cloudCov','cloudScale','cloudDrift','cloudTime','cloudFrame','nr','na','cloudType','cloudBase','cloudTop','cloudCirrus','useHDR','groundCol','sunVis','cloudDeck','snDir','snLight','mlDir','mlLight'];
   const cu={}; for(const n of names) cu[n]=gl.getUniformLocation(cp, n);
   cu.obj=gl.getUniformLocation(cp,'obj[0]'); cu.kind=gl.getUniformLocation(cp,'kind[0]');
   const weather=ensureWeather(gl);
@@ -4057,19 +4065,26 @@ function paintVR(){
   gl.uniform1f(u.mtnSnow, mtnSnowFor(EP[dIdx].key));
   gl.uniform1f(u.snowCover, EP[dIdx].key==='snowball07'?1:0);
   gl.uniform1f(u.waterT, (performance.now()/1000)%1000);
-  // The supernova: where it is, its color, and how much it lights the scene. It only matters
-  // once the sky is dark, and the air dims it near the horizon.
+  // Night lights: the Moon and, in the Geminga epoch, the supernova. Each lights the scene in
+  // proportion to 0.6 times the square root of its brightness relative to the full Moon, a
+  // perceptual scale under which the full Moon still outshines the supernova. They only
+  // matter once the sky is dark, and the air dims them near the horizon.
+  const night=1-smoothstep(0.0, 0.25, Math.max(0, Math.sin(apparentEl(90-skyNow.sza)*Math.PI/180)));
+  const lowAir=el=>smoothstep(-0.5, 6, el)*Math.exp(-0.25/Math.max(Math.sin(Math.max(el, 0.5)*Math.PI/180), 0.05));
+  const nightLight=(rgb, rel, el)=>new Float32Array(rgb.map(v=>v*0.6*Math.sqrt(Math.max(rel, 0))*lowAir(el)*night));
   const sn=skyNow.sn, snUp=!!sn && sn.el>-0.5;
   gl.uniform1f(u.snOn, snUp?1:0);
   if(snUp){
-    const d=horizDir(sn.az, Math.max(sn.el, 0)), lowAir=smoothstep(-0.5, 6, sn.el)*Math.exp(-0.25/Math.max(Math.sin(Math.max(sn.el, 0.5)*Math.PI/180), 0.05));
-    const night=1-smoothstep(0.0, 0.25, Math.max(0, Math.sin(apparentEl(90-skyNow.sza)*Math.PI/180)));
-    vrGL.snDir=new Float32Array(d);
-    vrGL.snLight=new Float32Array(sn.rgb.map(v=>v*0.32*lowAir*night));
+    vrGL.snDir=new Float32Array(horizDir(sn.az, Math.max(sn.el, 0)));
+    vrGL.snLight=nightLight(sn.rgb, Math.pow(10, -0.4*(sn.mag-MOON_V_FULL)), sn.el);
     gl.uniform3fv(u.snDir, vrGL.snDir);
-    gl.uniform3fv(u.snCol, new Float32Array(sn.rgb.map(v=>v*lowAir)));
-    gl.uniform3fv(u.snLight, vrGL.snLight);
-  }else{ vrGL.snLight=new Float32Array(3); gl.uniform3fv(u.snLight, vrGL.snLight); }
+    gl.uniform3fv(u.snCol, new Float32Array(sn.rgb.map(v=>v*lowAir(sn.el))));
+  }else vrGL.snLight=new Float32Array(3);
+  gl.uniform3fv(u.snLight, vrGL.snLight);
+  const mo=skyNow.moon, moonUp=mo.on && mo.el>-0.5;
+  vrGL.mlDir=new Float32Array(horizDir(mo.az, Math.max(mo.el, 0)));
+  vrGL.mlLight=moonUp?nightLight([0.82, 0.88, 1.0], skyNow.moonRel||0, mo.el):new Float32Array(3);
+  gl.uniform3fv(u.mlDir, vrGL.mlDir); gl.uniform3fv(u.mlLight, vrGL.mlLight);
   { const sz=sceneFor(EP[dIdx].key); gl.uniform4fv(u.pond, sz.p); gl.uniform1f(u.pondN, sz.pn); }
   gl.uniform1f(u.clockH, (minutes%DAYMIN)/60);
   const sc=sceneFor(EP[dIdx].key); gl.uniform4fv(u.obj, sc.o); gl.uniform1fv(u.kind, sc.k);
@@ -4146,7 +4161,8 @@ function paintVR(){
     gl.uniform1f(cu.cloudCov, field.cov); gl.uniform1f(cu.cloudScale, field.scale); gl.uniform1f(cu.cloudDrift, cloudScroll);
     gl.uniform1f(cu.cloudTime, vrGL.cloudTime||0); gl.uniform1f(cu.cloudFrame, vrGL.cloudFrame||0);
     gl.uniform1f(cu.cloudType, field.type); gl.uniform1f(cu.cloudDeck, field.deck);
-    gl.uniform3fv(cu.snLight, vrGL.snLight||new Float32Array(3)); if(vrGL.snDir) gl.uniform3fv(cu.snDir, vrGL.snDir); gl.uniform1f(cu.cloudBase, field.base); gl.uniform1f(cu.cloudTop, field.top); gl.uniform1f(cu.cloudCirrus, field.cirrus);
+    gl.uniform3fv(cu.snLight, vrGL.snLight||new Float32Array(3)); if(vrGL.snDir) gl.uniform3fv(cu.snDir, vrGL.snDir);
+    gl.uniform3fv(cu.mlLight, vrGL.mlLight||new Float32Array(3)); if(vrGL.mlDir) gl.uniform3fv(cu.mlDir, vrGL.mlDir); gl.uniform1f(cu.cloudBase, field.base); gl.uniform1f(cu.cloudTop, field.top); gl.uniform1f(cu.cloudCirrus, field.cirrus);
     gl.uniform1f(cu.useHDR, vrGL.cloudHDR?1:0);
     gl.uniform1f(cu.sunVis, skyNow.sunVis==null?1:skyNow.sunVis);
     gl.uniform4fv(cu.obj, sc.o); gl.uniform1fv(cu.kind, sc.k);

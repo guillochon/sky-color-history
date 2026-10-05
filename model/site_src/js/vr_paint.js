@@ -236,19 +236,26 @@ function paintVR(){
   gl.uniform1f(u.mtnSnow, mtnSnowFor(EP[dIdx].key));
   gl.uniform1f(u.snowCover, EP[dIdx].key==='snowball07'?1:0);
   gl.uniform1f(u.waterT, (performance.now()/1000)%1000);
-  // The supernova: where it is, its color, and how much it lights the scene. It only matters
-  // once the sky is dark, and the air dims it near the horizon.
+  // Night lights: the Moon and, in the Geminga epoch, the supernova. Each lights the scene in
+  // proportion to 0.6 times the square root of its brightness relative to the full Moon, a
+  // perceptual scale under which the full Moon still outshines the supernova. They only
+  // matter once the sky is dark, and the air dims them near the horizon.
+  const night=1-smoothstep(0.0, 0.25, Math.max(0, Math.sin(apparentEl(90-skyNow.sza)*Math.PI/180)));
+  const lowAir=el=>smoothstep(-0.5, 6, el)*Math.exp(-0.25/Math.max(Math.sin(Math.max(el, 0.5)*Math.PI/180), 0.05));
+  const nightLight=(rgb, rel, el)=>new Float32Array(rgb.map(v=>v*0.6*Math.sqrt(Math.max(rel, 0))*lowAir(el)*night));
   const sn=skyNow.sn, snUp=!!sn && sn.el>-0.5;
   gl.uniform1f(u.snOn, snUp?1:0);
   if(snUp){
-    const d=horizDir(sn.az, Math.max(sn.el, 0)), lowAir=smoothstep(-0.5, 6, sn.el)*Math.exp(-0.25/Math.max(Math.sin(Math.max(sn.el, 0.5)*Math.PI/180), 0.05));
-    const night=1-smoothstep(0.0, 0.25, Math.max(0, Math.sin(apparentEl(90-skyNow.sza)*Math.PI/180)));
-    vrGL.snDir=new Float32Array(d);
-    vrGL.snLight=new Float32Array(sn.rgb.map(v=>v*0.32*lowAir*night));
+    vrGL.snDir=new Float32Array(horizDir(sn.az, Math.max(sn.el, 0)));
+    vrGL.snLight=nightLight(sn.rgb, Math.pow(10, -0.4*(sn.mag-MOON_V_FULL)), sn.el);
     gl.uniform3fv(u.snDir, vrGL.snDir);
-    gl.uniform3fv(u.snCol, new Float32Array(sn.rgb.map(v=>v*lowAir)));
-    gl.uniform3fv(u.snLight, vrGL.snLight);
-  }else{ vrGL.snLight=new Float32Array(3); gl.uniform3fv(u.snLight, vrGL.snLight); }
+    gl.uniform3fv(u.snCol, new Float32Array(sn.rgb.map(v=>v*lowAir(sn.el))));
+  }else vrGL.snLight=new Float32Array(3);
+  gl.uniform3fv(u.snLight, vrGL.snLight);
+  const mo=skyNow.moon, moonUp=mo.on && mo.el>-0.5;
+  vrGL.mlDir=new Float32Array(horizDir(mo.az, Math.max(mo.el, 0)));
+  vrGL.mlLight=moonUp?nightLight([0.82, 0.88, 1.0], skyNow.moonRel||0, mo.el):new Float32Array(3);
+  gl.uniform3fv(u.mlDir, vrGL.mlDir); gl.uniform3fv(u.mlLight, vrGL.mlLight);
   { const sz=sceneFor(EP[dIdx].key); gl.uniform4fv(u.pond, sz.p); gl.uniform1f(u.pondN, sz.pn); }
   gl.uniform1f(u.clockH, (minutes%DAYMIN)/60);
   const sc=sceneFor(EP[dIdx].key); gl.uniform4fv(u.obj, sc.o); gl.uniform1fv(u.kind, sc.k);
@@ -325,7 +332,8 @@ function paintVR(){
     gl.uniform1f(cu.cloudCov, field.cov); gl.uniform1f(cu.cloudScale, field.scale); gl.uniform1f(cu.cloudDrift, cloudScroll);
     gl.uniform1f(cu.cloudTime, vrGL.cloudTime||0); gl.uniform1f(cu.cloudFrame, vrGL.cloudFrame||0);
     gl.uniform1f(cu.cloudType, field.type); gl.uniform1f(cu.cloudDeck, field.deck);
-    gl.uniform3fv(cu.snLight, vrGL.snLight||new Float32Array(3)); if(vrGL.snDir) gl.uniform3fv(cu.snDir, vrGL.snDir); gl.uniform1f(cu.cloudBase, field.base); gl.uniform1f(cu.cloudTop, field.top); gl.uniform1f(cu.cloudCirrus, field.cirrus);
+    gl.uniform3fv(cu.snLight, vrGL.snLight||new Float32Array(3)); if(vrGL.snDir) gl.uniform3fv(cu.snDir, vrGL.snDir);
+    gl.uniform3fv(cu.mlLight, vrGL.mlLight||new Float32Array(3)); if(vrGL.mlDir) gl.uniform3fv(cu.mlDir, vrGL.mlDir); gl.uniform1f(cu.cloudBase, field.base); gl.uniform1f(cu.cloudTop, field.top); gl.uniform1f(cu.cloudCirrus, field.cirrus);
     gl.uniform1f(cu.useHDR, vrGL.cloudHDR?1:0);
     gl.uniform1f(cu.sunVis, skyNow.sunVis==null?1:skyNow.sunVis);
     gl.uniform4fv(cu.obj, sc.o); gl.uniform1fv(cu.kind, sc.k);

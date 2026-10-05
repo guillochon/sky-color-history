@@ -10,7 +10,7 @@ uniform sampler2D hitInfo;
 uniform vec2 res;
 uniform float yaw,pitch,fov,sunAz,sunEl,sunMu,showScn,cloudCov,cloudScale,cloudDrift,cloudTime,cloudFrame,nr,na;
 uniform float cloudType,cloudBase,cloudTop,cloudCirrus,useHDR,cloudDeck;
-uniform vec3 snDir,snLight;
+uniform vec3 snDir,snLight,mlDir,mlLight;
 uniform vec3 sunCol,groundCol,eye;
 layout(location=0) out vec4 fragColor;
 layout(location=1) out vec4 fragDepth;
@@ -92,6 +92,14 @@ float lightTau(vec3 p, vec3 sd, float j){
   }
   return tau;
 }
+// Light from a night source (the Moon or a supernova) scattered at p toward the viewer. Two
+// density samples toward it stand in for a shadow march; the phase function gives the bright
+// rim when the cloud is in front of it.
+vec3 nightScatter(vec3 p, vec3 rd, vec3 dir, vec3 light){
+  float hs, s1=cloudDen(p+dir*280.0, false, hs), s2=cloudDen(p+dir*900.0, false, hs);
+  float tau=(s1*280.0+s2*620.0)*0.05, c=dot(rd, dir);
+  return toLin(light)*0.6*(exp(-tau)*phase(c)+0.4*exp(-tau*0.3)*phase(c*0.55));
+}
 void main(){
   float aspect=res.x/max(res.y,1.0); float fy=tan(fov*0.5); float fx=fy*aspect;
   float u=((gl_FragCoord.x/res.x)*2.0-1.0)*fx;
@@ -160,12 +168,10 @@ void main(){
         float occ=exp(-(u1*280.0+u2*620.0)*SIGMA*0.10);
         vec3 A=mix(ambBot, ambTop, smoothstep(0.0, 0.85, h))*mix(0.4, 1.0, occ)+bounce;
         vec3 L=S+A;
-        // A supernova lights the clouds like a bright moon. Two density samples toward it
-        // stand in for a shadow march; the phase function gives the bright rim near it.
-        if(snLight.g>0.0005){
-          float hs, s1=cloudDen(p+snDir*280.0, false, hs), s2=cloudDen(p+snDir*900.0, false, hs);
-          float tauS=(s1*280.0+s2*620.0)*SIGMA, cS=dot(rd, snDir);
-          L+=toLin(snLight)*0.6*(exp(-tauS)*phase(cS)+0.4*exp(-tauS*0.3)*phase(cS*0.55));
+        // The Moon and a supernova light the clouds at night.
+        for(int k=0;k<2;k++){
+          vec3 nd=k==0?mlDir:snDir, nl=k==0?mlLight:snLight;
+          if(nl.g>0.0005) L+=nightScatter(p, rd, nd, nl);
         }
         float ext=exp(-den*SIGMA*dt);
         float a=1.0-ext;
@@ -192,7 +198,7 @@ void main(){
       cir*=smoothstep(0.0, 0.06, rd.z);
       if(cir>0.002){
         vec3 Lc=sunBase*smoothstep(-400.0, 400.0, 9500.0-shadowAlt)*mix(phase(cosT), 1.0, 0.3)*0.9+ambTop*1.1;
-        Lc+=toLin(snLight)*0.6*mix(phase(dot(rd, snDir)), 1.0, 0.3);
+        Lc+=toLin(snLight)*0.6*mix(phase(dot(rd, snDir)), 1.0, 0.3)+toLin(mlLight)*0.6*mix(phase(dot(rd, mlDir)), 1.0, 0.3);
         float a=cir*0.55;
         col+=T*a*Lc; tAcc+=tC*T*a; wAcc+=T*a;
         T*=1.0-a;
