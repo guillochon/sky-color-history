@@ -29,6 +29,63 @@ function sceneFor(key){ // [bearing deg, distance m, radius m, height m, kind]; 
   if(key==='hadean44'||key==='hadean40'||key==='archean38'||key==='archean27thin'||key==='archean27'||key==='archean27vthick'||key==='volcanic') return spots(VOLC);
   return spots(PEAKS);
 }
+function fract(x){ return x-Math.floor(x); }
+function h12xy(x, y){
+  let qx=fract(x*0.1031), qy=fract(y*0.1030), qz=fract(x*0.0973);
+  const d=qx*(qy+33.33)+qy*(qz+33.33)+qz*(qx+33.33);
+  qx+=d; qy+=d; qz+=d;
+  return fract((qx+qy)*qz);
+}
+function vNxy(x, y){
+  const i=Math.floor(x), j=Math.floor(y), fx=x-i, fy=y-j;
+  const ux=fx*fx*(3-2*fx), uy=fy*fy*(3-2*fy);
+  const a=h12xy(i,j), b=h12xy(i+1,j), c=h12xy(i,j+1), d=h12xy(i+1,j+1);
+  return a+(b-a)*ux+(c-a)*uy+(a-b-c+d)*ux*uy;
+}
+function smooth01(t){ t=Math.min(1, Math.max(0, t)); return t*t*(3-2*t); }
+function hillHxy(x, y){
+  const cell=1200, gx=Math.floor(x/cell), gy=Math.floor(y/cell);
+  let h=0;
+  for(let j=-1;j<=1;j++) for(let i=-1;i<=1;i++){
+    const idX=gx+i, idY=gy+j;
+    if(h12xy(idX, idY)<0.34) continue;
+    const jx=h12xy(idX+1.7, idY+1.7), jy=h12xy(idX+3.1, idY+3.1);
+    const cx=(idX+0.5+(jx-0.5)*0.5)*cell, cy=(idY+0.5+(jy-0.5)*0.5)*cell;
+    const R=280+h12xy(idX+5.5, idY+5.5)*360, H=48+h12xy(idX+8.2, idY+8.2)*122;
+    const u=Math.hypot(x-cx, y-cy)/R;
+    if(u<1) h=Math.max(h, Math.pow(1-u*u, 1.55)*H);
+  }
+  return h;
+}
+function rollHxy(x, y){
+  const a=vNxy(x*0.00042, y*0.00042);
+  const b=vNxy(x*0.00017+4.2, y*0.00017+2.6);
+  const c=vNxy(x*0.00008+9.0, y*0.00008+1.4);
+  const d=vNxy(x*0.0017+2.2, y*0.0017+7.1);
+  const e=vNxy(x*0.00085+5.0, y*0.00085+0.4);
+  return (a*0.34+b*0.24+c*0.18)*28+(d*0.60+e*0.40)*32;
+}
+function landHeight(x, y, key){
+  const roll=rollHxy(x, y);
+  let h=roll+hillHxy(x, y);
+  const sc=sceneFor(key);
+  for(let i=0;i<12;i++){
+    const kk=sc.k[i]; if(kk<0.5) continue;
+    const cx=sc.o[i*4], cy=sc.o[i*4+1], r=sc.o[i*4+2];
+    const dist=Math.hypot(x-cx, y-cy);
+    if(kk<2.5){
+      const R=scRad(kk, r);
+      const w=1-smooth01((dist-R*0.90)/(R*1.06-R*0.90));
+      h=h*(1-w)+roll*w;
+    }else{
+      const inner=Math.max(r*1.6, 55), outer=inner+90;
+      const w=1-smooth01((dist-inner)/(outer-inner));
+      h=h*(1-w)+rollHxy(cx, cy)*w;
+    }
+  }
+  return h;
+}
+function eyeZ(){ return vrScenery?2+landHeight(vrX, vrY, EP[dIdx].key):2; }
 function groundRGB(){
   const alb=LAND[EP[dIdx].key]||[.2,.18,.14], cg=skyNow.colgrid, NR=cg.length-1, NA=cg[0].length-1;
   let ar=0,ag=0,ab=0,n=0; const ir=Math.round(NR*0.45);
@@ -54,7 +111,8 @@ function paintVR(){
   gl.useProgram(vrGL.prog);
   gl.uniform2f(u.res, c.width, c.height);
   gl.uniform1f(u.yaw, vrYaw*Math.PI/180); gl.uniform1f(u.pitch, vrPitch*Math.PI/180);
-  gl.uniform3f(u.eye, vrX, vrY, 2);
+  const ez=eyeZ();
+  gl.uniform3f(u.eye, vrX, vrY, ez);
   gl.uniform1f(u.sunAz, skyNow.sunAz); gl.uniform1f(u.sunEl, 90-skyNow.sza);
   gl.uniform1f(u.moonAz, skyNow.moon.az); gl.uniform1f(u.moonEl, skyNow.moon.el);
   gl.uniform1f(u.moonRad, skyNow.moon.rad*DISK_SCALE); gl.uniform1f(u.moonOn, skyNow.moon.on?1:0);
@@ -103,7 +161,7 @@ function paintVR(){
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.uniform2f(cu.res, cw, ch);
     gl.uniform1f(cu.yaw, vrYaw*Math.PI/180); gl.uniform1f(cu.pitch, vrPitch*Math.PI/180);
-    gl.uniform3f(cu.eye, vrX, vrY, 2);
+    gl.uniform3f(cu.eye, vrX, vrY, ez);
     gl.uniform1f(cu.sunAz, skyNow.sunAz); gl.uniform1f(cu.sunEl, 90-skyNow.sza);
     gl.uniform1f(cu.sunMu, Math.max(0, Math.sin(apparentEl(90-skyNow.sza)*Math.PI/180))*(skyNow.sunVis==null?1:skyNow.sunVis));
     gl.uniform3fv(cu.sunCol, new Float32Array(skyNow.sunRGB.map(v=>v/255)));
@@ -130,8 +188,8 @@ function paintVR(){
       gl.uniform2f(tu.res, cw, ch);
       gl.uniform1f(tu.yaw, vrYaw*Math.PI/180); gl.uniform1f(tu.pitch, vrPitch*Math.PI/180);
       gl.uniform1f(tu.prevYaw, vrGL.prevYaw||0); gl.uniform1f(tu.prevPitch, vrGL.prevPitch||0);
-      gl.uniform3f(tu.eye, vrX, vrY, 2);
-      gl.uniform3f(tu.prevEye, vrGL.prevEyeX||vrX, vrGL.prevEyeY||vrY, 2);
+      gl.uniform3f(tu.eye, vrX, vrY, ez);
+      gl.uniform3f(tu.prevEye, vrGL.prevEyeX||vrX, vrGL.prevEyeY||vrY, vrGL.prevEyeZ==null?ez:vrGL.prevEyeZ);
       gl.uniform1f(tu.histValid, vrGL.histOk?1:0);
       // 0.9 while the view moves; once it holds still, a running average up to 0.97.
       const ak=[vrYaw,vrPitch,vrX,vrY,minutes,dIdx,dLat,cw,ch].join('|');
@@ -144,7 +202,7 @@ function paintVR(){
       vrGL.histOk=true;
       shown=vrGL.accumTex;
     }
-    vrGL.prevYaw=vrYaw*Math.PI/180; vrGL.prevPitch=vrPitch*Math.PI/180; vrGL.prevEyeX=vrX; vrGL.prevEyeY=vrY;
+    vrGL.prevYaw=vrYaw*Math.PI/180; vrGL.prevPitch=vrPitch*Math.PI/180; vrGL.prevEyeX=vrX; vrGL.prevEyeY=vrY; vrGL.prevEyeZ=ez;
     // The march is jittered per frame; repaint a few times after the view settles so it converges.
     const sk=[vrYaw,vrPitch,vrX,vrY,minutes,dIdx,dLat,cw,ch].join('|');
     if(sk!==vrGL.settleKey){ vrGL.settleKey=sk; vrGL.settle=48; }
@@ -157,7 +215,7 @@ function paintVR(){
     const pu=vrGL.compU;
     gl.uniform2f(pu.res, c.width, c.height);
     gl.uniform1f(pu.yaw, vrYaw*Math.PI/180); gl.uniform1f(pu.pitch, vrPitch*Math.PI/180);
-    gl.uniform3f(pu.eye, vrX, vrY, 2);
+    gl.uniform3f(pu.eye, vrX, vrY, ez);
     gl.uniform1f(pu.showScn, vrScenery?1:0);
     gl.uniform4fv(pu.obj, sc.o); gl.uniform1fv(pu.kind, sc.k);
     gl.drawArrays(gl.TRIANGLES, 0, 6);

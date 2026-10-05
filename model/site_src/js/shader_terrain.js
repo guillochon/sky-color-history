@@ -1,4 +1,5 @@
-// Shared by the view, cloud, and composite shaders. massifRad must match scRad in sceneFor.
+// Shared by the view, cloud, and composite shaders.
+// massifRad must match scRad, and landH must match landHeight in vr_paint.js.
 const TERR=`
 float h12(vec2 p){
   vec3 q=fract(vec3(p.xyx)*vec3(0.1031, 0.1030, 0.0973));
@@ -10,6 +11,79 @@ float vN(vec2 p){
   return mix(mix(h12(i), h12(i+vec2(1.0,0.0)), u.x), mix(h12(i+vec2(0.0,1.0)), h12(i+vec2(1.0,1.0)), u.x), u.y);
 }
 float massifRad(float R, float volc){ return R*mix(1.28, 1.12, volc); }
+float hillH(vec2 p){
+  const float cell=1200.0;
+  vec2 g=floor(p/cell);
+  float h=0.0;
+  for(int j=-1;j<=1;j++){
+    for(int i=-1;i<=1;i++){
+      vec2 id=g+vec2(float(i), float(j));
+      if(h12(id)<0.34) continue;
+      vec2 jit=vec2(h12(id+1.7), h12(id+3.1));
+      vec2 c=(id+0.5+(jit-0.5)*0.50)*cell;
+      float R=mix(280.0, 640.0, h12(id+5.5));
+      float H=mix(48.0, 170.0, h12(id+8.2));
+      float u=length(p-c)/R;
+      if(u<1.0) h=max(h, pow(1.0-u*u, 1.55)*H);
+    }
+  }
+  return h;
+}
+float rollH(vec2 p){
+  float a=vN(p*0.00042);
+  float b=vN(p*0.00017+vec2(4.2, 2.6));
+  float c=vN(p*0.00008+vec2(9.0, 1.4));
+  float d=vN(p*0.0017+vec2(2.2, 7.1));
+  float e=vN(p*0.00085+vec2(5.0, 0.4));
+  return (a*0.34+b*0.24+c*0.18)*28.0+(d*0.60+e*0.40)*32.0;
+}
+float landH(vec2 p){
+  float roll=rollH(p);
+  float h=roll+hillH(p);
+  for(int i=0;i<12;i++){
+    float kk=kind[i];
+    if(kk<0.5) continue;
+    vec4 q=obj[i];
+    float dist=length(p-q.xy);
+    if(kk<2.5){
+      float R=massifRad(q.z, step(1.5, kk));
+      float w=1.0-smoothstep(R*0.90, R*1.06, dist);
+      h=mix(h, roll, w);
+    }else{
+      float inner=max(q.z*1.6, 55.0), outer=inner+90.0;
+      float w=1.0-smoothstep(inner, outer, dist);
+      h=mix(h, rollH(q.xy), w);
+    }
+  }
+  return h;
+}
+float marchLand(vec3 ro, vec3 rd, float tMax){
+  if(tMax<0.8) return -1.0;
+  if(ro.z<=landH(ro.xy)+0.15) return 0.35;
+  float t=1.2, prev=0.2;
+  for(int i=0;i<56;i++){
+    if(t>=tMax) return -1.0;
+    vec3 p=ro+rd*t;
+    if(p.z<=landH(p.xy)){
+      float lo=prev, hi=t;
+      for(int j=0;j<6;j++){
+        float mid=0.5*(lo+hi);
+        vec3 m=ro+rd*mid;
+        if(m.z<=landH(m.xy)) hi=mid; else lo=mid;
+      }
+      return hi;
+    }
+    prev=t;
+    t+=min(420.0, max(12.0, t*0.11));
+  }
+  return -1.0;
+}
+vec3 landN(vec2 p){
+  float e=16.0;
+  float hx=landH(p+vec2(e,0.0))-landH(p-vec2(e,0.0));
+  float hy=landH(p+vec2(0.0,e))-landH(p-vec2(0.0,e));
+  return normalize(vec3(-hx, -hy, 2.0*e));
+}
 float ridge(vec2 p){
   float a=texture(weather, p).b;
   float b=texture(weather, p*2.35+0.37).a;
@@ -29,14 +103,14 @@ float onePeak(vec2 p, vec2 c, float R, float H, float volc, float seed){
   float core=pow(1.0-smoothstep(0.0, mix(0.74, 0.90, volc), u), mix(1.18, 0.92, volc));
   float skirt=pow(1.0-u, mix(1.9, 1.35, volc));
   float prof=core*mix(0.78, 0.90, volc)+skirt*mix(0.22, 0.10, volc);
-  float sp1=0.5+0.5*sin(ang*mix(3.0, 6.5, volc)+seed*20.0);
-  float sp2=0.5+0.5*sin(ang*mix(5.5, 11.0, volc)-seed*9.0);
-  float spoke=smoothstep(0.18, 0.86, mix(sp1, sp2, 0.42));
-  float spokeAmt=smoothstep(0.04, 0.16, u);
-  prof*=mix(1.0, mix(mix(0.66, 0.80, volc), 1.0, spoke), spokeAmt);
-  float ero=ridge(d/(R*0.42)+seed*3.1);
-  float eroAmt=smoothstep(0.03, 0.14, u);
-  prof*=mix(1.0, mix(0.80, 1.20, ero), eroAmt);
+  float sp1=0.5+0.5*sin(ang*mix(2.0, 3.6, volc)+seed*20.0);
+  float sp2=0.5+0.5*sin(ang*mix(3.2, 5.2, volc)-seed*9.0);
+  float spoke=smoothstep(0.22, 0.78, mix(sp1, sp2, 0.42));
+  float spokeAmt=smoothstep(0.08, 0.24, u);
+  prof*=mix(1.0, mix(mix(0.90, 0.94, volc), 1.0, spoke), spokeAmt);
+  float ero=ridge(d/(R*0.62)+seed*3.1);
+  float eroAmt=smoothstep(0.08, 0.24, u);
+  prof*=mix(1.0, mix(0.94, 1.06, ero), eroAmt);
   if(volc>0.5){
     float rim=smoothstep(0.045, 0.10, u)*(1.0-smoothstep(0.12, 0.22, u));
     float bowl=1.0-smoothstep(0.02, 0.145, u);
@@ -88,21 +162,22 @@ float marchMassif(vec3 ro, vec3 rd, vec4 q, float volc){
   float t0=span.x, t1=min(span.y, tPlane);
   if(t1<t0) return -1.0;
   vec3 p0=ro+rd*t0;
-  float h0=massifH(p0.xy, q, volc);
-  if(h0>0.3 && p0.z<=h0) return t0;
+  float s0=massifH(p0.xy, q, volc);
+  if(s0>0.3 && p0.z<=s0+rollH(p0.xy)) return t0;
   const int N=28;
   float dt=(t1-t0)/float(N);
   float prev=t0;
   for(int i=1;i<=28;i++){
     float t=min(t0+dt*float(i), t1);
     vec3 p=ro+rd*t;
-    float h=massifH(p.xy, q, volc);
-    if(h>0.3 && p.z<=h){
+    float s=massifH(p.xy, q, volc);
+    if(s>0.3 && p.z<=s+rollH(p.xy)){
       float lo=prev, hi=t;
       for(int j=0;j<6;j++){
         float mid=0.5*(lo+hi);
         vec3 m=ro+rd*mid;
-        if(massifH(m.xy, q, volc)>=m.z) hi=mid; else lo=mid;
+        float ms=massifH(m.xy, q, volc);
+        if(ms>0.3 && ms+rollH(m.xy)>=m.z) hi=mid; else lo=mid;
       }
       return hi;
     }
@@ -112,7 +187,7 @@ float marchMassif(vec3 ro, vec3 rd, vec4 q, float volc){
   return -1.0;
 }
 vec3 massifN(vec2 p, vec4 q, float volc){
-  float e=max(massifRad(q.z, volc)*0.011, 1.2);
+  float e=max(massifRad(q.z, volc)*0.028, 3.0);
   float hx=massifH(p+vec2(e,0.0), q, volc)-massifH(p-vec2(e,0.0), q, volc);
   float hy=massifH(p+vec2(0.0,e), q, volc)-massifH(p-vec2(0.0,e), q, volc);
   return normalize(vec3(-hx, -hy, 2.0*e));

@@ -71,8 +71,8 @@ function cloudField(key){
   return {cov:e.cov, type:e.type, base:e.base, top:e.top, cirrus:e.cirrus, scale:1/32000};
 }
 function vrCaption(){
-  if(vrScenery&&vrClouds) return 'The plain, the shapes, and the clouds are scenery. The sky is the model.';
-  if(vrScenery) return 'Clouds are hidden. The plain and the shapes are scenery. The sky is the model.';
+  if(vrScenery&&vrClouds) return 'The ground, the shapes, and the clouds are scenery. The sky is the model.';
+  if(vrScenery) return 'Clouds are hidden. The ground and the shapes are scenery. The sky is the model.';
   if(vrClouds) return 'The shapes are hidden. The clouds are scenery. The sky is the model.';
   return 'Scenery and clouds are hidden. The sky is the model.';
 }

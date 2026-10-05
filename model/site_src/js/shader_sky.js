@@ -22,10 +22,23 @@ float scnShadow(vec3 p, vec3 sd){
     if(length(p.xy-q.xy)>R+q.w*min(5.5, 1.15/max(sd.z, 0.04))) continue;
     for(int s=1;s<=5;s++){
       float dist=R*(0.04*float(s)+0.018*float(s*s));
-      float h=massifH(p.xy+dir*dist, q, volc);
+      float h=massifH(p.xy+dir*dist, q, volc)+rollH(p.xy+dir*dist);
       float pen=smoothstep(0.0, dist*0.18+3.0, h-(p.z+rise*dist));
       sh=min(sh, mix(1.0, 0.28, pen));
     }
+  }
+  return sh;
+}
+float landShade(vec3 p, vec3 sd){
+  if(sd.z<=0.05) return 1.0;
+  vec2 dir=sd.xy; float hl=length(dir);
+  if(hl<1e-3) return 1.0;
+  dir/=hl; float rise=sd.z/hl;
+  float sh=1.0;
+  for(int s=1;s<=3;s++){
+    float dist=90.0*float(s*s);
+    float pen=smoothstep(0.0, 18.0, landH(p.xy+dir*dist)-(p.z+rise*dist));
+    sh=min(sh, mix(1.0, 0.42, pen));
   }
   return sh;
 }
@@ -116,7 +129,7 @@ void main(){
   float sunA=sunAz*0.01745329252, sunZen=(90.0-sunEl)*0.01745329252;
   vec3 sd=normalize(vec3(sin(sunA)*sin(sunZen), cos(sunA)*sin(sunZen), cos(sunZen)));
   float tGround=rd.z<0.0?-ro.z/rd.z:1e8;
-  float tBest=1e8, kBest=0.0, hBest=1.0; vec3 nBest=vec3(0.0,0.0,1.0), pBest=ro; vec4 qBest=vec4(0.0);
+  float tBest=1e8, kBest=0.0, hBest=1.0, tLand=-1.0; vec3 nBest=vec3(0.0,0.0,1.0), pBest=ro; vec4 qBest=vec4(0.0);
   for(int i=0;i<12;i++){
     float kk=kind[i]; if(kk<0.5) continue;
     vec4 q=obj[i]; float t=-1.0; vec3 n=vec3(0.0,0.0,1.0);
@@ -129,32 +142,49 @@ void main(){
       if(kk>=2.5){ nBest=n; if(dot(nBest,rd)>0.0) nBest=-nBest; }
     }
   }
+  if(showScn>0.5){
+    float cap=22000.0;
+    if(rd.z>0.03) cap=min(cap, (210.0-ro.z)/rd.z);
+    else if(rd.z<-0.0001) cap=min(cap, (-8.0-ro.z)/rd.z);
+    float tL=marchLand(ro, rd, min(cap, tBest));
+    if(tL>0.0&&tL<tBest){ tLand=tL; kBest=0.0; pBest=ro+rd*tL; nBest=landN(pBest.xy); }
+  }
   vec3 col;
-  if(showScn<0.5) kBest=0.0;
+  if(showScn<0.5){ kBest=0.0; tLand=-1.0; }
   if(kBest>0.5&&kBest<2.5){
     nBest=massifN(pBest.xy, qBest, step(1.5, kBest));
     if(dot(nBest, rd)>0.0) nBest=-nBest;
-    float wl=clamp(tBest*0.022, 4.0, 140.0);
+    float wl=clamp(tBest*0.034, 8.0, 220.0);
     float a=vN(pBest.xy/wl), b=vN(pBest.xy/wl+vec2(0.5,0.15)), c=vN(pBest.xy/wl+vec2(0.15,0.5));
-    float a2=vN(pBest.xy/(wl*3.2)+2.0), b2=vN(pBest.xy/(wl*3.2)+vec2(2.4,2.1)), c2=vN(pBest.xy/(wl*3.2)+vec2(2.1,2.4));
-    nBest=normalize(nBest+vec3(a-b, a-c, 0.0)*0.7+vec3(a2-b2, a2-c2, 0.0)*0.38);
+    nBest=normalize(nBest+vec3(a-b, a-c, 0.0)*0.28);
   }
   float hlen=length(rd.xy);
   float toward=hlen>1e-4?dot(rd.xy/hlen, vec2(sin(sunA),cos(sunA))):0.0;
   vec3 gcol=showScn>0.5?ground*mix(0.9,1.08,clamp(toward*0.5+0.5,0.0,1.0)):vec3(0.02,0.025,0.04);
-  if(showScn>0.5&&rd.z<0.0){
-    float tG=-ro.z/rd.z;
-    vec2 gp=(ro+rd*tG).xy;
+  if(showScn>0.5&&(tLand>0.0||rd.z<0.0)){
+    float tG=tLand>0.0?tLand:-ro.z/rd.z;
+    vec3 gp3=ro+rd*tG; vec2 gp=gp3.xy;
+    vec3 nG=tLand>0.0?nBest:vec3(0.0,0.0,1.0);
     gcol*=mix(0.90, 1.06, texture(weather, gp*0.00028+0.12).b);
+    gcol*=mix(0.84, 1.10, vN(gp*0.00115+3.0));
+    gcol=mix(gcol, gcol*vec3(0.84, 0.78, 0.70), (1.0-smoothstep(0.55, 0.92, nG.z))*0.5);
+    gcol=mix(gcol, gcol*vec3(1.06, 1.02, 0.95), smoothstep(28.0, 130.0, gp3.z)*0.4);
     if(cloudOn>0.5){
       vec2 wind=vec2(cloudDrift, cloudDrift*0.42);
       float c0=texture(weather, (gp+wind)*cloudScale*0.33).r;
-      vec3 sp=vec3(gp,0.0)+sd*(1800.0/max(sd.z, 0.2));
+      vec3 sp=gp3+sd*(1800.0/max(sd.z, 0.2));
       float c1=texture(weather, (sp.xy+wind)*cloudScale*0.33).r;
       float cov=clamp(cloudCov+(max(c0, c1)-0.56)/0.09*0.26, 0.0, 1.0);
       gcol*=mix(1.0, 0.5, smoothstep(0.3, 0.8, cov));
     }
-    if(kBest<0.5) gcol*=mix(0.58, 1.0, scnShadow(vec3(gp, 0.0), sd));
+    if(kBest<0.5){
+      float ndl=max(dot(nG, sd), 0.0);
+      float rel=clamp((0.20+ndl)/(0.20+max(sd.z, 0.05)), 0.32, 1.9);
+      gcol*=rel*mix(0.80, 1.0, nG.z);
+      float sh=scnShadow(vec3(gp, max(gp3.z, 0.0)), sd);
+      if(tLand>0.0) sh=min(sh, landShade(gp3, sd));
+      gcol*=mix(0.58, 1.0, sh);
+    }
   }
   if(kBest>0.5){
     float volc=step(1.5, kBest);
@@ -168,12 +198,12 @@ void main(){
       float steep=clamp(nBest.z, 0.0, 1.0);
       float R=massifRad(qBest.z, volc);
       float u=length(pBest.xy-qBest.xy)/max(R, 1.0);
-      float grit=vN(pBest.xy/max(6.0, R*0.045));
+      float grit=vN(pBest.xy/max(18.0, R*0.09));
       vec3 rock=mix(vec3(0.42,0.37,0.33), vec3(0.24,0.18,0.15), clamp(1.0-mtnSnow,0.0,1.0)*0.9);
       if(volc>0.5) rock=vec3(0.22,0.16,0.14);
       vec3 scree=rock*vec3(1.16, 1.10, 1.04);
       albedo=mix(rock, scree, smoothstep(0.22, 0.70, steep));
-      albedo*=mix(0.76, 1.06, grit);
+      albedo*=mix(0.88, 1.04, grit);
       albedo=mix(mix(ground, rock, 0.4), albedo, smoothstep(0.02, 0.18, hh));
       if(volc>0.5) albedo=mix(albedo, vec3(0.40,0.13,0.05), (1.0-smoothstep(0.06, 0.32, u))*0.85);
       float snowLine=mix(0.88, 0.56, clamp(mtnSnow,0.0,1.0));
@@ -193,7 +223,7 @@ void main(){
       }
     }
     float ndl=max(dot(nBest,sd),0.0);
-    float sh=kBest<2.5?scnShadow(pBest, sd):1.0;
+    float sh=kBest<2.5?min(scnShadow(pBest, sd), landShade(pBest, sd)):1.0;
     float ao=mix(0.58, 1.0, clamp(nBest.z,0.0,1.0));
     float lit=(0.40*ao+0.95*ndl*sh)*(0.42+0.58*sunMu);
     if(kBest>2.5&&kBest<3.5) lit=(0.78+0.35*ndl)*(0.85+0.15*sunMu);
@@ -207,6 +237,12 @@ void main(){
       float hh=pBest.z/max(hBest,1.0);
       col=mix(gcol, col, smoothstep(0.0, 0.035, hh));
     }
+  }else if(tLand>0.0){
+    float uTex=(fract(compDeg/360.0)*na+0.5)/(na+1.0);
+    float vTex=((90.0-max(elevDeg,0.0))/90.0*nr+0.5)/(nr+1.0);
+    vec3 skyC=texture(sky, vec2(uTex, vTex)).rgb;
+    float fog=1.0-exp(-tLand/18000.0);
+    col=mix(gcol, skyC, clamp(fog, 0.0, 0.82));
   }else{
     float uTex=(fract(compDeg/360.0)*na+0.5)/(na+1.0);
     float vTex=((90.0-max(elevDeg,0.0))/90.0*nr+0.5)/(nr+1.0);
