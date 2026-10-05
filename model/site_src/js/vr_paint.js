@@ -36,20 +36,35 @@ function h12xy(x, y){
   qx+=d; qy+=d; qz+=d;
   return fract((qx+qy)*qz);
 }
-function domeH(x, y, cell, thresh, r0, r1, h0, h1, seed){
-  const gx=Math.floor(x/cell), gy=Math.floor(y/cell);
-  if(h12xy(gx+seed, gy+seed)<thresh) return 0;
-  const jx=h12xy(gx+seed+1.7, gy+seed+1.7), jy=h12xy(gx+seed+3.1, gy+seed+3.1);
-  const cx=(gx+0.5+(jx-0.5)*0.44)*cell, cy=(gy+0.5+(jy-0.5)*0.44)*cell;
-  const R=r0+h12xy(gx+seed+5.5, gy+seed+5.5)*(r1-r0);
-  const H=h0+h12xy(gx+seed+8.2, gy+seed+8.2)*(h1-h0);
+function smoothstep(e0, e1, x){
+  const t=Math.min(1, Math.max(0, (x-e0)/Math.max(e1-e0, 1e-6)));
+  return t*t*(3-2*t);
+}
+function peakEnv(x, y, cx, cy, R, H){
   const u=Math.hypot(x-cx, y-cy)/R;
   if(u>=1) return 0;
-  return Math.sqrt(Math.max(0, 1-u*u))*H;
+  const core=Math.pow(1-smoothstep(0, 0.74, u), 1.18);
+  const skirt=Math.pow(1-u, 1.9);
+  return (core*0.78+skirt*0.22)*H;
 }
-function landHeight(x, y){
-  return Math.max(domeH(x, y, 1500, 0.42, 220, 400, 46, 155, 0), domeH(x, y, 2800, 0.0, 520, 760, 16, 40, 19));
+function hillHeight(x, y){
+  const cell=1800, gx=Math.floor(x/cell), gy=Math.floor(y/cell);
+  if(h12xy(gx, gy)<0.46) return 0;
+  const jx=h12xy(gx+1.7, gy+1.7), jy=h12xy(gx+3.1, gy+3.1);
+  const cx=(gx+0.5+(jx-0.5)*0.44)*cell, cy=(gy+0.5+(jy-0.5)*0.44)*cell;
+  const R=140+h12xy(gx+5.5, gy+5.5)*(340-140);
+  const H=100+h12xy(gx+8.2, gy+8.2)*(280-100);
+  const Rm=R*1.28;
+  let h=0;
+  for(let k=0;k<8;k++){
+    const a=k*Math.PI/4, ox=Math.cos(a), oy=Math.sin(a);
+    h=Math.max(h, peakEnv(x, y, cx+ox*Rm*0.09, cy+oy*Rm*0.09, Rm*0.88, H));
+    h=Math.max(h, peakEnv(x, y, cx-ox*Rm*0.36, cy-oy*Rm*0.36, Rm*0.50, H*0.74));
+    h=Math.max(h, peakEnv(x, y, cx-oy*Rm*0.40, cy+ox*Rm*0.40, Rm*0.38, H*0.56));
+  }
+  return h*1.06;
 }
+function landHeight(x, y){ return hillHeight(x, y); }
 function eyeZ(){ return vrScenery?2+landHeight(vrX, vrY):2; }
 function groundRGB(){
   const alb=LAND[EP[dIdx].key]||[.2,.18,.14], cg=skyNow.colgrid, NR=cg.length-1, NA=cg[0].length-1;

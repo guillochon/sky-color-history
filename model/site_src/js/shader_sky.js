@@ -75,12 +75,13 @@ void main(){
   vec4 hn=texelFetch(hitNrm, ivec2(gl_FragCoord.xy), 0);
   float tBest=1e8, kBest=0.0, hBest=1.0, tLand=-1.0, shBest=hit.b;
   vec3 nBest=vec3(0.0,0.0,1.0), pBest=ro; vec4 qBest=vec4(0.0);
-  if(showScn>0.5 && hit.r>0.0){
+  bool hill=showScn>0.5 && hit.g>0.5 && hit.g<1.5 && hit.a>40.0;
+  if(hill){
+    tBest=hit.r; kBest=1.0; nBest=hn.rgb; pBest=ro+rd*hit.r;
+    hBest=hn.a; qBest=vec4(pBest.xy, hit.a, hn.a);
+  }else if(showScn>0.5 && hit.r>0.0){
     tBest=hit.r; kBest=hit.g; nBest=hn.rgb; pBest=ro+rd*hit.r;
     qBest=obj[int(hit.a+0.5)]; hBest=qBest.w;
-  }
-  if(showScn>0.5 && hn.a>0.0 && hn.a<tBest){
-    tLand=hn.a; kBest=0.0; tBest=hn.a; pBest=ro+rd*hn.a; nBest=hn.rgb;
   }
   vec3 col;
   if(showScn<0.5){ kBest=0.0; tLand=-1.0; }

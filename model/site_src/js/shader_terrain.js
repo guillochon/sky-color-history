@@ -1,5 +1,5 @@
 // Marched by the hit shader. massifRad must match scRad.
-// The dome grids must match landHeight in vr_paint.js.
+// Hill cells must match hillHeight in vr_paint.js. hillN is a hit-shader uniform.
 const TERR=`
 float h12(vec2 p){
   vec3 q=fract(vec3(p.xyx)*vec3(0.1031, 0.1030, 0.0973));
@@ -19,60 +19,6 @@ vec3 rollN(vec2 p){
   float hx=rollAt(p+vec2(e,0.0))-rollAt(p-vec2(e,0.0));
   float hy=rollAt(p+vec2(0.0,e))-rollAt(p-vec2(0.0,e));
   return normalize(vec3(-hx, -hy, 2.0*e));
-}
-float domeT(vec3 ro, vec3 rd, vec2 c, float R, float H){
-  vec3 f=vec3((ro.x-c.x)/R, (ro.y-c.y)/R, ro.z/H);
-  vec3 d=vec3(rd.x/R, rd.y/R, rd.z/H);
-  float A=dot(d,d), B=2.0*dot(f,d), C=dot(f,f)-1.0, disc=B*B-4.0*A*C;
-  if(disc<0.0||A<1e-8) return -1.0;
-  float s=sqrt(disc), t0=(-B-s)/(2.0*A), t1=(-B+s)/(2.0*A);
-  float t=t0>0.2?t0:(t1>0.2?t1:-1.0);
-  if(t<0.0||ro.z+rd.z*t<0.0) return -1.0;
-  return t;
-}
-vec3 domeN(vec3 p, vec2 c, float R, float H){
-  return normalize(vec3((p.x-c.x)/(R*R), (p.y-c.y)/(R*R), p.z/(H*H)));
-}
-float gridDomes(vec3 ro, vec3 rd, float tMax, float cell, float thresh, float r0, float r1, float h0, float h1, float seed, out vec3 nOut){
-  float best=-1.0;
-  nOut=vec3(0.0, 0.0, 1.0);
-  vec2 r=rd.xy;
-  vec2 g=floor(ro.xy/cell);
-  vec2 stp=vec2(r.x>=0.0?1.0:-1.0, r.y>=0.0?1.0:-1.0);
-  float ax=abs(r.x), ay=abs(r.y);
-  float tx=ax<1e-5?1e8:(((r.x>=0.0?g.x+1.0:g.x)*cell)-ro.x)/r.x;
-  float ty=ay<1e-5?1e8:(((r.y>=0.0?g.y+1.0:g.y)*cell)-ro.y)/r.y;
-  float tdx=ax<1e-5?1e8:cell/ax;
-  float tdy=ay<1e-5?1e8:cell/ay;
-  for(int i=0;i<12;i++){
-    float tExit=min(tx, ty);
-    if(ro.z+rd.z*max(tExit-min(tdx, tdy), 0.0)>h1+30.0 && rd.z>=0.0) break;
-    if(h12(g+seed)>=thresh){
-      vec2 jit=vec2(h12(g+seed+1.7), h12(g+seed+3.1));
-      vec2 c=(g+0.5+(jit-0.5)*0.44)*cell;
-      float R=mix(r0, r1, h12(g+seed+5.5));
-      float H=mix(h0, h1, h12(g+seed+8.2));
-      float t=domeT(ro, rd, c, R, H);
-      if(t>0.2 && t<tMax && (best<0.0||t<best)){
-        best=t;
-        nOut=domeN(ro+rd*t, c, R, H);
-      }
-    }
-    if(tExit>tMax || (best>0.0 && tExit>best)) break;
-    if(tx<ty){ g.x+=stp.x; tx+=tdx; }
-    else { g.y+=stp.y; ty+=tdy; }
-  }
-  return best;
-}
-float marchLand(vec3 ro, vec3 rd, float tMax, out vec3 n){
-  n=vec3(0.0, 0.0, 1.0);
-  if(tMax<0.4||rd.z>0.5) return -1.0;
-  vec3 nH, nS;
-  float tH=gridDomes(ro, rd, tMax, 1500.0, 0.42, 220.0, 400.0, 46.0, 155.0, 0.0, nH);
-  float tS=gridDomes(ro, rd, tMax, 2800.0, 0.0, 520.0, 760.0, 16.0, 40.0, 19.0, nS);
-  if(tH>0.0 && (tS<0.0||tH<=tS)){ n=nH; return tH; }
-  if(tS>0.0){ n=nS; return tS; }
-  return -1.0;
 }
 float ridge(vec2 p){
   float a=texture(weather, p).b;
@@ -180,5 +126,40 @@ vec3 massifN(vec2 p, vec4 q, float volc){
   float hx=massifH(p+vec2(e,0.0), q, volc)-massifH(p-vec2(e,0.0), q, volc);
   float hy=massifH(p+vec2(0.0,e), q, volc)-massifH(p-vec2(0.0,e), q, volc);
   return normalize(vec3(-hx, -hy, 2.0*e));
+}
+float marchLand(vec3 ro, vec3 rd, float tMax, out vec3 nOut, out float ROut, out float HOut){
+  nOut=vec3(0.0, 0.0, 1.0); ROut=1.0; HOut=1.0;
+  if(tMax<0.4||rd.z>0.5) return -1.0;
+  const float cell=1800.0;
+  float best=-1.0; vec2 cBest=vec2(0.0); float Rb=1.0, Hb=1.0;
+  vec2 r=rd.xy;
+  vec2 g=floor(ro.xy/cell);
+  vec2 stp=vec2(r.x>=0.0?1.0:-1.0, r.y>=0.0?1.0:-1.0);
+  float ax=abs(r.x), ay=abs(r.y);
+  float tx=ax<1e-5?1e8:(((r.x>=0.0?g.x+1.0:g.x)*cell)-ro.x)/r.x;
+  float ty=ay<1e-5?1e8:(((r.y>=0.0?g.y+1.0:g.y)*cell)-ro.y)/r.y;
+  float tdx=ax<1e-5?1e8:cell/ax;
+  float tdy=ay<1e-5?1e8:cell/ay;
+  for(int i=0;i<int(hillN);i++){
+    float tExit=min(tx, ty);
+    if(ro.z+rd.z*max(tExit-min(tdx, tdy), 0.0)>340.0 && rd.z>=0.0) break;
+    if(h12(g)>=0.46){
+      vec2 jit=vec2(h12(g+1.7), h12(g+3.1));
+      vec2 c=(g+0.5+(jit-0.5)*0.44)*cell;
+      float R=mix(140.0, 340.0, h12(g+5.5));
+      float H=mix(100.0, 280.0, h12(g+8.2));
+      float t=marchMassif(ro, rd, vec4(c, R, H), 0.0);
+      if(t>0.2 && t<tMax && (best<0.0||t<best)){ best=t; cBest=c; Rb=R; Hb=H; }
+    }
+    if(tExit>tMax || (best>0.0 && tExit>best)) break;
+    if(tx<ty){ g.x+=stp.x; tx+=tdx; }
+    else { g.y+=stp.y; ty+=tdy; }
+  }
+  if(best<0.0) return -1.0;
+  vec4 q=vec4(cBest, Rb, Hb);
+  nOut=massifN((ro+rd*best).xy, q, 0.0);
+  if(dot(nOut, rd)>0.0) nOut=-nOut;
+  ROut=Rb; HOut=Hb;
+  return best;
 }
 `;

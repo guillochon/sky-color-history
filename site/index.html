@@ -2013,7 +2013,7 @@ const LAND={ // stand-in surface color, not from the radiative-transfer model
 let skyNow=null, skyGen=0, skyUploaded=-1, vrNote='', vrOn=false, vrYaw=0, vrPitch=8, vrX=0, vrY=0, vrScenery=true, vrClouds=true, cloudScroll=0, cloudMinPrev=null, vrRelock=false, vrGL=null, vrRAF=0, vrWalk=0, vrWalkStamp=0, vrNav=false, vrLinkKey='';
 const vrHeld=new Set();
 // Marched by the hit shader. massifRad must match scRad.
-// The dome grids must match landHeight in vr_paint.js.
+// Hill cells must match hillHeight in vr_paint.js. hillN is a hit-shader uniform.
 const TERR=`
 float h12(vec2 p){
   vec3 q=fract(vec3(p.xyx)*vec3(0.1031, 0.1030, 0.0973));
@@ -2033,60 +2033,6 @@ vec3 rollN(vec2 p){
   float hx=rollAt(p+vec2(e,0.0))-rollAt(p-vec2(e,0.0));
   float hy=rollAt(p+vec2(0.0,e))-rollAt(p-vec2(0.0,e));
   return normalize(vec3(-hx, -hy, 2.0*e));
-}
-float domeT(vec3 ro, vec3 rd, vec2 c, float R, float H){
-  vec3 f=vec3((ro.x-c.x)/R, (ro.y-c.y)/R, ro.z/H);
-  vec3 d=vec3(rd.x/R, rd.y/R, rd.z/H);
-  float A=dot(d,d), B=2.0*dot(f,d), C=dot(f,f)-1.0, disc=B*B-4.0*A*C;
-  if(disc<0.0||A<1e-8) return -1.0;
-  float s=sqrt(disc), t0=(-B-s)/(2.0*A), t1=(-B+s)/(2.0*A);
-  float t=t0>0.2?t0:(t1>0.2?t1:-1.0);
-  if(t<0.0||ro.z+rd.z*t<0.0) return -1.0;
-  return t;
-}
-vec3 domeN(vec3 p, vec2 c, float R, float H){
-  return normalize(vec3((p.x-c.x)/(R*R), (p.y-c.y)/(R*R), p.z/(H*H)));
-}
-float gridDomes(vec3 ro, vec3 rd, float tMax, float cell, float thresh, float r0, float r1, float h0, float h1, float seed, out vec3 nOut){
-  float best=-1.0;
-  nOut=vec3(0.0, 0.0, 1.0);
-  vec2 r=rd.xy;
-  vec2 g=floor(ro.xy/cell);
-  vec2 stp=vec2(r.x>=0.0?1.0:-1.0, r.y>=0.0?1.0:-1.0);
-  float ax=abs(r.x), ay=abs(r.y);
-  float tx=ax<1e-5?1e8:(((r.x>=0.0?g.x+1.0:g.x)*cell)-ro.x)/r.x;
-  float ty=ay<1e-5?1e8:(((r.y>=0.0?g.y+1.0:g.y)*cell)-ro.y)/r.y;
-  float tdx=ax<1e-5?1e8:cell/ax;
-  float tdy=ay<1e-5?1e8:cell/ay;
-  for(int i=0;i<12;i++){
-    float tExit=min(tx, ty);
-    if(ro.z+rd.z*max(tExit-min(tdx, tdy), 0.0)>h1+30.0 && rd.z>=0.0) break;
-    if(h12(g+seed)>=thresh){
-      vec2 jit=vec2(h12(g+seed+1.7), h12(g+seed+3.1));
-      vec2 c=(g+0.5+(jit-0.5)*0.44)*cell;
-      float R=mix(r0, r1, h12(g+seed+5.5));
-      float H=mix(h0, h1, h12(g+seed+8.2));
-      float t=domeT(ro, rd, c, R, H);
-      if(t>0.2 && t<tMax && (best<0.0||t<best)){
-        best=t;
-        nOut=domeN(ro+rd*t, c, R, H);
-      }
-    }
-    if(tExit>tMax || (best>0.0 && tExit>best)) break;
-    if(tx<ty){ g.x+=stp.x; tx+=tdx; }
-    else { g.y+=stp.y; ty+=tdy; }
-  }
-  return best;
-}
-float marchLand(vec3 ro, vec3 rd, float tMax, out vec3 n){
-  n=vec3(0.0, 0.0, 1.0);
-  if(tMax<0.4||rd.z>0.5) return -1.0;
-  vec3 nH, nS;
-  float tH=gridDomes(ro, rd, tMax, 1500.0, 0.42, 220.0, 400.0, 46.0, 155.0, 0.0, nH);
-  float tS=gridDomes(ro, rd, tMax, 2800.0, 0.0, 520.0, 760.0, 16.0, 40.0, 19.0, nS);
-  if(tH>0.0 && (tS<0.0||tH<=tS)){ n=nH; return tH; }
-  if(tS>0.0){ n=nS; return tS; }
-  return -1.0;
 }
 float ridge(vec2 p){
   float a=texture(weather, p).b;
@@ -2195,6 +2141,41 @@ vec3 massifN(vec2 p, vec4 q, float volc){
   float hy=massifH(p+vec2(0.0,e), q, volc)-massifH(p-vec2(0.0,e), q, volc);
   return normalize(vec3(-hx, -hy, 2.0*e));
 }
+float marchLand(vec3 ro, vec3 rd, float tMax, out vec3 nOut, out float ROut, out float HOut){
+  nOut=vec3(0.0, 0.0, 1.0); ROut=1.0; HOut=1.0;
+  if(tMax<0.4||rd.z>0.5) return -1.0;
+  const float cell=1800.0;
+  float best=-1.0; vec2 cBest=vec2(0.0); float Rb=1.0, Hb=1.0;
+  vec2 r=rd.xy;
+  vec2 g=floor(ro.xy/cell);
+  vec2 stp=vec2(r.x>=0.0?1.0:-1.0, r.y>=0.0?1.0:-1.0);
+  float ax=abs(r.x), ay=abs(r.y);
+  float tx=ax<1e-5?1e8:(((r.x>=0.0?g.x+1.0:g.x)*cell)-ro.x)/r.x;
+  float ty=ay<1e-5?1e8:(((r.y>=0.0?g.y+1.0:g.y)*cell)-ro.y)/r.y;
+  float tdx=ax<1e-5?1e8:cell/ax;
+  float tdy=ay<1e-5?1e8:cell/ay;
+  for(int i=0;i<int(hillN);i++){
+    float tExit=min(tx, ty);
+    if(ro.z+rd.z*max(tExit-min(tdx, tdy), 0.0)>340.0 && rd.z>=0.0) break;
+    if(h12(g)>=0.46){
+      vec2 jit=vec2(h12(g+1.7), h12(g+3.1));
+      vec2 c=(g+0.5+(jit-0.5)*0.44)*cell;
+      float R=mix(140.0, 340.0, h12(g+5.5));
+      float H=mix(100.0, 280.0, h12(g+8.2));
+      float t=marchMassif(ro, rd, vec4(c, R, H), 0.0);
+      if(t>0.2 && t<tMax && (best<0.0||t<best)){ best=t; cBest=c; Rb=R; Hb=H; }
+    }
+    if(tExit>tMax || (best>0.0 && tExit>best)) break;
+    if(tx<ty){ g.x+=stp.x; tx+=tdx; }
+    else { g.y+=stp.y; ty+=tdy; }
+  }
+  if(best<0.0) return -1.0;
+  vec4 q=vec4(cBest, Rb, Hb);
+  nOut=massifN((ro+rd*best).xy, q, 0.0);
+  if(dot(nOut, rd)>0.0) nOut=-nOut;
+  ROut=Rb; HOut=Hb;
+  return best;
+}
 `;
 // Mountains and hills are marched in this pass. Folding the same code into the
 // sky shader makes the driver take about fifteen seconds to link the program.
@@ -2206,7 +2187,7 @@ uniform float yaw,pitch,fov,showScn,sunAz,sunEl;
 uniform vec3 eye;
 uniform vec4 obj[12];
 uniform float kind[12];
-uniform float scnCount;
+uniform float scnCount, hillN;
 layout(location=0) out vec4 hitInfo;
 layout(location=1) out vec4 hitNrm;
 ${TERR}
@@ -2297,25 +2278,23 @@ void main(){
       }
     }
   }
-  float tLand=-1.0; vec3 nLand=vec3(0.0,0.0,1.0);
+  float tHill=-1.0, rHill=1.0, hHill=1.0; vec3 nHill=vec3(0.0,0.0,1.0);
   if(showScn>0.5 && rd.z<0.5){
-    float cap=min(tBest, 9000.0);
-    if(rd.z>0.02) cap=min(cap, (210.0-ro.z)/rd.z);
+    float cap=min(tBest, 14000.0);
+    if(rd.z>0.02) cap=min(cap, (480.0-ro.z)/rd.z);
     else if(rd.z<-0.0001) cap=min(cap, (-6.0-ro.z)/rd.z);
-    vec3 nL;
-    float tL=marchLand(ro, rd, cap, nL);
-    if(tL>0.0&&tL<tBest){ tLand=tL; nLand=nL; if(dot(nLand, rd)>0.0) nLand=-nLand; }
+    tHill=marchLand(ro, rd, cap, nHill, rHill, hHill);
   }
-  bool landWins=tLand>0.0 && (tObj<0.0 || tLand<tObj);
-  bool objWins=tObj>0.0 && !landWins;
+  bool hillWins=tHill>0.0 && (tObj<0.0 || tHill<tObj);
+  bool objWins=tObj>0.0 && !hillWins;
   vec3 nOut=vec3(0.0,0.0,1.0), pShade=ro;
   float kShade=0.0;
   if(objWins){
     pShade=ro+rd*tObj; kShade=kObj;
     nOut=kObj<2.5?massifN(pShade.xy, qObj, step(1.5, kObj)):nObj;
     if(dot(nOut, rd)>0.0) nOut=-nOut;
-  }else if(landWins){
-    pShade=ro+rd*tLand; nOut=nLand;
+  }else if(hillWins){
+    pShade=ro+rd*tHill; kShade=1.0; nOut=nHill;
   }else if(rd.z<0.0){
     pShade=ro+rd*(-ro.z/rd.z);
   }else{
@@ -2325,8 +2304,13 @@ void main(){
   }
   float sh=1.0;
   if(kShade<0.5 || (kShade>=0.5 && kShade<2.5)) sh=scnShadow(vec3(pShade.xy, max(pShade.z, 0.0)), sd);
-  hitInfo=vec4(tObj, kObj, sh, iObj);
-  hitNrm=vec4(nOut, landWins?tLand:-1.0);
+  if(hillWins){
+    hitInfo=vec4(tHill, 1.0, sh, rHill);
+    hitNrm=vec4(nOut, hHill);
+  }else{
+    hitInfo=vec4(tObj, kObj, sh, iObj);
+    hitNrm=vec4(nOut, -1.0);
+  }
 }
 `;
 const VRFS=`#version 300 es
@@ -2406,12 +2390,13 @@ void main(){
   vec4 hn=texelFetch(hitNrm, ivec2(gl_FragCoord.xy), 0);
   float tBest=1e8, kBest=0.0, hBest=1.0, tLand=-1.0, shBest=hit.b;
   vec3 nBest=vec3(0.0,0.0,1.0), pBest=ro; vec4 qBest=vec4(0.0);
-  if(showScn>0.5 && hit.r>0.0){
+  bool hill=showScn>0.5 && hit.g>0.5 && hit.g<1.5 && hit.a>40.0;
+  if(hill){
+    tBest=hit.r; kBest=1.0; nBest=hn.rgb; pBest=ro+rd*hit.r;
+    hBest=hn.a; qBest=vec4(pBest.xy, hit.a, hn.a);
+  }else if(showScn>0.5 && hit.r>0.0){
     tBest=hit.r; kBest=hit.g; nBest=hn.rgb; pBest=ro+rd*hit.r;
     qBest=obj[int(hit.a+0.5)]; hBest=qBest.w;
-  }
-  if(showScn>0.5 && hn.a>0.0 && hn.a<tBest){
-    tLand=hn.a; kBest=0.0; tBest=hn.a; pBest=ro+rd*hn.a; nBest=hn.rgb;
   }
   vec3 col;
   if(showScn<0.5){ kBest=0.0; tLand=-1.0; }
@@ -3106,6 +3091,7 @@ function initVR(){
       gl.uniform1i(gl.getUniformLocation(hp,'weather'), 7);
       gl.uniform1f(hu.fov, VR_FOV_DEG*Math.PI/180);
       gl.uniform1f(gl.getUniformLocation(hp,'scnCount'), 12);
+      gl.uniform1f(gl.getUniformLocation(hp,'hillN'), 8);
       vrGL.hitProg=hp; vrGL.hu=hu; vrGL.hitFbo=gl.createFramebuffer(); vrGL.hitFloat=!!gl.getExtension('EXT_color_buffer_float');
       gl.useProgram(prog);
     }
@@ -3203,20 +3189,35 @@ function h12xy(x, y){
   qx+=d; qy+=d; qz+=d;
   return fract((qx+qy)*qz);
 }
-function domeH(x, y, cell, thresh, r0, r1, h0, h1, seed){
-  const gx=Math.floor(x/cell), gy=Math.floor(y/cell);
-  if(h12xy(gx+seed, gy+seed)<thresh) return 0;
-  const jx=h12xy(gx+seed+1.7, gy+seed+1.7), jy=h12xy(gx+seed+3.1, gy+seed+3.1);
-  const cx=(gx+0.5+(jx-0.5)*0.44)*cell, cy=(gy+0.5+(jy-0.5)*0.44)*cell;
-  const R=r0+h12xy(gx+seed+5.5, gy+seed+5.5)*(r1-r0);
-  const H=h0+h12xy(gx+seed+8.2, gy+seed+8.2)*(h1-h0);
+function smoothstep(e0, e1, x){
+  const t=Math.min(1, Math.max(0, (x-e0)/Math.max(e1-e0, 1e-6)));
+  return t*t*(3-2*t);
+}
+function peakEnv(x, y, cx, cy, R, H){
   const u=Math.hypot(x-cx, y-cy)/R;
   if(u>=1) return 0;
-  return Math.sqrt(Math.max(0, 1-u*u))*H;
+  const core=Math.pow(1-smoothstep(0, 0.74, u), 1.18);
+  const skirt=Math.pow(1-u, 1.9);
+  return (core*0.78+skirt*0.22)*H;
 }
-function landHeight(x, y){
-  return Math.max(domeH(x, y, 1500, 0.42, 220, 400, 46, 155, 0), domeH(x, y, 2800, 0.0, 520, 760, 16, 40, 19));
+function hillHeight(x, y){
+  const cell=1800, gx=Math.floor(x/cell), gy=Math.floor(y/cell);
+  if(h12xy(gx, gy)<0.46) return 0;
+  const jx=h12xy(gx+1.7, gy+1.7), jy=h12xy(gx+3.1, gy+3.1);
+  const cx=(gx+0.5+(jx-0.5)*0.44)*cell, cy=(gy+0.5+(jy-0.5)*0.44)*cell;
+  const R=140+h12xy(gx+5.5, gy+5.5)*(340-140);
+  const H=100+h12xy(gx+8.2, gy+8.2)*(280-100);
+  const Rm=R*1.28;
+  let h=0;
+  for(let k=0;k<8;k++){
+    const a=k*Math.PI/4, ox=Math.cos(a), oy=Math.sin(a);
+    h=Math.max(h, peakEnv(x, y, cx+ox*Rm*0.09, cy+oy*Rm*0.09, Rm*0.88, H));
+    h=Math.max(h, peakEnv(x, y, cx-ox*Rm*0.36, cy-oy*Rm*0.36, Rm*0.50, H*0.74));
+    h=Math.max(h, peakEnv(x, y, cx-oy*Rm*0.40, cy+ox*Rm*0.40, Rm*0.38, H*0.56));
+  }
+  return h*1.06;
 }
+function landHeight(x, y){ return hillHeight(x, y); }
 function eyeZ(){ return vrScenery?2+landHeight(vrX, vrY):2; }
 function groundRGB(){
   const alb=LAND[EP[dIdx].key]||[.2,.18,.14], cg=skyNow.colgrid, NR=cg.length-1, NA=cg[0].length-1;

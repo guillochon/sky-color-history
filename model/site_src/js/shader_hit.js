@@ -8,7 +8,7 @@ uniform float yaw,pitch,fov,showScn,sunAz,sunEl;
 uniform vec3 eye;
 uniform vec4 obj[12];
 uniform float kind[12];
-uniform float scnCount;
+uniform float scnCount, hillN;
 layout(location=0) out vec4 hitInfo;
 layout(location=1) out vec4 hitNrm;
 ${TERR}
@@ -99,25 +99,23 @@ void main(){
       }
     }
   }
-  float tLand=-1.0; vec3 nLand=vec3(0.0,0.0,1.0);
+  float tHill=-1.0, rHill=1.0, hHill=1.0; vec3 nHill=vec3(0.0,0.0,1.0);
   if(showScn>0.5 && rd.z<0.5){
-    float cap=min(tBest, 9000.0);
-    if(rd.z>0.02) cap=min(cap, (210.0-ro.z)/rd.z);
+    float cap=min(tBest, 14000.0);
+    if(rd.z>0.02) cap=min(cap, (480.0-ro.z)/rd.z);
     else if(rd.z<-0.0001) cap=min(cap, (-6.0-ro.z)/rd.z);
-    vec3 nL;
-    float tL=marchLand(ro, rd, cap, nL);
-    if(tL>0.0&&tL<tBest){ tLand=tL; nLand=nL; if(dot(nLand, rd)>0.0) nLand=-nLand; }
+    tHill=marchLand(ro, rd, cap, nHill, rHill, hHill);
   }
-  bool landWins=tLand>0.0 && (tObj<0.0 || tLand<tObj);
-  bool objWins=tObj>0.0 && !landWins;
+  bool hillWins=tHill>0.0 && (tObj<0.0 || tHill<tObj);
+  bool objWins=tObj>0.0 && !hillWins;
   vec3 nOut=vec3(0.0,0.0,1.0), pShade=ro;
   float kShade=0.0;
   if(objWins){
     pShade=ro+rd*tObj; kShade=kObj;
     nOut=kObj<2.5?massifN(pShade.xy, qObj, step(1.5, kObj)):nObj;
     if(dot(nOut, rd)>0.0) nOut=-nOut;
-  }else if(landWins){
-    pShade=ro+rd*tLand; nOut=nLand;
+  }else if(hillWins){
+    pShade=ro+rd*tHill; kShade=1.0; nOut=nHill;
   }else if(rd.z<0.0){
     pShade=ro+rd*(-ro.z/rd.z);
   }else{
@@ -127,7 +125,12 @@ void main(){
   }
   float sh=1.0;
   if(kShade<0.5 || (kShade>=0.5 && kShade<2.5)) sh=scnShadow(vec3(pShade.xy, max(pShade.z, 0.0)), sd);
-  hitInfo=vec4(tObj, kObj, sh, iObj);
-  hitNrm=vec4(nOut, landWins?tLand:-1.0);
+  if(hillWins){
+    hitInfo=vec4(tHill, 1.0, sh, rHill);
+    hitNrm=vec4(nOut, hHill);
+  }else{
+    hitInfo=vec4(tObj, kObj, sh, iObj);
+    hitNrm=vec4(nOut, -1.0);
+  }
 }
 `;
