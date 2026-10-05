@@ -1,11 +1,13 @@
+// Star places use this year for proper motion and precession, instead of the date picker's.
+const STAR_YEAR={volcanic:1815};
 function placeStars(lat){
-  const epochKey=EP[dIdx].key, ins=instantUT();
-  const year=+(document.getElementById('moonDate').value||localISODate(new Date())).slice(0,4);
+  const epochKey=EP[dIdx].key, ins=instantUT(), list=STARS_EPOCH[epochKey]||STARS;
+  const year=STAR_YEAR[epochKey]||+(document.getElementById('moonDate').value||localISODate(new Date())).slice(0,4);
   const eq=moonEquatorial(dayNumber(ins.y,ins.m,ins.D,ins.ut));
   const LST=rev(rev(eq.Ls+180+ins.ut*15)+ins.lon);
   const tex=new Float32Array(STAR_MAP_W*8), marks=[], up=[];
-  for(let i=0;i<STARS.length && i<STAR_N;i++){
-    const star=STARS[i], place=starMeanPlace(star, epochKey, year);
+  for(let i=0;i<list.length && i<STAR_N;i++){
+    const star=list[i], place=starMeanPlace(star, epochKey, year);
     let H=rev(LST-rev(place.ra)); if(H>180) H-=360;
     const p=altaz(lat, place.dec, H), show=starDisplay(star), o=i*4;
     if(!(p.alt>0)) continue;
