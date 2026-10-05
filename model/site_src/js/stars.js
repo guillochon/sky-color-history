@@ -1,5 +1,6 @@
 const STAR_N=STARS.length;
-const SAT_CAP=2048, DOME_SAT_CAP=6400, STAR_MAP_W=STAR_N+SAT_CAP;
+// The texture holds the stars, then the planets (planets.js), then satellites.
+const SAT_CAP=2048, DOME_SAT_CAP=6400, STAR_MAP_W=STAR_N+PLANET_N+SAT_CAP;
 // V of the hundredth star. Brighter stars, and every star this bright, keep the
 // sizes from when the dome showed only that hundred.
 const STAR_VANCHOR=STARS[Math.min(99, STARS.length-1)][2];

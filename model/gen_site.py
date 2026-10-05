@@ -52,6 +52,7 @@ PARTS = [
     'js/moon.js',
     'js/stars_catalog.js',
     'js/stars_epochs.js',
+    'js/planets.js',
     'js/stars.js',
     'js/satellites.js',
     'js/dome_bodies.js',

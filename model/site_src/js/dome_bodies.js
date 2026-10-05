@@ -17,6 +17,7 @@ function placeStars(lat){
     marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb});
     up.push({i, x:dir[0], y:dir[1], z:dir[2]});
   }
+  placePlanets(lat, tex, marks, up, epochKey, year, LST);
   if(epochKey==='y2100') placeSatellites(lat, tex, marks, up);
   const bins=starBinsFor(up);
   return {tex, marks, bins:bins.info, idx:bins.idx, idxCount:bins.count};

@@ -87,7 +87,7 @@ function placeSatellites(latDeg, tex, marks, up){
     const s=hit[k], show=pointDisplay(s.mag), dir=horizDir(s.az, s.el);
     marks.push({az:s.az, el:s.el, px:show.px, rgb:show.rgb});
     if(k>=nTex) continue;
-    const i=STAR_N+k, o=i*4;
+    const i=STAR_N+PLANET_N+k, o=i*4;
     tex[o]=dir[0]; tex[o+1]=dir[1]; tex[o+2]=dir[2]; tex[o+3]=show.px;
     const c=STAR_MAP_W*4+o; tex[c]=show.rgb[0]; tex[c+1]=show.rgb[1]; tex[c+2]=show.rgb[2]; tex[c+3]=1;
     up.push({i, x:dir[0], y:dir[1], z:dir[2]});
