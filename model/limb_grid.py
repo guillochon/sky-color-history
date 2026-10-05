@@ -7,7 +7,7 @@ HERE = Path(__file__).resolve().parent
 src = (HERE / 'run_epochs.py').read_text(encoding='utf-8').split('LATS =')[0]
 ns = {}; exec(src, ns); EPOCHS = {e['key']: e for e in ns['EPOCHS']}
 
-PICK = ['hadean44','hadean40','archean38','archean27thin','archean27','archean27vthick','proterozoic22','snowball07','carbon30','kpg66','volcanic','modern','modernpoll','ozonehole']
+PICK = ['hadean44','hadean40','archean38','archean27thin','archean27','archean27vthick','proterozoic22','snowball07','carbon30','kpg66','volcanic','ozonehole','modern','modernpoll']
 LATS = np.arange(0, 86, 7.5)
 ALTS = np.concatenate([np.arange(0, 20, 2), np.arange(20, 60, 4), np.arange(60, 101, 8)])
 

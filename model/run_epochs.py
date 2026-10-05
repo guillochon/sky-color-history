@@ -39,6 +39,10 @@ EPOCHS = [
       gas={'N2':0.78,'O2':0.21,'Ar':0.01},
       ozone={'Equator':260,'Mid-latitude':300,'Polar summer':330},
       aer=(0.1,1.3,0.92,0.7), sulf=0.4, sun=(5772,1.0)),
+ dict(key='ozonehole', name='Ozone-hole spring', sub='Antarctic spring in the ozone-hole years: column 130 DU',
+      gas={'N2':0.78,'O2':0.21,'Ar':0.01}, ozone=130, trop_o3=0.10, ozone_lat=75,
+      aer=(0.1,1.3,0.92,0.7), sun=(5772,1.0),
+      note='Polar-spring column in the 100-150 DU range of the Antarctic ozone hole; layer centered near 18 km'),
  dict(key='modern', name='Modern, clean air', sub='aerosol optical depth 0.1; ozone 260/300/330 DU by latitude',
       gas={'N2':0.78,'O2':0.21,'Ar':0.01},
       ozone={'Equator':260,'Mid-latitude':300,'Polar summer':330}, trop_o3=0.10,
@@ -48,10 +52,6 @@ EPOCHS = [
       gas={'N2':0.78,'O2':0.21,'Ar':0.01},
       ozone={'Equator':260,'Mid-latitude':300,'Polar summer':330}, trop_o3=0.10,
       aer=(0.6,1.2,0.88,0.68), sun=(5772,1.0)),
- dict(key='ozonehole', name='Ozone-hole spring', sub='Antarctic spring in the ozone-hole years: column 130 DU',
-      gas={'N2':0.78,'O2':0.21,'Ar':0.01}, ozone=130, trop_o3=0.10, ozone_lat=75,
-      aer=(0.1,1.3,0.92,0.7), sun=(5772,1.0),
-      note='Polar-spring column in the 100-150 DU range of the Antarctic ozone hole; layer centered near 18 km'),
 ]
 
 LATS = [('Equator', 15, 0.08), ('Mid-latitude', 45, 0.18), ('Polar summer', 75, 0.70)]

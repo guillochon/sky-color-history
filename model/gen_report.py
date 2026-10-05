@@ -116,7 +116,7 @@ document.querySelectorAll('canvas[data-epoch]').forEach(render);
 </script>
 """
 
-order = ['hadean44','hadean40','archean38','archean27thin','archean27','archean27vthick','proterozoic22','snowball07','carbon30','kpg66','volcanic','modern','modernpoll','ozonehole']
+order = ['hadean44','hadean40','archean38','archean27thin','archean27','archean27vthick','proterozoic22','snowball07','carbon30','kpg66','volcanic','ozonehole','modern','modernpoll']
 ages = {'hadean44':'4.4 Ga','hadean40':'4.0 Ga','archean38':'3.8 Ga','archean27thin':'2.7 Ga','archean27':'2.7 Ga','archean27vthick':'2.7 Ga','proterozoic22':'2.2 Ga','snowball07':'700 Ma','carbon30':'300 Ma','kpg66':'66 Ma','volcanic':'1815','modern':'today','modernpoll':'today','ozonehole':'1980–2000'}
 
 hero = ''
@@ -227,8 +227,8 @@ th{{color:var(--ink2);font-weight:300}}
 <tr><td>300 Ma, 33% O₂</td><td>Blue, 13,600 K</td><td>White, slightly brighter</td><td>Modern-like; smoky more often</td></tr>
 <tr><td>66 Ma, impact winter</td><td>Dim amber-beige, 4,600 K</td><td>Beige</td><td>None; dome fades to brown</td></tr>
 <tr><td>1815, volcanic year</td><td>Milky blue-white, 9,300 K</td><td>Slightly bluer than zenith</td><td>Salmon Sun, pink-lavender afterglow</td></tr>
-<tr><td>Today, clean</td><td>Blue, 15,000 K</td><td>White, 8,400 K</td><td>Orange horizon, pink antisolar; twilight zenith ~12,500 K</td></tr>
 <tr><td>Ozone-hole spring</td><td>Blue, still</td><td>White</td><td>Pale blue dusk zenith, ~7,800 K</td></tr>
+<tr><td>Today, clean</td><td>Blue, 15,000 K</td><td>White, 8,400 K</td><td>Orange horizon, pink antisolar; twilight zenith ~12,500 K</td></tr>
 </table></div>
 
 <h3>Horizon versus zenith</h3>

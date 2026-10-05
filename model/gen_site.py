@@ -9,7 +9,7 @@ ns = {'__file__': str(HERE / 'gen_report.py')}
 with contextlib.redirect_stdout(io.StringIO()):
     exec((HERE / 'gen_report.py').read_text(encoding='utf-8'), ns)
 PROSE = ns['PROSE']
-order = ['hadean44','hadean40','archean38','archean27thin','archean27','archean27vthick','proterozoic22','snowball07','carbon30','kpg66','volcanic','modern','modernpoll','ozonehole']
+order = ['hadean44','hadean40','archean38','archean27thin','archean27','archean27vthick','proterozoic22','snowball07','carbon30','kpg66','volcanic','ozonehole','modern','modernpoll']
 ages = {'hadean44':'4.4 Ga','hadean40':'4.0 Ga','archean38':'3.8 Ga','archean27thin':'2.7 Ga','archean27':'2.7 Ga','archean27vthick':'2.7 Ga','proterozoic22':'2.2 Ga','snowball07':'700 Ma','carbon30':'300 Ma','kpg66':'66 Ma','volcanic':'1815 CE','modern':'Today','modernpoll':'Today','ozonehole':'1980–2000'}
 short = {'hadean44':'Early Hadean','hadean40':'Late Hadean','archean38':'Early Archean','archean27thin':'Thin haze','archean27':'Thick haze','archean27vthick':'Very thick haze','proterozoic22':'Post-oxidation','snowball07':'Snowball Earth','carbon30':'Carboniferous','kpg66':'Impact winter','volcanic':'Volcanic year','modern':'Clean air','modernpoll':'Polluted city','ozonehole':'Ozone hole'}
 byk = {r['key']: r for r in D}
@@ -142,7 +142,7 @@ button.tick.on{background:none;color:var(--ink)}
 <div class="row">
  <div>
   <div class="stage" id="gstage"><div class="tip" id="gtip"></div><canvas id="globe" width="720" height="720" aria-label="Volumetric rendering of Earth's atmosphere for the selected epoch"></canvas></div>
-  <input id="tslider" type="range" min="0" max="EPOCH_MAX" step="0.01" value="11" aria-label="Epoch">
+  <input id="tslider" type="range" min="0" max="EPOCH_MAX" step="0.01" value="MODERN_IDX" aria-label="Epoch">
   <div class="track" id="ttrack"></div>
   <div class="controls"><button id="tplay" aria-pressed="false">Play</button><span class="hint">or drag the slider; ← → keys step</span></div>
  </div>
@@ -323,7 +323,7 @@ tplay.addEventListener('click',()=>{ if(tRAF){cancelAnimationFrame(tRAF);tRAF=nu
 /* ---------- Section 2: a day under that sky ---------- */
 const dome=document.getElementById('dome'), dctx=dome.getContext('2d');
 const sel=document.getElementById('depoch'); EP.forEach((ep,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=`${ep.age} — ${ep.name}`; sel.appendChild(o); });
-let dIdx=11, dLat='Mid-latitude', minutes=720, autoExpo=false;
+let dIdx=MODERN_IDX, dLat='Mid-latitude', minutes=720, autoExpo=false;
 const DAYMIN=1440; // midnight to midnight
 sel.value=dIdx;
 const LATDEG={'Equator':0,'Mid-latitude':45,'Polar':75};
@@ -3357,6 +3357,6 @@ refreshGlobeTip=colorTip(globe, document.getElementById('gtip'), (x,y)=>{ const 
 refreshDomeTip=colorTip(dome, document.getElementById('dtip'), (x,y)=>{ const r=Math.hypot(x-dome.width/2,y-dome.height/2); return r<dome.width*0.46; });
 </script>
 </body></html>'''
-html = html.replace('__EP__', json.dumps(EP, separators=(',',':'))).replace('__DAY__', json.dumps(DAY, separators=(',',':'))).replace('__YREF__', repr(YREF)).replace('EPOCH_MAX', str(len(order)-1))
+html = html.replace('__EP__', json.dumps(EP, separators=(',',':'))).replace('__DAY__', json.dumps(DAY, separators=(',',':'))).replace('__YREF__', repr(YREF)).replace('EPOCH_MAX', str(len(order)-1)).replace('MODERN_IDX', str(order.index('modern')))
 open(HERE.parent / 'site' / 'index.html', 'w', encoding='utf-8').write(html)
 print(len(html)/1e6, 'MB')
