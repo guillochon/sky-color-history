@@ -1157,7 +1157,7 @@ float shellT(vec3 ro, vec3 rd, float H){
   if(disc<=0.0) return -1.0;
   return -c/(b+sqrt(disc));
 }
-float cloudDen(vec3 p, float detail, float lod, float deck, float dt){
+float cloudDen(vec3 p, float detail, float lod, float deck, float dt, float dph){
   vec2 dh=p.xy-eye.xy;
   float R=833333.0;
   float numer=dot(dh,dh)+p.z*(p.z+2.0*R);
@@ -1169,7 +1169,7 @@ float cloudDen(vec3 p, float detail, float lod, float deck, float dt){
   // Broad regions decide where clouds exist. The shape inside a region is a
   // separate blob, so the deck is not one slab.
   float edge=0.78-cloudCov*0.62;
-  float gate=smoothstep(edge, edge+mix(0.12, 0.30, lod), texture(noise, vec3(plane*sc*0.42, 0.17)).g);
+  float gate=smoothstep(edge, edge+mix(0.06, 0.14, lod), texture(noise, vec3(plane*sc*0.42, 0.17)).g);
   if(gate<0.03) return 0.0;
   // Cell width stays near the step length. Smaller cells skipped by a shallow
   // ray showed up as stripes parallel to the horizon.
@@ -1182,11 +1182,17 @@ float cloudDen(vec3 p, float detail, float lod, float deck, float dt){
   // bright rim; these rims no longer sit on one altitude.
   float center=mix(0.18, 0.82, lift);
   float halfH=mix(0.12, 0.46, billow*0.35+lift*0.65);
-  float u=(ph-center)/halfH;
-  float body=clamp(1.0-u*u, 0.0, 1.0);
-  body*=body;
+  // Short rim on a tall cloud, but never thinner than the march can resolve.
+  // Averaged across the step so the dropoff stays a clean edge, not a terrace.
+  float rim=max(halfH*0.18, 0.055);
+  float bodySum=0.0;
+  for(int s=0;s<3;s++){
+    float u=(ph+(float(s)-1.0)*dph*0.5-center)/halfH;
+    bodySum+=smoothstep(0.0, rim/halfH, clamp(1.0-abs(u), 0.0, 1.0));
+  }
+  float body=bodySum/3.0;
   if(body<0.02) return 0.0;
-  float core=smoothstep(0.16, 0.78, billow);
+  float core=smoothstep(0.32, 0.50, billow);
   // One soft change from the base of this cloud to its top, shifted per cell
   // so the dense part does not line up across the sky.
   float shape=0.78;
@@ -1198,8 +1204,9 @@ float cloudDen(vec3 p, float detail, float lod, float deck, float dt){
 }
 float lightBeer(vec3 p, vec3 sd, float lod, float deck, float dt){
   float ls=mix(1600.0, 5200.0, lod);
-  float tau=cloudDen(p+sd*ls, 0.0, lod, deck, dt)*ls;
-  tau+=cloudDen(p+sd*(ls*2.2), 0.0, lod, deck, dt)*ls;
+  float dph=ls*max(sd.z, 0.0)/14700.0;
+  float tau=cloudDen(p+sd*ls, 0.0, lod, deck, dt, dph)*ls;
+  tau+=cloudDen(p+sd*(ls*2.2), 0.0, lod, deck, dt, dph*2.2)*ls;
   return exp(-tau*(0.0026/3.0));
 }
 void main(){
@@ -1239,7 +1246,7 @@ void main(){
     vec3 p=ro+rd*t;
     float lod=max(smoothstep(7000.0, 26000.0, t), smoothstep(0.28, 0.05, rd.z)*smoothstep(3000.0, 12000.0, t));
     float detail=smoothstep(42000.0, 6000.0, t)*smoothstep(0.01, 0.09, rd.z);
-    float den=cloudDen(p, detail, lod, deck, dt);
+    float den=cloudDen(p, detail, lod, deck, dt, dt*rd.z/14700.0);
     if(den>0.02){
       float beer=lightBeer(p, sd, lod, deck, dt);
       float silver=pow(clamp(dot(rd, sd), 0.0, 1.0), 5.0);
