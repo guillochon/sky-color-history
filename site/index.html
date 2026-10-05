@@ -2081,25 +2081,32 @@ float onePeak(vec2 p, vec2 c, float R, float H, float volc, float seed){
   }
   return max(prof, 0.0)*H;
 }
-// Ice plateaus with near-vertical cliffs between them. The tiers follow a noisy elevation
-// field, so their edges wander instead of ringing the centre.
+// Ice plateaus with cliffs between them. The tiers follow a noisy elevation field, so their
+// edges wander instead of ringing the centre. Each step gets its own height (0.4 to 1.6 of the
+// mean), and low-frequency noise varies each cliff from sheer to a steep ramp and each bench
+// from flat to sloping. The noise is kept smooth: high-frequency outlines make thin fins that
+// the march steps over.
 float glacierH(vec2 p, vec4 q){
   vec2 d=p-q.xy;
   float R=massifRad(q.z, 2.0), r=length(d);
   if(r>=R) return 0.0;
   float seed=texture(weather, q.xy*0.00041+0.37).r;
   float ang=atan(d.y, d.x);
-  float u=r/(R*(0.72+0.28*texture(weather, vec2(ang*0.48+seed*2.0, seed*3.1)).g));
-  u+=(texture(weather, d/(R*0.5)+seed).b-0.5)*0.16;
+  float u=r/(R*(0.74+0.26*texture(weather, vec2(ang*0.3+seed*2.0, seed*3.1)).g));
   if(u>=1.0) return 0.0;
-  float e=(1.0-u)*0.7+sqrt(1.0-u)*0.45*ridge(d/(R*0.45)+seed)+(1.0-u)*0.15*ridge(d/(R*0.18)+seed*2.0);
-  float tiers=3.0+floor(seed*2.99), s=e*tiers;
-  float prof=(floor(s)+smoothstep(0.0, 0.12, fract(s))+fract(s)*0.1)/(tiers+0.5);
-  prof*=smoothstep(0.0, 0.02, 1.0-u);
-  return prof*q.w;
+  vec2 w=d/R;
+  float n1=texture(weather, w*0.6+seed).b, n2=texture(weather, w*1.1+seed*1.7).a;
+  float e=(1.0-u)*0.75+sqrt(1.0-u)*0.35*ridge(w*0.9+seed)+(n1-0.5)*0.25;
+  float tiers=3.0+floor(seed*2.99), s=max(e*tiers+(n2-0.5)*1.6, 0.0), k=floor(s), f=fract(s);
+  float b0=k+0.6*(h12(vec2(k, seed*37.0))-0.5), b1=k+1.0+0.6*(h12(vec2(k+1.0, seed*37.0))-0.5);
+  float cliff=smoothstep(0.0, mix(0.04, 0.35, n1*n1), f);
+  float prof=(b0+(b1-b0)*mix(cliff, f, mix(0.0, 0.55, n2)))/(tiers+0.5);
+  return max(prof, 0.0)*smoothstep(0.0, 0.03, 1.0-u)*q.w;
 }
 float massifH(vec2 p, vec4 q, float volc){
+#if GLACIERS
   if(volc>1.5) return glacierH(p, q);
+#endif
   vec2 c=q.xy;
   float R=massifRad(q.z, volc), H=q.w;
   float s0=texture(weather, c*0.00041+0.13).r;
@@ -2144,10 +2151,11 @@ float marchMassif(vec3 ro, vec3 rd, vec4 q, float volc){
   if(span.x<0.0) return -1.0;
   float t0=span.x, t1=min(span.y, tPlane);
   if(t1<t0) return -1.0;
-  // 28 steps across the span, then 6 bisections once a step lands inside.
-  float dt=(t1-t0)/28.0, prev=t0, lo=t0, hi=t0;
+  // 28 steps across the span (64 for glaciers, whose cliffs are sharper), then 6 bisections
+  // once a step lands inside.
+  float nst=volc>1.5?64.0:28.0, dt=(t1-t0)/nst, prev=t0, lo=t0, hi=t0;
   int bis=-1;
-  for(int i=0;i<=34+loopPad;i++){
+  for(int i=0;i<=int(nst)+6+loopPad;i++){
     float t=bis<0?min(t0+dt*float(i), t1):0.5*(lo+hi);
     vec3 p=ro+rd*t;
     float h=massifH(p.xy, q, volc);
@@ -2210,8 +2218,19 @@ float marchLand(vec3 ro, vec3 rd, float tMax, out vec3 nOut, out float ROut, out
 `;
 // Mountains and hills are marched in this pass. Folding the same code into the
 // sky shader makes the driver take about fifteen seconds to link the program.
+// hitVariant() defines TOWNS, TREES, and GLACIERS for the current epoch, so its program
+// compiles only the scenery that epoch shows. The defaults here include everything.
 const HITFS=`#version 300 es
 precision highp float;
+#ifndef TOWNS
+#define TOWNS 1
+#endif
+#ifndef TREES
+#define TREES 1
+#endif
+#ifndef GLACIERS
+#define GLACIERS 1
+#endif
 uniform sampler2D weather;
 uniform vec2 res;
 uniform float yaw,pitch,fov,showScn,sunAz,sunEl;
@@ -2440,6 +2459,7 @@ float marchTown(vec3 ro, vec3 rd, float tMax, vec4 tw, out vec3 nOut, out float 
     if(lotOcc(g, tw, cell)>0.5){
       float best=-1.0;
       bool tree=false; vec2 tc; float th, trc, tsty;
+#if TOWNS
       if(ty<1.5){
         vec3 n; float a, s;
         float t=towerT(ro, rd, g, tw, n, a, s);
@@ -2449,13 +2469,19 @@ float marchTown(vec3 ro, vec3 rd, float tMax, vec4 tw, out vec3 nOut, out float 
         houseLot(g, mn, w, swap, eave, slope);
         float t=houseT(ro, rd, mn, w, swap, eave, slope, n);
         if(t>0.0){ best=t; nOut=n; kOut=7.0; aOut=eave; sOut=h12(g+vec2(5.3, 1.7)); }
+#if TREES
         tree=yardTree(g, mn, w, tc, th, trc, tsty);
-      }else tree=forestTree(g, ty, tc, th, trc, tsty);
+#endif
+      }
+#endif
+#if TREES
+      if(ty>2.5) tree=forestTree(g, ty, tc, th, trc, tsty);
       if(tree){
         vec3 n; float part, seed=h12(g+vec2(3.3, 7.1));
         float t=treeT(ro, rd, tc, th, trc, tsty, seed, n, part);
         if(t>0.0 && (best<0.0 || t<best)){ best=t; nOut=n; kOut=8.0; aOut=tsty*2.0+part; sOut=seed; }
       }
+#endif
       if(best>0.0 && best<tMax) return best;
     }
     if(min(tx, ty2)>t1) break;
@@ -2540,11 +2566,13 @@ void main(){
   if(showScn>0.5 && rd.z<0.6){
     float cap=min(tBest, tGround);
     if(tHill>0.0) cap=min(cap, tHill);
+#if TOWNS || TREES
     for(int i=0;i<int(townN)+loopPad;i++){
       vec3 n; float k, a, s;
       float t=marchTown(ro, rd, cap, town[i], n, k, a, s);
       if(t>0.0 && t<cap){ cap=t; tTown=t; nTown=n; kTown=k; aTown=a; sTown=s; }
     }
+#endif
   }
   if(tTown>0.0){
     hitInfo=vec4(tTown, kTown, 1.0, aTown);
@@ -2579,6 +2607,10 @@ void main(){
   }
 }
 `;
+// flags is a string of three digits: towns, trees, glaciers.
+function hitVariant(flags){
+  return HITFS.replace('precision highp float;', 'precision highp float;\n#define TOWNS '+flags[0]+'\n#define TREES '+flags[1]+'\n#define GLACIERS '+flags[2]);
+}
 const VRFS=`#version 300 es
 precision highp float;
 // VRFS_BOOT sets this to 0: sky and plain ground only, which compiles fast enough to show
@@ -2892,12 +2924,22 @@ void main(){
     else if(kBest>3.5) albedo=vec3(0.74,0.71,0.66);
     else if(kBest>2.5){
       // Glacier: white snow on the flats, blue ice on the cliffs, banded by its layers.
-      // Layers are hBest*0.04 thick, warped, and only some of them are deep blue.
-      float sp=hBest*0.04, lay=pBest.z/sp+(vN(pBest.xy/90.0)-0.5)*2.0+vN(pBest.xy/25.0)*0.5;
+      // Layers are hBest*0.022 thick, warped, and dip gently across the massif. Each layer has
+      // one band of its own width, position, and colour (deep blue, turquoise, pale blue, grey
+      // debris, or near-white), with faint fine lines between. Far away it fades to the mean.
+      float sp=hBest*0.022;
+      vec2 dip=vec2(cos(qBest.x*0.013), sin(qBest.y*0.017))*0.03;
+      float lay=pBest.z/sp+(vN(pBest.xy/90.0)-0.5)*2.5+vN(pBest.xy/25.0)*0.6+dot(pBest.xy-qBest.xy, dip)/sp;
       float detail=1.0-smoothstep(1.0, 4.0, tBest*2.0*fy/res.y/max(sp, 1.0));
-      float band=fract(lay), blue=step(0.45, h12(vec2(floor(lay), 3.7)));
-      float stripe=mix(0.25, blue*smoothstep(0.2, 0.35, band)*(1.0-smoothstep(0.65, 0.85, band)), detail);
-      vec3 face=mix(vec3(0.80, 0.89, 0.96), vec3(0.30, 0.56, 0.84), stripe*0.8);
+      float li=floor(lay), lf=fract(lay);
+      float r1=h12(vec2(li, 3.7)), r2=h12(vec2(li, 9.1)), r3=h12(vec2(li, 5.3));
+      float wd=mix(0.06, 0.85, r2*r2), ctr=mix(wd*0.5, 1.0-wd*0.5, r3);
+      float m=(1.0-smoothstep(wd*0.5-0.03, wd*0.5+0.03, abs(lf-ctr)))*mix(0.55, 0.95, fract(r1*7.3));
+      vec3 bc=r1<0.3?vec3(0.18, 0.42, 0.75):(r1<0.5?vec3(0.32, 0.66, 0.84):(r1<0.7?vec3(0.62, 0.80, 0.93):(r1<0.85?vec3(0.46, 0.53, 0.60):vec3(0.90, 0.95, 0.99))));
+      float thin=1.0-smoothstep(0.0, 0.05, abs(fract(lay*3.1+r3)-0.5));
+      vec3 base=vec3(0.80, 0.89, 0.96);
+      vec3 face=mix(base, bc, m)*(1.0-0.12*thin);
+      face=mix(mix(base, vec3(0.5, 0.68, 0.85), 0.3), face, detail);
       face*=0.92+0.16*vN(pBest.xy/6.0+pBest.z*0.3);
       albedo=mix(face, vec3(0.94, 0.96, 0.99), smoothstep(0.55, 0.85, nBest.z));
       emit=vec3(0.06, 0.13, 0.22)*(1.0-smoothstep(0.4, 0.8, nBest.z))*(0.42+0.58*sunMu);
@@ -3537,7 +3579,6 @@ function initVR(){
   // Only the boot sky program blocks. The full sky, hills, and clouds compile meanwhile and
   // take over when they're ready.
   const skyJob=glProgramAsync(gl, vs, VRFS);
-  const hitJob=glProgramAsync(gl, vs, HITFS);
   const cloudJobs=[CLOUDFS, COMPFS, TEMPFS, NOISEFS].map(src=>glProgramAsync(gl, vs, src));
   const fs=glShader(gl, gl.FRAGMENT_SHADER, VRFS_BOOT);
   if(!fs) return null;
@@ -3608,9 +3649,40 @@ function initVR(){
     skyUploaded=-1; // nr and na are set with the sky texture
     vrRestoreGL(gl); requestVR();
   });
-  whenLinked(gl, [hitJob], hp=>{ if(hp&&vrGL){ setupHitProg(gl, hp); vrRestoreGL(gl); requestVR(); } });
+  vrGL.vs=vs; vrGL.hits={}; vrGL.hitFbo=gl.createFramebuffer(); vrGL.hitFloat=!!gl.getExtension('EXT_color_buffer_float');
+  compileHit(gl, hitFlags(EP[dIdx].key));
   whenLinked(gl, cloudJobs, (cp, pp, tp, np)=>{ if(cp&&pp&&np&&vrGL){ setupCloudProgs(gl, cp, pp, tp, np); vrRestoreGL(gl); requestVR(); } });
   return gl;
+}
+// Which scenery an epoch's hit program needs: towns, trees, glaciers, as '0'/'1' digits.
+const hitFlagCache={};
+function hitFlags(key){
+  if(hitFlagCache[key]) return hitFlagCache[key];
+  const z=ZONES[key]||[], k=sceneFor(key).k, has=(...kinds)=>z.some(s=>kinds.includes(s[2]));
+  const f=(has('city', 'hood')?'1':'0')+(has('hood', 'wood', 'carb', 'dead')?'1':'0')+(Array.from(k).some(v=>v>2.5&&v<3.5)?'1':'0');
+  return hitFlagCache[key]=f;
+}
+// Compile the hit program for these flags in the background. Once the current epoch's program
+// is ready, the other epochs' variants compile one at a time, so switching later is instant.
+function compileHit(gl, flags){
+  if(vrGL.hits[flags]) return;
+  vrGL.hits[flags]='pending';
+  whenLinked(gl, [glProgramAsync(gl, vrGL.vs, hitVariant(flags))], hp=>{
+    if(!vrGL) return;
+    if(!hp){ vrGL.hits[flags]='failed'; return; }
+    vrGL.hits[flags]={prog:hp, hu:setupHitProg(gl, hp)};
+    vrRestoreGL(gl); requestVR();
+    if(Object.values(vrGL.hits).includes('pending')) return;
+    const next=EP.map(e=>hitFlags(e.key)).find(f=>!vrGL.hits[f]);
+    if(next) compileHit(gl, next);
+  });
+}
+// Point paintVR at the current epoch's hit program, or keep the last one until it's ready.
+function pickHit(gl){
+  const f=hitFlags(EP[dIdx].key);
+  compileHit(gl, f);
+  const v=vrGL.hits[f];
+  if(v && v.prog){ vrGL.hitProg=v.prog; vrGL.hu=v.hu; }
 }
 function setupHitProg(gl, hp){
   const hu={}; for(const n of ['res','yaw','pitch','fov','eye','showScn','sunAz','sunEl']) hu[n]=gl.getUniformLocation(hp, n);
@@ -3623,7 +3695,7 @@ function setupHitProg(gl, hp){
   gl.uniform1f(gl.getUniformLocation(hp,'scnCount'), 12);
   gl.uniform1f(gl.getUniformLocation(hp,'hillN'), 8);
   gl.uniform1i(gl.getUniformLocation(hp,'loopPad'), 0);
-  vrGL.hitProg=hp; vrGL.hu=hu; vrGL.hitFbo=gl.createFramebuffer(); vrGL.hitFloat=!!gl.getExtension('EXT_color_buffer_float');
+  return hu;
 }
 function setupCloudProgs(gl, cp, pp, tp, np){
   const vols=makeCloudVolumes(gl, np);
@@ -3902,6 +3974,7 @@ function paintVR(){
     gl.uniform1f(u.cloudCov, vrGL.field.cov); gl.uniform1f(u.cloudScale, vrGL.field.scale); gl.uniform1f(u.cloudDrift, cloudScroll); gl.uniform1f(u.cloudOn, vrClouds?1:0);
     gl.activeTexture(gl.TEXTURE0);
   }
+  pickHit(gl);
   if(vrGL.hitProg&&vrScenery){
     ensureHitTarget(c.width, c.height);
     if(vrGL.hitMRT){
@@ -4196,7 +4269,7 @@ function applyLink(){
   return q.has('vr');
 }
 const vrTouch=window.matchMedia('(hover: none) and (pointer: coarse), (max-width: 820px) and (pointer: coarse)').matches;
-let musicMuted=vrTouch, music=null;
+let musicMuted=true, music=null; // off until the viewer turns it on with m
 const MUSIC_BPM=74;
 const MUSIC_CHORDS=[[50,57,64,69],[55,62,67,71],[47,54,62,66],[52,57,64,69]];
 const MUSIC_LEAD=[74,0,0,78,0,76,0,0,81,0,78,0,76,0,0,74,0,0,83,0,81,0,78,0,76,0,0,74,0,0,0,0];

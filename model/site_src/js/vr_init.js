@@ -57,7 +57,6 @@ function initVR(){
   // Only the boot sky program blocks. The full sky, hills, and clouds compile meanwhile and
   // take over when they're ready.
   const skyJob=glProgramAsync(gl, vs, VRFS);
-  const hitJob=glProgramAsync(gl, vs, HITFS);
   const cloudJobs=[CLOUDFS, COMPFS, TEMPFS, NOISEFS].map(src=>glProgramAsync(gl, vs, src));
   const fs=glShader(gl, gl.FRAGMENT_SHADER, VRFS_BOOT);
   if(!fs) return null;
@@ -128,9 +127,40 @@ function initVR(){
     skyUploaded=-1; // nr and na are set with the sky texture
     vrRestoreGL(gl); requestVR();
   });
-  whenLinked(gl, [hitJob], hp=>{ if(hp&&vrGL){ setupHitProg(gl, hp); vrRestoreGL(gl); requestVR(); } });
+  vrGL.vs=vs; vrGL.hits={}; vrGL.hitFbo=gl.createFramebuffer(); vrGL.hitFloat=!!gl.getExtension('EXT_color_buffer_float');
+  compileHit(gl, hitFlags(EP[dIdx].key));
   whenLinked(gl, cloudJobs, (cp, pp, tp, np)=>{ if(cp&&pp&&np&&vrGL){ setupCloudProgs(gl, cp, pp, tp, np); vrRestoreGL(gl); requestVR(); } });
   return gl;
+}
+// Which scenery an epoch's hit program needs: towns, trees, glaciers, as '0'/'1' digits.
+const hitFlagCache={};
+function hitFlags(key){
+  if(hitFlagCache[key]) return hitFlagCache[key];
+  const z=ZONES[key]||[], k=sceneFor(key).k, has=(...kinds)=>z.some(s=>kinds.includes(s[2]));
+  const f=(has('city', 'hood')?'1':'0')+(has('hood', 'wood', 'carb', 'dead')?'1':'0')+(Array.from(k).some(v=>v>2.5&&v<3.5)?'1':'0');
+  return hitFlagCache[key]=f;
+}
+// Compile the hit program for these flags in the background. Once the current epoch's program
+// is ready, the other epochs' variants compile one at a time, so switching later is instant.
+function compileHit(gl, flags){
+  if(vrGL.hits[flags]) return;
+  vrGL.hits[flags]='pending';
+  whenLinked(gl, [glProgramAsync(gl, vrGL.vs, hitVariant(flags))], hp=>{
+    if(!vrGL) return;
+    if(!hp){ vrGL.hits[flags]='failed'; return; }
+    vrGL.hits[flags]={prog:hp, hu:setupHitProg(gl, hp)};
+    vrRestoreGL(gl); requestVR();
+    if(Object.values(vrGL.hits).includes('pending')) return;
+    const next=EP.map(e=>hitFlags(e.key)).find(f=>!vrGL.hits[f]);
+    if(next) compileHit(gl, next);
+  });
+}
+// Point paintVR at the current epoch's hit program, or keep the last one until it's ready.
+function pickHit(gl){
+  const f=hitFlags(EP[dIdx].key);
+  compileHit(gl, f);
+  const v=vrGL.hits[f];
+  if(v && v.prog){ vrGL.hitProg=v.prog; vrGL.hu=v.hu; }
 }
 function setupHitProg(gl, hp){
   const hu={}; for(const n of ['res','yaw','pitch','fov','eye','showScn','sunAz','sunEl']) hu[n]=gl.getUniformLocation(hp, n);
@@ -143,7 +173,7 @@ function setupHitProg(gl, hp){
   gl.uniform1f(gl.getUniformLocation(hp,'scnCount'), 12);
   gl.uniform1f(gl.getUniformLocation(hp,'hillN'), 8);
   gl.uniform1i(gl.getUniformLocation(hp,'loopPad'), 0);
-  vrGL.hitProg=hp; vrGL.hu=hu; vrGL.hitFbo=gl.createFramebuffer(); vrGL.hitFloat=!!gl.getExtension('EXT_color_buffer_float');
+  return hu;
 }
 function setupCloudProgs(gl, cp, pp, tp, np){
   const vols=makeCloudVolumes(gl, np);

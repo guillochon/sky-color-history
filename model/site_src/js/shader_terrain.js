@@ -67,25 +67,32 @@ float onePeak(vec2 p, vec2 c, float R, float H, float volc, float seed){
   }
   return max(prof, 0.0)*H;
 }
-// Ice plateaus with near-vertical cliffs between them. The tiers follow a noisy elevation
-// field, so their edges wander instead of ringing the centre.
+// Ice plateaus with cliffs between them. The tiers follow a noisy elevation field, so their
+// edges wander instead of ringing the centre. Each step gets its own height (0.4 to 1.6 of the
+// mean), and low-frequency noise varies each cliff from sheer to a steep ramp and each bench
+// from flat to sloping. The noise is kept smooth: high-frequency outlines make thin fins that
+// the march steps over.
 float glacierH(vec2 p, vec4 q){
   vec2 d=p-q.xy;
   float R=massifRad(q.z, 2.0), r=length(d);
   if(r>=R) return 0.0;
   float seed=texture(weather, q.xy*0.00041+0.37).r;
   float ang=atan(d.y, d.x);
-  float u=r/(R*(0.72+0.28*texture(weather, vec2(ang*0.48+seed*2.0, seed*3.1)).g));
-  u+=(texture(weather, d/(R*0.5)+seed).b-0.5)*0.16;
+  float u=r/(R*(0.74+0.26*texture(weather, vec2(ang*0.3+seed*2.0, seed*3.1)).g));
   if(u>=1.0) return 0.0;
-  float e=(1.0-u)*0.7+sqrt(1.0-u)*0.45*ridge(d/(R*0.45)+seed)+(1.0-u)*0.15*ridge(d/(R*0.18)+seed*2.0);
-  float tiers=3.0+floor(seed*2.99), s=e*tiers;
-  float prof=(floor(s)+smoothstep(0.0, 0.12, fract(s))+fract(s)*0.1)/(tiers+0.5);
-  prof*=smoothstep(0.0, 0.02, 1.0-u);
-  return prof*q.w;
+  vec2 w=d/R;
+  float n1=texture(weather, w*0.6+seed).b, n2=texture(weather, w*1.1+seed*1.7).a;
+  float e=(1.0-u)*0.75+sqrt(1.0-u)*0.35*ridge(w*0.9+seed)+(n1-0.5)*0.25;
+  float tiers=3.0+floor(seed*2.99), s=max(e*tiers+(n2-0.5)*1.6, 0.0), k=floor(s), f=fract(s);
+  float b0=k+0.6*(h12(vec2(k, seed*37.0))-0.5), b1=k+1.0+0.6*(h12(vec2(k+1.0, seed*37.0))-0.5);
+  float cliff=smoothstep(0.0, mix(0.04, 0.35, n1*n1), f);
+  float prof=(b0+(b1-b0)*mix(cliff, f, mix(0.0, 0.55, n2)))/(tiers+0.5);
+  return max(prof, 0.0)*smoothstep(0.0, 0.03, 1.0-u)*q.w;
 }
 float massifH(vec2 p, vec4 q, float volc){
+#if GLACIERS
   if(volc>1.5) return glacierH(p, q);
+#endif
   vec2 c=q.xy;
   float R=massifRad(q.z, volc), H=q.w;
   float s0=texture(weather, c*0.00041+0.13).r;
@@ -130,10 +137,11 @@ float marchMassif(vec3 ro, vec3 rd, vec4 q, float volc){
   if(span.x<0.0) return -1.0;
   float t0=span.x, t1=min(span.y, tPlane);
   if(t1<t0) return -1.0;
-  // 28 steps across the span, then 6 bisections once a step lands inside.
-  float dt=(t1-t0)/28.0, prev=t0, lo=t0, hi=t0;
+  // 28 steps across the span (64 for glaciers, whose cliffs are sharper), then 6 bisections
+  // once a step lands inside.
+  float nst=volc>1.5?64.0:28.0, dt=(t1-t0)/nst, prev=t0, lo=t0, hi=t0;
   int bis=-1;
-  for(int i=0;i<=34+loopPad;i++){
+  for(int i=0;i<=int(nst)+6+loopPad;i++){
     float t=bis<0?min(t0+dt*float(i), t1):0.5*(lo+hi);
     vec3 p=ro+rd*t;
     float h=massifH(p.xy, q, volc);

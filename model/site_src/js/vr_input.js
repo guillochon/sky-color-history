@@ -1,5 +1,5 @@
 const vrTouch=window.matchMedia('(hover: none) and (pointer: coarse), (max-width: 820px) and (pointer: coarse)').matches;
-let musicMuted=vrTouch, music=null;
+let musicMuted=true, music=null; // off until the viewer turns it on with m
 const MUSIC_BPM=74;
 const MUSIC_CHORDS=[[50,57,64,69],[55,62,67,71],[47,54,62,66],[52,57,64,69]];
 const MUSIC_LEAD=[74,0,0,78,0,76,0,0,81,0,78,0,76,0,0,74,0,0,83,0,81,0,78,0,76,0,0,74,0,0,0,0];

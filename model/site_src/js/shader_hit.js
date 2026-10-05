@@ -1,7 +1,18 @@
 // Mountains and hills are marched in this pass. Folding the same code into the
 // sky shader makes the driver take about fifteen seconds to link the program.
+// hitVariant() defines TOWNS, TREES, and GLACIERS for the current epoch, so its program
+// compiles only the scenery that epoch shows. The defaults here include everything.
 const HITFS=`#version 300 es
 precision highp float;
+#ifndef TOWNS
+#define TOWNS 1
+#endif
+#ifndef TREES
+#define TREES 1
+#endif
+#ifndef GLACIERS
+#define GLACIERS 1
+#endif
 uniform sampler2D weather;
 uniform vec2 res;
 uniform float yaw,pitch,fov,showScn,sunAz,sunEl;
@@ -230,6 +241,7 @@ float marchTown(vec3 ro, vec3 rd, float tMax, vec4 tw, out vec3 nOut, out float 
     if(lotOcc(g, tw, cell)>0.5){
       float best=-1.0;
       bool tree=false; vec2 tc; float th, trc, tsty;
+#if TOWNS
       if(ty<1.5){
         vec3 n; float a, s;
         float t=towerT(ro, rd, g, tw, n, a, s);
@@ -239,13 +251,19 @@ float marchTown(vec3 ro, vec3 rd, float tMax, vec4 tw, out vec3 nOut, out float 
         houseLot(g, mn, w, swap, eave, slope);
         float t=houseT(ro, rd, mn, w, swap, eave, slope, n);
         if(t>0.0){ best=t; nOut=n; kOut=7.0; aOut=eave; sOut=h12(g+vec2(5.3, 1.7)); }
+#if TREES
         tree=yardTree(g, mn, w, tc, th, trc, tsty);
-      }else tree=forestTree(g, ty, tc, th, trc, tsty);
+#endif
+      }
+#endif
+#if TREES
+      if(ty>2.5) tree=forestTree(g, ty, tc, th, trc, tsty);
       if(tree){
         vec3 n; float part, seed=h12(g+vec2(3.3, 7.1));
         float t=treeT(ro, rd, tc, th, trc, tsty, seed, n, part);
         if(t>0.0 && (best<0.0 || t<best)){ best=t; nOut=n; kOut=8.0; aOut=tsty*2.0+part; sOut=seed; }
       }
+#endif
       if(best>0.0 && best<tMax) return best;
     }
     if(min(tx, ty2)>t1) break;
@@ -330,11 +348,13 @@ void main(){
   if(showScn>0.5 && rd.z<0.6){
     float cap=min(tBest, tGround);
     if(tHill>0.0) cap=min(cap, tHill);
+#if TOWNS || TREES
     for(int i=0;i<int(townN)+loopPad;i++){
       vec3 n; float k, a, s;
       float t=marchTown(ro, rd, cap, town[i], n, k, a, s);
       if(t>0.0 && t<cap){ cap=t; tTown=t; nTown=n; kTown=k; aTown=a; sTown=s; }
     }
+#endif
   }
   if(tTown>0.0){
     hitInfo=vec4(tTown, kTown, 1.0, aTown);
@@ -369,3 +389,7 @@ void main(){
   }
 }
 `;
+// flags is a string of three digits: towns, trees, glaciers.
+function hitVariant(flags){
+  return HITFS.replace('precision highp float;', 'precision highp float;\n#define TOWNS '+flags[0]+'\n#define TREES '+flags[1]+'\n#define GLACIERS '+flags[2]);
+}

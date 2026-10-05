@@ -311,12 +311,22 @@ void main(){
     else if(kBest>3.5) albedo=vec3(0.74,0.71,0.66);
     else if(kBest>2.5){
       // Glacier: white snow on the flats, blue ice on the cliffs, banded by its layers.
-      // Layers are hBest*0.04 thick, warped, and only some of them are deep blue.
-      float sp=hBest*0.04, lay=pBest.z/sp+(vN(pBest.xy/90.0)-0.5)*2.0+vN(pBest.xy/25.0)*0.5;
+      // Layers are hBest*0.022 thick, warped, and dip gently across the massif. Each layer has
+      // one band of its own width, position, and colour (deep blue, turquoise, pale blue, grey
+      // debris, or near-white), with faint fine lines between. Far away it fades to the mean.
+      float sp=hBest*0.022;
+      vec2 dip=vec2(cos(qBest.x*0.013), sin(qBest.y*0.017))*0.03;
+      float lay=pBest.z/sp+(vN(pBest.xy/90.0)-0.5)*2.5+vN(pBest.xy/25.0)*0.6+dot(pBest.xy-qBest.xy, dip)/sp;
       float detail=1.0-smoothstep(1.0, 4.0, tBest*2.0*fy/res.y/max(sp, 1.0));
-      float band=fract(lay), blue=step(0.45, h12(vec2(floor(lay), 3.7)));
-      float stripe=mix(0.25, blue*smoothstep(0.2, 0.35, band)*(1.0-smoothstep(0.65, 0.85, band)), detail);
-      vec3 face=mix(vec3(0.80, 0.89, 0.96), vec3(0.30, 0.56, 0.84), stripe*0.8);
+      float li=floor(lay), lf=fract(lay);
+      float r1=h12(vec2(li, 3.7)), r2=h12(vec2(li, 9.1)), r3=h12(vec2(li, 5.3));
+      float wd=mix(0.06, 0.85, r2*r2), ctr=mix(wd*0.5, 1.0-wd*0.5, r3);
+      float m=(1.0-smoothstep(wd*0.5-0.03, wd*0.5+0.03, abs(lf-ctr)))*mix(0.55, 0.95, fract(r1*7.3));
+      vec3 bc=r1<0.3?vec3(0.18, 0.42, 0.75):(r1<0.5?vec3(0.32, 0.66, 0.84):(r1<0.7?vec3(0.62, 0.80, 0.93):(r1<0.85?vec3(0.46, 0.53, 0.60):vec3(0.90, 0.95, 0.99))));
+      float thin=1.0-smoothstep(0.0, 0.05, abs(fract(lay*3.1+r3)-0.5));
+      vec3 base=vec3(0.80, 0.89, 0.96);
+      vec3 face=mix(base, bc, m)*(1.0-0.12*thin);
+      face=mix(mix(base, vec3(0.5, 0.68, 0.85), 0.3), face, detail);
       face*=0.92+0.16*vN(pBest.xy/6.0+pBest.z*0.3);
       albedo=mix(face, vec3(0.94, 0.96, 0.99), smoothstep(0.55, 0.85, nBest.z));
       emit=vec3(0.06, 0.13, 0.22)*(1.0-smoothstep(0.4, 0.8, nBest.z))*(0.42+0.58*sunMu);

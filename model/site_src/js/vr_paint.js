@@ -241,6 +241,7 @@ function paintVR(){
     gl.uniform1f(u.cloudCov, vrGL.field.cov); gl.uniform1f(u.cloudScale, vrGL.field.scale); gl.uniform1f(u.cloudDrift, cloudScroll); gl.uniform1f(u.cloudOn, vrClouds?1:0);
     gl.activeTexture(gl.TEXTURE0);
   }
+  pickHit(gl);
   if(vrGL.hitProg&&vrScenery){
     ensureHitTarget(c.width, c.height);
     if(vrGL.hitMRT){
