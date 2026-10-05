@@ -1,15 +1,17 @@
 import json
-D = json.load(open('/home/claude/skycolors.json'))
-LIMB = json.load(open('/home/claude/limb_all.json'))
-DAY = json.load(open('/home/claude/daycycle.json'))
+from pathlib import Path
+HERE = Path(__file__).resolve().parent
+D = json.load(open(HERE / 'skycolors.json', encoding='utf-8'))
+LIMB = json.load(open(HERE / 'limb_all.json', encoding='utf-8'))
+DAY = json.load(open(HERE / 'daycycle.json', encoding='utf-8'))
 import io, contextlib
-ns = {}
+ns = {'__file__': str(HERE / 'gen_report.py')}
 with contextlib.redirect_stdout(io.StringIO()):
-    exec(open('/home/claude/gen_report.py').read(), ns)
+    exec((HERE / 'gen_report.py').read_text(encoding='utf-8'), ns)
 PROSE = ns['PROSE']
-order = ['hadean44','hadean40','archean38','archean27thin','archean27','archean27vthick','proterozoic22','snowball07','carbon30','kpg66','volcanic','modern','modernpoll']
-ages = {'hadean44':'4.4 Ga','hadean40':'4.0 Ga','archean38':'3.8 Ga','archean27thin':'2.7 Ga','archean27':'2.7 Ga','archean27vthick':'2.7 Ga','proterozoic22':'2.2 Ga','snowball07':'700 Ma','carbon30':'300 Ma','kpg66':'66 Ma','volcanic':'1815 CE','modern':'Today','modernpoll':'Today'}
-short = {'hadean44':'Early Hadean','hadean40':'Late Hadean','archean38':'Early Archean','archean27thin':'Thin haze','archean27':'Thick haze','archean27vthick':'Very thick haze','proterozoic22':'Post-oxidation','snowball07':'Snowball Earth','carbon30':'Carboniferous','kpg66':'Impact winter','volcanic':'Volcanic year','modern':'Clean air','modernpoll':'Polluted city'}
+order = ['hadean44','hadean40','archean38','archean27thin','archean27','archean27vthick','proterozoic22','snowball07','carbon30','kpg66','volcanic','modern','modernpoll','ozonehole']
+ages = {'hadean44':'4.4 Ga','hadean40':'4.0 Ga','archean38':'3.8 Ga','archean27thin':'2.7 Ga','archean27':'2.7 Ga','archean27vthick':'2.7 Ga','proterozoic22':'2.2 Ga','snowball07':'700 Ma','carbon30':'300 Ma','kpg66':'66 Ma','volcanic':'1815 CE','modern':'Today','modernpoll':'Today','ozonehole':'1980–2000'}
+short = {'hadean44':'Early Hadean','hadean40':'Late Hadean','archean38':'Early Archean','archean27thin':'Thin haze','archean27':'Thick haze','archean27vthick':'Very thick haze','proterozoic22':'Post-oxidation','snowball07':'Snowball Earth','carbon30':'Carboniferous','kpg66':'Impact winter','volcanic':'Volcanic year','modern':'Clean air','modernpoll':'Polluted city','ozonehole':'Ozone hole'}
 byk = {r['key']: r for r in D}
 EP = []
 for k in order:
@@ -140,7 +142,7 @@ button.tick.on{background:none;color:var(--ink)}
 <div class="row">
  <div>
   <div class="stage" id="gstage"><div class="tip" id="gtip"></div><canvas id="globe" width="720" height="720" aria-label="Volumetric rendering of Earth's atmosphere for the selected epoch"></canvas></div>
-  <input id="tslider" type="range" min="0" max="12" step="0.01" value="11" aria-label="Epoch">
+  <input id="tslider" type="range" min="0" max="EPOCH_MAX" step="0.01" value="11" aria-label="Epoch">
   <div class="track" id="ttrack"></div>
   <div class="controls"><button id="tplay" aria-pressed="false">Play</button><span class="hint">or drag the slider; ← → keys step</span></div>
  </div>
@@ -291,7 +293,8 @@ const WIKI={
   kpg66:['Cretaceous–Paleogene extinction event','https://en.wikipedia.org/wiki/Cretaceous–Paleogene_extinction_event'],
   volcanic:['Year Without a Summer','https://en.wikipedia.org/wiki/Year_Without_a_Summer'],
   modern:['Holocene','https://en.wikipedia.org/wiki/Holocene'],
-  modernpoll:['Air pollution','https://en.wikipedia.org/wiki/Air_pollution']
+  modernpoll:['Air pollution','https://en.wikipedia.org/wiki/Air_pollution'],
+  ozonehole:['Ozone depletion','https://en.wikipedia.org/wiki/Ozone_depletion']
 };
 function showEpoch(pos){
   tPos=pos; drawGlobeAt(pos);
@@ -526,7 +529,7 @@ function apparentEl(h){ if(h>80) return h; const u=h+10.3/(h+5.11); if(u<0.25) r
 // present distance, from Eulenfeld & Heubeck 2023, JGR Planets. Older ages
 // extend the long-term drift and stay beyond 30 Earth radii.
 const MOON_RE={
-  modern:60.14, modernpoll:60.14, volcanic:60.14,
+  modern:60.14, modernpoll:60.14, ozonehole:60.14, volcanic:60.14,
   kpg66:59.93, carbon30:58.56, snowball07:57.71,
   proterozoic22:50.98, archean27thin:47.60, archean27:47.60, archean27vthick:47.60,
   archean38:40.4, hadean40:39.8, hadean44:38.7
@@ -1914,7 +1917,7 @@ const LAND={ // stand-in surface color, not from the radiative-transfer model
   hadean44:[.18,.12,.08], hadean40:[.16,.12,.08], archean38:[.15,.13,.10],
   archean27thin:[.20,.16,.11], archean27:[.22,.16,.10], archean27vthick:[.24,.15,.09],
   proterozoic22:[.16,.18,.11], snowball07:[.78,.82,.86], carbon30:[.12,.22,.08],
-  kpg66:[.17,.15,.13], volcanic:[.18,.16,.14], modern:[.15,.22,.09], modernpoll:[.17,.18,.11]
+  kpg66:[.17,.15,.13], volcanic:[.18,.16,.14], modern:[.15,.22,.09], modernpoll:[.17,.18,.11], ozonehole:[.15,.22,.09]
 };
 let skyNow=null, skyGen=0, skyUploaded=-1, vrNote='', vrOn=false, vrYaw=0, vrPitch=8, vrX=0, vrY=0, vrScenery=true, vrClouds=true, cloudScroll=0, cloudMinPrev=null, vrRelock=false, vrGL=null, vrRAF=0, vrWalk=0, vrWalkStamp=0, vrNav=false, vrLinkKey='';
 const vrHeld=new Set();
@@ -2607,7 +2610,8 @@ const CLOUD_ERA={
   kpg66:{cov:0.08,type:0.02,base:2200,top:0.15,cirrus:0.05},
   volcanic:{cov:0.52,type:0.22,base:1700,top:0.40,cirrus:0.70},
   modern:{cov:0.50,type:0.50,base:1600,top:0.55,cirrus:0.55},
-  modernpoll:{cov:0.56,type:0.42,base:1450,top:0.50,cirrus:0.40}
+  modernpoll:{cov:0.56,type:0.42,base:1450,top:0.50,cirrus:0.40},
+  ozonehole:{cov:0.50,type:0.50,base:1600,top:0.55,cirrus:0.55}
 };
 function cloudField(key){
   const e=CLOUD_ERA[key]||CLOUD_ERA.modern;
@@ -3353,6 +3357,6 @@ refreshGlobeTip=colorTip(globe, document.getElementById('gtip'), (x,y)=>{ const 
 refreshDomeTip=colorTip(dome, document.getElementById('dtip'), (x,y)=>{ const r=Math.hypot(x-dome.width/2,y-dome.height/2); return r<dome.width*0.46; });
 </script>
 </body></html>'''
-html = html.replace('__EP__', json.dumps(EP, separators=(',',':'))).replace('__DAY__', json.dumps(DAY, separators=(',',':'))).replace('__YREF__', repr(YREF))
-open('/mnt/user-data/outputs/sky-through-time.html','w').write(html)
+html = html.replace('__EP__', json.dumps(EP, separators=(',',':'))).replace('__DAY__', json.dumps(DAY, separators=(',',':'))).replace('__YREF__', repr(YREF)).replace('EPOCH_MAX', str(len(order)-1))
+open(HERE.parent / 'site' / 'index.html', 'w', encoding='utf-8').write(html)
 print(len(html)/1e6, 'MB')

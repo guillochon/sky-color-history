@@ -1,11 +1,12 @@
 import json, re, html, os, io, contextlib
-os.chdir('/home/claude')
-ns = {}
+from pathlib import Path
+ROOT = Path(__file__).resolve().parent
+ns = {'__file__': str(ROOT / 'gen_report.py')}
 with contextlib.redirect_stdout(io.StringIO()):
-    exec(open('gen_report.py').read(), ns)
+    exec((ROOT / 'gen_report.py').read_text(encoding='utf-8'), ns)
 PROSE, LIMB_CAP, order, ages = ns['PROSE'], ns['LIMB_CAP'], ns['order'], ns['ages']
-D = json.load(open('skycolors.json')); byk = {r['key']: r for r in D}
-L = '/home/claude/latex'
+D = json.load(open(ROOT / 'skycolors.json', encoding='utf-8')); byk = {r['key']: r for r in D}
+L = str(ROOT.parent / 'latex')
 
 def tex(s):
     s = html.unescape(s)
@@ -135,7 +136,7 @@ main = r"""\documentclass[9pt,twocolumn]{extarticle}
 \footnotesize
 \textbf{1.} Under the 30-bar CO$_2$ atmosphere of the early Hadean the sky was a shadowless peach-white glow with no visible Sun.\\
 \textbf{2.} During the hazy Neoarchean the whole dome was cream to apricot, with almost no difference between zenith and horizon.\\
-\textbf{3.} Before the Great Oxidation Event there was no ozone, so every twilight ended with a cream-colored, not blue, zenith. A blue dusk is an optical fingerprint of oxygen.\\
+\textbf{3.} Before the Great Oxidation Event there was no ozone, so every twilight ended in a cream zenith. The first ozone layer turns that zenith pale blue; the deep blue dusk needs a near-modern column.\\
 \textbf{4.} Snowball Earth had the bluest sky in Earth's history; the K--Pg impact winter had no sunsets at all.\\
 \textbf{5.} The zenith-to-horizon color gradient is the single best diagnostic of an atmosphere's state: largest in clean air, gone under haze or soot, reversed under volcanic sulfate.
 \end{tcolorbox}
@@ -245,6 +246,8 @@ bib = r"""@article{arney2016, author={Arney, Giada and Domagal-Goldman, Shawn D.
 @article{hernandez1999, author={Hern{\'a}ndez-Andr{\'e}s, Javier and Lee, Raymond L. and Romero, Javier}, title={Calculating correlated color temperatures across the entire gamut of daylight and skylight chromaticities}, journal={Applied Optics}, volume={38}, pages={5703--5709}, year={1999}}
 @article{shaw2026, author={Shaw, Joseph A. and others}, title={Solar eclipse sky brightness and color}, journal={Applied Optics}, year={2026}}
 @article{zhu2020, author={Zhu, Yunqian and others}, title={Persisting volcanic ash particles impact stratospheric {SO}$_2$ lifetime and aerosol optical properties}, journal={Nature Communications}, year={2020}}
+@article{serdyuchenko2014, author={Serdyuchenko, Anna and Gorshelev, Victor and Weber, Mark and Burrows, John P.}, title={High spectral resolution ozone absorption cross-sections -- {Part} 2: Temperature dependence}, journal={Atmospheric Measurement Techniques}, volume={7}, pages={625--636}, year={2014}}
+@article{cooke2021, author={Cooke, Gregory J. and Marsh, Daniel R. and Walsh, Catherine and Black, Benjamin and Lamarque, Jean-Francois}, title={A revised lower estimate of ozone columns during {Earth}'s oxygenated history}, journal={Royal Society Open Science}, volume={9}, pages={211165}, year={2021}}
 @article{wyman2013, author={Wyman, Chris and Sloan, Peter-Pike and Shirley, Peter}, title={Simple analytic approximations to the {CIE} {XYZ} color matching functions}, journal={Journal of Computer Graphics Techniques}, volume={2}, pages={1--11}, year={2013}}
 """
 open(f'{L}/refs.bib', 'w').write(bib)

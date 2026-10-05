@@ -45,7 +45,7 @@
 \footnotesize
 \textbf{1.} Under the 30-bar CO$_2$ atmosphere of the early Hadean the sky was a shadowless peach-white glow with no visible Sun.\\
 \textbf{2.} During the hazy Neoarchean the whole dome was cream to apricot, with almost no difference between zenith and horizon.\\
-\textbf{3.} Before the Great Oxidation Event there was no ozone, so every twilight ended with a cream-colored, not blue, zenith. A blue dusk is an optical fingerprint of oxygen.\\
+\textbf{3.} Before the Great Oxidation Event there was no ozone, so every twilight ended in a cream zenith. The first ozone layer turns that zenith pale blue; the deep blue dusk needs a near-modern column.\\
 \textbf{4.} Snowball Earth had the bluest sky in Earth's history; the K--Pg impact winter had no sunsets at all.\\
 \textbf{5.} The zenith-to-horizon color gradient is the single best diagnostic of an atmosphere's state: largest in clean air, gone under haze or soot, reversed under volcanic sulfate.
 \end{tcolorbox}
@@ -54,7 +54,7 @@
 Not as such. A search of the Valency corpus (arXiv, PubMed, EarthArXiv and others) finds the two halves of the problem solved separately but never joined. On one side, atmospheric-optics work computes modern sky color rigorously: \citet{lynch2005} derive CIE chromaticities of the sky, Sun and distant objects from MODTRAN spectra; \citet{peyvandi2016} simulate 5.6 million daylight spectra with SBDART to map how aerosol and ozone shift sky color; \citet{lee2017} show with Monte Carlo simulation that vivid solar-horizon twilight colors need aerosol while the purest antisolar colors occur in a purely molecular atmosphere. On the other side, paleoatmosphere work constrains composition: \citet{catling2020} for the Archean (O$_2$ below $10^{-6}$ of present, CO$_2$ 10--2,500$\times$ modern, CH$_4$ $10^{2}$--$10^{4}\times$ modern), and \citet{arney2016}, \citet{mak2023} and \citet{goldblatt2024} for the organic-haze episodes. Arney's "Pale Orange Dot" computes what a hazy Archean Earth looks like \emph{from space}, as an exoplanet spectrum, and that is as close as the literature comes. Nobody has computed the view from the ground, or the horizon-versus-zenith, latitude, and sunset structure. So this report does.
 
 \section*{How the colors were computed}
-For each epoch the atmosphere is built from components with their own vertical profile and spectral optical depth: Rayleigh-scattering gas (N$_2$, O$_2$, CO$_2$, CH$_4$, H$_2$O in their epoch-appropriate partial pressures), ozone (Chappuis band), tropospheric aerosol, a stratospheric sulfate layer, a tholin-like fractal organic haze (strongly blue-absorbing, forward-scattering), and impact soot. Sky radiance is integrated numerically along each line of sight through a spherical-shell atmosphere, so grazing sunlight at twilight is handled properly, with multiple scattering and surface reflection added from a delta-Eddington two-stream solution. The young Sun is treated as a blackbody made fainter and slightly cooler following standard solar evolution: 5,560 K and 70\% of today's luminosity at 4.4 Ga, 5,620 K and 75\% at 3.8 Ga, 5,660 K and 80\% at 2.7 Ga, 5,700 K and 85\% at 2.2 Ga, 5,772 K today. The color effect is only $\sim$200 K, barely perceptible and far smaller than the atmospheric effects; the brightness effect is what makes the early skies dimmer. Spectra from 380--780 nm are converted to CIE XYZ and shown as sRGB. The model reproduces measured modern values (clear zenith 10,000--20,000 K, horizon 6,000--8,500 K, setting Sun $\sim$1,700 K, pink antisolar Belt of Venus) before being pointed backward.
+For each epoch the atmosphere is built from components with their own vertical profile and spectral optical depth: Rayleigh-scattering gas (N$_2$, O$_2$, CO$_2$, CH$_4$, H$_2$O in their epoch-appropriate partial pressures), ozone (the Chappuis cross section of Serdyuchenko et al. 2014 at 223 K, on a layer whose peak falls from 26 km at the equator to 18 km at the pole), tropospheric aerosol, a stratospheric sulfate layer, a tholin-like fractal organic haze (strongly blue-absorbing, forward-scattering), and impact soot. Sky radiance is integrated numerically along each line of sight through a spherical-shell atmosphere, so grazing sunlight at twilight is handled properly, with multiple scattering and surface reflection added from a delta-Eddington two-stream solution. The young Sun is treated as a blackbody made fainter and slightly cooler following standard solar evolution: 5,560 K and 70\% of today's luminosity at 4.4 Ga, 5,620 K and 75\% at 3.8 Ga, 5,660 K and 80\% at 2.7 Ga, 5,700 K and 85\% at 2.2 Ga, 5,772 K today. The color effect is only $\sim$200 K, barely perceptible and far smaller than the atmospheric effects; the brightness effect is what makes the early skies dimmer. Spectra from 380--780 nm are converted to CIE XYZ and shown as sRGB. The model reproduces measured modern values (clear zenith 10,000--20,000 K, horizon 6,000--8,500 K, setting Sun $\sim$1,700 K, pink antisolar Belt of Venus) before being pointed backward.
 
 \textbf{The young Sun.} The Sun is treated as a blackbody whose effective temperature and luminosity follow standard solar-evolution tracks: 5,560\,K and 70\% of today's output at 4.4\,Ga, rising through 5,620\,K (75\%) at 3.8\,Ga, 5,660\,K (80\%) at 2.7\,Ga and 5,700\,K (85\%) at 2.2\,Ga to 5,772\,K today (Table~\ref{tab:epochs}). The color effect is small: a 5,560\,K Sun is only about 200\,K cooler in color temperature than the modern one, a difference that is barely perceptible side by side and is swamped by atmospheric effects ten to a hundred times larger. The brightness effect is not small, and is why the early-epoch skies are rendered dimmer. Fraunhofer lines and the young Sun's ultraviolet excess, which matter for haze photochemistry but not for visible color, are ignored.
 
@@ -92,12 +92,13 @@ Epoch & Noon zenith & Horizon & Sunset \\ \midrule
 4.0 Ga, 0.5-bar CO$_2$ & Pale milky blue, 10,500 K & Milk white & Deep red Sun; cream twilight (no ozone) \\
 3.8 Ga, clear Archean & Blue, 13,000 K & White & Modern-like, then yellow-beige twilight zenith \\
 2.7 Ga, thick haze & Cream-tan, 5,600 K & Cream-tan & Vermilion horizon, amber sky, long orange dusk \\
-2.2 Ga, post-GOE & Blue, 13,700 K & White & Blue twilight zenith returns \\
+2.2 Ga, post-GOE & Blue, 13,300 K & White & Pale blue-gray twilight zenith ($\sim$7,100 K); deep blue dusk comes later \\
 700 Ma, Snowball & Deep blue, 17,000 K & Blue-white, stays blue & Golden, pale \\
 300 Ma, 33\% O$_2$ & Blue, 13,600 K & White, slightly brighter & Modern-like; smoky more often \\
 66 Ma, impact winter & Dim amber-beige, 4,600 K & Beige & None; dome fades to brown \\
 1815, volcanic year & Milky blue-white, 9,300 K & Slightly bluer than zenith & Salmon Sun, pink-lavender afterglow \\
-Today, clean & Blue, 15,000 K & White, 8,400 K & Orange horizon, pink antisolar \\
+Today, clean & Blue, 15,000 K & White, 8,400 K & Orange horizon, pink antisolar; twilight zenith $\sim$12,500 K \\
+Ozone-hole spring & Blue, still & White & Pale blue dusk zenith, $\sim$7,800 K \\
 \bottomrule\end{tabularx}
 \end{table*}
 
@@ -112,7 +113,7 @@ Latitude enters through solar elevation and surface albedo. A high Sun lights th
 Three particle regimes appear in the record and they look different from one another. Non-absorbing sulfate high in the stratosphere (volcanic years) whitens the day sky and produces long, luminous pink and lavender twilights, because the layer is still sunlit after the ground is dark. Absorbing organic haze (Neoarchean) or soot (impact winter) removes blue outright, turning the dome tan or amber with almost no directional structure, and dims the surface by factors of 3--20. Boundary-layer pollution or dust brightens and grays the zenith, and buries the setting Sun in murk before it reaches the horizon. Tropospheric aerosol is also what makes sunset color vivid: the model confirms Lee \& Mollner's result that a purely molecular sky yields a pale, yellow-orange horizon while any turbidity deepens it to red.
 
 \subsection*{Sunsets and sunrises through time}
-The biggest surprise is ozone. Today the sky above a setting Sun grades from orange through pale yellow to a zenith that stays blue well into twilight; that persistent blue is not Rayleigh scattering but ozone absorption of yellow and orange light along the grazing path. Before the Great Oxidation Event there was no ozone, so every sunset for the first two billion years ended with the zenith fading through cream and beige to orange, and the sky never turned that deep twilight blue. The return of a blue dusk is, in this model, a direct optical consequence of oxygenation at $\sim$2.4--2.2 Ga. Beyond that: Hadean sunsets were not events at the horizon but a slow dimming of the whole glowing dome; hazy Archean sunsets were the longest and most saturated in Earth's history, vermilion at the horizon and amber overhead; Snowball sunsets were brief and golden; the sunsets of the impact winter did not exist as color at all; and the reddest, most theatrical skies of the Phanerozoic belong to volcanic years like 1815 and 1883.
+The biggest surprise is ozone. Today the sky above a setting Sun grades from orange through pale yellow to a zenith that stays blue well into twilight: about 12,500 K with the Sun 4$^\circ$ down. That persistent blue is the Chappuis band, ozone absorbing yellow and orange along the grazing path. The same modern sky with the ozone removed drops that zenith to cream, about 6,000 K. Before the Great Oxidation Event there was no ozone, so every sunset for the first two billion years ended with the zenith fading through cream and beige to orange. At $\sim$2.2 Ga a 66 DU column, the Cooke et al. (2021) global mean for 1\% of present oxygen, turns that cream zenith a pale blue-gray near 7,100 K. The deep twilight blue arrives later, once the column is near modern: the snowball sky, at their 10\% oxygen column of 169 DU, holds a dusk zenith near 10,800 K. The same thinning is visible in the ozone-hole years. A polar-spring column of 130 DU leaves the dusk zenith pale blue, near 7,800 K, against 12,500 K today. Beyond the ozone story: Hadean sunsets were not events at the horizon but a slow dimming of the whole glowing dome; hazy Archean sunsets were the longest and most saturated in Earth's history, vermilion at the horizon and amber overhead; Snowball sunsets were brief and golden; the sunsets of the impact winter did not exist as color at all; and the reddest, most theatrical skies of the Phanerozoic belong to volcanic years like 1815 and 1883.
 
 \section*{The atmosphere from space}
 To show latitude and altitude at once, these renderings look at Earth from space with the Sun behind the viewer at the equinox, so the solar zenith angle at every point equals its latitude (equator at the center line, poles at top and bottom). The shell around the disk is the atmosphere's limb: the color of light scattered toward the viewer along a tangent ray at each altitude, computed with the same model. The atmosphere is drawn 30 times too thick, so 100 km spans half an Earth radius; a real limb is a hairline. The disk shows the planet's reflected color over a dark ocean (over ice for Snowball Earth), with limb brightness compressed so faint upper layers remain visible.
@@ -204,15 +205,15 @@ At the upper end of plausible haze ($\tau\approx$1.5) the sky is a uniform satur
 
 \par\vspace{6pt}\noindent\begin{minipage}{\linewidth}
 {\normalsize\bfseries Paleoproterozoic, $\sim$2.2 Ga\par}
-{\small\itshape after the Great Oxidation Event: O$_2$ $\sim$1\% PAL, first ozone layer ($\sim$150 DU)\par}\vspace{3pt}
+{\small\itshape after the Great Oxidation Event: O$_2$ $\sim$1\% PAL, ozone column 66 DU\par}\vspace{3pt}
 \centering\includegraphics[width=\linewidth]{figures/sky_proterozoic22.png}
 \captionof{figure}{Paleoproterozoic, $\sim$2.2 Ga. Top: noon sky dome at the equator, mid-latitude and polar summer, zenith at top, horizon at bottom, Sun's disk in its own color. Below: sky from the solar horizon to the antisolar horizon with the Sun on the horizon and $4^\circ$ below it.}
 \end{minipage}\par\vspace{4pt}
-After the Great Oxidation Event a few percent of today's O$_2$ builds an ozone column of order 150 DU, about half the modern value. Noon skies are essentially modern blue. Twilight recovers its blue zenith, though a paler one than today's. (The pink antisolar arch, by contrast, needs no ozone: it is a Rayleigh effect and shows up faintly even in the Hadean model.) From here to the present, the daytime sky is blue everywhere; what changes is the aerosol load, the surface albedo, and the Sun's brightness.
+After the Great Oxidation Event, about 1\% of today's O$_2$ builds an ozone column of 66 DU, the Cooke et al. (2021) global mean for that oxygen level: about a fifth of a modern mid-latitude column, not the half that older estimates gave. Noon skies are already modern blue. Twilight is where the thin column shows. With the Sun 4$^\circ$ below the horizon the zenith leaves the cream of an ozone-free dusk ($\sim$6,000 K) and becomes a pale blue-gray ($\sim$7,100 K). It is not yet the deep blue of a 300 DU twilight ($\sim$12,500 K). That saturated blue dusk is in place once the column is near modern, as in the snowball sky at 169 DU. (The pink antisolar arch needs no ozone: it is a Rayleigh effect and shows up faintly even in the Hadean model.)
 
 \par\vspace{6pt}\noindent\begin{minipage}{\linewidth}
 {\normalsize\bfseries Snowball Earth, $\sim$700 Ma\par}
-{\small\itshape cold, dry, very clean air; ice/snow surface (albedo 0.75); some dust\par}\vspace{3pt}
+{\small\itshape cold, dry, very clean air; ice/snow surface (albedo 0.75); ozone 169 DU\par}\vspace{3pt}
 \centering\includegraphics[width=\linewidth]{figures/sky_snowball07.png}
 \captionof{figure}{Snowball Earth, $\sim$700 Ma. Top: noon sky dome at the equator, mid-latitude and polar summer, zenith at top, horizon at bottom, Sun's disk in its own color. Below: sky from the solar horizon to the antisolar horizon with the Sun on the horizon and $4^\circ$ below it.}
 \end{minipage}\par\vspace{4pt}
@@ -244,7 +245,7 @@ A Tambora-scale sulfate veil ($\tau\approx$0.4) is what most people picture as a
 
 \par\vspace{6pt}\noindent\begin{minipage}{\linewidth}
 {\normalsize\bfseries Modern, clean air\par}
-{\small\itshape aerosol optical depth 0.1, ozone 300 DU\par}\vspace{3pt}
+{\small\itshape aerosol optical depth 0.1; ozone 260/300/330 DU by latitude\par}\vspace{3pt}
 \centering\includegraphics[width=\linewidth]{figures/sky_modern.png}
 \captionof{figure}{Modern, clean air. Top: noon sky dome at the equator, mid-latitude and polar summer, zenith at top, horizon at bottom, Sun's disk in its own color. Below: sky from the solar horizon to the antisolar horizon with the Sun on the horizon and $4^\circ$ below it.}
 \end{minipage}\par\vspace{4pt}
@@ -257,6 +258,14 @@ Baseline. Equatorial zenith $\sim$9,000 K; mid-latitude $\sim$15,000 K; polar su
 \captionof{figure}{Modern, polluted megacity. Top: noon sky dome at the equator, mid-latitude and polar summer, zenith at top, horizon at bottom, Sun's disk in its own color. Below: sky from the solar horizon to the antisolar horizon with the Sun on the horizon and $4^\circ$ below it.}
 \end{minipage}\par\vspace{4pt}
 Aerosol optical depth 0.6 flattens the sky to a near-uniform pale gray-blue (6,500--8,300 K), brighter and whiter at the zenith than a clean sky, with the horizon slightly bluer than the zenith. The Sun disappears into gray murk well before it reaches the horizon.
+
+\par\vspace{6pt}\noindent\begin{minipage}{\linewidth}
+{\normalsize\bfseries Ozone-hole spring\par}
+{\small\itshape Antarctic spring in the ozone-hole years: column 130 DU\par}\vspace{3pt}
+\centering\includegraphics[width=\linewidth]{figures/sky_ozonehole.png}
+\captionof{figure}{Ozone-hole spring. Top: noon sky dome at the equator, mid-latitude and polar summer, zenith at top, horizon at bottom, Sun's disk in its own color. Below: sky from the solar horizon to the antisolar horizon with the Sun on the horizon and $4^\circ$ below it.}
+\end{minipage}\par\vspace{4pt}
+Antarctic spring in the ozone-hole years, with the column cut to 130 DU and the layer lowered toward 18 km. Noon stays blue. Twilight is where the hole shows: with the Sun 4$^\circ$ down the zenith is a pale blue ($\sim$7,800 K) instead of the deep blue ($\sim$12,500 K) of a 300 DU sky. It is the same direction as the thin post-oxidation column, and still well short of the cream ($\sim$6,000 K) of a sky with no ozone at all.
 
 
 \section*{Caveats}
@@ -274,11 +283,11 @@ Paleoatmospheric compositions carry order-of-magnitude uncertainty, and the haze
 \caption{CIE 1931 chromaticity $(x,y)$ and correlated color temperature of the noon zenith and horizon sky, and direct-Sun brightness relative to the modern equatorial Sun.}\\ \toprule
 Epoch & Latitude & Zenith $(x,y)$ & CCT (K) & Horizon $(x,y)$ & CCT (K) & Sun \\ \midrule \endfirsthead
 \toprule Epoch & Latitude & Zenith $(x,y)$ & CCT (K) & Horizon $(x,y)$ & CCT (K) & Sun \\ \midrule \endhead
-Early Hadean, $\sim$4.4 Ga & Equator & 0.421, 0.400 & 3,266 & 0.406, 0.400 & 3,556 & 0.0087 \\
+Early Hadean, $\sim$4.4 Ga & Equator & 0.421, 0.400 & 3,266 & 0.406, 0.400 & 3,556 & 0.0086 \\
 Early Hadean, $\sim$4.4 Ga & Mid-latitude & 0.418, 0.399 & 3,305 & 0.412, 0.400 & 3,443 & 0.0021 \\
 Early Hadean, $\sim$4.4 Ga & Polar summer & 0.399, 0.391 & 3,662 & 0.396, 0.392 & 3,719 & 1.4e-06 \\
 Late Hadean, $\sim$4.0 Ga & Equator & 0.303, 0.317 & 7,193 & 0.292, 0.302 & 8,328 & 0.63 \\
-Late Hadean, $\sim$4.0 Ga & Mid-latitude & 0.275, 0.288 & 10,537 & 0.294, 0.305 & 8,077 & 0.56 \\
+Late Hadean, $\sim$4.0 Ga & Mid-latitude & 0.275, 0.288 & 10,537 & 0.294, 0.305 & 8,077 & 0.55 \\
 Late Hadean, $\sim$4.0 Ga & Polar summer & 0.277, 0.296 & 9,830 & 0.309, 0.320 & 6,795 & 0.25 \\
 Early Archean, $\sim$3.8 Ga & Equator & 0.291, 0.303 & 8,340 & 0.299, 0.310 & 7,573 & 0.77 \\
 Early Archean, $\sim$3.8 Ga & Mid-latitude & 0.264, 0.274 & 13,112 & 0.301, 0.313 & 7,406 & 0.72 \\
@@ -292,27 +301,30 @@ Neoarchean, $\sim$2.7 Ga (thick haze) & Polar summer & 0.355, 0.377 & 4,743 & 0.
 Neoarchean, $\sim$2.7 Ga (very thick haze) & Equator & 0.386, 0.396 & 3,986 & 0.377, 0.396 & 4,217 & 0.19 \\
 Neoarchean, $\sim$2.7 Ga (very thick haze) & Mid-latitude & 0.393, 0.405 & 3,884 & 0.391, 0.406 & 3,943 & 0.1 \\
 Neoarchean, $\sim$2.7 Ga (very thick haze) & Polar summer & 0.429, 0.422 & 3,281 & 0.429, 0.423 & 3,289 & 0.004 \\
-Paleoproterozoic, $\sim$2.2 Ga & Equator & 0.289, 0.302 & 8,531 & 0.294, 0.305 & 8,039 & 0.87 \\
-Paleoproterozoic, $\sim$2.2 Ga & Mid-latitude & 0.262, 0.272 & 13,689 & 0.295, 0.306 & 7,925 & 0.8 \\
-Paleoproterozoic, $\sim$2.2 Ga & Polar summer & 0.252, 0.264 & 16,725 & 0.307, 0.320 & 6,891 & 0.5 \\
-Snowball Earth, $\sim$700 Ma & Equator & 0.287, 0.296 & 8,959 & 0.275, 0.286 & 10,618 & 0.99 \\
-Snowball Earth, $\sim$700 Ma & Mid-latitude & 0.253, 0.260 & 17,229 & 0.279, 0.292 & 9,831 & 0.92 \\
-Snowball Earth, $\sim$700 Ma & Polar summer & 0.245, 0.256 & 20,250 & 0.298, 0.316 & 7,515 & 0.61 \\
-Carboniferous, $\sim$300 Ma & Equator & 0.289, 0.303 & 8,505 & 0.286, 0.295 & 9,051 & 0.91 \\
-Carboniferous, $\sim$300 Ma & Mid-latitude & 0.262, 0.273 & 13,587 & 0.286, 0.296 & 8,988 & 0.82 \\
-Carboniferous, $\sim$300 Ma & Polar summer & 0.251, 0.266 & 16,490 & 0.293, 0.304 & 8,146 & 0.42 \\
-K-Pg impact winter, 66 Ma & Equator & 0.361, 0.368 & 4,520 & 0.342, 0.353 & 5,136 & 0.12 \\
-K-Pg impact winter, 66 Ma & Mid-latitude & 0.359, 0.367 & 4,578 & 0.350, 0.360 & 4,862 & 0.054 \\
-K-Pg impact winter, 66 Ma & Polar summer & 0.371, 0.374 & 4,240 & 0.365, 0.370 & 4,411 & 0.00039 \\
-Volcanic year (Tambora 1815 / Toba-lite) & Equator & 0.309, 0.324 & 6,769 & 0.281, 0.292 & 9,686 & 0.67 \\
-Volcanic year (Tambora 1815 / Toba-lite) & Mid-latitude & 0.283, 0.297 & 9,289 & 0.281, 0.293 & 9,627 & 0.53 \\
-Volcanic year (Tambora 1815 / Toba-lite) & Polar summer & 0.280, 0.298 & 9,529 & 0.285, 0.301 & 8,930 & 0.13 \\
-Modern, clean air & Equator & 0.286, 0.299 & 8,928 & 0.291, 0.301 & 8,437 & 1 \\
-Modern, clean air & Mid-latitude & 0.258, 0.267 & 14,948 & 0.291, 0.302 & 8,372 & 0.92 \\
-Modern, clean air & Polar summer & 0.247, 0.259 & 18,920 & 0.300, 0.313 & 7,431 & 0.54 \\
-Modern, polluted megacity & Equator & 0.313, 0.327 & 6,525 & 0.286, 0.298 & 8,978 & 0.6 \\
-Modern, polluted megacity & Mid-latitude & 0.292, 0.306 & 8,209 & 0.286, 0.299 & 8,893 & 0.46 \\
-Modern, polluted megacity & Polar summer & 0.290, 0.308 & 8,313 & 0.291, 0.308 & 8,195 & 0.082 \\
+Paleoproterozoic, $\sim$2.2 Ga & Equator & 0.290, 0.303 & 8,424 & 0.295, 0.306 & 7,928 & 0.87 \\
+Paleoproterozoic, $\sim$2.2 Ga & Mid-latitude & 0.264, 0.273 & 13,288 & 0.297, 0.308 & 7,780 & 0.81 \\
+Paleoproterozoic, $\sim$2.2 Ga & Polar summer & 0.255, 0.267 & 15,479 & 0.311, 0.323 & 6,643 & 0.51 \\
+Snowball Earth, $\sim$700 Ma & Equator & 0.289, 0.297 & 8,737 & 0.278, 0.288 & 10,229 & 0.99 \\
+Snowball Earth, $\sim$700 Ma & Mid-latitude & 0.256, 0.262 & 16,181 & 0.282, 0.294 & 9,498 & 0.93 \\
+Snowball Earth, $\sim$700 Ma & Polar summer & 0.249, 0.259 & 18,509 & 0.302, 0.319 & 7,234 & 0.62 \\
+Carboniferous, $\sim$300 Ma & Equator & 0.290, 0.303 & 8,421 & 0.287, 0.296 & 8,937 & 0.91 \\
+Carboniferous, $\sim$300 Ma & Mid-latitude & 0.262, 0.272 & 13,512 & 0.287, 0.296 & 8,930 & 0.82 \\
+Carboniferous, $\sim$300 Ma & Polar summer & 0.252, 0.264 & 16,735 & 0.293, 0.302 & 8,178 & 0.41 \\
+K-Pg impact winter, 66 Ma & Equator & 0.362, 0.369 & 4,496 & 0.343, 0.353 & 5,096 & 0.12 \\
+K-Pg impact winter, 66 Ma & Mid-latitude & 0.360, 0.367 & 4,558 & 0.350, 0.360 & 4,839 & 0.054 \\
+K-Pg impact winter, 66 Ma & Polar summer & 0.372, 0.374 & 4,223 & 0.365, 0.369 & 4,401 & 0.00038 \\
+Volcanic year (Tambora 1815 / Toba-lite) & Equator & 0.310, 0.324 & 6,720 & 0.282, 0.293 & 9,561 & 0.67 \\
+Volcanic year (Tambora 1815 / Toba-lite) & Mid-latitude & 0.283, 0.296 & 9,242 & 0.281, 0.293 & 9,587 & 0.53 \\
+Volcanic year (Tambora 1815 / Toba-lite) & Polar summer & 0.280, 0.296 & 9,537 & 0.285, 0.299 & 8,997 & 0.13 \\
+Modern, clean air & Equator & 0.287, 0.299 & 8,852 & 0.291, 0.301 & 8,414 & 1 \\
+Modern, clean air & Mid-latitude & 0.259, 0.267 & 14,903 & 0.291, 0.301 & 8,411 & 0.92 \\
+Modern, clean air & Polar summer & 0.247, 0.257 & 19,331 & 0.299, 0.310 & 7,549 & 0.53 \\
+Modern, polluted megacity & Equator & 0.313, 0.328 & 6,478 & 0.287, 0.298 & 8,877 & 0.6 \\
+Modern, polluted megacity & Mid-latitude & 0.292, 0.306 & 8,170 & 0.287, 0.299 & 8,854 & 0.45 \\
+Modern, polluted megacity & Polar summer & 0.290, 0.306 & 8,331 & 0.291, 0.306 & 8,227 & 0.08 \\
+Ozone-hole spring & Equator & 0.288, 0.300 & 8,694 & 0.293, 0.303 & 8,239 & 1 \\
+Ozone-hole spring & Mid-latitude & 0.261, 0.270 & 14,033 & 0.294, 0.304 & 8,093 & 0.94 \\
+Ozone-hole spring & Polar summer & 0.254, 0.265 & 16,117 & 0.307, 0.319 & 6,902 & 0.57 \\
 \bottomrule
 \end{longtable}
 \end{document}

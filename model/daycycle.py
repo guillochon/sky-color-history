@@ -12,7 +12,11 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from skymodel import spec_to_XYZ, make_atm
+from skymodel import spec_to_XYZ, make_atm, column_ozone, ozone_latitude
+
+# Bump when the ozone spectrum, profile, or columns change, so cached
+# day-cycle colors for oxygenated epochs are recomputed.
+OZONE_STAMP = 'serdyuchenko-223k-v1'
 
 src = (HERE / 'run_epochs.py').read_text(encoding='utf-8').split('LATS =')[0]
 ns = {}
@@ -28,11 +32,12 @@ ALB = {'Equator': 0.08, 'Mid-latitude': 0.18, 'Polar': 0.70}
 OUT = HERE / 'daycycle.json'
 
 
-def build(e, albedo):
+def build(e, albedo, place='Mid-latitude'):
     T, L = e['sun']
-    return make_atm(e['gas'], ozone_DU=e['ozone'], trop_aer=e['aer'], strat_sulf=e.get('sulf', 0),
+    return make_atm(e['gas'], ozone_DU=column_ozone(e, place), trop_aer=e['aer'], strat_sulf=e.get('sulf', 0),
                     haze550=e.get('haze', 0), soot=e.get('soot', 0), dust=e.get('dust', 0),
-                    albedo=e.get('albedo', albedo), sun_T=T, sun_L=L)
+                    albedo=e.get('albedo', albedo), sun_T=T, sun_L=L,
+                    ozone_lat=ozone_latitude(e, place), ozone_trop=e.get('trop_o3', 0.0))
 
 
 def pack(X):
@@ -62,7 +67,7 @@ def sample_dome(atm, sz, key=None):
 def compute_job(job):
     """One epoch, one surface, every missing solar zenith angle."""
     epoch, lname, alb, missing = job
-    atm = build(epoch, alb)
+    atm = build(epoch, alb, lname)
     t0 = time.perf_counter()
     got = {}
     for sz in missing:
@@ -74,21 +79,30 @@ def compute_job(job):
 def main():
     out = json.loads(OUT.read_text(encoding='utf-8')) if OUT.exists() else {
         'szas': [], 'vz': VZ, 'az': AZ, 'epochs': {}}
+    out.setdefault('epochs', {})
     old_sz = [int(z) for z in out.get('szas', [])]
-    missing = [z for z in SZAS if z not in old_sz]
-    print('have', len(old_sz), 'want', len(SZAS), 'missing', missing, flush=True)
-    if not missing and old_sz == SZAS:
+    missing_global = [z for z in SZAS if z not in old_sz]
+    stamp_ok = out.get('ozone_stamp') == OZONE_STAMP
+    existed = set(out['epochs'])
+    jobs = []
+    rebuild_keys = set()
+    for e in EPOCHS:
+        # Oxygenated epochs are stale when the ozone treatment changes.
+        # A new epoch, or one with no stored dome, is computed in full.
+        rebuild = (e['key'] not in existed) or (not stamp_ok and column_ozone(e, 'Mid-latitude') > 0)
+        if rebuild:
+            rebuild_keys.add(e['key'])
+        rec = out['epochs'].setdefault(e['key'], {})
+        for lname, alb in ALB.items():
+            lat = rec.setdefault(lname, {'dome': [], 'sun': []})
+            missing = list(SZAS) if rebuild or not lat.get('dome') else list(missing_global)
+            if missing:
+                jobs.append((e, lname, alb, missing))
+    print('have', len(old_sz), 'want', len(SZAS), 'rebuild', sorted(rebuild_keys),
+          'jobs', len(jobs), flush=True)
+    if not jobs and old_sz == SZAS and stamp_ok:
         print('already complete')
         return
-    jobs = []
-    for e in EPOCHS:
-        rec = out['epochs'].get(e['key'])
-        if rec is None:
-            raise SystemExit('daycycle.json has no epoch ' + e['key'])
-        for lname, alb in ALB.items():
-            if lname not in rec:
-                raise SystemExit(e['key'] + ' has no ' + lname)
-            jobs.append((e, lname, alb, missing))
     extra = {}
     # A handful of processes: each atmosphere is independent, and a single
     # twilight dome is the slow part.
@@ -100,17 +114,20 @@ def main():
         rec = out['epochs'][e['key']]
         for lname in ALB:
             lat = rec[lname]
-            by_dome = {z: lat['dome'][i] for i, z in enumerate(old_sz)}
-            by_sun = {z: lat['sun'][i] for i, z in enumerate(old_sz)}
-            for z in missing:
-                slot = extra[e['key']][lname][str(z)]
-                by_dome[z] = slot['dome']
-                by_sun[z] = slot['sun']
+            if e['key'] in rebuild_keys or not lat.get('dome'):
+                by_dome, by_sun = {}, {}
+            else:
+                by_dome = {z: lat['dome'][i] for i, z in enumerate(old_sz)}
+                by_sun = {z: lat['sun'][i] for i, z in enumerate(old_sz)}
+            for z, slot in extra.get(e['key'], {}).get(lname, {}).items():
+                by_dome[int(z)] = slot['dome']
+                by_sun[int(z)] = slot['sun']
             lat['dome'] = [by_dome[z] for z in SZAS]
             lat['sun'] = [by_sun[z] for z in SZAS]
     out['szas'] = SZAS
     out['vz'] = VZ
     out['az'] = AZ
+    out['ozone_stamp'] = OZONE_STAMP
     OUT.write_text(json.dumps(out, separators=(',', ':')), encoding='utf-8')
     print('wrote', OUT, 'n_sza', len(SZAS), flush=True)
 

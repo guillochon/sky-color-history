@@ -1,5 +1,11 @@
+from pathlib import Path
 from skymodel import *
 import json, numpy as np
+
+try:
+    HERE = Path(__file__).resolve().parent
+except NameError:
+    HERE = None
 
 EPOCHS = [
  dict(key='hadean44', name='Early Hadean, ~4.4 Ga', sub='post-magma-ocean CO2/steam atmosphere (~30 bar CO2)',
@@ -14,29 +20,48 @@ EPOCHS = [
       gas={'N2':0.8,'CO2':0.05,'CH4':0.005}, ozone=0, aer=(0.08,1.2,0.95,0.7), haze=0.6, sun=(5660,0.80)),
  dict(key='archean27vthick', name='Neoarchean, ~2.7 Ga (very thick haze)', sub='upper-end haze, tau(550nm)~1.5: CH4/CO2 well above 0.2',
       gas={'N2':0.8,'CO2':0.05,'CH4':0.01}, ozone=0, aer=(0.08,1.2,0.95,0.7), haze=1.5, sun=(5660,0.80)),
- dict(key='proterozoic22', name='Paleoproterozoic, ~2.2 Ga', sub='after the Great Oxidation Event: O2 ~1% PAL, first ozone layer (~150 DU)',
-      gas={'N2':0.8,'O2':0.002,'CO2':0.02}, ozone=150, aer=(0.1,1.3,0.93,0.7), sun=(5700,0.85)),
- dict(key='snowball07', name='Snowball Earth, ~700 Ma', sub='cold, dry, very clean air; ice/snow surface (albedo 0.75); some dust',
-      gas={'N2':0.78,'O2':0.02,'CO2':0.01}, ozone=250, aer=(0.02,1.3,0.95,0.7), dust=0.05, albedo=0.75, sun=(5750,0.94)),
+ dict(key='proterozoic22', name='Paleoproterozoic, ~2.2 Ga', sub='after the Great Oxidation Event: O2 ~1% PAL, ozone column 66 DU',
+      gas={'N2':0.8,'O2':0.002,'CO2':0.02}, ozone=66, aer=(0.1,1.3,0.93,0.7), sun=(5700,0.85),
+      note='Cooke et al. 2021 global-mean column at 1% of present O2'),
+ dict(key='snowball07', name='Snowball Earth, ~700 Ma', sub='cold, dry, very clean air; ice/snow surface (albedo 0.75); ozone 169 DU',
+      gas={'N2':0.78,'O2':0.02,'CO2':0.01}, ozone=169, aer=(0.02,1.3,0.95,0.7), dust=0.05, albedo=0.75, sun=(5750,0.94),
+      note='Cooke et al. 2021 global-mean column at 10% of present O2, nearest this epoch'),
  dict(key='carbon30', name='Carboniferous, ~300 Ma', sub='O2 ~30-35%; total pressure ~1.1 bar; wildfire smoke common',
-      gas={'N2':0.78,'O2':0.33,'Ar':0.01}, ozone=330, aer=(0.15,1.4,0.92,0.7), sun=(5765,0.975)),
+      gas={'N2':0.78,'O2':0.33,'Ar':0.01},
+      ozone={'Equator':280,'Mid-latitude':323,'Polar summer':355},
+      aer=(0.15,1.4,0.92,0.7), sun=(5765,0.975),
+      note='Cooke et al. 2021 Fig. 6: 150% PAL mean column ~300 DU vs pre-industrial 279 DU, scaled onto the modern latitude columns'),
  dict(key='kpg66', name='K-Pg impact winter, 66 Ma', sub='months after Chicxulub: stratospheric soot (tau~1.5) + sulfate (tau~0.5)',
-      gas={'N2':0.78,'O2':0.21,'Ar':0.01}, ozone=300, aer=(0.15,1.3,0.9,0.7), soot=1.5, sulf=0.5, sun=(5772,0.995)),
+      gas={'N2':0.78,'O2':0.21,'Ar':0.01},
+      ozone={'Equator':260,'Mid-latitude':300,'Polar summer':330},
+      aer=(0.15,1.3,0.9,0.7), soot=1.5, sulf=0.5, sun=(5772,0.995)),
  dict(key='volcanic', name='Volcanic year (Tambora 1815 / Toba-lite)', sub='stratospheric sulfate veil, tau(550nm)~0.4',
-      gas={'N2':0.78,'O2':0.21,'Ar':0.01}, ozone=300, aer=(0.1,1.3,0.92,0.7), sulf=0.4, sun=(5772,1.0)),
- dict(key='modern', name='Modern, clean air', sub='aerosol optical depth 0.1, ozone 300 DU',
-      gas={'N2':0.78,'O2':0.21,'Ar':0.01}, ozone=300, aer=(0.1,1.3,0.92,0.7), sun=(5772,1.0)),
+      gas={'N2':0.78,'O2':0.21,'Ar':0.01},
+      ozone={'Equator':260,'Mid-latitude':300,'Polar summer':330},
+      aer=(0.1,1.3,0.92,0.7), sulf=0.4, sun=(5772,1.0)),
+ dict(key='modern', name='Modern, clean air', sub='aerosol optical depth 0.1; ozone 260/300/330 DU by latitude',
+      gas={'N2':0.78,'O2':0.21,'Ar':0.01},
+      ozone={'Equator':260,'Mid-latitude':300,'Polar summer':330}, trop_o3=0.10,
+      aer=(0.1,1.3,0.92,0.7), sun=(5772,1.0),
+      note='Equatorial minimum, mid-latitude 300 DU, polar-summer 330 DU; a tenth of the column is tropospheric'),
  dict(key='modernpoll', name='Modern, polluted megacity', sub='aerosol optical depth 0.6, slightly absorbing',
-      gas={'N2':0.78,'O2':0.21,'Ar':0.01}, ozone=300, aer=(0.6,1.2,0.88,0.68), sun=(5772,1.0)),
+      gas={'N2':0.78,'O2':0.21,'Ar':0.01},
+      ozone={'Equator':260,'Mid-latitude':300,'Polar summer':330}, trop_o3=0.10,
+      aer=(0.6,1.2,0.88,0.68), sun=(5772,1.0)),
+ dict(key='ozonehole', name='Ozone-hole spring', sub='Antarctic spring in the ozone-hole years: column 130 DU',
+      gas={'N2':0.78,'O2':0.21,'Ar':0.01}, ozone=130, trop_o3=0.10, ozone_lat=75,
+      aer=(0.1,1.3,0.92,0.7), sun=(5772,1.0),
+      note='Polar-spring column in the 100-150 DU range of the Antarctic ozone hole; layer centered near 18 km'),
 ]
 
 LATS = [('Equator', 15, 0.08), ('Mid-latitude', 45, 0.18), ('Polar summer', 75, 0.70)]
 
-def build(e, albedo):
+def build(e, albedo, place='Mid-latitude'):
     T, L = e['sun']
-    return make_atm(e['gas'], ozone_DU=e['ozone'], trop_aer=e['aer'], strat_sulf=e.get('sulf',0),
+    return make_atm(e['gas'], ozone_DU=column_ozone(e, place), trop_aer=e['aer'], strat_sulf=e.get('sulf',0),
                     haze550=e.get('haze',0), soot=e.get('soot',0), dust=e.get('dust',0),
-                    albedo=e.get('albedo', albedo), sun_T=T, sun_L=L)
+                    albedo=e.get('albedo', albedo), sun_T=T, sun_L=L,
+                    ozone_lat=ozone_latitude(e, place), ozone_trop=e.get('trop_o3', 0.0))
 
 def col(XYZ, Yref):
     x, y = xy(XYZ)
@@ -47,7 +72,7 @@ out = []
 for e in EPOCHS:
     rec = dict(key=e['key'], name=e['name'], sub=e['sub'], note=e.get('note',''), lat={}, sunset={})
     for lname, sz, alb in LATS:
-        atm = build(e, alb)
+        atm = build(e, alb, lname)
         z = atm.sky_color(0, 0, sz)
         h = atm.sky_color(88, 90, sz)
         hs = atm.sky_color(88, 0, sz)
@@ -79,4 +104,4 @@ for e in EPOCHS:
     s = rec['sunset']
     print(f"  sunset: zen {s['zenith']['hex']} sol-hor {s['solar_horizon']['hex']} +15 {s['above_sun']['hex']} anti {s['anti_horizon']['hex']} sun {s['sun']['hex']} Ysun={s['sunY']:.2e}")
 
-json.dump(out, open('/home/claude/skycolors.json','w'), indent=1)
+json.dump(out, open(HERE / 'skycolors.json', 'w'), indent=1)

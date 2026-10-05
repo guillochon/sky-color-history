@@ -9,6 +9,7 @@ Paleo-sky color model.
 - Colors via CIE 1931 2deg CMF analytic fit (Wyman, Sloan & Shirley 2013),
   Bradford-free: we show raw sRGB (D65 white point) with per-scene exposure.
 """
+import math
 import numpy as np
 
 R_E = 6371.0  # km
@@ -103,11 +104,66 @@ def rayleigh_tau(gas_bars):
         tau += RAY_550_AIR * s * (29.0/M) * p
     return tau * L550**-4.05
 
+# Serdyuchenko, Gorshelev, Weber & Burrows (2014), 223 K, averaged in the
+# 10 nm bins of LAM. Source: IUP Serdyuchenko–Gorshelev table
+# (doi:10.5281/zenodo.5793207), column for 223 K. Units: cm^2 molecule^-1.
+# 300 DU gives optical depth 0.0405 at 600 nm. The Huggins tail on this grid
+# (380–420 nm) is optically thin even on a grazing path; the red wing past
+# 700 nm is the part the two-Gaussian fit was missing.
+_O3_SIGMA = np.array([
+    1.632243e-24, 3.546761e-24, 9.208098e-24, 2.018309e-23, 3.865861e-23,
+    6.814684e-23, 1.273508e-22, 1.669566e-22, 3.178670e-22, 3.689251e-22,
+    6.811045e-22, 7.733454e-22, 1.176413e-21, 1.531850e-21, 1.789431e-21,
+    2.538112e-21, 2.874170e-21, 3.276421e-21, 3.863603e-21, 4.563467e-21,
+    4.549562e-21, 4.423228e-21, 5.020834e-21, 4.698315e-21, 3.991310e-21,
+    3.489328e-21, 2.924044e-21, 2.437633e-21, 2.040905e-21, 1.649952e-21,
+    1.322613e-21, 1.075112e-21, 8.221933e-22, 6.909074e-22, 5.888040e-22,
+    4.473858e-22, 4.078314e-22, 3.968603e-22, 2.658545e-22, 2.447326e-22,
+    2.959740e-22,
+])
+_N_PER_DU = 2.687e16  # molecules cm^-2 in one Dobson unit
+
 def ozone_tau(DU):
-    # Chappuis band approx: two gaussians; tau(600nm)=0.041 at 300 DU
-    shape = np.exp(-0.5*((LAM-602)/48)**2) + 0.45*np.exp(-0.5*((LAM-575)/25)**2)
-    shape = shape/shape.max()
-    return 0.041*(DU/300.0)*shape
+    return _O3_SIGMA * (float(DU) * _N_PER_DU)
+
+# Geographic latitude (degrees) for each place the epoch scripts name.
+LAT_DEG = {'Equator': 0.0, 'Mid-latitude': 45.0, 'Polar': 75.0, 'Polar summer': 75.0}
+
+def column_ozone(epoch, place):
+    """Dobson column for a named place. A number applies at every latitude."""
+    oz = epoch['ozone']
+    if isinstance(oz, dict):
+        if place in oz:
+            return float(oz[place])
+        if place == 'Polar':
+            return float(oz['Polar summer'])
+        return float(oz['Mid-latitude'])
+    return float(oz)
+
+def ozone_latitude(epoch, place):
+    """Peak-height latitude. An epoch may pin the whole sky to one layer."""
+    pinned = epoch.get('ozone_lat')
+    if pinned is not None:
+        return float(pinned)
+    return LAT_DEG[place]
+
+def ozone_layer(lat_deg, trop_frac=0.0):
+    """Normalized ozone density. Stratospheric peak falls from 26 km at the
+    equator to 18 km at the pole and thickens toward the pole. trop_frac is
+    the share of the column in a 6 km tropospheric exponential."""
+    x = min(abs(float(lat_deg)), 90.0) / 90.0
+    hc = 26.0 - 8.0 * x
+    w = 5.0 + 4.0 * x
+    # Renormalize the Gaussian onto h >= 0 so the column is the stated DU.
+    mass = 0.5 * (1.0 + math.erf(hc / (w * math.sqrt(2.0))))
+    strat_norm = 1.0 / (w * math.sqrt(2.0 * math.pi) * mass)
+    trop = expo(6.0)
+    f = min(max(float(trop_frac), 0.0), 1.0)
+
+    def n(h):
+        strat = strat_norm * np.exp(-0.5 * ((h - hc) / w) ** 2)
+        return (1.0 - f) * strat + f * trop(h)
+    return n
 
 def aerosol_tau(beta, alpha):
     return beta * L550**-alpha
@@ -295,11 +351,13 @@ class Atmosphere:
 
 # ---------------- Epoch definitions ----------------
 def make_atm(gas, ozone_DU=0, trop_aer=(0.0, 1.3, 0.9, 0.7), strat_sulf=0.0, haze550=0.0,
-             soot=0.0, dust=0.0, albedo=0.15, sun_T=5772, sun_L=1.0):
+             soot=0.0, dust=0.0, albedo=0.15, sun_T=5772, sun_L=1.0,
+             ozone_lat=45.0, ozone_trop=0.0):
     comps = []
     comps.append(Comp('rayleigh', rayleigh_tau(gas), np.ones_like(LAM), 0.0, expo(8.0), rayleigh=True))
     if ozone_DU > 0:
-        comps.append(Comp('ozone', ozone_tau(ozone_DU), np.zeros_like(LAM), 0.0, gauss_layer(25, 8)))
+        comps.append(Comp('ozone', ozone_tau(ozone_DU), np.zeros_like(LAM), 0.0,
+                          ozone_layer(ozone_lat, ozone_trop)))
     b, a, w, g = trop_aer
     if b > 0:
         comps.append(Comp('trop_aer', aerosol_tau(b, a), np.full_like(LAM, w), g, expo(1.5)))
