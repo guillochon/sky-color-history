@@ -52,7 +52,7 @@ EPOCHS = [
       gas={'N2':0.78,'O2':0.21,'Ar':0.01},
       ozone={'Equator':260,'Mid-latitude':300,'Polar summer':330}, trop_o3=0.10,
       aer=(0.6,1.2,0.88,0.68), sun=(5772,1.0)),
- dict(key='y2100', name='Year 2100', sub="today's clean air, with about 65,000 satellites on the Lawler, Boley, and Rein (2022) orbits",
+ dict(key='y2100', name='Year 2100', sub="today's clean air, with the filed megaconstellation and the Sunrise orbital datacenters",
       gas={'N2':0.78,'O2':0.21,'Ar':0.01},
       ozone={'Equator':260,'Mid-latitude':300,'Polar summer':330}, trop_o3=0.10,
       aer=(0.1,1.3,0.92,0.7), sun=(5772,1.0),

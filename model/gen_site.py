@@ -17,7 +17,7 @@ byk = {r['key']: r for r in D}
 if 'y2100' not in byk:
     rec = copy.deepcopy(byk['modern'])
     rec.update(key='y2100', name='Year 2100',
-               sub="today's clean air, with about 65,000 satellites on the Lawler, Boley, and Rein (2022) orbits")
+               sub="today's clean air, with the filed megaconstellation and the Sunrise orbital datacenters")
     byk['y2100'] = rec
 if 'y2100' not in LIMB:
     LIMB['y2100'] = copy.deepcopy(LIMB['modern'])
@@ -166,7 +166,7 @@ button.tick.on{background:none;color:var(--ink)}
 </div>
 
 <h2>A day under that sky</h2>
-<p class="hint">A whole-sky (fisheye) view: the zenith is at the center and the horizon is the rim, north at the top. Equinox geometry, so the Sun rises due east at 6:00 and sets due west at 18:00 everywhere; at the poles the noon Sun sits only 15° above the horizon. The Moon is placed for the selected date and clock time at the selected latitude, on your time zone's central meridian. On this dome the Sun and Moon are enlarged together so the phase stays readable; in the VR view both are drawn at four times their true angular size. Moonlight is the same sky grid as sunlight, added on top, with the Moon at its own place in the sky. Its brightness follows the lunar phase and the Moon's angular size at that epoch. When the Moon covers part of the Sun, sunlight throughout the sky is scaled by the fraction of that drawn solar disk still visible, so a partial eclipse is more common than for the true sizes, and a true overlap is still covered. The thousand brightest stars are drawn on this dome and in the VR view at their present-day places. The faintest of them is a single pixel, and size grows with brightness so that the hundred brightest keep the sizes they already had. Year 2100 adds the sunlit satellites of that megaconstellation on the same magnitude scale, and they move as the clock does.</p>
+<p class="hint">A whole-sky (fisheye) view: the zenith is at the center and the horizon is the rim, north at the top. Equinox geometry, so the Sun rises due east at 6:00 and sets due west at 18:00 everywhere; at the poles the noon Sun sits only 15° above the horizon. The Moon is placed for the selected date and clock time at the selected latitude, on your time zone's central meridian. On this dome the Sun and Moon are enlarged together so the phase stays readable; in the VR view both are drawn at four times their true angular size. Moonlight is the same sky grid as sunlight, added on top, with the Moon at its own place in the sky. Its brightness follows the lunar phase and the Moon's angular size at that epoch. When the Moon covers part of the Sun, sunlight throughout the sky is scaled by the fraction of that drawn solar disk still visible, so a partial eclipse is more common than for the true sizes, and a true overlap is still covered. The thousand brightest stars are drawn on this dome and in the VR view at their present-day places. The faintest of them is a single pixel, and size grows with brightness so that the hundred brightest keep the sizes they already had. Year 2100 adds the communications satellites and, brighter than those, the Sunrise orbital datacenters, both on the same magnitude scale, and both move as the clock does.</p>
 <div class="row">
  <div>
   <div class="stage" id="dstage"><button type="button" id="vrbtn" class="vrbtn" title="Full-screen view: look around while the day plays">VR</button><div class="tip" id="dtip"></div><canvas id="dome" width="600" height="600" aria-label="Whole-sky view for the selected epoch, latitude and time of day"></canvas></div>
@@ -197,7 +197,7 @@ button.tick.on{background:none;color:var(--ink)}
  </div>
 </div>
 
-<div class="foot">Model and data: spherical-shell single scattering with a delta-Eddington multiple-scattering correction, 380–780 nm, CIE 1931 color matching, sRGB output without chromatic adaptation. Colors are what a daylight-balanced camera would record, not what an adapted eye would perceive. Clouds are omitted; paleoatmosphere compositions carry order-of-magnitude uncertainty. Time of day is interpolated between 34 computed solar zenith angles. From the horizon to 20° below it, those samples are spaced 1° apart; from 20° to 30° below, that last sky fades to black. The plane-parallel multiple-scattering term fades out from 10° above the horizon through sunrise. The Moon is a NASA LROC color map (SVS CGI Moon Kit). Moonlight is that same sky grid with the Moon in place of the Sun, added to the sunlight, and scaled by the Allen phase law (Krisciunas &amp; Schaefer 1991) and by the square of the Moon's angular size at that epoch. Its phase is the angle between it and the Sun drawn here. A partial solar eclipse scales that sunlight by the fraction of the drawn solar disk the Moon leaves uncovered. Its size follows the Earth–Moon distance at each epoch: cyclostratigraphic distances from Farhat et al. 2022, and about 70% of today's distance at 3.2 Ga from the Moodies Group (Eulenfeld &amp; Heubeck 2023). Ages older than 3.2 Ga extend that trend and stay beyond 30 Earth radii. The thousand brightest stars are Yale Bright Star Catalogue places (Hoffleit &amp; Warren 1991), carried from J2000 to the year on the clock by precession and proper motion. The faintest is a single pixel, and size grows with brightness so that the hundred brightest keep the sizes they already had. In 2100 the moving points are the Lawler, Boley, and Rein (2022) megaconstellation: about 65,000 satellites on the filed orbits, each a diffuse sphere of effective area 0.8 m², kept only while sunlit and brighter than magnitude 6.5.</div>
+<div class="foot">Model and data: spherical-shell single scattering with a delta-Eddington multiple-scattering correction, 380–780 nm, CIE 1931 color matching, sRGB output without chromatic adaptation. Colors are what a daylight-balanced camera would record, not what an adapted eye would perceive. Clouds are omitted; paleoatmosphere compositions carry order-of-magnitude uncertainty. Time of day is interpolated between 34 computed solar zenith angles. From the horizon to 20° below it, those samples are spaced 1° apart; from 20° to 30° below, that last sky fades to black. The plane-parallel multiple-scattering term fades out from 10° above the horizon through sunrise. The Moon is a NASA LROC color map (SVS CGI Moon Kit). Moonlight is that same sky grid with the Moon in place of the Sun, added to the sunlight, and scaled by the Allen phase law (Krisciunas &amp; Schaefer 1991) and by the square of the Moon's angular size at that epoch. Its phase is the angle between it and the Sun drawn here. A partial solar eclipse scales that sunlight by the fraction of the drawn solar disk the Moon leaves uncovered. Its size follows the Earth–Moon distance at each epoch: cyclostratigraphic distances from Farhat et al. 2022, and about 70% of today's distance at 3.2 Ga from the Moodies Group (Eulenfeld &amp; Heubeck 2023). Ages older than 3.2 Ga extend that trend and stay beyond 30 Earth radii. The thousand brightest stars are Yale Bright Star Catalogue places (Hoffleit &amp; Warren 1991), carried from J2000 to the year on the clock by precession and proper motion. The faintest is a single pixel, and size grows with brightness so that the hundred brightest keep the sizes they already had. In 2100 the moving points are two populations on that same magnitude scale, kept only while sunlit and brighter than magnitude 6.5. One is the Lawler, Boley, and Rein (2022) megaconstellation, about 65,000 satellites on the filed orbits, each a diffuse sphere of effective area 0.8 m². The other is Blue Origin's Sunrise orbital datacenters from Boley, Lawler, and Rein (2026): 51,600 Sun-synchronous satellites between 500 and 1,800 km, nodes spread 10° to either side of the terminator, each a diffuse sphere of 800 m² at albedo 0.2.</div>
 </main>
 <div id="vr" aria-hidden="true">
 <canvas id="vrc"></canvas>
@@ -1617,7 +1617,7 @@ const STARS=[
 [142.2871,-2.7689,4.60,0.46,0.130,-0.015,6600,"Tau1Hya"]
 ];
 const STAR_N=STARS.length;
-const SAT_CAP=640, STAR_MAP_W=STAR_N+SAT_CAP;
+const SAT_CAP=2048, DOME_SAT_CAP=6400, STAR_MAP_W=STAR_N+SAT_CAP;
 // V of the hundredth star. Brighter stars, and every star this bright, keep the
 // sizes from when the dome showed only that hundred.
 const STAR_VANCHOR=STARS[Math.min(99, STARS.length-1)][2];
@@ -1696,6 +1696,17 @@ function starDisplay(star){
   const tint=starTint(star[6]||10000);
   return {px, rgb:tint.map(c=>Math.min(2.4, c)*amp)};
 }
+// Same scale as the stars. The catalog's brightest star sits on the flux cap of 42,
+// so a datacenter brighter than that still grows, up to a higher cap.
+function pointDisplay(mag){
+  const flux=Math.pow(10, -0.4*(mag-STAR_VANCHOR));
+  const amp=Math.min(1, 0.62*Math.pow(Math.max(flux, 0), 0.5));
+  const px=flux>=1
+    ? STAR_PX_ANCHOR*Math.pow(Math.min(flux, 200), 0.22)
+    : STAR_PX_ANCHOR*Math.pow(Math.max(flux, 1e-6), STAR_FAINT_EXP);
+  const tint=starTint(5772);
+  return {px, rgb:tint.map(c=>Math.min(2.4, c)*amp)};
+}
 function starBinsFor(up){
   const pxMax=STAR_PX_ANCHOR*Math.pow(42, 0.22);
   const sig=pxMax*(VR_FOV_DEG*Math.PI/180)/Math.max(window.innerHeight, 1);
@@ -1737,8 +1748,19 @@ function starBinsFor(up){
 const SAT_SHELLS=[[7178,30,328],[7178,40,334],[7178,53,345],[2000,96.9,360],[1998,75,373],[4000,53,499],[144,148,604],[324,115.7,614],[2547,53,346],[2478,48,341],[2493,42,336],[1600,53,550],[1584,53.2,540],[720,70,570],[348,97.6,560],[172,97.6,560],[720,87.9,1200],[1764,87.9,1200],[2304,40,1200],[2304,55,1200],[480,85,590],[2000,50,600],[3600,55,508],[1728,30,1145],[1728,40,1145],[1728,50,1145],[1728,60,1145],[1156,51.9,630],[1296,42,610],[784,33,509]];
 const SAT_RE=6371, SAT_GM=398600.4418, SAT_AU=149597870.7, SAT_MSUN=-26.77;
 const SAT_PREF=(2/(3*Math.PI*Math.PI))*(0.8/((SAT_AU*1000)*(SAT_AU*1000)));
+// Boley, Lawler & Rein 2026, arXiv:2608.02757. Midway optimistic case: the middle
+// of the three filed designs (Sunrise, 51,600), the paper's conservative 800 m²
+// panels at albedo 0.2, and nodes relaxed ±10° of the terminator rather than a
+// single tight ring. Not the million-satellite SpaceX filing, and not panels of
+// several thousand square meters.
+const ODC_PREF=SAT_PREF*(160/0.8);
 function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15, 1|a); t=t+Math.imul(t^t>>>7, 61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
 function gauss01(rng){ let u=0, v=0; while(u===0) u=rng(); while(v===0) v=rng(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+function ssoInc(aKm){
+  const mmot=Math.sqrt(SAT_GM/(aKm*aKm*aKm));
+  const c=-2*1.99096871e-7*Math.pow(aKm/6378.137,2)/(3*1.08262668e-3*mmot);
+  return Math.acos(Math.max(-1, Math.min(1, c)));
+}
 const SAT_N=SAT_SHELLS.reduce((n,s)=>n+s[0],0);
 const SAT_A=new Float64Array(SAT_N), SAT_CI=new Float64Array(SAT_N), SAT_SI=new Float64Array(SAT_N);
 const SAT_CO=new Float64Array(SAT_N), SAT_SO=new Float64Array(SAT_N), SAT_M0=new Float64Array(SAT_N);
@@ -1753,37 +1775,62 @@ const SAT_RATE=new Float64Array(SAT_N), SAT_DV=new Float64Array(SAT_N);
     }
   }
 })();
+const ODC_SHELLS=[];
+for(let i=0;i<30;i++) ODC_SHELLS.push([740, 500+(800-500)*i/29]);
+for(let i=0;i<98;i++) ODC_SHELLS.push([300, 810+(1800-810)*i/97]);
+const ODC_N=ODC_SHELLS.reduce((n,s)=>n+s[0],0);
+const ODC_A=new Float64Array(ODC_N), ODC_CI=new Float64Array(ODC_N), ODC_SI=new Float64Array(ODC_N);
+const ODC_CO=new Float64Array(ODC_N), ODC_SO=new Float64Array(ODC_N), ODC_M0=new Float64Array(ODC_N);
+const ODC_RATE=new Float64Array(ODC_N);
+(()=>{ const rng=mulberry32(2608); let p=0, even=true;
+  for(const [n,alt] of ODC_SHELLS){
+    const a=SAT_RE+alt, rate=Math.sqrt(SAT_GM/(a*a*a))*60, inc=ssoInc(a), ci=Math.cos(inc), si=Math.sin(inc);
+    let om=(even?Math.PI/2:Math.PI/2+Math.PI)+(rng()*2-1)*10*Math.PI/180;
+    even=!even;
+    const co=Math.cos(om), so=Math.sin(om);
+    for(let k=0;k<n;k++,p++){
+      ODC_A[p]=a; ODC_CI[p]=ci; ODC_SI[p]=si; ODC_CO[p]=co; ODC_SO[p]=so;
+      ODC_M0[p]=rng()*2*Math.PI; ODC_RATE[p]=rate;
+    }
+  }
+})();
 function placeSatellites(latDeg, tex, marks, up){
   const lat=latDeg*Math.PI/180, ang=minutes/1440*Math.PI*2, cl=Math.cos(lat), sl=Math.sin(lat);
   const ox=SAT_RE*cl*Math.cos(ang), oy=SAT_RE*cl*Math.sin(ang), oz=SAT_RE*sl;
   const upx=ox/SAT_RE, upy=oy/SAT_RE, upz=oz/SAT_RE;
   let ex=-upy, ey=upx; const em=Math.hypot(ex,ey)||1; ex/=em; ey/=em;
   const nx=-upz*ey, ny=upz*ex, nz=upx*ey-upy*ex, RE2=SAT_RE*SAT_RE, hit=[];
-  for(let i=0;i<SAT_N;i++){
-    const u=SAT_M0[i]+SAT_RATE[i]*minutes, cu=Math.cos(u), su=Math.sin(u);
-    const ci=SAT_CI[i], si=SAT_SI[i], co=SAT_CO[i], so=SAT_SO[i], r=SAT_A[i];
-    const x=r*(co*cu-so*su*ci), y=r*(so*cu+co*su*ci), z=r*(su*si);
-    if(x>=0 && y*y+z*z<=RE2) continue;
-    const sx=x-ox, sy=y-oy, sz=z-oz, dist=Math.hypot(sx,sy,sz);
-    const shx=sx/dist, shy=sy/dist, shz=sz/dist, sel=shx*upx+shy*upy+shz*upz;
-    if(sel<=0.02) continue;
-    const phi=Math.acos(Math.max(-1, Math.min(1, shx)));
-    const phase=(Math.PI-phi)*Math.cos(phi)+Math.sin(phi);
-    if(phase<=1e-8) continue;
-    const el=Math.asin(sel)*180/Math.PI;
-    const air=1/(Math.sin(el*Math.PI/180)+0.50572*Math.pow(el+6.07995,-1.6364));
-    const mag=SAT_MSUN-2.5*Math.log10(SAT_PREF*phase)+5*Math.log10(dist/SAT_AU)+SAT_DV[i]+0.15*(air-1);
-    if(mag>6.5) continue;
-    const az=Math.atan2(shx*ex+shy*ey, shx*nx+shy*ny+shz*nz)*180/Math.PI;
-    hit.push({mag, az:(az%360+360)%360, el});
-  }
+  const scan=(n, pref, scatter, A, CI, SI, CO, SO, M0, RATE, DV)=>{
+    for(let i=0;i<n;i++){
+      const u=M0[i]+RATE[i]*minutes, cu=Math.cos(u), su=Math.sin(u);
+      const ci=CI[i], si=SI[i], co=CO[i], so=SO[i], r=A[i];
+      const x=r*(co*cu-so*su*ci), y=r*(so*cu+co*su*ci), z=r*(su*si);
+      if(x>=0 && y*y+z*z<=RE2) continue;
+      const sx=x-ox, sy=y-oy, sz=z-oz, dist=Math.hypot(sx,sy,sz);
+      const shx=sx/dist, shy=sy/dist, shz=sz/dist, sel=shx*upx+shy*upy+shz*upz;
+      if(sel<=0.02) continue;
+      const phi=Math.acos(Math.max(-1, Math.min(1, shx)));
+      const phase=(Math.PI-phi)*Math.cos(phi)+Math.sin(phi);
+      if(phase<=1e-8) continue;
+      const el=Math.asin(sel)*180/Math.PI;
+      const air=1/(Math.sin(el*Math.PI/180)+0.50572*Math.pow(el+6.07995,-1.6364));
+      const mag=SAT_MSUN-2.5*Math.log10(pref*phase)+5*Math.log10(dist/SAT_AU)+(scatter?DV[i]:0)+0.15*(air-1);
+      if(mag>6.5) continue;
+      const az=Math.atan2(shx*ex+shy*ey, shx*nx+shy*ny+shz*nz)*180/Math.PI;
+      hit.push({mag, az:(az%360+360)%360, el});
+    }
+  };
+  scan(SAT_N, SAT_PREF, true, SAT_A, SAT_CI, SAT_SI, SAT_CO, SAT_SO, SAT_M0, SAT_RATE, SAT_DV);
+  scan(ODC_N, ODC_PREF, false, ODC_A, ODC_CI, ODC_SI, ODC_CO, ODC_SO, ODC_M0, ODC_RATE, null);
   if(hit.length>SAT_CAP) hit.sort((a,b)=>a.mag-b.mag);
-  const n=Math.min(hit.length, SAT_CAP);
-  for(let k=0;k<n;k++){
-    const s=hit[k], show=starDisplay([0,0,s.mag,0,0,0,5772]), i=STAR_N+k, o=i*4, dir=horizDir(s.az, s.el);
+  const nDome=Math.min(hit.length, DOME_SAT_CAP), nTex=Math.min(hit.length, SAT_CAP);
+  for(let k=0;k<nDome;k++){
+    const s=hit[k], show=pointDisplay(s.mag), dir=horizDir(s.az, s.el);
+    marks.push({az:s.az, el:s.el, px:show.px, rgb:show.rgb});
+    if(k>=nTex) continue;
+    const i=STAR_N+k, o=i*4;
     tex[o]=dir[0]; tex[o+1]=dir[1]; tex[o+2]=dir[2]; tex[o+3]=show.px;
     const c=STAR_MAP_W*4+o; tex[c]=show.rgb[0]; tex[c+1]=show.rgb[1]; tex[c+2]=show.rgb[2]; tex[c+3]=1;
-    marks.push({az:s.az, el:s.el, px:show.px, rgb:show.rgb});
     up.push({i, x:dir[0], y:dir[1], z:dir[2]});
   }
 }
@@ -1826,6 +1873,11 @@ function drawStarsOnDome(marks, colgrid){
     if(night<0.03) continue;
     const rr=R*(90-s.el)/90, a=s.az*Math.PI/180, x=cx+rr*Math.sin(a), y=cy-rr*Math.cos(a);
     const col=s.rgb.map(c=>Math.round(Math.min(255, c*night*255)));
+    if(s.px<2.2){
+      dctx.fillStyle='rgb('+col[0]+','+col[1]+','+col[2]+')';
+      dctx.beginPath(); dctx.arc(x,y,Math.max(0.6, s.px*0.55),0,Math.PI*2); dctx.fill();
+      continue;
+    }
     const g=dctx.createRadialGradient(x,y,0,x,y,s.px);
     g.addColorStop(0, 'rgb('+col[0]+','+col[1]+','+col[2]+')');
     g.addColorStop(0.35, 'rgba('+col[0]+','+col[1]+','+col[2]+',0.45)');

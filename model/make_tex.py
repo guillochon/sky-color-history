@@ -9,7 +9,7 @@ D = json.load(open(ROOT / 'skycolors.json', encoding='utf-8')); byk = {r['key']:
 if 'y2100' not in byk:
     rec = copy.deepcopy(byk['modern'])
     rec.update(key='y2100', name='Year 2100',
-               sub="today's clean air, with about 65,000 satellites on the Lawler, Boley, and Rein (2022) orbits")
+               sub="today's clean air, with the filed megaconstellation and the Sunrise orbital datacenters")
     byk['y2100'] = rec
 L = str(ROOT.parent / 'latex')
 
@@ -254,6 +254,7 @@ bib = r"""@article{arney2016, author={Arney, Giada and Domagal-Goldman, Shawn D.
 @article{serdyuchenko2014, author={Serdyuchenko, Anna and Gorshelev, Victor and Weber, Mark and Burrows, John P.}, title={High spectral resolution ozone absorption cross-sections -- {Part} 2: Temperature dependence}, journal={Atmospheric Measurement Techniques}, volume={7}, pages={625--636}, year={2014}}
 @article{cooke2021, author={Cooke, Gregory J. and Marsh, Daniel R. and Walsh, Catherine and Black, Benjamin and Lamarque, Jean-Francois}, title={A revised lower estimate of ozone columns during {Earth}'s oxygenated history}, journal={Royal Society Open Science}, volume={9}, pages={211165}, year={2021}}
 @article{lawler2022, author={Lawler, Samantha M. and Boley, Aaron C. and Rein, Hanno}, title={Visibility predictions for near-future satellite megaconstellations: latitudes near 50 degrees will experience the worst light pollution}, journal={Astronomical Journal}, volume={163}, pages={21}, year={2022}}
+@article{boley2026, author={Boley, Aaron C. and Lawler, Samantha M. and Rein, Hanno}, title={Rings in the sky: orbital data centres and potential impacts to astronomy and the sky}, journal={arXiv e-prints}, pages={arXiv:2608.02757}, year={2026}}
 @article{wyman2013, author={Wyman, Chris and Sloan, Peter-Pike and Shirley, Peter}, title={Simple analytic approximations to the {CIE} {XYZ} color matching functions}, journal={Journal of Computer Graphics Techniques}, volume={2}, pages={1--11}, year={2013}}
 """
 open(f'{L}/refs.bib', 'w').write(bib)

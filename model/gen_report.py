@@ -11,7 +11,7 @@ byk = {r['key']: r for r in D}
 # Year 2100 keeps today's air. The new lights are satellites, drawn in the site.
 y2100 = copy.deepcopy(byk['modern'])
 y2100.update(key='y2100', name='Year 2100',
-             sub="today's clean air, with about 65,000 satellites on the Lawler, Boley, and Rein (2022) orbits",
+             sub="today's clean air, with the filed megaconstellation and the Sunrise orbital datacenters",
              note='Same atmosphere as the modern clean sky.')
 byk['y2100'] = y2100
 
@@ -75,7 +75,7 @@ PROSE = {
 'modern': "Baseline. Equatorial zenith ~9,000 K; mid-latitude ~15,000 K; polar summer ~19,000 K. Horizons run 7,400–8,400 K, essentially white. Setting Sun ~1,700 K; solar horizon orange; antisolar horizon pink.",
 'modernpoll': "Aerosol optical depth 0.6 flattens the sky to a near-uniform pale gray-blue (6,500–8,300 K), brighter and whiter at the zenith than a clean sky, with the horizon slightly bluer than the zenith. The Sun disappears into gray murk well before it reaches the horizon.",
 'ozonehole': "Antarctic spring in the ozone-hole years, with the column cut to 130 DU and the layer lowered toward 18 km. Noon stays blue. Twilight is where the hole shows: with the Sun 4° down the zenith is a pale blue (~7,800 K) instead of the deep blue (~12,500 K) of a 300 DU sky. It is the same direction as the thin post-oxidation column, and still well short of the cream (~6,000 K) of a sky with no ozone at all.",
-'y2100': "The air is today's. What changes is the traffic. Lawler, Boley, and Rein (2022) put every filed megaconstellation on orbit, about 65,000 satellites, and found the worst naked-eye light pollution near 50° latitude. This sky is that case. Each satellite is their diffuse sphere, effective area 0.8 m², so its magnitude is on the same scale as the stars. At the equinox a mid-latitude sky has a few hundred of them above naked-eye brightness in the hour after sunset, about one in fourteen of the points a dark sky would show, and Earth's shadow takes them by midnight. A low orbit crosses the dome in minutes.",
+'y2100': "The air is today's. What changes is the traffic. Lawler, Boley, and Rein (2022) put every filed megaconstellation on orbit, about 65,000 satellites, and found the worst naked-eye light pollution near 50° latitude. Each of those is their diffuse sphere, effective area 0.8 m², so its magnitude is on the same scale as the stars. At the equinox a mid-latitude sky has a few hundred of them above naked-eye brightness in the hour after sunset, and Earth's shadow takes them by midnight. On top of that fleet, Boley, Lawler, and Rein (2026) model orbital datacenters. Of the three filed designs, this sky takes the middle one and the more optimistic of their two node spreads: Blue Origin's Sunrise, 51,600 Sun-synchronous satellites from 500 to 1,800 km, in a dawn-dusk cross of rings whose nodes wander 10° to either side of the terminator. Each is a diffuse sphere of 800 m² at albedo 0.2, the size the paper calls conservative next to panels several times larger, and two hundred times the reflecting area of a communications satellite. An hour after sunset at mid-latitudes, thousands of them are above naked-eye brightness, a bright band along the terminator. The paper's all-night winter rings belong to the December solstice, which this equinox clock does not show. A low orbit crosses the dome in minutes.",
 }
 
 
@@ -236,7 +236,7 @@ th{{color:var(--ink2);font-weight:300}}
 <tr><td>1815, volcanic year</td><td>Milky blue-white, 9,300 K</td><td>Slightly bluer than zenith</td><td>Salmon Sun, pink-lavender afterglow</td></tr>
 <tr><td>Ozone-hole spring</td><td>Blue, still</td><td>White</td><td>Pale blue dusk zenith, ~7,800 K</td></tr>
 <tr><td>Today, clean</td><td>Blue, 15,000 K</td><td>White, 8,400 K</td><td>Orange horizon, pink antisolar; twilight zenith ~12,500 K</td></tr>
-<tr><td>2100, megaconstellation</td><td>Same blue as today</td><td>White</td><td>A few hundred moving satellites in the hour after dusk</td></tr>
+<tr><td>2100, megaconstellation</td><td>Same blue as today</td><td>White</td><td>Thousands of bright datacenters along the dusk terminator, plus a few hundred communications satellites</td></tr>
 </table></div>
 
 <h3>Horizon versus zenith</h3>
@@ -273,6 +273,7 @@ th{{color:var(--ink2);font-weight:300}}
 <p>Serdyuchenko A., Gorshelev V., Weber M., Burrows J.P. (2014). High spectral resolution ozone absorption cross-sections — Part 2. <i>Atmospheric Measurement Techniques</i> 7, 625.</p>
 <p>Cooke G.J., Marsh D.R., Walsh C., Black B., Lamarque J.-F. (2021). A revised lower estimate of ozone columns during Earth's oxygenated history. <i>Royal Society Open Science</i> 9, 211165.</p>
 <p>Lawler S.M., Boley A.C., Rein H. (2022). Visibility predictions for near-future satellite megaconstellations. <i>Astronomical Journal</i> 163, 21.</p>
+<p>Boley A.C., Lawler S.M., Rein H. (2026). Rings in the sky: orbital data centres and potential impacts to astronomy and the sky. arXiv:2608.02757.</p>
 </div>
 </main></body></html>'''
 open(ROOT.parent / 'report' / 'sky-color-history.html', 'w', encoding='utf-8').write(html)
