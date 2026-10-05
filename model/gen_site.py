@@ -1157,37 +1157,6 @@ float shellT(vec3 ro, vec3 rd, float H){
   if(disc<=0.0) return -1.0;
   return -c/(b+sqrt(disc));
 }
-float cloudNoise(vec2 plane, float z, float detail, float lod, float sc, float dt){
-  // Coverage is a horizontal map. Repeating it with height drew sheets that
-  // line up with the horizon when the view is shallow.
-  vec3 uv=vec3(plane*sc, 0.17);
-  float edge=0.78-cloudCov*0.62;
-  float gate=smoothstep(edge, edge+mix(0.10, 0.28, lod), texture(noise, uv).g);
-  // About as wide as the deck is thick, so a shallow view shows a cloud body
-  // and not a flattened streak. Finer than the step, the same cells broke
-  // into bands parallel to the horizon.
-  float cell=1.0/(sc*4.0);
-  float kMax=cell/max(dt*2.2, 1.0);
-  float k=min(mix(1.35, 0.9, lod), kMax);
-  vec3 q=vec3(uv.xy*k, 0.37+z*0.05);
-  float midK=min(k*2.15, kMax);
-  if(detail>0.35 && midK>k*1.25){
-    vec2 w=texture(noise, vec3(uv.xy*min(k*1.8, kMax)+vec2(0.6,2.4), 1.3)).rg;
-    q.xy+=(w-0.5)*0.22*detail;
-  }
-  float core=smoothstep(mix(0.40, 0.22, lod), mix(0.72, 0.92, lod), texture(noise, q).r);
-  if(detail>0.35 && midK>k*1.25){
-    float mid=texture(noise, vec3(uv.xy*midK+vec2(1.7,3.4), 0.5)).r;
-    float lump=mid;
-    float fineK=min(k*3.8, kMax);
-    if(detail>0.65 && fineK>midK*1.25){
-      float fine=texture(noise, vec3(uv.xy*fineK+vec2(4.1,0.8), 2.6)).r;
-      lump=mid*0.58+fine*0.42;
-    }
-    core=mix(core, clamp((core-(1.0-lump)*0.40)/0.60, 0.0, 1.0), detail);
-  }
-  return core*gate;
-}
 float cloudDen(vec3 p, float detail, float lod, float deck, float dt){
   vec2 dh=p.xy-eye.xy;
   float R=833333.0;
@@ -1197,18 +1166,35 @@ float cloudDen(vec3 p, float detail, float lod, float deck, float dt){
   float sc=cloudScale*mix(1.0, 0.85, lod);
   vec2 wind=vec2(cloudDrift, cloudDrift*0.42);
   vec2 plane=p.xy+wind;
-  // A broad field picks the top of this column, so some clouds stay low and
-  // others pile much higher instead of every column reaching the same ceiling.
-  float shelf=texture(noise, vec3(plane*sc*0.37, 0.41)).r;
-  float crown=texture(noise, vec3(plane*sc*1.15+vec2(3.7, 1.2), 0.73)).r;
-  float top=mix(0.32, 0.97, shelf*0.62+crown*0.38);
-  float foot=crown*0.06;
-  float rise=smoothstep(foot, foot+mix(0.08, 0.16, lod)+deck*0.04, ph);
-  float fall=1.0-smoothstep(max(top-mix(0.22, 0.36, lod), foot+0.05), top, ph);
-  float grad=rise*fall;
-  if(grad<0.015) return 0.0;
-  float zc=clamp(ph/max(top, 0.2), 0.0, 1.0);
-  return cloudNoise(plane, zc, detail, lod, sc, dt)*grad;
+  // Broad regions decide where clouds exist. The shape inside a region is a
+  // separate blob, so the deck is not one slab.
+  float edge=0.78-cloudCov*0.62;
+  float gate=smoothstep(edge, edge+mix(0.12, 0.30, lod), texture(noise, vec3(plane*sc*0.42, 0.17)).g);
+  if(gate<0.03) return 0.0;
+  // Cell width stays near the step length. Smaller cells skipped by a shallow
+  // ray showed up as stripes parallel to the horizon.
+  float cell=1.0/(sc*4.0);
+  float kMax=cell/max(dt*2.0, 1.0);
+  float k=min(mix(1.7, 1.15, lod), kMax);
+  float billow=texture(noise, vec3(plane*sc*k, 0.41)).r;
+  float lift=texture(noise, vec3(plane*sc*k+vec2(4.2, 1.7), 0.73)).r;
+  // Each cell has its own center and thickness. A shared ceiling was a long
+  // bright rim; these rims no longer sit on one altitude.
+  float center=mix(0.18, 0.82, lift);
+  float halfH=mix(0.12, 0.46, billow*0.35+lift*0.65);
+  float u=(ph-center)/halfH;
+  float body=clamp(1.0-u*u, 0.0, 1.0);
+  body*=body;
+  if(body<0.02) return 0.0;
+  float core=smoothstep(0.16, 0.78, billow);
+  // One soft change from the base of this cloud to its top, shifted per cell
+  // so the dense part does not line up across the sky.
+  float shape=0.78;
+  if(detail>0.4 && k*1.45<=kMax+0.05){
+    float inn=texture(noise, vec3(plane*sc*min(k*1.45, kMax), 0.2+lift+ph*0.55)).r;
+    shape=mix(0.38, 1.0, inn);
+  }
+  return gate*core*body*shape;
 }
 float lightBeer(vec3 p, vec3 sd, float lod, float deck, float dt){
   float ls=mix(1600.0, 5200.0, lod);
