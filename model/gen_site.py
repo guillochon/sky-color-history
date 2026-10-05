@@ -1,4 +1,4 @@
-import json
+import copy, json
 from pathlib import Path
 HERE = Path(__file__).resolve().parent
 D = json.load(open(HERE / 'skycolors.json', encoding='utf-8'))
@@ -9,10 +9,19 @@ ns = {'__file__': str(HERE / 'gen_report.py')}
 with contextlib.redirect_stdout(io.StringIO()):
     exec((HERE / 'gen_report.py').read_text(encoding='utf-8'), ns)
 PROSE = ns['PROSE']
-order = ['hadean44','hadean40','archean38','archean27thin','archean27','archean27vthick','proterozoic22','snowball07','carbon30','kpg66','volcanic','ozonehole','modern','modernpoll']
-ages = {'hadean44':'4.4 Ga','hadean40':'4.0 Ga','archean38':'3.8 Ga','archean27thin':'2.7 Ga','archean27':'2.7 Ga','archean27vthick':'2.7 Ga','proterozoic22':'2.2 Ga','snowball07':'700 Ma','carbon30':'300 Ma','kpg66':'66 Ma','volcanic':'1815 CE','modern':'Today','modernpoll':'Today','ozonehole':'1980–2000'}
-short = {'hadean44':'Early Hadean','hadean40':'Late Hadean','archean38':'Early Archean','archean27thin':'Thin haze','archean27':'Thick haze','archean27vthick':'Very thick haze','proterozoic22':'Post-oxidation','snowball07':'Snowball Earth','carbon30':'Carboniferous','kpg66':'Impact winter','volcanic':'Volcanic year','modern':'Clean air','modernpoll':'Polluted city','ozonehole':'Ozone hole'}
+order = ['hadean44','hadean40','archean38','archean27thin','archean27','archean27vthick','proterozoic22','snowball07','carbon30','kpg66','volcanic','ozonehole','modern','modernpoll','y2100']
+ages = {'hadean44':'4.4 Ga','hadean40':'4.0 Ga','archean38':'3.8 Ga','archean27thin':'2.7 Ga','archean27':'2.7 Ga','archean27vthick':'2.7 Ga','proterozoic22':'2.2 Ga','snowball07':'700 Ma','carbon30':'300 Ma','kpg66':'66 Ma','volcanic':'1815 CE','modern':'Today','modernpoll':'Today','ozonehole':'1980–2000','y2100':'2100'}
+short = {'hadean44':'Early Hadean','hadean40':'Late Hadean','archean38':'Early Archean','archean27thin':'Thin haze','archean27':'Thick haze','archean27vthick':'Very thick haze','proterozoic22':'Post-oxidation','snowball07':'Snowball Earth','carbon30':'Carboniferous','kpg66':'Impact winter','volcanic':'Volcanic year','modern':'Clean air','modernpoll':'Polluted city','ozonehole':'Ozone hole','y2100':'Year 2100'}
 byk = {r['key']: r for r in D}
+# Year 2100 is today's sky. The satellites are drawn later, not baked into the color grid.
+if 'y2100' not in byk:
+    rec = copy.deepcopy(byk['modern'])
+    rec.update(key='y2100', name='Year 2100',
+               sub="today's clean air, with about 65,000 satellites on the Lawler, Boley, and Rein (2022) orbits")
+    byk['y2100'] = rec
+if 'y2100' not in LIMB:
+    LIMB['y2100'] = copy.deepcopy(LIMB['modern'])
+    LIMB['y2100']['name'] = 'Year 2100'
 EP = []
 for k in order:
     r = byk[k]
@@ -157,7 +166,7 @@ button.tick.on{background:none;color:var(--ink)}
 </div>
 
 <h2>A day under that sky</h2>
-<p class="hint">A whole-sky (fisheye) view: the zenith is at the center and the horizon is the rim, north at the top. Equinox geometry, so the Sun rises due east at 6:00 and sets due west at 18:00 everywhere; at the poles the noon Sun sits only 15° above the horizon. The Moon is placed for the selected date and clock time at the selected latitude, on your time zone's central meridian. On this dome the Sun and Moon are enlarged together so the phase stays readable; in the VR view both are drawn at four times their true angular size. Moonlight is the same sky grid as sunlight, added on top, with the Moon at its own place in the sky. Its brightness follows the lunar phase and the Moon's angular size at that epoch. When the Moon covers part of the Sun, sunlight throughout the sky is scaled by the fraction of that drawn solar disk still visible, so a partial eclipse is more common than for the true sizes, and a true overlap is still covered. The thousand brightest stars are drawn on this dome and in the VR view at their present-day places. The faintest of them is a single pixel, and size grows with brightness so that the hundred brightest keep the sizes they already had.</p>
+<p class="hint">A whole-sky (fisheye) view: the zenith is at the center and the horizon is the rim, north at the top. Equinox geometry, so the Sun rises due east at 6:00 and sets due west at 18:00 everywhere; at the poles the noon Sun sits only 15° above the horizon. The Moon is placed for the selected date and clock time at the selected latitude, on your time zone's central meridian. On this dome the Sun and Moon are enlarged together so the phase stays readable; in the VR view both are drawn at four times their true angular size. Moonlight is the same sky grid as sunlight, added on top, with the Moon at its own place in the sky. Its brightness follows the lunar phase and the Moon's angular size at that epoch. When the Moon covers part of the Sun, sunlight throughout the sky is scaled by the fraction of that drawn solar disk still visible, so a partial eclipse is more common than for the true sizes, and a true overlap is still covered. The thousand brightest stars are drawn on this dome and in the VR view at their present-day places. The faintest of them is a single pixel, and size grows with brightness so that the hundred brightest keep the sizes they already had. Year 2100 adds the sunlit satellites of that megaconstellation on the same magnitude scale, and they move as the clock does.</p>
 <div class="row">
  <div>
   <div class="stage" id="dstage"><button type="button" id="vrbtn" class="vrbtn" title="Full-screen view: look around while the day plays">VR</button><div class="tip" id="dtip"></div><canvas id="dome" width="600" height="600" aria-label="Whole-sky view for the selected epoch, latitude and time of day"></canvas></div>
@@ -188,7 +197,7 @@ button.tick.on{background:none;color:var(--ink)}
  </div>
 </div>
 
-<div class="foot">Model and data: spherical-shell single scattering with a delta-Eddington multiple-scattering correction, 380–780 nm, CIE 1931 color matching, sRGB output without chromatic adaptation. Colors are what a daylight-balanced camera would record, not what an adapted eye would perceive. Clouds are omitted; paleoatmosphere compositions carry order-of-magnitude uncertainty. Time of day is interpolated between 34 computed solar zenith angles. From the horizon to 20° below it, those samples are spaced 1° apart; from 20° to 30° below, that last sky fades to black. The plane-parallel multiple-scattering term fades out from 10° above the horizon through sunrise. The Moon is a NASA LROC color map (SVS CGI Moon Kit). Moonlight is that same sky grid with the Moon in place of the Sun, added to the sunlight, and scaled by the Allen phase law (Krisciunas &amp; Schaefer 1991) and by the square of the Moon's angular size at that epoch. Its phase is the angle between it and the Sun drawn here. A partial solar eclipse scales that sunlight by the fraction of the drawn solar disk the Moon leaves uncovered. Its size follows the Earth–Moon distance at each epoch: cyclostratigraphic distances from Farhat et al. 2022, and about 70% of today's distance at 3.2 Ga from the Moodies Group (Eulenfeld &amp; Heubeck 2023). Ages older than 3.2 Ga extend that trend and stay beyond 30 Earth radii. The thousand brightest stars are Yale Bright Star Catalogue places (Hoffleit &amp; Warren 1991), carried from J2000 to the year on the clock by precession and proper motion. The faintest is a single pixel, and size grows with brightness so that the hundred brightest keep the sizes they already had.</div>
+<div class="foot">Model and data: spherical-shell single scattering with a delta-Eddington multiple-scattering correction, 380–780 nm, CIE 1931 color matching, sRGB output without chromatic adaptation. Colors are what a daylight-balanced camera would record, not what an adapted eye would perceive. Clouds are omitted; paleoatmosphere compositions carry order-of-magnitude uncertainty. Time of day is interpolated between 34 computed solar zenith angles. From the horizon to 20° below it, those samples are spaced 1° apart; from 20° to 30° below, that last sky fades to black. The plane-parallel multiple-scattering term fades out from 10° above the horizon through sunrise. The Moon is a NASA LROC color map (SVS CGI Moon Kit). Moonlight is that same sky grid with the Moon in place of the Sun, added to the sunlight, and scaled by the Allen phase law (Krisciunas &amp; Schaefer 1991) and by the square of the Moon's angular size at that epoch. Its phase is the angle between it and the Sun drawn here. A partial solar eclipse scales that sunlight by the fraction of the drawn solar disk the Moon leaves uncovered. Its size follows the Earth–Moon distance at each epoch: cyclostratigraphic distances from Farhat et al. 2022, and about 70% of today's distance at 3.2 Ga from the Moodies Group (Eulenfeld &amp; Heubeck 2023). Ages older than 3.2 Ga extend that trend and stay beyond 30 Earth radii. The thousand brightest stars are Yale Bright Star Catalogue places (Hoffleit &amp; Warren 1991), carried from J2000 to the year on the clock by precession and proper motion. The faintest is a single pixel, and size grows with brightness so that the hundred brightest keep the sizes they already had. In 2100 the moving points are the Lawler, Boley, and Rein (2022) megaconstellation: about 65,000 satellites on the filed orbits, each a diffuse sphere of effective area 0.8 m², kept only while sunlit and brighter than magnitude 6.5.</div>
 </main>
 <div id="vr" aria-hidden="true">
 <canvas id="vrc"></canvas>
@@ -219,6 +228,7 @@ button.tick.on{background:none;color:var(--ink)}
 <script>
 const EP = __EP__;
 const DAY = __DAY__;
+if(!DAY.epochs.y2100) DAY.epochs.y2100=DAY.epochs.modern;
 const YREF = __YREF__;
 const M = [[3.2406,-1.5372,-0.4986],[-0.9689,1.8758,0.0415],[0.0557,-0.2040,1.0570]];
 const g = v => v<=0.0031308 ? 12.92*v : 1.055*Math.pow(v,1/2.4)-0.055;
@@ -294,7 +304,8 @@ const WIKI={
   volcanic:['Year Without a Summer','https://en.wikipedia.org/wiki/Year_Without_a_Summer'],
   modern:['Holocene','https://en.wikipedia.org/wiki/Holocene'],
   modernpoll:['Air pollution','https://en.wikipedia.org/wiki/Air_pollution'],
-  ozonehole:['Ozone depletion','https://en.wikipedia.org/wiki/Ozone_depletion']
+  ozonehole:['Ozone depletion','https://en.wikipedia.org/wiki/Ozone_depletion'],
+  y2100:['Satellite constellation','https://en.wikipedia.org/wiki/Satellite_constellation']
 };
 function showEpoch(pos){
   tPos=pos; drawGlobeAt(pos);
@@ -529,7 +540,7 @@ function apparentEl(h){ if(h>80) return h; const u=h+10.3/(h+5.11); if(u<0.25) r
 // present distance, from Eulenfeld & Heubeck 2023, JGR Planets. Older ages
 // extend the long-term drift and stay beyond 30 Earth radii.
 const MOON_RE={
-  modern:60.14, modernpoll:60.14, ozonehole:60.14, volcanic:60.14,
+  modern:60.14, modernpoll:60.14, ozonehole:60.14, y2100:60.14, volcanic:60.14,
   kpg66:59.93, carbon30:58.56, snowball07:57.71,
   proterozoic22:50.98, archean27thin:47.60, archean27:47.60, archean27vthick:47.60,
   archean38:40.4, hadean40:39.8, hadean44:38.7
@@ -1606,6 +1617,7 @@ const STARS=[
 [142.2871,-2.7689,4.60,0.46,0.130,-0.015,6600,"Tau1Hya"]
 ];
 const STAR_N=STARS.length;
+const SAT_CAP=640, STAR_MAP_W=STAR_N+SAT_CAP;
 // V of the hundredth star. Brighter stars, and every star this bright, keep the
 // sizes from when the dome showed only that hundred.
 const STAR_VANCHOR=STARS[Math.min(99, STARS.length-1)][2];
@@ -1716,12 +1728,71 @@ function starBinsFor(up){
   }
   return {info, idx, count:cursor};
 }
+// Lawler, Boley & Rein 2022, AJ 163, 21: every filed shell of Starlink, OneWeb,
+// Kuiper, and StarNet/GW, 65,262 satellites. Brightness is their Lambertian sphere
+// with effective area 0.8 m², plus 0.5 mag of fixed scatter and Kasten & Young
+// airmass. Magnitude is V, the same scale as the star catalog. Equinox geometry
+// matches the dome: local midnight puts the observer on the anti-sun axis, and a
+// satellite in Earth's shadow is dark.
+const SAT_SHELLS=[[7178,30,328],[7178,40,334],[7178,53,345],[2000,96.9,360],[1998,75,373],[4000,53,499],[144,148,604],[324,115.7,614],[2547,53,346],[2478,48,341],[2493,42,336],[1600,53,550],[1584,53.2,540],[720,70,570],[348,97.6,560],[172,97.6,560],[720,87.9,1200],[1764,87.9,1200],[2304,40,1200],[2304,55,1200],[480,85,590],[2000,50,600],[3600,55,508],[1728,30,1145],[1728,40,1145],[1728,50,1145],[1728,60,1145],[1156,51.9,630],[1296,42,610],[784,33,509]];
+const SAT_RE=6371, SAT_GM=398600.4418, SAT_AU=149597870.7, SAT_MSUN=-26.77;
+const SAT_PREF=(2/(3*Math.PI*Math.PI))*(0.8/((SAT_AU*1000)*(SAT_AU*1000)));
+function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15, 1|a); t=t+Math.imul(t^t>>>7, 61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function gauss01(rng){ let u=0, v=0; while(u===0) u=rng(); while(v===0) v=rng(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+const SAT_N=SAT_SHELLS.reduce((n,s)=>n+s[0],0);
+const SAT_A=new Float64Array(SAT_N), SAT_CI=new Float64Array(SAT_N), SAT_SI=new Float64Array(SAT_N);
+const SAT_CO=new Float64Array(SAT_N), SAT_SO=new Float64Array(SAT_N), SAT_M0=new Float64Array(SAT_N);
+const SAT_RATE=new Float64Array(SAT_N), SAT_DV=new Float64Array(SAT_N);
+(()=>{ const rng=mulberry32(2100); let p=0;
+  for(const [n,incDeg,alt] of SAT_SHELLS){
+    const a=SAT_RE+alt, rate=Math.sqrt(SAT_GM/(a*a*a))*60, inc=incDeg*Math.PI/180, ci=Math.cos(inc), si=Math.sin(inc);
+    for(let k=0;k<n;k++,p++){
+      const node=2*Math.PI*k/n;
+      SAT_A[p]=a; SAT_CI[p]=ci; SAT_SI[p]=si; SAT_CO[p]=Math.cos(node); SAT_SO[p]=Math.sin(node);
+      SAT_M0[p]=rng()*2*Math.PI; SAT_RATE[p]=rate; SAT_DV[p]=gauss01(rng)*0.5;
+    }
+  }
+})();
+function placeSatellites(latDeg, tex, marks, up){
+  const lat=latDeg*Math.PI/180, ang=minutes/1440*Math.PI*2, cl=Math.cos(lat), sl=Math.sin(lat);
+  const ox=SAT_RE*cl*Math.cos(ang), oy=SAT_RE*cl*Math.sin(ang), oz=SAT_RE*sl;
+  const upx=ox/SAT_RE, upy=oy/SAT_RE, upz=oz/SAT_RE;
+  let ex=-upy, ey=upx; const em=Math.hypot(ex,ey)||1; ex/=em; ey/=em;
+  const nx=-upz*ey, ny=upz*ex, nz=upx*ey-upy*ex, RE2=SAT_RE*SAT_RE, hit=[];
+  for(let i=0;i<SAT_N;i++){
+    const u=SAT_M0[i]+SAT_RATE[i]*minutes, cu=Math.cos(u), su=Math.sin(u);
+    const ci=SAT_CI[i], si=SAT_SI[i], co=SAT_CO[i], so=SAT_SO[i], r=SAT_A[i];
+    const x=r*(co*cu-so*su*ci), y=r*(so*cu+co*su*ci), z=r*(su*si);
+    if(x>=0 && y*y+z*z<=RE2) continue;
+    const sx=x-ox, sy=y-oy, sz=z-oz, dist=Math.hypot(sx,sy,sz);
+    const shx=sx/dist, shy=sy/dist, shz=sz/dist, sel=shx*upx+shy*upy+shz*upz;
+    if(sel<=0.02) continue;
+    const phi=Math.acos(Math.max(-1, Math.min(1, shx)));
+    const phase=(Math.PI-phi)*Math.cos(phi)+Math.sin(phi);
+    if(phase<=1e-8) continue;
+    const el=Math.asin(sel)*180/Math.PI;
+    const air=1/(Math.sin(el*Math.PI/180)+0.50572*Math.pow(el+6.07995,-1.6364));
+    const mag=SAT_MSUN-2.5*Math.log10(SAT_PREF*phase)+5*Math.log10(dist/SAT_AU)+SAT_DV[i]+0.15*(air-1);
+    if(mag>6.5) continue;
+    const az=Math.atan2(shx*ex+shy*ey, shx*nx+shy*ny+shz*nz)*180/Math.PI;
+    hit.push({mag, az:(az%360+360)%360, el});
+  }
+  if(hit.length>SAT_CAP) hit.sort((a,b)=>a.mag-b.mag);
+  const n=Math.min(hit.length, SAT_CAP);
+  for(let k=0;k<n;k++){
+    const s=hit[k], show=starDisplay([0,0,s.mag,0,0,0,5772]), i=STAR_N+k, o=i*4, dir=horizDir(s.az, s.el);
+    tex[o]=dir[0]; tex[o+1]=dir[1]; tex[o+2]=dir[2]; tex[o+3]=show.px;
+    const c=STAR_MAP_W*4+o; tex[c]=show.rgb[0]; tex[c+1]=show.rgb[1]; tex[c+2]=show.rgb[2]; tex[c+3]=1;
+    marks.push({az:s.az, el:s.el, px:show.px, rgb:show.rgb});
+    up.push({i, x:dir[0], y:dir[1], z:dir[2]});
+  }
+}
 function placeStars(lat){
   const epochKey=EP[dIdx].key, ins=instantUT();
   const year=+(document.getElementById('moonDate').value||localISODate(new Date())).slice(0,4);
   const eq=moonEquatorial(dayNumber(ins.y,ins.m,ins.D,ins.ut));
   const LST=rev(rev(eq.Ls+180+ins.ut*15)+ins.lon);
-  const tex=new Float32Array(STAR_N*8), marks=[], up=[];
+  const tex=new Float32Array(STAR_MAP_W*8), marks=[], up=[];
   for(let i=0;i<STARS.length && i<STAR_N;i++){
     const star=STARS[i], place=starMeanPlace(star, epochKey, year);
     let H=rev(LST-rev(place.ra)); if(H>180) H-=360;
@@ -1729,10 +1800,11 @@ function placeStars(lat){
     if(!(p.alt>0)) continue;
     const dir=horizDir(p.az, p.alt);
     tex[o]=dir[0]; tex[o+1]=dir[1]; tex[o+2]=dir[2]; tex[o+3]=show.px;
-    tex[STAR_N*4+o]=show.rgb[0]; tex[STAR_N*4+o+1]=show.rgb[1]; tex[STAR_N*4+o+2]=show.rgb[2]; tex[STAR_N*4+o+3]=1;
+    const c=STAR_MAP_W*4+o; tex[c]=show.rgb[0]; tex[c+1]=show.rgb[1]; tex[c+2]=show.rgb[2]; tex[c+3]=1;
     marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb});
     up.push({i, x:dir[0], y:dir[1], z:dir[2]});
   }
+  if(epochKey==='y2100') placeSatellites(lat, tex, marks, up);
   const bins=starBinsFor(up);
   return {tex, marks, bins:bins.info, idx:bins.idx, idxCount:bins.count};
 }
@@ -1917,7 +1989,7 @@ const LAND={ // stand-in surface color, not from the radiative-transfer model
   hadean44:[.18,.12,.08], hadean40:[.16,.12,.08], archean38:[.15,.13,.10],
   archean27thin:[.20,.16,.11], archean27:[.22,.16,.10], archean27vthick:[.24,.15,.09],
   proterozoic22:[.16,.18,.11], snowball07:[.78,.82,.86], carbon30:[.12,.22,.08],
-  kpg66:[.17,.15,.13], volcanic:[.18,.16,.14], modern:[.15,.22,.09], modernpoll:[.17,.18,.11], ozonehole:[.15,.22,.09]
+  kpg66:[.17,.15,.13], volcanic:[.18,.16,.14], modern:[.15,.22,.09], modernpoll:[.17,.18,.11], ozonehole:[.15,.22,.09], y2100:[.15,.22,.09]
 };
 let skyNow=null, skyGen=0, skyUploaded=-1, vrNote='', vrOn=false, vrYaw=0, vrPitch=8, vrX=0, vrY=0, vrScenery=true, vrClouds=true, cloudScroll=0, cloudMinPrev=null, vrRelock=false, vrGL=null, vrRAF=0, vrWalk=0, vrWalkStamp=0, vrNav=false, vrLinkKey='';
 const vrHeld=new Set();
@@ -2611,7 +2683,8 @@ const CLOUD_ERA={
   volcanic:{cov:0.52,type:0.22,base:1700,top:0.40,cirrus:0.70},
   modern:{cov:0.50,type:0.50,base:1600,top:0.55,cirrus:0.55},
   modernpoll:{cov:0.56,type:0.42,base:1450,top:0.50,cirrus:0.40},
-  ozonehole:{cov:0.50,type:0.50,base:1600,top:0.55,cirrus:0.55}
+  ozonehole:{cov:0.50,type:0.50,base:1600,top:0.55,cirrus:0.55},
+  y2100:{cov:0.50,type:0.50,base:1600,top:0.55,cirrus:0.55}
 };
 function cloudField(key){
   const e=CLOUD_ERA[key]||CLOUD_ERA.modern;
@@ -2701,7 +2774,7 @@ function initVR(){
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, STAR_N, 2, 0, gl.RGBA, gl.FLOAT, new Float32Array(STAR_N*8));
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, STAR_MAP_W, 2, 0, gl.RGBA, gl.FLOAT, new Float32Array(STAR_MAP_W*8));
   gl.uniform1i(gl.getUniformLocation(prog,'starMap'), 3);
   const starBinTex=gl.createTexture();
   gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, starBinTex);
@@ -2839,7 +2912,7 @@ function paintVR(){
   gl.uniform1f(u.starPx, (VR_FOV_DEG*Math.PI/180)/Math.max(window.innerHeight,1));
   if(skyNow.stars && vrGL.starTex && vrGL.starUploaded!==skyNow.gen){
     gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, vrGL.starTex);
-    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, STAR_N, 2, gl.RGBA, gl.FLOAT, skyNow.stars);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, STAR_MAP_W, 2, gl.RGBA, gl.FLOAT, skyNow.stars);
     gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, vrGL.starBinTex);
     gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 64, 6, gl.RGBA, gl.FLOAT, skyNow.starBins);
     const rows=Math.max(1, Math.ceil(skyNow.starIdxCount/1024));

@@ -1,4 +1,4 @@
-import json, numpy as np
+import copy, json, numpy as np
 from pathlib import Path
 from skymodel import XYZ_to_srgb, hexcol
 
@@ -8,6 +8,12 @@ except NameError:
     ROOT = Path('.').resolve()
 D = json.load(open(ROOT / 'skycolors.json', encoding='utf-8'))
 byk = {r['key']: r for r in D}
+# Year 2100 keeps today's air. The new lights are satellites, drawn in the site.
+y2100 = copy.deepcopy(byk['modern'])
+y2100.update(key='y2100', name='Year 2100',
+             sub="today's clean air, with about 65,000 satellites on the Lawler, Boley, and Rein (2022) orbits",
+             note='Same atmosphere as the modern clean sky.')
+byk['y2100'] = y2100
 
 def xyY(c, Y=None):
     Y = c['Y'] if Y is None else Y
@@ -69,6 +75,7 @@ PROSE = {
 'modern': "Baseline. Equatorial zenith ~9,000 K; mid-latitude ~15,000 K; polar summer ~19,000 K. Horizons run 7,400–8,400 K, essentially white. Setting Sun ~1,700 K; solar horizon orange; antisolar horizon pink.",
 'modernpoll': "Aerosol optical depth 0.6 flattens the sky to a near-uniform pale gray-blue (6,500–8,300 K), brighter and whiter at the zenith than a clean sky, with the horizon slightly bluer than the zenith. The Sun disappears into gray murk well before it reaches the horizon.",
 'ozonehole': "Antarctic spring in the ozone-hole years, with the column cut to 130 DU and the layer lowered toward 18 km. Noon stays blue. Twilight is where the hole shows: with the Sun 4° down the zenith is a pale blue (~7,800 K) instead of the deep blue (~12,500 K) of a 300 DU sky. It is the same direction as the thin post-oxidation column, and still well short of the cream (~6,000 K) of a sky with no ozone at all.",
+'y2100': "The air is today's. What changes is the traffic. Lawler, Boley, and Rein (2022) put every filed megaconstellation on orbit, about 65,000 satellites, and found the worst naked-eye light pollution near 50° latitude. This sky is that case. Each satellite is their diffuse sphere, effective area 0.8 m², so its magnitude is on the same scale as the stars. At the equinox a mid-latitude sky has a few hundred of them above naked-eye brightness in the hour after sunset, about one in fourteen of the points a dark sky would show, and Earth's shadow takes them by midnight. A low orbit crosses the dome in minutes.",
 }
 
 
@@ -116,8 +123,8 @@ document.querySelectorAll('canvas[data-epoch]').forEach(render);
 </script>
 """
 
-order = ['hadean44','hadean40','archean38','archean27thin','archean27','archean27vthick','proterozoic22','snowball07','carbon30','kpg66','volcanic','ozonehole','modern','modernpoll']
-ages = {'hadean44':'4.4 Ga','hadean40':'4.0 Ga','archean38':'3.8 Ga','archean27thin':'2.7 Ga','archean27':'2.7 Ga','archean27vthick':'2.7 Ga','proterozoic22':'2.2 Ga','snowball07':'700 Ma','carbon30':'300 Ma','kpg66':'66 Ma','volcanic':'1815','modern':'today','modernpoll':'today','ozonehole':'1980–2000'}
+order = ['hadean44','hadean40','archean38','archean27thin','archean27','archean27vthick','proterozoic22','snowball07','carbon30','kpg66','volcanic','ozonehole','modern','modernpoll','y2100']
+ages = {'hadean44':'4.4 Ga','hadean40':'4.0 Ga','archean38':'3.8 Ga','archean27thin':'2.7 Ga','archean27':'2.7 Ga','archean27vthick':'2.7 Ga','proterozoic22':'2.2 Ga','snowball07':'700 Ma','carbon30':'300 Ma','kpg66':'66 Ma','volcanic':'1815','modern':'today','modernpoll':'today','ozonehole':'1980–2000','y2100':'2100'}
 
 hero = ''
 for k in order:
@@ -204,7 +211,7 @@ th{{color:var(--ink2);font-weight:300}}
 @media print{{ .globe,.domes,.strips,table,.hero{{break-inside:avoid}} h3,.epoch header{{break-after:avoid}} .epoch{{padding-top:1rem}} .globes{{grid-template-columns:repeat(2,1fr)}} .epoch .prose{{orphans:3;widows:3}} }}
 </style></head><body><main>
 <h1>The color of Earth's sky, <em>4.4 billion years to today</em></h1>
-<p class="lede">A first-pass spectral radiative-transfer reconstruction of what the sky looked like from the ground at fourteen moments in Earth's history: straight up and at the horizon, at the equator, mid-latitudes and the poles, at noon, sunset and dusk.</p>
+<p class="lede">A first-pass spectral radiative-transfer reconstruction of what the sky looked like from the ground at fifteen moments in Earth's history: straight up and at the horizon, at the equator, mid-latitudes and the poles, at noon, sunset and dusk.</p>
 
 <div class="hero">{hero}</div>
 <p class="hero-caption">Mid-latitude noon sky, zenith (top) to horizon (bottom), oldest at left. Brightness is shown relative to today's clean sky. Tap a column to jump to that epoch.</p>
@@ -229,6 +236,7 @@ th{{color:var(--ink2);font-weight:300}}
 <tr><td>1815, volcanic year</td><td>Milky blue-white, 9,300 K</td><td>Slightly bluer than zenith</td><td>Salmon Sun, pink-lavender afterglow</td></tr>
 <tr><td>Ozone-hole spring</td><td>Blue, still</td><td>White</td><td>Pale blue dusk zenith, ~7,800 K</td></tr>
 <tr><td>Today, clean</td><td>Blue, 15,000 K</td><td>White, 8,400 K</td><td>Orange horizon, pink antisolar; twilight zenith ~12,500 K</td></tr>
+<tr><td>2100, megaconstellation</td><td>Same blue as today</td><td>White</td><td>A few hundred moving satellites in the hour after dusk</td></tr>
 </table></div>
 
 <h3>Horizon versus zenith</h3>
@@ -264,6 +272,7 @@ th{{color:var(--ink2);font-weight:300}}
 <p>Zhu Y. et al. (2020). Persisting volcanic ash particles impact stratospheric SO₂ lifetime and aerosol optical properties. <i>Nature Communications</i>.</p>
 <p>Serdyuchenko A., Gorshelev V., Weber M., Burrows J.P. (2014). High spectral resolution ozone absorption cross-sections — Part 2. <i>Atmospheric Measurement Techniques</i> 7, 625.</p>
 <p>Cooke G.J., Marsh D.R., Walsh C., Black B., Lamarque J.-F. (2021). A revised lower estimate of ozone columns during Earth's oxygenated history. <i>Royal Society Open Science</i> 9, 211165.</p>
+<p>Lawler S.M., Boley A.C., Rein H. (2022). Visibility predictions for near-future satellite megaconstellations. <i>Astronomical Journal</i> 163, 21.</p>
 </div>
 </main></body></html>'''
 open(ROOT.parent / 'report' / 'sky-color-history.html', 'w', encoding='utf-8').write(html)

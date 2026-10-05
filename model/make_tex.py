@@ -1,4 +1,4 @@
-import json, re, html, os, io, contextlib
+import json, re, html, os, io, contextlib, copy
 from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 ns = {'__file__': str(ROOT / 'gen_report.py')}
@@ -6,6 +6,11 @@ with contextlib.redirect_stdout(io.StringIO()):
     exec((ROOT / 'gen_report.py').read_text(encoding='utf-8'), ns)
 PROSE, LIMB_CAP, order, ages = ns['PROSE'], ns['LIMB_CAP'], ns['order'], ns['ages']
 D = json.load(open(ROOT / 'skycolors.json', encoding='utf-8')); byk = {r['key']: r for r in D}
+if 'y2100' not in byk:
+    rec = copy.deepcopy(byk['modern'])
+    rec.update(key='y2100', name='Year 2100',
+               sub="today's clean air, with about 65,000 satellites on the Lawler, Boley, and Rein (2022) orbits")
+    byk['y2100'] = rec
 L = str(ROOT.parent / 'latex')
 
 def tex(s):
@@ -40,7 +45,7 @@ for k in order:
 {tex(PROSE[k])}
 
 \\begin{{figure}}[H]\\centering
-\\includegraphics[width=\\linewidth]{{figures/sky_{k}.png}}
+\\includegraphics[width=\\linewidth]{{figures/sky_{'modern' if k=='y2100' else k}.png}}
 \\caption{{{tex(r['name'])}: noon sky dome at the equator (solar zenith angle $15^\\circ$), mid-latitude ($45^\\circ$) and polar summer ($75^\\circ$), zenith at top and horizon at bottom, with the Sun's disk drawn in its color and relative brightness; below, the horizon-to-antisolar sky with the Sun on the horizon and $4^\\circ$ below it. Brightness relative to today's clean sky, gamma-compressed.}}
 \\label{{fig:sky_{k}}}
 \\end{{figure}}
@@ -83,7 +88,7 @@ for k in order:
 \\par\\vspace{{6pt}}\\noindent\\begin{{minipage}}{{\\linewidth}}
 {{\\normalsize\\bfseries {tex(r['name'])}\\par}}
 {{\\small\\itshape {tex(r['sub'])}\\par}}\\vspace{{3pt}}
-\\centering\\includegraphics[width=\\linewidth]{{figures/sky_{k}.png}}
+\\centering\\includegraphics[width=\\linewidth]{{figures/sky_{'modern' if k=='y2100' else k}.png}}
 \\captionof{{figure}}{{{tex(r['name'])}. Top: noon sky dome at the equator, mid-latitude and polar summer, zenith at top, horizon at bottom, Sun's disk in its own color. Below: sky from the solar horizon to the antisolar horizon with the Sun on the horizon and $4^\\circ$ below it.}}
 \\end{{minipage}}\\par\\vspace{{4pt}}
 {tex(PROSE[k])}
@@ -248,6 +253,7 @@ bib = r"""@article{arney2016, author={Arney, Giada and Domagal-Goldman, Shawn D.
 @article{zhu2020, author={Zhu, Yunqian and others}, title={Persisting volcanic ash particles impact stratospheric {SO}$_2$ lifetime and aerosol optical properties}, journal={Nature Communications}, year={2020}}
 @article{serdyuchenko2014, author={Serdyuchenko, Anna and Gorshelev, Victor and Weber, Mark and Burrows, John P.}, title={High spectral resolution ozone absorption cross-sections -- {Part} 2: Temperature dependence}, journal={Atmospheric Measurement Techniques}, volume={7}, pages={625--636}, year={2014}}
 @article{cooke2021, author={Cooke, Gregory J. and Marsh, Daniel R. and Walsh, Catherine and Black, Benjamin and Lamarque, Jean-Francois}, title={A revised lower estimate of ozone columns during {Earth}'s oxygenated history}, journal={Royal Society Open Science}, volume={9}, pages={211165}, year={2021}}
+@article{lawler2022, author={Lawler, Samantha M. and Boley, Aaron C. and Rein, Hanno}, title={Visibility predictions for near-future satellite megaconstellations: latitudes near 50 degrees will experience the worst light pollution}, journal={Astronomical Journal}, volume={163}, pages={21}, year={2022}}
 @article{wyman2013, author={Wyman, Chris and Sloan, Peter-Pike and Shirley, Peter}, title={Simple analytic approximations to the {CIE} {XYZ} color matching functions}, journal={Journal of Computer Graphics Techniques}, volume={2}, pages={1--11}, year={2013}}
 """
 open(f'{L}/refs.bib', 'w').write(bib)
