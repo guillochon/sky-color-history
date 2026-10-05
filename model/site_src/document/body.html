@@ -1,0 +1,84 @@
+</style></head><body><main>
+<div class="titlebar"><h1>Earth's sky <em>through time</em></h1><div class="titlelinks"><a class="repo" href="https://github.com/guillochon/sky-color-history"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.65-.18 1.35-.27 2.04-.27.68 0 1.35.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>GitHub</a><a class="report" href="main.pdf">see full report here</a></div></div>
+<p class="lede">An interactive companion to the sky-color reconstruction. Scrub the timeline to watch the atmosphere change from the steam-and-CO₂ Hadean to today, then pick an epoch and scrub through a day to see how its sky moved from dawn to dusk. Every color comes from the same spectral radiative-transfer model as the report.</p>
+
+<h2>Four and a half billion years</h2>
+<p class="hint">The globe is seen from space at equinox with the Sun behind you, so latitude runs from the equator at the center line to the poles at top and bottom. The atmosphere is drawn 30× too thick so that altitude structure shows.</p>
+<div class="row">
+ <div>
+  <div class="stage" id="gstage"><div class="tip" id="gtip"></div><canvas id="globe" width="720" height="720" aria-label="Volumetric rendering of Earth's atmosphere for the selected epoch"></canvas></div>
+  <input id="tslider" type="range" min="0" max="EPOCH_MAX" step="0.01" value="MODERN_IDX" aria-label="Epoch">
+  <div class="track" id="ttrack"></div>
+  <div class="controls"><button id="tplay" aria-pressed="false">Play</button><span class="hint">or drag the slider; ← → keys step</span></div>
+ </div>
+ <div>
+  <h3 class="epoch-title" id="tname"></h3>
+  <p class="epoch-sub" id="tsub"></p>
+  <p class="epoch-wiki"><a id="twiki" href="https://en.wikipedia.org/wiki/Holocene" target="_blank" rel="noopener noreferrer">Holocene on Wikipedia</a></p>
+  <div class="domes" id="tdomes"></div>
+  <p class="legend">Noon sky, zenith at top and horizon at bottom, at the equator, mid-latitudes and the summer pole; the Sun's disk in its own color and brightness. Brightness relative to today's clean sky.</p>
+  <p id="tprose"></p>
+ </div>
+</div>
+
+<h2>A day under that sky</h2>
+<p class="hint">A whole-sky (fisheye) view: the zenith is at the center and the horizon is the rim, north at the top. Equinox geometry, so the Sun rises due east at 6:00 and sets due west at 18:00 everywhere; at the poles the noon Sun sits only 15° above the horizon. The Moon is placed for the selected date and clock time at the selected latitude, on your time zone's central meridian. On this dome the Sun and Moon are enlarged together so the phase stays readable; in the VR view both are drawn at four times their true angular size. Moonlight is the same sky grid as sunlight, added on top, with the Moon at its own place in the sky. Its brightness follows the lunar phase and the Moon's angular size at that epoch. When the Moon covers part of the Sun, sunlight throughout the sky is scaled by the fraction of that drawn solar disk still visible, so a partial eclipse is more common than for the true sizes, and a true overlap is still covered. The thousand brightest stars are drawn on this dome and in the VR view at their present-day places. The faintest of them is a single pixel, and size grows with brightness so that the hundred brightest keep the sizes they already had. Year 2100 adds the communications satellites and, brighter than those, the Sunrise orbital datacenters, both on the same magnitude scale, and both move as the clock does.</p>
+<div class="row">
+ <div>
+  <div class="stage" id="dstage"><button type="button" id="vrbtn" class="vrbtn" title="Full-screen view: look around while the day plays">VR</button><div class="tip" id="dtip"></div><canvas id="dome" width="600" height="600" aria-label="Whole-sky view for the selected epoch, latitude and time of day"></canvas></div>
+  <input id="hslider" type="range" min="0" max="1440" step="5" value="720" aria-label="Time of day (minutes)">
+  <div class="track" id="htrack"></div>
+  <div class="controls">
+   <button id="hplay" aria-pressed="false">Play</button>
+   <span id="hclock" style="font-size:1.2rem;min-width:5.5ch"></span>
+   <label>Date <input id="moonDate" type="date" aria-label="Date for the Moon"></label>
+   <button id="expo" aria-pressed="false" title="Normalize brightness so that color is visible in dim skies">Auto-exposure</button>
+  </div>
+ </div>
+ <div>
+  <div class="controls">
+   <select id="depoch" aria-label="Epoch"></select>
+   <span role="group" aria-label="Latitude"><button data-lat="Equator" aria-pressed="false">Equator</button> <button data-lat="Mid-latitude" aria-pressed="true">45°</button> <button data-lat="Polar" aria-pressed="false">75°</button></span>
+  </div>
+  <div class="readout">
+   <div>Sun elevation<b id="relev"></b></div>
+   <div>Zenith<b id="rzen"></b></div>
+   <div>Horizon (side)<b id="rhor"></b></div>
+   <div>Sun's disk<b id="rsun"></b></div>
+   <div>Moon<b id="rmoon"></b></div>
+  </div>
+  <div class="swatchbar" id="hbar"></div>
+  <p class="legend">Sky along the Sun's vertical: from the horizon under the Sun, up through the zenith, down to the opposite horizon.</p>
+  <p id="dprose" class="hint"></p>
+ </div>
+</div>
+
+<div class="foot">Model and data: spherical-shell single scattering with a delta-Eddington multiple-scattering correction, 380–780 nm, CIE 1931 color matching, sRGB output without chromatic adaptation. Colors are what a daylight-balanced camera would record, not what an adapted eye would perceive. Clouds are omitted; paleoatmosphere compositions carry order-of-magnitude uncertainty. Time of day is interpolated between 34 computed solar zenith angles. From the horizon to 20° below it, those samples are spaced 1° apart; from 20° to 30° below, that last sky fades to black. The plane-parallel multiple-scattering term fades out from 10° above the horizon through sunrise. The Moon is a NASA LROC color map (SVS CGI Moon Kit). Moonlight is that same sky grid with the Moon in place of the Sun, added to the sunlight, and scaled by the Allen phase law (Krisciunas &amp; Schaefer 1991) and by the square of the Moon's angular size at that epoch. Its phase is the angle between it and the Sun drawn here. A partial solar eclipse scales that sunlight by the fraction of the drawn solar disk the Moon leaves uncovered. Its size follows the Earth–Moon distance at each epoch: cyclostratigraphic distances from Farhat et al. 2022, and about 70% of today's distance at 3.2 Ga from the Moodies Group (Eulenfeld &amp; Heubeck 2023). Ages older than 3.2 Ga extend that trend and stay beyond 30 Earth radii. The thousand brightest stars are Yale Bright Star Catalogue places (Hoffleit &amp; Warren 1991), carried from J2000 to the year on the clock by precession and proper motion. The faintest is a single pixel, and size grows with brightness so that the hundred brightest keep the sizes they already had. In 2100 the moving points are two populations on that same magnitude scale, kept only while sunlit and brighter than magnitude 6.5. One is the Lawler, Boley, and Rein (2022) megaconstellation, about 65,000 satellites on the filed orbits, each a diffuse sphere of effective area 0.8 m². The other is Blue Origin's Sunrise orbital datacenters from Boley, Lawler, and Rein (2026): 51,600 Sun-synchronous satellites between 500 and 1,800 km, nodes spread 10° to either side of the terminator, each a diffuse sphere of 800 m² at albedo 0.2.</div>
+</main>
+<div id="vr" aria-hidden="true">
+<canvas id="vrc"></canvas>
+<div id="sunmark" class="aim" hidden><svg class="chev" viewBox="0 0 36 36" aria-hidden="true"><path d="M7 24 L18 8 L29 24" fill="none" stroke="#000" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 24 L18 8 L29 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="badge" viewBox="0 0 24 24" aria-hidden="true"><g stroke="#000" stroke-width="3.2" stroke-linecap="round"><path d="M12 1.6v3M12 19.4v3M1.6 12h3M19.4 12h3M4.5 4.5l2.1 2.1M17.4 17.4l2.1 2.1M19.5 4.5l-2.1 2.1M6.6 17.4l-2.1 2.1"/></g><g stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 1.6v3M12 19.4v3M1.6 12h3M19.4 12h3M4.5 4.5l2.1 2.1M17.4 17.4l2.1 2.1M19.5 4.5l-2.1 2.1M6.6 17.4l-2.1 2.1"/></g><circle cx="12" cy="12" r="4.3" fill="#000"/><circle cx="12" cy="12" r="3.2" fill="currentColor"/></svg></div>
+<div id="moonmark" class="aim" hidden><svg class="chev" viewBox="0 0 36 36" aria-hidden="true"><path d="M7 24 L18 8 L29 24" fill="none" stroke="#000" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 24 L18 8 L29 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg><canvas class="badge" id="moonphase" width="64" height="64" aria-hidden="true"></canvas></div>
+<div class="vrhud">
+  <div class="vrtop"><div id="vrplace"></div><div class="vrtop-right"><div id="vrclock"></div><button type="button" id="vrpad-play" class="vrplay" data-act="play" aria-pressed="true" aria-label="Pause"><svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg><svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l12 7-12 7z"/></svg></button></div></div>
+  <div class="vrbot">
+    <div class="vrkeys"><span>mouse looks</span><span><kbd>w</kbd><kbd>a</kbd><kbd>s</kbd><kbd>d</kbd> move</span><span><kbd>shift</kbd> faster</span><span><kbd>h</kbd> scenery</span><span><kbd>c</kbd> clouds</span><span><kbd>m</kbd> <span id="vrmusiclabel">music</span></span><span><kbd>esc</kbd> leave</span><span><kbd>space</kbd> play / pause</span><span><kbd>←</kbd><kbd>→</kbd> step time</span><span><kbd>↑</kbd><kbd>↓</kbd> change era</span><span><kbd>e</kbd> next eclipse</span></div>
+    <div class="vrnote">The plain, the shapes, and the clouds are scenery. The sky is the model.</div>
+    <div class="vrpad" role="toolbar" aria-label="View controls">
+      <div class="vrpad-row">
+        <button type="button" id="vrpad-scenery" data-act="scenery" aria-pressed="true" aria-label="Scenery"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 19l6-11 4 6 3-4 5 9z"/></svg></button>
+        <button type="button" id="vrpad-clouds" data-act="clouds" aria-pressed="true" aria-label="Clouds"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .5-8 5.5 5.5 0 0 0-10.6-1.6A3.5 3.5 0 0 0 7 18z"/></svg></button>
+        <button type="button" id="vrpad-music" data-act="music" aria-pressed="true" aria-label="Music"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V6l10-2v10"/><circle cx="7" cy="18" r="2.4" fill="currentColor" stroke="none"/><circle cx="17" cy="14" r="2.4" fill="currentColor" stroke="none"/></svg></button>
+        <button type="button" data-act="eclipse" aria-label="Next eclipse"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9.2" cy="12" r="4.5"/><circle cx="14.8" cy="12" r="4.5"/></svg></button>
+      </div>
+      <div class="vrpad-row">
+        <button type="button" data-act="time" data-dir="-5" aria-label="Earlier"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 7 L6 12 L11 17"/><circle cx="16.5" cy="12" r="3.2"/></svg></button>
+        <button type="button" data-act="time" data-dir="5" aria-label="Later"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="7.5" cy="12" r="3.2"/><path d="M13 7 L18 12 L13 17"/></svg></button>
+        <button type="button" data-act="era" data-dir="-1" aria-label="Previous era"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10M7 11h10"/><path d="M8 14l4 5 4-5"/></svg></button>
+        <button type="button" data-act="era" data-dir="1" aria-label="Next era"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 10l4-5 4 5"/><path d="M7 14h10M7 18h10"/></svg></button>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+<script>
