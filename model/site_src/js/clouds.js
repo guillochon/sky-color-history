@@ -17,12 +17,8 @@ function makeWeather(n){
   }
   return data;
 }
-function makeCloudVolumes(gl){
-  const vs=glShader(gl, gl.VERTEX_SHADER, '#version 300 es\nin vec2 a;void main(){gl_Position=vec4(a,0.0,1.0);}');
-  const fs=glShader(gl, gl.FRAGMENT_SHADER, NOISEFS);
-  if(!vs||!fs) return null;
-  const prog=gl.createProgram(); gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.bindAttribLocation(prog, 0, 'a'); gl.linkProgram(prog);
-  if(!gl.getProgramParameter(prog, gl.LINK_STATUS)){ console.warn(gl.getProgramInfoLog(prog)); return null; }
+// prog is the linked NOISEFS program. It is deleted once the volumes are filled.
+function makeCloudVolumes(gl, prog){
   const uLayer=gl.getUniformLocation(prog,'layer'), uKind=gl.getUniformLocation(prog,'kind'), uSide=gl.getUniformLocation(prog,'side');
   const fbo=gl.createFramebuffer();
   const fill=(tex, side, kind)=>{
@@ -44,7 +40,7 @@ function makeCloudVolumes(gl){
   const base=gl.createTexture(), detail=gl.createTexture();
   fill(base, 128, 0); fill(detail, 32, 1);
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-  gl.deleteProgram(prog); gl.deleteShader(vs); gl.deleteShader(fs); gl.deleteFramebuffer(fbo);
+  gl.deleteProgram(prog); gl.deleteFramebuffer(fbo);
   return {base, detail};
 }
 // Coverage, type, base altitude, and how tall the tops run, by era.
