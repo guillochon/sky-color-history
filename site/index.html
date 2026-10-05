@@ -2619,7 +2619,7 @@ precision highp float;
 uniform sampler2D noiseTex;
 uniform sampler2D sky; uniform sampler2D moonMap; uniform sampler2D starMap; uniform sampler2D starBin; uniform sampler2D starIdx; uniform sampler2D weather; uniform sampler2D hitInfo; uniform sampler2D hitNrm; uniform vec2 res;
 uniform float yaw,pitch,fov,sunAz,sunEl,sunRad,sunOn,nr,na,sunMu,showScn,mtnSnow;
-uniform float moonAz,moonEl,moonRad,moonOn,latRad,starPx,cloudCov,cloudScale,cloudDrift,cloudOn,clockH;
+uniform float moonAz,moonEl,moonRad,moonOn,latRad,starPx,cloudCov,cloudScale,cloudDrift,cloudOn,clockH,snowCover;
 uniform vec3 sunCol,ground,eye;
 uniform vec4 obj[12];
 uniform vec4 pond[8];
@@ -2960,6 +2960,8 @@ void main(){
       float snowLine=mix(0.88, 0.56, clamp(mtnSnow,0.0,1.0));
       float snow=mtnSnow*step(volc, 0.5)*smoothstep(300.0, 670.0, hBest);
       snow*=smoothstep(snowLine, snowLine+0.12, hh)*smoothstep(0.36, 0.74, steep);
+      // snowCover (Snowball Earth) buries every slope but the steep rock faces, whatever the height.
+      snow=max(snow, snowCover*step(volc, 0.5)*smoothstep(0.3, 0.6, steep));
       albedo=mix(albedo, vec3(0.94,0.95,0.97), snow);
       if(volc>0.5){
         float seed=texture(weather, qBest.xy*0.00041+0.13).r;
@@ -3561,7 +3563,7 @@ function vrRestoreGL(gl){
 // Uniform locations, texture units, and fixed values for a sky program (boot or full).
 function setupSkyProg(gl, prog){
   gl.useProgram(prog);
-  const u={}; for(const n of ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','eye','nr','na','sunMu','showScn','mtnSnow','moonAz','moonEl','moonRad','moonOn','latRad','starPx','cloudCov','cloudScale','cloudDrift','cloudOn','clockH','pondN']) u[n]=gl.getUniformLocation(prog, n);
+  const u={}; for(const n of ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','eye','nr','na','sunMu','showScn','mtnSnow','moonAz','moonEl','moonRad','moonOn','latRad','starPx','cloudCov','cloudScale','cloudDrift','cloudOn','clockH','pondN','snowCover']) u[n]=gl.getUniformLocation(prog, n);
   u.pond=gl.getUniformLocation(prog,'pond[0]');
   u.obj=gl.getUniformLocation(prog,'obj[0]'); u.kind=gl.getUniformLocation(prog,'kind[0]');
   for(const [n, unit] of [['sky',0],['moonMap',1],['starMap',3],['starBin',4],['starIdx',5],['weather',7],['hitInfo',10],['hitNrm',11],['noiseTex',12]]) gl.uniform1i(gl.getUniformLocation(prog, n), unit);
@@ -3952,6 +3954,7 @@ function paintVR(){
   gl.uniform3fv(u.ground, groundRGB());
   gl.uniform1f(u.showScn, vrScenery?1:0);
   gl.uniform1f(u.mtnSnow, mtnSnowFor(EP[dIdx].key));
+  gl.uniform1f(u.snowCover, EP[dIdx].key==='snowball07'?1:0);
   { const sz=sceneFor(EP[dIdx].key); gl.uniform4fv(u.pond, sz.p); gl.uniform1f(u.pondN, sz.pn); }
   gl.uniform1f(u.clockH, (minutes%DAYMIN)/60);
   const sc=sceneFor(EP[dIdx].key); gl.uniform4fv(u.obj, sc.o); gl.uniform1fv(u.kind, sc.k);

@@ -218,6 +218,7 @@ function paintVR(){
   gl.uniform3fv(u.ground, groundRGB());
   gl.uniform1f(u.showScn, vrScenery?1:0);
   gl.uniform1f(u.mtnSnow, mtnSnowFor(EP[dIdx].key));
+  gl.uniform1f(u.snowCover, EP[dIdx].key==='snowball07'?1:0);
   { const sz=sceneFor(EP[dIdx].key); gl.uniform4fv(u.pond, sz.p); gl.uniform1f(u.pondN, sz.pn); }
   gl.uniform1f(u.clockH, (minutes%DAYMIN)/60);
   const sc=sceneFor(EP[dIdx].key); gl.uniform4fv(u.obj, sc.o); gl.uniform1fv(u.kind, sc.k);

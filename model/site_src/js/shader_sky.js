@@ -6,7 +6,7 @@ precision highp float;
 uniform sampler2D noiseTex;
 uniform sampler2D sky; uniform sampler2D moonMap; uniform sampler2D starMap; uniform sampler2D starBin; uniform sampler2D starIdx; uniform sampler2D weather; uniform sampler2D hitInfo; uniform sampler2D hitNrm; uniform vec2 res;
 uniform float yaw,pitch,fov,sunAz,sunEl,sunRad,sunOn,nr,na,sunMu,showScn,mtnSnow;
-uniform float moonAz,moonEl,moonRad,moonOn,latRad,starPx,cloudCov,cloudScale,cloudDrift,cloudOn,clockH;
+uniform float moonAz,moonEl,moonRad,moonOn,latRad,starPx,cloudCov,cloudScale,cloudDrift,cloudOn,clockH,snowCover;
 uniform vec3 sunCol,ground,eye;
 uniform vec4 obj[12];
 uniform vec4 pond[8];
@@ -347,6 +347,8 @@ void main(){
       float snowLine=mix(0.88, 0.56, clamp(mtnSnow,0.0,1.0));
       float snow=mtnSnow*step(volc, 0.5)*smoothstep(300.0, 670.0, hBest);
       snow*=smoothstep(snowLine, snowLine+0.12, hh)*smoothstep(0.36, 0.74, steep);
+      // snowCover (Snowball Earth) buries every slope but the steep rock faces, whatever the height.
+      snow=max(snow, snowCover*step(volc, 0.5)*smoothstep(0.3, 0.6, steep));
       albedo=mix(albedo, vec3(0.94,0.95,0.97), snow);
       if(volc>0.5){
         float seed=texture(weather, qBest.xy*0.00041+0.13).r;
