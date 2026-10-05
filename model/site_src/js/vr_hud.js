@@ -77,7 +77,7 @@ function stepWalk(dt){
   const yaw=vrYaw*Math.PI/180, sp=(vrHeld.has('shift')?120:24)*dt, inv=Math.hypot(f,s);
   const east=(Math.sin(yaw)*f+Math.cos(yaw)*s)/inv*sp, north=(Math.cos(yaw)*f-Math.sin(yaw)*s)/inv*sp;
   const sc=sceneFor(EP[dIdx].key);
-  const hit=(x,y)=>{ if(!vrScenery) return false; for(let i=0;i<12;i++){ if(sc.k[i]<0.5) continue; const dx=x-sc.o[i*4], dy=y-sc.o[i*4+1], r=scRad(sc.k[i], sc.o[i*4+2])+0.4; if(dx*dx+dy*dy<r*r) return true; } return false; };
+  const hit=(x,y)=>{ if(!vrScenery) return false; if(townSolid(sc, x, y, 0.4)) return true; for(let i=0;i<12;i++){ if(sc.k[i]<0.5) continue; const dx=x-sc.o[i*4], dy=y-sc.o[i*4+1], r=scRad(sc.k[i], sc.o[i*4+2])+0.4; if(dx*dx+dy*dy<r*r) return true; } return false; };
   const nx=vrX+east, ny=vrY+north;
   if(!hit(nx,ny)){ vrX=nx; vrY=ny; } else if(!hit(nx,vrY)) vrX=nx; else if(!hit(vrX,ny)) vrY=ny;
 }

@@ -1,5 +1,5 @@
 // Marched by the hit shader. massifRad must match scRad.
-// Hill cells must match hillHeight in vr_paint.js. hillN and loopPad are hit-shader uniforms.
+// Hill cells must match hillHeight in vr_paint.js. hillN, loopPad, town and townN are hit-shader uniforms.
 // On Windows, ANGLE hands this to the D3D compiler, which inlines every call and unrolls
 // every loop with a constant bound. loopPad is always 0; adding it to a bound keeps the loop
 // rolled, and each heavy function is called from one place inside such a loop. Written the
@@ -15,6 +15,14 @@ float vN(vec2 p){
   return mix(mix(h12(i), h12(i+vec2(1.0,0.0)), u.x), mix(h12(i+vec2(0.0,1.0)), h12(i+vec2(1.0,1.0)), u.x), u.y);
 }
 float massifRad(float R, float volc){ return R*mix(1.28, 1.12, volc); }
+// Hills stay out of towns. Must match hillClear in vr_paint.js.
+bool hillClear(vec2 c, float R){
+  for(int i=0;i<int(townN)+loopPad;i++){
+    vec4 tw=town[i];
+    if(length(c-tw.xy)<tw.z+R*1.28+60.0) return false;
+  }
+  return true;
+}
 float rollAt(vec2 p){
   return vN(p*0.00028)*16.0+vN(p*0.0001+vec2(3.0, 1.2))*12.0;
 }
@@ -149,9 +157,11 @@ float marchLand(vec3 ro, vec3 rd, float tMax, out vec3 nOut, out float ROut, out
       vec2 jit=vec2(h12(g+1.7), h12(g+3.1));
       vec2 c=(g+0.5+(jit-0.5)*0.44)*cell;
       float R=mix(140.0, 340.0, h12(g+5.5));
-      float H=mix(100.0, 280.0, h12(g+8.2));
-      float t=marchMassif(ro, rd, vec4(c, R, H), 0.0);
-      if(t>0.2 && t<tMax && (best<0.0||t<best)){ best=t; cBest=c; Rb=R; Hb=H; }
+      float H=mix(67.0, 188.0, h12(g+8.2));
+      if(hillClear(c, R)){
+        float t=marchMassif(ro, rd, vec4(c, R, H), 0.0);
+        if(t>0.2 && t<tMax && (best<0.0||t<best)){ best=t; cBest=c; Rb=R; Hb=H; }
+      }
     }
     if(tExit>tMax || (best>0.0 && tExit>best)) break;
     if(tx<ty){ g.x+=stp.x; tx+=tdx; }

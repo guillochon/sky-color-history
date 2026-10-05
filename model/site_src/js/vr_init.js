@@ -60,7 +60,7 @@ function initVR(){
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-  const u={}; for(const n of ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','eye','nr','na','sunMu','showScn','mtnSnow','moonAz','moonEl','moonRad','moonOn','latRad','starPx','cloudCov','cloudScale','cloudDrift','cloudOn']) u[n]=gl.getUniformLocation(prog, n);
+  const u={}; for(const n of ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','eye','nr','na','sunMu','showScn','mtnSnow','moonAz','moonEl','moonRad','moonOn','latRad','starPx','cloudCov','cloudScale','cloudDrift','cloudOn','clockH']) u[n]=gl.getUniformLocation(prog, n);
   u.obj=gl.getUniformLocation(prog,'obj[0]'); u.kind=gl.getUniformLocation(prog,'kind[0]');
   gl.uniform1i(gl.getUniformLocation(prog,'sky'), 0);
   gl.uniform1i(gl.getUniformLocation(prog,'moonMap'), 1);
@@ -116,6 +116,7 @@ function initVR(){
 function setupHitProg(gl, hp){
   const hu={}; for(const n of ['res','yaw','pitch','fov','eye','showScn','sunAz','sunEl']) hu[n]=gl.getUniformLocation(hp, n);
   hu.obj=gl.getUniformLocation(hp,'obj[0]'); hu.kind=gl.getUniformLocation(hp,'kind[0]');
+  hu.town=gl.getUniformLocation(hp,'town[0]'); hu.townN=gl.getUniformLocation(hp,'townN');
   ensureWeather(gl);
   gl.useProgram(hp);
   gl.uniform1i(gl.getUniformLocation(hp,'weather'), 7);

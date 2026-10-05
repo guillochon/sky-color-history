@@ -2,7 +2,7 @@ const VRFS=`#version 300 es
 precision highp float;
 uniform sampler2D sky; uniform sampler2D moonMap; uniform sampler2D starMap; uniform sampler2D starBin; uniform sampler2D starIdx; uniform sampler2D weather; uniform sampler2D hitInfo; uniform sampler2D hitNrm; uniform vec2 res;
 uniform float yaw,pitch,fov,sunAz,sunEl,sunRad,sunOn,nr,na,sunMu,showScn,mtnSnow;
-uniform float moonAz,moonEl,moonRad,moonOn,latRad,starPx,cloudCov,cloudScale,cloudDrift,cloudOn;
+uniform float moonAz,moonEl,moonRad,moonOn,latRad,starPx,cloudCov,cloudScale,cloudDrift,cloudOn,clockH;
 uniform vec3 sunCol,ground,eye;
 uniform vec4 obj[12];
 uniform float kind[12];
@@ -90,6 +90,24 @@ int starCubeCell(vec3 d){
   int iv=clamp(int(floor((v+1.0)*4.0)), 0, 7);
   return (face*8+iv)*8+iu;
 }
+// Window lights. Each window switches on at its own point as the sun goes from 3 degrees above
+// the horizon to 5 below, and off at its own time within an hour of offAt (local hours). One in
+// twelve stays on all night. dark runs 0 to 1 over that dusk.
+float windowOn(vec2 id, float seed, float frac, float offAt, float dark){
+  float pick=h12(id+seed*97.0), a=h12(id+seed*31.0+5.1), b=h12(id+seed*13.0+9.7);
+  float on=(b>0.92 || (clockH>=12.0 && clockH<offAt-1.0+2.0*b))?1.0:0.0;
+  return step(pick, frac)*step(a*0.8+0.1, dark)*on;
+}
+// The average of windowOn over many windows, for buildings too far away to resolve them.
+float windowMean(float frac, float offAt, float dark){
+  float pOn=0.08+(clockH>=12.0?clamp(0.92-(clockH-offAt+1.0)*0.5, 0.0, 0.92):0.0);
+  return frac*clamp((dark-0.1)/0.8, 0.0, 1.0)*pOn;
+}
+vec3 skyLook(vec3 d){
+  float c=atan(d.x, d.y); if(c<0.0) c+=6.28318530718;
+  float el=asin(clamp(d.z, -1.0, 1.0))*57.2957795;
+  return texture(sky, vec2((fract(c/6.28318530718)*na+0.5)/(na+1.0), ((90.0-max(el, 0.0))/90.0*nr+0.5)/(nr+1.0))).rgb;
+}
 void main(){
   float aspect=res.x/max(res.y,1.0); float fy=tan(fov*0.5); float fx=fy*aspect;
   float u=((gl_FragCoord.x/res.x)*2.0-1.0)*fx;
@@ -112,7 +130,8 @@ void main(){
     hBest=hn.a; qBest=vec4(pBest.xy, hit.a, hn.a);
   }else if(showScn>0.5 && hit.r>0.0){
     tBest=hit.r; kBest=hit.g; nBest=hn.rgb; pBest=ro+rd*hit.r;
-    qBest=obj[int(hit.a+0.5)]; hBest=qBest.w;
+    if(kBest>5.5){ hBest=hit.a; qBest=vec4(0.0, 0.0, hit.a, hn.a); } // towns: height or eave, and a seed
+    else { qBest=obj[int(hit.a+0.5)]; hBest=qBest.w; }
   }
   vec3 col;
   if(showScn<0.5){ kBest=0.0; tLand=-1.0; }
@@ -157,7 +176,53 @@ void main(){
       gcol*=mix(0.58, 1.0, shBest);
     }
   }
-  if(kBest>0.5){
+  if(kBest>5.5){
+    // Towers (6) and houses (7). Wall coordinates are world x or y, which line up with the bays
+    // because footprints sit on the bay grid. Window detail fades to its average once a bay
+    // spans only a few pixels.
+    float seed=qBest.w, foot=tBest*2.0*fy/res.y, z=pBest.z;
+    vec3 n=nBest;
+    float u=abs(n.x)>0.5?pBest.y:pBest.x;
+    float night=1.0-smoothstep(0.03, 0.25, sunMu), dark=clamp((3.0-sunEl)/8.0, 0.0, 1.0);
+    vec3 refl=reflect(rd, n);
+    vec3 env=refl.z>0.0?skyLook(refl):ground*0.7;
+    vec3 glass=mix(vec3(0.035, 0.045, 0.055), env, 0.25+0.6*pow(1.0-abs(dot(rd, n)), 4.0));
+    vec3 albedo; float win=0.0, lit=0.0;
+    if(kBest<6.5){
+      float sty=fract(seed*7.13);
+      albedo=sty<0.35?vec3(0.60, 0.59, 0.56):(sty<0.6?vec3(0.50, 0.34, 0.26):(sty<0.8?vec3(0.72, 0.70, 0.64):vec3(0.26, 0.30, 0.34)));
+      vec2 ws=sty<0.8?vec2(0.55, 0.5):vec2(0.92, 0.8);
+      if(abs(n.z)<0.3){
+        float bx=u/3.0, bz=z/3.5;
+        float m=step(abs(fract(bx)-0.5), ws.x*0.5)*step(abs(fract(bz)-0.55), ws.y*0.5)*step(0.5, z);
+        float detail=1.0-smoothstep(0.5, 1.4, foot);
+        win=mix(ws.x*ws.y, m, detail);
+        float litFrac=mix(0.2, 0.55, fract(seed*3.71));
+        lit=mix(windowMean(litFrac, 22.0, dark), windowOn(vec2(floor(bx), floor(bz)), seed, litFrac, 22.0, dark), detail);
+      }else albedo=vec3(0.36, 0.36, 0.35);
+    }else{
+      float pa=fract(seed*5.31), pb=fract(seed*11.7);
+      vec3 siding=pa<0.2?vec3(0.86, 0.85, 0.80):(pa<0.4?vec3(0.80, 0.72, 0.58):(pa<0.55?vec3(0.62, 0.70, 0.76):(pa<0.7?vec3(0.84, 0.78, 0.56):(pa<0.85?vec3(0.56, 0.32, 0.24):vec3(0.66, 0.66, 0.62)))));
+      vec3 roof=pb<0.4?vec3(0.20, 0.20, 0.21):(pb<0.65?vec3(0.32, 0.24, 0.18):(pb<0.85?vec3(0.55, 0.27, 0.18):vec3(0.30, 0.34, 0.36)));
+      if(n.z>0.3){
+        float detail=1.0-smoothstep(0.08, 0.3, foot);
+        albedo=roof*mix(1.0, 0.82+0.18*step(0.18, fract(z/0.32)), detail);
+      }else{
+        albedo=siding;
+        // One row of windows per storey, centred in each 3.6 m bay, none in the gable.
+        float bx=u/3.6, sill=z<3.0?z-0.95:z-3.7;
+        float m=step(abs(fract(bx)-0.5), 0.17)*step(0.0, sill)*step(sill, 1.25)*step(z, hBest-0.25);
+        float detail=1.0-smoothstep(0.25, 0.7, foot);
+        win=mix(0.13, m, detail);
+        lit=mix(windowMean(0.5, 22.5, dark), windowOn(vec2(floor(bx), floor(z/2.8)), seed, 0.5, 22.5, dark), detail);
+      }
+    }
+    float ndl=max(dot(n, sd), 0.0);
+    float ao=mix(0.62, 1.0, clamp(n.z, 0.0, 1.0))*mix(0.7, 1.0, smoothstep(0.0, 2.5, z));
+    col=mix(albedo*(0.40*ao+0.95*ndl)*(0.42+0.58*sunMu), glass, win);
+    col+=vec3(1.0, 0.74, 0.42)*win*lit*0.9;
+    col=mix(col, skyLook(rd), clamp(1.0-exp(-tBest/16000.0), 0.0, 0.8));
+  }else if(kBest>0.5){
     float volc=step(1.5, kBest);
     vec3 albedo=vec3(0.46,0.38,0.31);
     vec3 emit=vec3(0.0);
@@ -178,7 +243,7 @@ void main(){
       albedo=mix(mix(ground, rock, 0.4), albedo, smoothstep(0.02, 0.18, hh));
       if(volc>0.5) albedo=mix(albedo, vec3(0.40,0.13,0.05), (1.0-smoothstep(0.06, 0.32, u))*0.85);
       float snowLine=mix(0.88, 0.56, clamp(mtnSnow,0.0,1.0));
-      float snow=mtnSnow*step(volc, 0.5)*smoothstep(450.0, 1000.0, hBest);
+      float snow=mtnSnow*step(volc, 0.5)*smoothstep(300.0, 670.0, hBest);
       snow*=smoothstep(snowLine, snowLine+0.12, hh)*smoothstep(0.36, 0.74, steep);
       albedo=mix(albedo, vec3(0.94,0.95,0.97), snow);
       if(volc>0.5){
