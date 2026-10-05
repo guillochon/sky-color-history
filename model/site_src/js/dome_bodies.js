@@ -55,6 +55,36 @@ const vscale=(a,s)=>[a[0]*s,a[1]*s,a[2]*s];
 const vadd=(a,b,c)=>[a[0]+b[0]+c[0],a[1]+b[1]+c[1],a[2]+b[2]+c[2]];
 const vcross=(a,b)=>[a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
 function vnorm(a){ const m=Math.hypot(a[0],a[1],a[2])||1; return [a[0]/m,a[1]/m,a[2]/m]; }
+// Geminga's supernova, at the birthplace Pellizza et al. (2005) trace the pulsar back to:
+// Galactic l 198°, b -12°, which is J2000 RA 85.25°, Dec +7.44°, in Orion. Peak V about -10.9:
+// a Type II-P supernova (M -16.75, Richardson et al. 2014) at 147 pc, the geometric middle
+// of their 90-240 pc. Early on a II-P is hot, so it is drawn blue-white.
+const SUPERNOVA={geminga:{ra:85.25, dec:7.44, mag:-10.9, rgb:[0.86, 0.92, 1.0]}};
+function supernovaPlace(lat){
+  const sn=SUPERNOVA[EP[dIdx].key];
+  if(!sn) return null;
+  const ins=instantUT(), year=+(document.getElementById('moonDate').value||localISODate(new Date())).slice(0,4);
+  const eq=moonEquatorial(dayNumber(ins.y,ins.m,ins.D,ins.ut));
+  const LST=rev(rev(eq.Ls+180+ins.ut*15)+ins.lon);
+  const place=starMeanPlace([sn.ra, sn.dec, sn.mag, 0, 0, 0], EP[dIdx].key, year);
+  let H=rev(LST-rev(place.ra)); if(H>180) H-=360;
+  const p=altaz(lat, place.dec, H);
+  return {az:p.az, el:p.alt, mag:sn.mag, rgb:sn.rgb};
+}
+// A point too bright to resolve: a white core and a glare halo, bright enough to show by day.
+function drawSupernovaOnDome(sn){
+  if(!sn||sn.el<0) return;
+  const W=dome.width, H=dome.height, cx=W/2, cy=H/2, R=W*0.46;
+  const rr=R*(90-sn.el)/90, a=sn.az*Math.PI/180, x=cx+rr*Math.sin(a), y=cy-rr*Math.cos(a);
+  const fade=smooth01(0, 4, sn.el), c=sn.rgb.map(v=>Math.round(v*255)).join(',');
+  dctx.save(); dctx.beginPath(); dctx.arc(cx,cy,R,0,Math.PI*2); dctx.clip();
+  dctx.globalCompositeOperation='lighter';
+  const g=dctx.createRadialGradient(x,y,0,x,y,26);
+  g.addColorStop(0, `rgba(${c},${0.9*fade})`); g.addColorStop(0.12, `rgba(${c},${0.45*fade})`); g.addColorStop(1, `rgba(${c},0)`);
+  dctx.fillStyle=g; dctx.beginPath(); dctx.arc(x,y,26,0,Math.PI*2); dctx.fill();
+  dctx.fillStyle=`rgba(255,255,255,${fade})`; dctx.beginPath(); dctx.arc(x,y,2.6,0,Math.PI*2); dctx.fill();
+  dctx.restore();
+}
 function horizDir(az,el){ const a=az*Math.PI/180, e=el*Math.PI/180, c=Math.cos(e); return [Math.sin(a)*c, Math.cos(a)*c, Math.sin(e)]; }
 function smooth01(e0,e1,x){ const t=Math.max(0,Math.min(1,(x-e0)/(e1-e0))); return t*t*(3-2*t); }
 function moonLit(moon, sunAz, sunEl){ return (1-vdot(horizDir(moon.az,moon.el), horizDir(sunAz,sunEl)))/2; }

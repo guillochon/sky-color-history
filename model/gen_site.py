@@ -9,9 +9,9 @@ ns = {'__file__': str(HERE / 'gen_report.py')}
 with contextlib.redirect_stdout(io.StringIO()):
     exec((HERE / 'gen_report.py').read_text(encoding='utf-8'), ns)
 PROSE = ns['PROSE']
-order = ['hadean44','hadean40','archean38','archean27thin','archean27','archean27vthick','proterozoic22','snowball07','carbon30','kpg66','volcanic','ozonehole','modern','modernpoll','y2100']
-ages = {'hadean44':'4.4 Ga','hadean40':'4.0 Ga','archean38':'3.8 Ga','archean27thin':'2.7 Ga','archean27':'2.7 Ga','archean27vthick':'2.7 Ga','proterozoic22':'2.2 Ga','snowball07':'700 Ma','carbon30':'300 Ma','kpg66':'66 Ma','volcanic':'1815 CE','modern':'Today','modernpoll':'Today','ozonehole':'1980–2000','y2100':'2100'}
-short = {'hadean44':'Early Hadean','hadean40':'Late Hadean','archean38':'Early Archean','archean27thin':'Thin haze','archean27':'Thick haze','archean27vthick':'Very thick haze','proterozoic22':'Post-oxidation','snowball07':'Snowball Earth','carbon30':'Carboniferous','kpg66':'Impact winter','volcanic':'Volcanic year','modern':'Clean air','modernpoll':'Polluted city','ozonehole':'Ozone hole','y2100':'Year 2100'}
+order = ['hadean44','hadean40','archean38','archean27thin','archean27','archean27vthick','proterozoic22','snowball07','carbon30','kpg66','geminga','volcanic','ozonehole','modern','modernpoll','y2100']
+ages = {'hadean44':'4.4 Ga','hadean40':'4.0 Ga','archean38':'3.8 Ga','archean27thin':'2.7 Ga','archean27':'2.7 Ga','archean27vthick':'2.7 Ga','proterozoic22':'2.2 Ga','snowball07':'700 Ma','carbon30':'300 Ma','kpg66':'66 Ma','geminga':'342 ka','volcanic':'1815 CE','modern':'Today','modernpoll':'Today','ozonehole':'1980–2000','y2100':'2100'}
+short = {'hadean44':'Early Hadean','hadean40':'Late Hadean','archean38':'Early Archean','archean27thin':'Thin haze','archean27':'Thick haze','archean27vthick':'Very thick haze','proterozoic22':'Post-oxidation','snowball07':'Snowball Earth','carbon30':'Carboniferous','kpg66':'Impact winter','geminga':'Geminga supernova','volcanic':'Volcanic year','modern':'Clean air','modernpoll':'Polluted city','ozonehole':'Ozone hole','y2100':'Year 2100'}
 byk = {r['key']: r for r in D}
 # Year 2100 is today's sky. The satellites are drawn later, not baked into the color grid.
 if 'y2100' not in byk:
@@ -19,6 +19,15 @@ if 'y2100' not in byk:
     rec.update(key='y2100', name='Year 2100',
                sub="today's clean air, with the filed megaconstellation and the Sunrise orbital datacenters")
     byk['y2100'] = rec
+# The Geminga supernova keeps clean modern air. The explosion itself is drawn in the site.
+if 'geminga' not in byk:
+    rec = copy.deepcopy(byk['modern'])
+    rec.update(key='geminga', name='Geminga supernova, ~342 ka',
+               sub='clean Middle Pleistocene air, under a magnitude −11 supernova in Orion')
+    byk['geminga'] = rec
+if 'geminga' not in LIMB:
+    LIMB['geminga'] = copy.deepcopy(LIMB['modern'])
+    LIMB['geminga']['name'] = 'Geminga supernova'
 if 'y2100' not in LIMB:
     LIMB['y2100'] = copy.deepcopy(LIMB['modern'])
     LIMB['y2100']['name'] = 'Year 2100'

@@ -6,7 +6,7 @@ function sizeVR(){
 }
 function mtnSnowFor(key){
   if(key==='kpg66'||key==='snowball07') return 1;
-  if(key==='modern'||key==='ozonehole') return 1;
+  if(key==='modern'||key==='ozonehole'||key==='geminga') return 1;
   if(key==='modernpoll'||key==='y2100') return 0.75;
   if(key==='carbon30') return 0.35;
   if(key==='proterozoic22') return 0.2;
@@ -26,6 +26,7 @@ const ZONES={
   snowball07:[[30,320,'ice',120],[300,520,'ice',200],[60,700,'ice',160]],
   carbon30:[[0,560,'carb',300],[70,520,'carb',230],[140,720,'carb',350],[205,560,'carb',260],[265,860,'carb',420],[325,620,'carb',270],[105,170,'swamp',55],[235,150,'swamp',45],[350,130,'swamp',40]],
   kpg66:[[20,520,'dead',260],[300,650,'dead',300],[110,300,'water',70]],
+  geminga:[[20,520,'wood',260],[300,650,'wood',300],[80,800,'wood',280],[110,330,'water',90],[240,500,'water',130]],
   volcanic:[[20,520,'wood',260],[80,720,'wood',300],[320,640,'wood',280],[120,330,'water',90]],
   ozonehole:[[60,3000,'city'],[190,2600,'city'],[150,620,'hood'],[230,950,'hood'],[310,1400,'hood'],[10,900,'wood',280],[100,1300,'wood',300],[270,520,'water',140]],
   modern:[[35,2800,'city'],[215,3200,'city'],[175,560,'hood'],[125,1150,'hood'],[265,1300,'hood'],[340,800,'wood',300],[70,900,'wood',260],[250,600,'water',140]],
@@ -235,6 +236,19 @@ function paintVR(){
   gl.uniform1f(u.mtnSnow, mtnSnowFor(EP[dIdx].key));
   gl.uniform1f(u.snowCover, EP[dIdx].key==='snowball07'?1:0);
   gl.uniform1f(u.waterT, (performance.now()/1000)%1000);
+  // The supernova: where it is, its color, and how much it lights the scene. It only matters
+  // once the sky is dark, and the air dims it near the horizon.
+  const sn=skyNow.sn, snUp=!!sn && sn.el>-0.5;
+  gl.uniform1f(u.snOn, snUp?1:0);
+  if(snUp){
+    const d=horizDir(sn.az, Math.max(sn.el, 0)), lowAir=smoothstep(-0.5, 6, sn.el)*Math.exp(-0.25/Math.max(Math.sin(Math.max(sn.el, 0.5)*Math.PI/180), 0.05));
+    const night=1-smoothstep(0.0, 0.25, Math.max(0, Math.sin(apparentEl(90-skyNow.sza)*Math.PI/180)));
+    vrGL.snDir=new Float32Array(d);
+    vrGL.snLight=new Float32Array(sn.rgb.map(v=>v*0.32*lowAir*night));
+    gl.uniform3fv(u.snDir, vrGL.snDir);
+    gl.uniform3fv(u.snCol, new Float32Array(sn.rgb.map(v=>v*lowAir)));
+    gl.uniform3fv(u.snLight, vrGL.snLight);
+  }else{ vrGL.snLight=new Float32Array(3); gl.uniform3fv(u.snLight, vrGL.snLight); }
   { const sz=sceneFor(EP[dIdx].key); gl.uniform4fv(u.pond, sz.p); gl.uniform1f(u.pondN, sz.pn); }
   gl.uniform1f(u.clockH, (minutes%DAYMIN)/60);
   const sc=sceneFor(EP[dIdx].key); gl.uniform4fv(u.obj, sc.o); gl.uniform1fv(u.kind, sc.k);
@@ -310,7 +324,8 @@ function paintVR(){
     gl.uniform1f(cu.showScn, vrScenery?1:0);
     gl.uniform1f(cu.cloudCov, field.cov); gl.uniform1f(cu.cloudScale, field.scale); gl.uniform1f(cu.cloudDrift, cloudScroll);
     gl.uniform1f(cu.cloudTime, vrGL.cloudTime||0); gl.uniform1f(cu.cloudFrame, vrGL.cloudFrame||0);
-    gl.uniform1f(cu.cloudType, field.type); gl.uniform1f(cu.cloudDeck, field.deck); gl.uniform1f(cu.cloudBase, field.base); gl.uniform1f(cu.cloudTop, field.top); gl.uniform1f(cu.cloudCirrus, field.cirrus);
+    gl.uniform1f(cu.cloudType, field.type); gl.uniform1f(cu.cloudDeck, field.deck);
+    gl.uniform3fv(cu.snLight, vrGL.snLight||new Float32Array(3)); if(vrGL.snDir) gl.uniform3fv(cu.snDir, vrGL.snDir); gl.uniform1f(cu.cloudBase, field.base); gl.uniform1f(cu.cloudTop, field.top); gl.uniform1f(cu.cloudCirrus, field.cirrus);
     gl.uniform1f(cu.useHDR, vrGL.cloudHDR?1:0);
     gl.uniform1f(cu.sunVis, skyNow.sunVis==null?1:skyNow.sunVis);
     gl.uniform4fv(cu.obj, sc.o); gl.uniform1fv(cu.kind, sc.k);
