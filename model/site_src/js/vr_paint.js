@@ -12,26 +12,45 @@ function mtnSnowFor(key){
   if(key==='proterozoic22') return 0.2;
   return 0;
 }
-function scRad(k, r){ return (k>0.5&&k<1.5)?r*1.28:(k>1.5&&k<2.5)?r*1.12:r; }
+function scRad(k, r){ return (k>0.5&&k<1.5)?r*1.28:(k>1.5&&k<2.5)?r*1.12:(k>2.5&&k<3.5)?r*1.08:r; }
 const MTN_SCALE=0.67; // massif and hill heights relative to the original layout
-// Towns: [bearing deg, distance m, 'city' or 'hood']. Counts are drawn per town; the radius
-// follows from the count and the lot occupancy in lotOcc (70% of city lots, 77% of house lots).
-const TOWNS={
-  ozonehole:[[60,3000,'city'],[190,2600,'city'],[150,620,'hood'],[230,950,'hood'],[310,1400,'hood']],
-  modern:[[35,2800,'city'],[215,3200,'city'],[175,560,'hood'],[125,1150,'hood'],[265,1300,'hood']],
-  modernpoll:[[20,2400,'city'],[80,3100,'city'],[180,2000,'city'],[290,2900,'city'],[130,700,'hood'],[235,820,'hood']],
-  y2100:[[0,2600,'city'],[95,2300,'city'],[220,3000,'city'],[160,620,'hood'],[275,1050,'hood'],[45,1250,'hood']],
+// Zones: [bearing deg, distance m, kind, radius m]. Cities and neighbourhoods draw a building
+// count instead, and their radius follows from it and the lot occupancy in lotOcc (70% of city
+// lots, 77% of house lots). Woods are lot grids too; pools are drawn by the sky shader.
+const WATER=[[30,350,'water',120],[95,600,'water',220],[320,500,'water',180],[60,1500,'water',400]];
+const ZONES={
+  hadean44:[[30,330,'magma',90],[95,520,'magma',150],[320,430,'magma',120],[255,1300,'magma',260],[40,1500,'magma',300]],
+  hadean40:[[30,330,'water',100],[95,520,'magma',140],[320,430,'water',130],[255,1300,'water',280],[40,1500,'magma',260]],
+  archean38:WATER, archean27thin:WATER, archean27:WATER, archean27vthick:WATER,
+  proterozoic22:[[20,520,'water',180],[300,720,'water',250],[100,480,'water',120]],
+  snowball07:[[30,320,'ice',120],[300,520,'ice',200],[60,700,'ice',160]],
+  carbon30:[[0,560,'carb',300],[70,520,'carb',230],[140,720,'carb',350],[205,560,'carb',260],[265,860,'carb',420],[325,620,'carb',270],[105,170,'swamp',55],[235,150,'swamp',45],[350,130,'swamp',40]],
+  kpg66:[[20,520,'dead',260],[300,650,'dead',300],[110,300,'water',70]],
+  volcanic:[[20,520,'wood',260],[80,720,'wood',300],[320,640,'wood',280],[120,330,'water',90]],
+  ozonehole:[[60,3000,'city'],[190,2600,'city'],[150,620,'hood'],[230,950,'hood'],[310,1400,'hood'],[10,900,'wood',280],[100,1300,'wood',300],[270,520,'water',140]],
+  modern:[[35,2800,'city'],[215,3200,'city'],[175,560,'hood'],[125,1150,'hood'],[265,1300,'hood'],[340,800,'wood',300],[70,900,'wood',260],[250,600,'water',140]],
+  modernpoll:[[20,2400,'city'],[80,3100,'city'],[180,2000,'city'],[290,2900,'city'],[130,700,'hood'],[235,820,'hood'],[330,700,'wood',220],[40,750,'water',130]],
+  y2100:[[0,2600,'city'],[95,2300,'city'],[220,3000,'city'],[160,620,'hood'],[275,1050,'hood'],[45,1250,'hood'],[330,650,'wood',250],[100,800,'wood',240],[215,700,'water',120]],
 };
+const ZONE_TYPE={city:1, hood:2, wood:3, carb:4, dead:5}, POND_KIND={water:0, magma:1, ice:2, swamp:3};
+const TOWNS={ozonehole:1, modern:1, modernpoll:1, y2100:1};
 const TOWN_MTNS=[[300,7500,2000,1200,1],[20,9000,2400,1400,1],[160,11000,2800,1600,1],[250,6400,1500,800,1],[70,8000,2200,1400,1],[115,5600,1300,700,1],[200,8500,2000,1100,1],[340,6200,1500,900,1]];
+// t: town[16] for the hit shader (pools go in as type 0 so hills keep out). p: pond[8] for the sky.
 function townsFor(key){
-  const list=TOWNS[key]||[], t=new Float32Array(32);
+  const list=ZONES[key]||[], t=new Float32Array(64), p=new Float32Array(32);
+  let tn=0, pn=0;
   list.forEach((s, i)=>{
-    const a=s[0]*Math.PI/180, city=s[2]==='city', r=h12xy(i*3.7+1.3, key.length*5.1+0.7);
-    const n=city?80+Math.floor(r*41):250+Math.floor(r*251);
-    const R=(city?42:24)*Math.sqrt(n/((city?0.70:0.773)*Math.PI));
-    t[i*4]=Math.sin(a)*s[1]; t[i*4+1]=Math.cos(a)*s[1]; t[i*4+2]=R; t[i*4+3]=city?n:-n;
+    const a=s[0]*Math.PI/180, x=Math.sin(a)*s[1], y=Math.cos(a)*s[1];
+    let R=s[3];
+    if(s[2]==='city'||s[2]==='hood'){
+      const city=s[2]==='city', r=h12xy(i*3.7+1.3, key.length*5.1+0.7);
+      const n=city?80+Math.floor(r*41):250+Math.floor(r*251);
+      R=(city?42:24)*Math.sqrt(n/((city?0.70:0.773)*Math.PI));
+    }
+    t.set([x, y, R, ZONE_TYPE[s[2]]||0], tn*4); tn++;
+    if(s[2] in POND_KIND){ p.set([x, y, R, POND_KIND[s[2]]], pn*4); pn++; }
   });
-  return {t, tn:list.length};
+  return {t, tn, p, pn};
 }
 const sceneCache={};
 function sceneFor(key){ return sceneCache[key]||(sceneCache[key]=buildScene(key)); }
@@ -40,8 +59,8 @@ function buildScene(key){ // [bearing deg, distance m, radius m, height m, kind]
     for(let i=0;i<12;i++){ const s=list[i]; if(!s) continue; const a=s[0]*Math.PI/180; o[i*4]=Math.sin(a)*s[1]; o[i*4+1]=Math.cos(a)*s[1]; o[i*4+2]=s[2]; o[i*4+3]=s[4]<2.5?s[3]*MTN_SCALE:s[3]; k[i]=s[4]; }
     return {o, k, ...townsFor(key)}; };
   const VOLC=[[175,320,80,150,2],[205,560,130,240,2],[140,900,200,340,2],[250,3000,700,520,2],[310,5200,1400,1000,1],[350,8000,2200,1500,1],[100,9000,2500,1600,1],[160,7000,1800,1100,1],[230,11000,2800,1700,1],[40,6500,1600,900,1],[70,4200,1100,780,1],[280,4800,1000,640,1]];
-  const ICE=[[165,220,70,36,3],[195,420,130,60,3],[120,700,220,90,3],[240,1100,300,120,3],[210,1900,900,200,3],[260,3400,1600,280,3],[320,2100,1000,220,3],[30,7000,2000,900,3],[100,9000,2400,1100,3],[190,8000,1800,800,3],[250,11000,2600,1200,3],[330,6000,1600,700,3]];
-  const TREES=[[10,70,5,24,5],[35,120,7,32,5],[60,85,4,20,5],[95,160,8,36,5],[140,95,6,28,5],[180,200,9,42,5],[220,110,5,26,5],[270,150,7,34,5],[40,6000,1600,900,1],[140,8500,2200,1300,1],[230,5000,1400,750,1],[310,10000,2500,1500,1]];
+  const ICE=[[165,900,350,260,3],[200,1500,500,420,3],[120,1900,600,380,3],[240,2600,800,600,3],[300,3500,1100,700,3],[30,5000,1500,900,3],[90,7000,2000,1100,3],[190,8000,1800,1000,3],[260,10000,2600,1300,3],[330,6000,1600,900,3],[60,3000,900,500,3]];
+  const TREES=[[40,6000,1600,900,1],[140,8500,2200,1300,1],[230,5000,1400,750,1],[310,10000,2500,1500,1],[100,7000,1800,1000,1],[190,9000,2400,1400,1]];
   const PEAKS=[[170,380,110,190,1],[200,720,170,300,1],[140,1200,260,420,1],[55,4200,1300,800,1],[95,2200,700,420,1],[230,4500,1400,880,1],[280,2600,800,500,1],[330,3800,1100,700,1],[70,8000,2200,1400,1],[160,9500,2600,1600,1],[240,7000,1800,1100,1],[310,11000,2800,1500,1]];
   if(key==='snowball07') return spots(ICE);
   if(key==='carbon30') return spots(TREES);
@@ -92,14 +111,22 @@ function hillClear(cx, cy, R){
   for(let i=0;i<sc.tn;i++){ if(Math.hypot(cx-sc.t[i*4], cy-sc.t[i*4+1])<sc.t[i*4+2]+R*1.28+60) return false; }
   return true;
 }
-// Footprint [x0, y0, x1, y1] of the building on lot (gx, gy) of town i, or null. Mirrors lotOcc,
-// lotCorner, towerT, and houseT in the hit shader.
+function lotCell(ty){ return ty<1.5?42:ty<2.5?24:10; }
+// Solid footprints on lot (gx, gy) of town i, as [x0, y0, x1, y1] boxes, buildings and tree
+// trunks alike. Mirrors lotOcc, lotCorner, towerT, houseLot, forestTree, and yardTree in the
+// hit shader.
 function townLot(sc, i, gx, gy){
-  const tx=sc.t[i*4], ty=sc.t[i*4+1], R=sc.t[i*4+2], city=sc.t[i*4+3]>0, cell=city?42:24;
+  const tx=sc.t[i*4], ty=sc.t[i*4+1], R=sc.t[i*4+2], type=sc.t[i*4+3], city=type<1.5, cell=lotCell(type);
+  if(type<0.5) return [];
   const r=Math.hypot((gx+0.5)*cell-tx, (gy+0.5)*cell-ty)/R;
-  if(r>=1) return null;
-  const p=city?0.95+(0.45-0.95)*r*r:0.92+(0.70-0.92)*r;
-  if(h12xy(gx*1.31+17, gy*1.31+17)>=p) return null;
+  if(r>=1) return [];
+  const p=city?0.95+(0.45-0.95)*r*r:type<2.5?0.92+(0.70-0.92)*r:0.85+(0.3-0.85)*r*r;
+  if(h12xy(gx*1.31+17, gy*1.31+17)>=p) return [];
+  const trunk=(cx, cy)=>[cx-0.6, cy-0.6, cx+0.6, cy+0.6];
+  if(type>2.5){
+    const rc=type>4.5?0.6:2.2+2*h12xy(gx+2.1, gy+8.4);
+    return [trunk(gx*cell+rc+h12xy(gx+4.2, gy+0.6)*(cell-2*rc), gy*cell+rc+h12xy(gx+0.8, gy+6.1)*(cell-2*rc))];
+  }
   const corner=(g, w, pitch, h)=>{ const lo=pitch*Math.ceil((g*cell+2.5)/pitch), hi=g*cell+cell-2.5-w; return lo+pitch*Math.floor(h*(Math.floor((hi-lo)/pitch)+1)); };
   let w, pitch;
   if(city){ w=[3*Math.floor(6+6.99*h12xy(gx+2.1, gy+8.4)), 3*Math.floor(6+6.99*h12xy(gx+9.7, gy+3.3))]; pitch=3; }
@@ -109,12 +136,23 @@ function townLot(sc, i, gx, gy){
     pitch=3.6;
   }
   const x0=corner(gx, w[0], pitch, h12xy(gx+4.2, gy+0.6)), y0=corner(gy, w[1], pitch, h12xy(gx+0.8, gy+6.1));
-  return [x0, y0, x0+w[0], y0+w[1]];
+  const out=[[x0, y0, x0+w[0], y0+w[1]]];
+  if(!city && h12xy(gx+6.2, gy+1.9)<=0.6){
+    const lo=[gx*cell, gy*cell], gl=[x0-lo[0], y0-lo[1]], gh=[lo[0]+cell-x0-w[0], lo[1]+cell-y0-w[1]];
+    const alongX=Math.max(gl[0], gh[0])>Math.max(gl[1], gh[1]);
+    const gap=alongX?Math.max(gl[0], gh[0]):Math.max(gl[1], gh[1]), rc=Math.min(3.6, gap*0.5-0.3), along=h12xy(gx+1.4, gy+5.5);
+    if(rc>=1.6){
+      if(alongX) out.push(trunk(gl[0]>gh[0]?lo[0]+gl[0]*0.5:x0+w[0]+gh[0]*0.5, lo[1]+rc+along*(cell-2*rc)));
+      else out.push(trunk(lo[0]+rc+along*(cell-2*rc), gl[1]>gh[1]?lo[1]+gl[1]*0.5:y0+w[1]+gh[1]*0.5));
+    }
+  }
+  return out;
 }
 function townSolid(sc, x, y, pad){
   for(let i=0;i<sc.tn;i++){
-    const cell=sc.t[i*4+3]>0?42:24, f=townLot(sc, i, Math.floor(x/cell), Math.floor(y/cell));
-    if(f && x>f[0]-pad && x<f[2]+pad && y>f[1]-pad && y<f[3]+pad) return true;
+    const cell=lotCell(sc.t[i*4+3]);
+    for(const f of townLot(sc, i, Math.floor(x/cell), Math.floor(y/cell)))
+      if(x>f[0]-pad && x<f[2]+pad && y>f[1]-pad && y<f[3]+pad) return true;
   }
   return false;
 }
@@ -180,6 +218,7 @@ function paintVR(){
   gl.uniform3fv(u.ground, groundRGB());
   gl.uniform1f(u.showScn, vrScenery?1:0);
   gl.uniform1f(u.mtnSnow, mtnSnowFor(EP[dIdx].key));
+  { const sz=sceneFor(EP[dIdx].key); gl.uniform4fv(u.pond, sz.p); gl.uniform1f(u.pondN, sz.pn); }
   gl.uniform1f(u.clockH, (minutes%DAYMIN)/60);
   const sc=sceneFor(EP[dIdx].key); gl.uniform4fv(u.obj, sc.o); gl.uniform1fv(u.kind, sc.k);
   gl.uniform1f(u.starPx, (VR_FOV_DEG*Math.PI/180)/Math.max(window.innerHeight,1));

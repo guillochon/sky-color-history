@@ -1,10 +1,16 @@
 const VRFS=`#version 300 es
 precision highp float;
+// VRFS_BOOT sets this to 0: sky and plain ground only, which compiles fast enough to show
+// while the full program compiles in the background.
+#define SCENERY 1
+uniform sampler2D noiseTex;
 uniform sampler2D sky; uniform sampler2D moonMap; uniform sampler2D starMap; uniform sampler2D starBin; uniform sampler2D starIdx; uniform sampler2D weather; uniform sampler2D hitInfo; uniform sampler2D hitNrm; uniform vec2 res;
 uniform float yaw,pitch,fov,sunAz,sunEl,sunRad,sunOn,nr,na,sunMu,showScn,mtnSnow;
 uniform float moonAz,moonEl,moonRad,moonOn,latRad,starPx,cloudCov,cloudScale,cloudDrift,cloudOn,clockH;
 uniform vec3 sunCol,ground,eye;
 uniform vec4 obj[12];
+uniform vec4 pond[8];
+uniform float pondN;
 uniform float kind[12];
 out vec4 fragColor;
 float h12(vec2 p){
@@ -12,9 +18,12 @@ float h12(vec2 p){
   q+=dot(q, q.yzx+33.33);
   return fract((q.x+q.y)*q.z);
 }
+// Value noise from a 128x128 texture of random values. Sampling at the lattice point plus the
+// smoothstepped fraction makes the bilinear filter do the smooth interpolation in one fetch,
+// which keeps the compiled shader far smaller than hashing four corners per call.
 float vN(vec2 p){
-  vec2 i=floor(p), f=fract(p), u=f*f*(3.0-2.0*f);
-  return mix(mix(h12(i), h12(i+vec2(1.0,0.0)), u.x), mix(h12(i+vec2(0.0,1.0)), h12(i+vec2(1.0,1.0)), u.x), u.y);
+  vec2 i=floor(p), f=fract(p);
+  return textureLod(noiseTex, (i+f*f*(3.0-2.0*f)+0.5)/128.0, 0.0).r;
 }
 float rollAt(vec2 p){
   return vN(p*0.00028)*16.0+vN(p*0.0001+vec2(3.0, 1.2))*12.0;
@@ -27,7 +36,8 @@ vec3 rollN(vec2 p){
 }
 vec3 vNd(vec2 p){ // value noise and its gradient
   vec2 i=floor(p), f=fract(p), u=f*f*(3.0-2.0*f), du=6.0*f*(1.0-f);
-  float a=h12(i), b=h12(i+vec2(1.0,0.0)), c=h12(i+vec2(0.0,1.0)), d=h12(i+vec2(1.0,1.0)), k=a-b-c+d;
+  float a=textureLod(noiseTex, (i+0.5)/128.0, 0.0).r, b=textureLod(noiseTex, (i+vec2(1.5, 0.5))/128.0, 0.0).r;
+  float c=textureLod(noiseTex, (i+vec2(0.5, 1.5))/128.0, 0.0).r, d=textureLod(noiseTex, (i+1.5)/128.0, 0.0).r, k=a-b-c+d;
   return vec3(a+(b-a)*u.x+(c-a)*u.y+k*u.x*u.y, du*vec2(b-a+k*u.y, c-a+k*u.x));
 }
 // Metre-scale relief on the open ground: xy is the height gradient, z the height in metres.
@@ -56,7 +66,7 @@ float groundMottle(vec2 p, float foot){
   }
   return m;
 }
-float massifRad(float R, float volc){ return R*mix(1.28, 1.12, volc); }
+float massifRad(float R, float volc){ return volc>1.5?R*1.08:R*mix(1.28, 1.12, volc); }
 float apparentEl(float h){ // Saemundsson 1986, true altitude (deg) to apparent
   if(h>80.0) return h;
   float u=h+10.3/(h+5.11);
@@ -135,7 +145,7 @@ void main(){
   }
   vec3 col;
   if(showScn<0.5){ kBest=0.0; tLand=-1.0; }
-  if(kBest>0.5&&kBest<2.5){
+  if(kBest>0.5&&kBest<3.5){
     float wl=clamp(tBest*0.034, 8.0, 220.0);
     float a=vN(pBest.xy/wl), b=vN(pBest.xy/wl+vec2(0.5,0.15)), c=vN(pBest.xy/wl+vec2(0.15,0.5));
     nBest=normalize(nBest+vec3(a-b, a-c, 0.0)*0.28);
@@ -149,6 +159,7 @@ void main(){
     vec3 nG=tLand>0.0?nBest:rollN(gp);
     gcol*=mix(0.90, 1.06, texture(weather, gp*0.00028+0.12).b);
     gcol*=mix(0.84, 1.10, vN(gp*0.00115+3.0));
+#if SCENERY
     float foot=tG*2.0*fy/res.y/sqrt(max(abs(rd.z), 0.002));
     vec3 relief=groundRelief(gp, foot);
     if(tLand<0.0) nG=normalize(nG+vec3(-relief.xy, 0.0));
@@ -159,6 +170,7 @@ void main(){
     gcol*=mix(vec3(1.0), mix(vec3(0.88, 1.04, 0.94), vec3(1.24, 1.06, 0.72), patchy), colourful);
     gcol*=1.0+groundMottle(gp, foot)*mix(0.3, 0.8, colourful);
     gcol*=1.0+clamp(relief.z*0.18, -0.14, 0.08);
+#endif
     gcol=mix(gcol, gcol*vec3(0.84, 0.78, 0.70), (1.0-smoothstep(0.55, 0.92, nG.z))*0.5);
     gcol=mix(gcol, gcol*vec3(1.06, 1.02, 0.95), smoothstep(28.0, 130.0, gp3.z)*0.4);
     if(cloudOn>0.5){
@@ -175,8 +187,77 @@ void main(){
       gcol*=rel*mix(0.80, 1.0, nG.z);
       gcol*=mix(0.58, 1.0, shBest);
     }
+#if SCENERY
+    // Pools: pond[i] is (centre, radius, kind) with kind 0 water, 1 magma, 2 ice, 3 swamp.
+    // The shore wanders with two octaves of noise. Hills are kept out of them by the hit pass.
+    if(tLand<0.0 && kBest<0.5){
+      float pk=-1.0, edge=0.0, shore=0.0;
+      for(int i=0;i<int(pondN);i++){
+        vec4 q=pond[i];
+        float d=length(gp-q.xy)/q.z;
+        if(d>1.5) continue;
+        d+=(vN(gp/(q.z*0.3)+q.xy*0.013)-0.5)*0.45+(vN(gp/(q.z*0.08)+5.0)-0.5)*0.1;
+        if(d<1.0){ pk=q.w; edge=(1.0-d)*q.z; break; }
+        shore=max(shore, 1.0-smoothstep(1.0, 1.0+5.0/q.z, d));
+        if(shore>0.0) pk=q.w-10.0;
+      }
+      float light=0.42+0.58*sunMu, detail=1.0-smoothstep(0.3, 1.5, foot);
+      if(pk>-0.5 && (pk<0.5 || pk>2.5)){
+        vec3 r1=vNd(gp*0.45), r2=vNd(gp*1.3+7.0);
+        vec3 wn=normalize(vec3(-(r1.yz*0.45+r2.yz*0.35)*0.12*detail, 1.0));
+        vec3 refl=reflect(rd, wn);
+        float fres=0.02+0.98*pow(1.0-clamp(-dot(rd, wn), 0.0, 1.0), 5.0);
+        vec3 deep=pk>2.5?vec3(0.035, 0.045, 0.02):vec3(0.012, 0.035, 0.05);
+        vec3 wc=mix(deep*light, skyLook(refl), fres);
+        wc+=sunCol*pow(max(dot(refl, sd), 0.0), 300.0)*step(0.0, sd.z)*2.0;
+        if(pk>2.5) wc=mix(wc, vec3(0.10, 0.16, 0.05)*light, smoothstep(0.55, 0.72, vN(gp/7.0))*0.75);
+        gcol=mix(gcol*0.55, wc, smoothstep(0.0, 3.0, edge));
+      }else if(pk>0.5 && pk<1.5){
+        float crust=vN(gp/9.0)*0.6+vN(gp/3.1)*0.4;
+        float crack=mix(0.1, 1.0-smoothstep(0.0, 0.05, abs(vN(gp/5.0+3.3)-0.5)), detail);
+        float pool=smoothstep(6.0, 40.0, edge)*smoothstep(0.45, 0.7, vN(gp/30.0+9.1));
+        float glow=max(pool, crack*0.8)*(0.75+0.25*crust)*smoothstep(0.0, 3.0, edge);
+        gcol=gcol*0.3*(0.8+0.4*crust)+vec3(1.9, 0.55, 0.08)*glow*(0.6+0.6*pool);
+      }else if(pk>1.5 && pk<2.5){
+        vec3 refl=reflect(rd, vec3(0.0, 0.0, 1.0));
+        float fres=0.02+0.98*pow(1.0-clamp(-rd.z, 0.0, 1.0), 5.0);
+        float crack=(1.0-smoothstep(0.0, 0.03, abs(vN(gp/12.0)-0.5)))*detail;
+        vec3 ice=gcol*vec3(0.55, 0.74, 0.92)*(0.9+0.2*vN(gp/40.0));
+        gcol=mix(ice, skyLook(refl), fres*0.7)+gcol*0.25*crack;
+      }else if(pk<-5.0){
+        float k=pk+10.0;
+        gcol*=k>0.5&&k<1.5?vec3(mix(1.0, 0.35, shore)):(k>1.5&&k<2.5?vec3(1.0):mix(vec3(1.0), vec3(0.62, 0.6, 0.56), shore));
+      }
+    }
+#endif
   }
-  if(kBest>5.5){
+#if SCENERY
+  if(kBest>7.5){
+    // Trees (8). hBest is style*2+part: part 0 trunk, 1 crown. Leaf clumps bump the crown
+    // normal at metre scale and fade with distance; foliage wraps light a little.
+    float sty=floor(hBest*0.5+0.25), part=hBest-sty*2.0, seed=qBest.w, foot=tBest*2.0*fy/res.y;
+    vec3 n=nBest, albedo;
+    if(part<0.5){
+      albedo=sty>4.5?vec3(0.05, 0.045, 0.04):(sty>1.5&&sty<2.5?vec3(0.30, 0.29, 0.21):vec3(0.27, 0.21, 0.15));
+      float ang=atan(n.y, n.x), detail=1.0-smoothstep(0.05, 0.2, foot);
+      float bark=sty>1.5&&sty<2.5
+        ?step(0.32, abs(fract(ang*1.6+pBest.z*0.8)-0.5)+abs(fract(ang*1.6-pBest.z*0.8)-0.5))
+        :step(0.3, fract(ang*3.0+vN(vec2(ang*3.0, pBest.z*0.5))*0.6));
+      albedo*=mix(1.0, 0.75+0.25*bark, detail);
+    }else{
+      vec3 leaf=sty<0.5?vec3(0.16, 0.27, 0.07):(sty<1.5?vec3(0.07, 0.16, 0.07):(sty<2.5?vec3(0.13, 0.21, 0.06):(sty<3.5?vec3(0.15, 0.29, 0.07):vec3(0.16, 0.25, 0.09))));
+      leaf*=mix(0.8, 1.2, fract(seed*13.1));
+      float detail=1.0-smoothstep(0.15, 0.6, foot);
+      vec3 q=pBest*1.3;
+      float a=vN(q.xy+q.z*1.7), b=vN(q.yz*1.1+3.1), c=vN(q.zx*1.2+7.3);
+      n=normalize(n+(vec3(a, b, c)-0.5)*1.4*detail);
+      albedo=leaf*mix(1.0, 0.7+0.6*a, detail);
+    }
+    float wrap=part>0.5?clamp(dot(n, sd)*0.65+0.35, 0.0, 1.0):max(dot(n, sd), 0.0);
+    float ao=mix(0.5, 1.0, n.z*0.5+0.5)*mix(0.7, 1.0, smoothstep(0.0, 2.0, pBest.z));
+    col=albedo*(0.45*ao+0.9*wrap)*(0.42+0.58*sunMu);
+    col=mix(col, skyLook(rd), clamp(1.0-exp(-tBest/16000.0), 0.0, 0.8));
+  }else if(kBest>5.5){
     // Towers (6) and houses (7). Wall coordinates are world x or y, which line up with the bays
     // because footprints sit on the bay grid. Window detail fades to its average once a bay
     // spans only a few pixels.
@@ -228,7 +309,18 @@ void main(){
     vec3 emit=vec3(0.0);
     if(kBest>4.5) albedo=vec3(0.10,0.26,0.08);
     else if(kBest>3.5) albedo=vec3(0.74,0.71,0.66);
-    else if(kBest>2.5) albedo=vec3(0.86,0.90,0.94);
+    else if(kBest>2.5){
+      // Glacier: white snow on the flats, blue ice on the cliffs, banded by its layers.
+      // Layers are hBest*0.04 thick, warped, and only some of them are deep blue.
+      float sp=hBest*0.04, lay=pBest.z/sp+(vN(pBest.xy/90.0)-0.5)*2.0+vN(pBest.xy/25.0)*0.5;
+      float detail=1.0-smoothstep(1.0, 4.0, tBest*2.0*fy/res.y/max(sp, 1.0));
+      float band=fract(lay), blue=step(0.45, h12(vec2(floor(lay), 3.7)));
+      float stripe=mix(0.25, blue*smoothstep(0.2, 0.35, band)*(1.0-smoothstep(0.65, 0.85, band)), detail);
+      vec3 face=mix(vec3(0.80, 0.89, 0.96), vec3(0.30, 0.56, 0.84), stripe*0.8);
+      face*=0.92+0.16*vN(pBest.xy/6.0+pBest.z*0.3);
+      albedo=mix(face, vec3(0.94, 0.96, 0.99), smoothstep(0.55, 0.85, nBest.z));
+      emit=vec3(0.06, 0.13, 0.22)*(1.0-smoothstep(0.4, 0.8, nBest.z))*(0.42+0.58*sunMu);
+    }
     else {
       float hh=clamp(pBest.z/max(hBest,1.0), 0.0, 1.6);
       float steep=clamp(nBest.z, 0.0, 1.0);
@@ -259,12 +351,12 @@ void main(){
       }
     }
     float ndl=max(dot(nBest,sd),0.0);
-    float sh=kBest<2.5?shBest:1.0;
+    float sh=kBest<3.5?shBest:1.0;
     float ao=mix(0.58, 1.0, clamp(nBest.z,0.0,1.0));
     float lit=(0.40*ao+0.95*ndl*sh)*(0.42+0.58*sunMu);
-    if(kBest>2.5&&kBest<3.5) lit=(0.78+0.35*ndl)*(0.85+0.15*sunMu);
+    if(kBest>2.5&&kBest<3.5) lit=(0.62+0.6*ndl*sh)*(0.42+0.58*sunMu); // ice scatters light into its shade
     col=albedo*lit+emit;
-    if(kBest<2.5){
+    if(kBest<3.5){
       float uTex=(fract(compDeg/360.0)*na+0.5)/(na+1.0);
       float vTex=((90.0-max(elevDeg,0.0))/90.0*nr+0.5)/(nr+1.0);
       vec3 skyC=texture(sky, vec2(uTex, vTex)).rgb;
@@ -273,7 +365,9 @@ void main(){
       float hh=pBest.z/max(hBest,1.0);
       col=mix(gcol, col, smoothstep(0.0, 0.035, hh));
     }
-  }else if(tLand>0.0){
+  }else
+#endif
+  if(tLand>0.0){
     float uTex=(fract(compDeg/360.0)*na+0.5)/(na+1.0);
     float vTex=((90.0-max(elevDeg,0.0))/90.0*nr+0.5)/(nr+1.0);
     vec3 skyC=texture(sky, vec2(uTex, vTex)).rgb;
@@ -342,4 +436,4 @@ void main(){
   }
   fragColor=vec4(col,1.0);
 }`;
-
+const VRFS_BOOT=VRFS.replace('#define SCENERY 1', '#define SCENERY 0');

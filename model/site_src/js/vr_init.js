@@ -36,6 +36,17 @@ function vrRestoreGL(gl){
   gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
   gl.activeTexture(gl.TEXTURE0); gl.useProgram(vrGL.prog);
 }
+// Uniform locations, texture units, and fixed values for a sky program (boot or full).
+function setupSkyProg(gl, prog){
+  gl.useProgram(prog);
+  const u={}; for(const n of ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','eye','nr','na','sunMu','showScn','mtnSnow','moonAz','moonEl','moonRad','moonOn','latRad','starPx','cloudCov','cloudScale','cloudDrift','cloudOn','clockH','pondN']) u[n]=gl.getUniformLocation(prog, n);
+  u.pond=gl.getUniformLocation(prog,'pond[0]');
+  u.obj=gl.getUniformLocation(prog,'obj[0]'); u.kind=gl.getUniformLocation(prog,'kind[0]');
+  for(const [n, unit] of [['sky',0],['moonMap',1],['starMap',3],['starBin',4],['starIdx',5],['weather',7],['hitInfo',10],['hitNrm',11],['noiseTex',12]]) gl.uniform1i(gl.getUniformLocation(prog, n), unit);
+  gl.uniform1f(u.fov, VR_FOV_DEG*Math.PI/180);
+  gl.uniform1f(u.sunRad, SUN_RADIUS_DEG*DISK_SCALE*Math.PI/180);
+  return u;
+}
 function initVR(){
   if(vrGL) return vrGL.gl;
   const canvas=document.getElementById('vrc');
@@ -43,10 +54,12 @@ function initVR(){
   if(!gl) return null;
   const vs=glShader(gl, gl.VERTEX_SHADER, '#version 300 es\nin vec2 a;void main(){gl_Position=vec4(a,0.0,1.0);}');
   if(!vs) return null;
-  // Only the sky program blocks. Hills and clouds compile meanwhile and appear when they're ready.
+  // Only the boot sky program blocks. The full sky, hills, and clouds compile meanwhile and
+  // take over when they're ready.
+  const skyJob=glProgramAsync(gl, vs, VRFS);
   const hitJob=glProgramAsync(gl, vs, HITFS);
   const cloudJobs=[CLOUDFS, COMPFS, TEMPFS, NOISEFS].map(src=>glProgramAsync(gl, vs, src));
-  const fs=glShader(gl, gl.FRAGMENT_SHADER, VRFS);
+  const fs=glShader(gl, gl.FRAGMENT_SHADER, VRFS_BOOT);
   if(!fs) return null;
   const prog=gl.createProgram(); gl.attachShader(prog,vs); gl.attachShader(prog,fs); gl.bindAttribLocation(prog,0,'a'); gl.linkProgram(prog);
   if(!gl.getProgramParameter(prog, gl.LINK_STATUS)){ console.warn(gl.getProgramInfoLog(prog)); return null; }
@@ -60,11 +73,17 @@ function initVR(){
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-  const u={}; for(const n of ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','eye','nr','na','sunMu','showScn','mtnSnow','moonAz','moonEl','moonRad','moonOn','latRad','starPx','cloudCov','cloudScale','cloudDrift','cloudOn','clockH']) u[n]=gl.getUniformLocation(prog, n);
-  u.obj=gl.getUniformLocation(prog,'obj[0]'); u.kind=gl.getUniformLocation(prog,'kind[0]');
-  gl.uniform1i(gl.getUniformLocation(prog,'sky'), 0);
-  gl.uniform1i(gl.getUniformLocation(prog,'moonMap'), 1);
-  gl.uniform1i(gl.getUniformLocation(prog,'weather'), 7);
+  const u=setupSkyProg(gl, prog);
+  // Random values for vN in the sky shader, on unit 12, which nothing else uses.
+  const noiseTex=gl.createTexture(), nd=new Uint8Array(128*128);
+  let seed=12345; for(let i=0;i<nd.length;i++){ seed=(Math.imul(seed, 1103515245)+12345)>>>0; nd[i]=seed>>>24; }
+  gl.activeTexture(gl.TEXTURE12); gl.bindTexture(gl.TEXTURE_2D, noiseTex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, 128, 128, 0, gl.RED, gl.UNSIGNED_BYTE, nd);
+  gl.activeTexture(gl.TEXTURE0);
   const moonTex=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, moonTex);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
@@ -79,9 +98,6 @@ function initVR(){
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, STAR_MAP_W, 2, 0, gl.RGBA, gl.FLOAT, new Float32Array(STAR_MAP_W*8));
-  gl.uniform1i(gl.getUniformLocation(prog,'starMap'), 3);
-  gl.uniform1i(gl.getUniformLocation(prog,'hitInfo'), 10);
-  gl.uniform1i(gl.getUniformLocation(prog,'hitNrm'), 11);
   const starBinTex=gl.createTexture();
   gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, starBinTex);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
@@ -89,7 +105,6 @@ function initVR(){
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 64, 6, 0, gl.RGBA, gl.FLOAT, new Float32Array(64*6*4));
-  gl.uniform1i(gl.getUniformLocation(prog,'starBin'), 4);
   const starIdxTex=gl.createTexture();
   gl.activeTexture(gl.TEXTURE5); gl.bindTexture(gl.TEXTURE_2D, starIdxTex);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
@@ -97,11 +112,8 @@ function initVR(){
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 1024, 32, 0, gl.RGBA, gl.FLOAT, new Float32Array(1024*32*4));
-  gl.uniform1i(gl.getUniformLocation(prog,'starIdx'), 5);
   gl.activeTexture(gl.TEXTURE0);
-  gl.uniform1f(u.fov, VR_FOV_DEG*Math.PI/180);
-  gl.uniform1f(u.sunRad, SUN_RADIUS_DEG*DISK_SCALE*Math.PI/180);
-  vrGL={gl,u,tex,prog,buf,moonTex,starTex,starBinTex,starIdxTex,starUploaded:-1};
+  vrGL={gl,u,tex,prog,buf,moonTex,starTex,starBinTex,starIdxTex,noiseTex,starUploaded:-1};
   if(moonReady) uploadMoon();
   // Stand-in hit buffers that say "nothing here, unshadowed" until the hit pass runs.
   const noHit=px=>{ const t=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
@@ -109,6 +121,13 @@ function initVR(){
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 1, 1, 0, gl.RGBA, gl.FLOAT, new Float32Array(px)); return t; };
   vrGL.noHitInfo=noHit([-1,0,1,0]); vrGL.noHitNrm=noHit([0,0,1,-1]);
   vrRestoreGL(gl);
+  whenLinked(gl, [skyJob], fp=>{
+    if(!fp||!vrGL) return;
+    const boot=vrGL.prog;
+    vrGL.u=setupSkyProg(gl, fp); vrGL.prog=fp; gl.deleteProgram(boot);
+    skyUploaded=-1; // nr and na are set with the sky texture
+    vrRestoreGL(gl); requestVR();
+  });
   whenLinked(gl, [hitJob], hp=>{ if(hp&&vrGL){ setupHitProg(gl, hp); vrRestoreGL(gl); requestVR(); } });
   whenLinked(gl, cloudJobs, (cp, pp, tp, np)=>{ if(cp&&pp&&np&&vrGL){ setupCloudProgs(gl, cp, pp, tp, np); vrRestoreGL(gl); requestVR(); } });
   return gl;

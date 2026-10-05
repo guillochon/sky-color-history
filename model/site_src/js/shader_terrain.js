@@ -1,4 +1,5 @@
-// Marched by the hit shader. massifRad must match scRad.
+// Marched by the hit shader. massifRad must match scRad. The volc argument picks the style:
+// 0 mountain, 1 volcano, 2 glacier.
 // Hill cells must match hillHeight in vr_paint.js. hillN, loopPad, town and townN are hit-shader uniforms.
 // On Windows, ANGLE hands this to the D3D compiler, which inlines every call and unrolls
 // every loop with a constant bound. loopPad is always 0; adding it to a bound keeps the loop
@@ -14,7 +15,7 @@ float vN(vec2 p){
   vec2 i=floor(p), f=fract(p), u=f*f*(3.0-2.0*f);
   return mix(mix(h12(i), h12(i+vec2(1.0,0.0)), u.x), mix(h12(i+vec2(0.0,1.0)), h12(i+vec2(1.0,1.0)), u.x), u.y);
 }
-float massifRad(float R, float volc){ return R*mix(1.28, 1.12, volc); }
+float massifRad(float R, float volc){ return volc>1.5?R*1.08:R*mix(1.28, 1.12, volc); }
 // Hills stay out of towns. Must match hillClear in vr_paint.js.
 bool hillClear(vec2 c, float R){
   for(int i=0;i<int(townN)+loopPad;i++){
@@ -66,7 +67,25 @@ float onePeak(vec2 p, vec2 c, float R, float H, float volc, float seed){
   }
   return max(prof, 0.0)*H;
 }
+// Ice plateaus with near-vertical cliffs between them. The tiers follow a noisy elevation
+// field, so their edges wander instead of ringing the centre.
+float glacierH(vec2 p, vec4 q){
+  vec2 d=p-q.xy;
+  float R=massifRad(q.z, 2.0), r=length(d);
+  if(r>=R) return 0.0;
+  float seed=texture(weather, q.xy*0.00041+0.37).r;
+  float ang=atan(d.y, d.x);
+  float u=r/(R*(0.72+0.28*texture(weather, vec2(ang*0.48+seed*2.0, seed*3.1)).g));
+  u+=(texture(weather, d/(R*0.5)+seed).b-0.5)*0.16;
+  if(u>=1.0) return 0.0;
+  float e=(1.0-u)*0.7+sqrt(1.0-u)*0.45*ridge(d/(R*0.45)+seed)+(1.0-u)*0.15*ridge(d/(R*0.18)+seed*2.0);
+  float tiers=3.0+floor(seed*2.99), s=e*tiers;
+  float prof=(floor(s)+smoothstep(0.0, 0.12, fract(s))+fract(s)*0.1)/(tiers+0.5);
+  prof*=smoothstep(0.0, 0.02, 1.0-u);
+  return prof*q.w;
+}
 float massifH(vec2 p, vec4 q, float volc){
+  if(volc>1.5) return glacierH(p, q);
   vec2 c=q.xy;
   float R=massifRad(q.z, volc), H=q.w;
   float s0=texture(weather, c*0.00041+0.13).r;
@@ -129,7 +148,7 @@ float marchMassif(vec3 ro, vec3 rd, vec4 q, float volc){
   return -1.0;
 }
 vec3 massifN(vec2 p, vec4 q, float volc){
-  float e=max(massifRad(q.z, volc)*0.028, 3.0);
+  float e=max(massifRad(q.z, volc)*(volc>1.5?0.012:0.028), 3.0);
   vec4 s;
   for(int k=0;k<4+loopPad;k++){
     vec2 o=vec2(k==0?e:(k==1?-e:0.0), k==2?e:(k==3?-e:0.0));

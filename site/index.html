@@ -2012,7 +2012,8 @@ const LAND={ // stand-in surface color, not from the radiative-transfer model
 };
 let skyNow=null, skyGen=0, skyUploaded=-1, vrNote='', vrOn=false, vrYaw=0, vrPitch=8, vrX=0, vrY=0, vrScenery=true, vrClouds=true, cloudScroll=0, cloudMinPrev=null, vrRelock=false, vrGL=null, vrRAF=0, vrWalk=0, vrWalkStamp=0, vrNav=false, vrLinkKey='';
 const vrHeld=new Set();
-// Marched by the hit shader. massifRad must match scRad.
+// Marched by the hit shader. massifRad must match scRad. The volc argument picks the style:
+// 0 mountain, 1 volcano, 2 glacier.
 // Hill cells must match hillHeight in vr_paint.js. hillN, loopPad, town and townN are hit-shader uniforms.
 // On Windows, ANGLE hands this to the D3D compiler, which inlines every call and unrolls
 // every loop with a constant bound. loopPad is always 0; adding it to a bound keeps the loop
@@ -2028,7 +2029,7 @@ float vN(vec2 p){
   vec2 i=floor(p), f=fract(p), u=f*f*(3.0-2.0*f);
   return mix(mix(h12(i), h12(i+vec2(1.0,0.0)), u.x), mix(h12(i+vec2(0.0,1.0)), h12(i+vec2(1.0,1.0)), u.x), u.y);
 }
-float massifRad(float R, float volc){ return R*mix(1.28, 1.12, volc); }
+float massifRad(float R, float volc){ return volc>1.5?R*1.08:R*mix(1.28, 1.12, volc); }
 // Hills stay out of towns. Must match hillClear in vr_paint.js.
 bool hillClear(vec2 c, float R){
   for(int i=0;i<int(townN)+loopPad;i++){
@@ -2080,7 +2081,25 @@ float onePeak(vec2 p, vec2 c, float R, float H, float volc, float seed){
   }
   return max(prof, 0.0)*H;
 }
+// Ice plateaus with near-vertical cliffs between them. The tiers follow a noisy elevation
+// field, so their edges wander instead of ringing the centre.
+float glacierH(vec2 p, vec4 q){
+  vec2 d=p-q.xy;
+  float R=massifRad(q.z, 2.0), r=length(d);
+  if(r>=R) return 0.0;
+  float seed=texture(weather, q.xy*0.00041+0.37).r;
+  float ang=atan(d.y, d.x);
+  float u=r/(R*(0.72+0.28*texture(weather, vec2(ang*0.48+seed*2.0, seed*3.1)).g));
+  u+=(texture(weather, d/(R*0.5)+seed).b-0.5)*0.16;
+  if(u>=1.0) return 0.0;
+  float e=(1.0-u)*0.7+sqrt(1.0-u)*0.45*ridge(d/(R*0.45)+seed)+(1.0-u)*0.15*ridge(d/(R*0.18)+seed*2.0);
+  float tiers=3.0+floor(seed*2.99), s=e*tiers;
+  float prof=(floor(s)+smoothstep(0.0, 0.12, fract(s))+fract(s)*0.1)/(tiers+0.5);
+  prof*=smoothstep(0.0, 0.02, 1.0-u);
+  return prof*q.w;
+}
 float massifH(vec2 p, vec4 q, float volc){
+  if(volc>1.5) return glacierH(p, q);
   vec2 c=q.xy;
   float R=massifRad(q.z, volc), H=q.w;
   float s0=texture(weather, c*0.00041+0.13).r;
@@ -2143,7 +2162,7 @@ float marchMassif(vec3 ro, vec3 rd, vec4 q, float volc){
   return -1.0;
 }
 vec3 massifN(vec2 p, vec4 q, float volc){
-  float e=max(massifRad(q.z, volc)*0.028, 3.0);
+  float e=max(massifRad(q.z, volc)*(volc>1.5?0.012:0.028), 3.0);
   vec4 s;
   for(int k=0;k<4+loopPad;k++){
     vec2 o=vec2(k==0?e:(k==1?-e:0.0), k==2?e:(k==3?-e:0.0));
@@ -2201,7 +2220,7 @@ uniform vec4 obj[12];
 uniform float kind[12];
 uniform float scnCount, hillN;
 uniform int loopPad;
-uniform vec4 town[8];
+uniform vec4 town[16];
 uniform float townN;
 layout(location=0) out vec4 hitInfo;
 layout(location=1) out vec4 hitNrm;
@@ -2214,8 +2233,8 @@ float scnShadow(vec3 p, vec3 sd){
   dir/=hl; float rise=sd.z/hl;
   for(int i=0;i<12+loopPad;i++){
     float kk=kind[i];
-    if(kk<0.5||kk>=2.5) continue;
-    vec4 q=obj[i]; float volc=step(1.5, kk);
+    if(kk<0.5||kk>=3.5) continue;
+    vec4 q=obj[i]; float volc=kk>2.5?2.0:step(1.5, kk);
     float R=massifRad(q.z, volc);
     if(length(p.xy-q.xy)>R+q.w*min(5.5, 1.15/max(sd.z, 0.04))) continue;
     for(int s=1;s<=5+loopPad;s++){
@@ -2227,13 +2246,16 @@ float scnShadow(vec3 p, vec3 sd){
   }
   return sh;
 }
-// Towns are lots on a grid. town[i] is (centre x, centre y, radius, n): n>0 is a city of
-// towers on 42 m lots, n<0 a neighbourhood of houses on 24 m lots. Each building sits inside
-// its lot, so the first hit along the grid walk is the nearest. Must match townLot in vr_paint.js.
+// Towns and woods are lots on a grid. town[i] is (centre x, centre y, radius, type). Types:
+// 0 keeps hills out and nothing else (pools), 1 city of towers on 42 m lots, 2 neighbourhood of
+// houses on 24 m lots, 3 broadleaf and conifer wood, 4 Carboniferous forest, 5 dead wood, all
+// on 10 m lots. Everything on a lot stays inside it, so the first hit along the grid walk is the
+// nearest. Must match townLot and friends in vr_paint.js.
+float lotCell(float ty){ return ty<1.5?42.0:(ty<2.5?24.0:10.0); }
 float lotOcc(vec2 g, vec4 tw, float cell){
   float r=length((g+0.5)*cell-tw.xy)/tw.z;
   if(r>=1.0) return 0.0;
-  float p=tw.w>0.0?mix(0.95, 0.45, r*r):mix(0.92, 0.70, r);
+  float p=tw.w<1.5?mix(0.95, 0.45, r*r):(tw.w<2.5?mix(0.92, 0.70, r):mix(0.85, 0.3, r*r));
   return step(h12(g*1.31+17.0), p);
 }
 // Footprint corner snapped to a grid of the given pitch, somewhere inside the lot.
@@ -2272,6 +2294,17 @@ float towerT(vec3 ro, vec3 rd, vec2 g, vec4 tw, out vec3 n, out float ht, out fl
   }
   return t;
 }
+// House on lot g. Walls are whole multiples of 3.6 m on a 3.6 m grid, so window bays line up
+// with the corners. w is the world footprint; swap means the ridge runs along y.
+void houseLot(vec2 g, out vec2 mn, out vec2 w, out bool swap, out float eave, out float slope){
+  const float cell=24.0;
+  swap=h12(g+vec2(7.7, 2.2))>0.5;
+  w=3.6*vec2(h12(g+vec2(2.1, 8.4))>0.5?4.0:3.0, h12(g+vec2(9.7, 3.3))>0.6?3.0:2.0);
+  if(swap) w=w.yx;
+  mn=vec2(lotCorner(g.x, cell, w.x, 3.6, h12(g+vec2(4.2, 0.6))), lotCorner(g.y, cell, w.y, 3.6, h12(g+vec2(0.8, 6.1))));
+  eave=h12(g+4.4)>0.62?5.6:2.9;
+  slope=mix(0.45, 0.8, h12(g+6.6));
+}
 void clipPlane(vec3 pn, float d, vec3 o, vec3 rd, inout float tN, inout float tF, inout vec3 nN){
   float den=dot(pn, rd), num=d-dot(pn, o);
   if(abs(den)<1e-7){ if(num<0.0) tF=-1.0; return; }
@@ -2279,17 +2312,8 @@ void clipPlane(vec3 pn, float d, vec3 o, vec3 rd, inout float tN, inout float tF
   if(den<0.0){ if(t>tN){ tN=t; nN=pn; } }
   else tF=min(tF, t);
 }
-// Gabled house on lot g: four walls, a floor, and two roof slopes, which together are convex.
-// Walls are whole multiples of 3.6 m on a 3.6 m grid, so window bays line up with the corners.
-float houseT(vec3 ro, vec3 rd, vec2 g, out vec3 n, out float eave, out float seed){
-  const float cell=24.0;
-  seed=h12(g+vec2(5.3, 1.7));
-  bool swap=h12(g+vec2(7.7, 2.2))>0.5;
-  vec2 w=3.6*vec2(h12(g+vec2(2.1, 8.4))>0.5?4.0:3.0, h12(g+vec2(9.7, 3.3))>0.6?3.0:2.0);
-  if(swap) w=w.yx;
-  vec2 mn=vec2(lotCorner(g.x, cell, w.x, 3.6, h12(g+vec2(4.2, 0.6))), lotCorner(g.y, cell, w.y, 3.6, h12(g+vec2(0.8, 6.1))));
-  eave=h12(g+4.4)>0.62?5.6:2.9;
-  float slope=mix(0.45, 0.8, h12(g+6.6));
+// Four walls, a floor, and two roof slopes, which together are convex.
+float houseT(vec3 ro, vec3 rd, vec2 mn, vec2 w, bool swap, float eave, float slope, out vec3 n){
   vec3 o=ro-vec3(mn+w*0.5, 0.0), d=rd;
   vec2 hw=w*0.5;
   if(swap){ o=o.yxz; d=d.yxz; hw=hw.yx; }
@@ -2305,28 +2329,138 @@ float houseT(vec3 ro, vec3 rd, vec2 g, out vec3 n, out float eave, out float see
   n=normalize(swap?nN.yxz:nN);
   return tN;
 }
-float marchTown(vec3 ro, vec3 rd, float tMax, vec4 tw, out vec3 nOut, out float aOut, out float sOut){
-  bool city=tw.w>0.0;
-  float cell=city?42.0:24.0;
-  vec2 span=cylSpan(ro, rd, tw.xy, tw.z+cell, -1.0, city?180.0:11.0);
+// Tree styles: 0 broadleaf, 1 conifer, 2 lycopsid, 3 tree fern, 4 horsetail, 5 dead snag.
+// c is the trunk, h the height, rc the crown's reach from the trunk.
+bool forestTree(vec2 g, float ty, out vec2 c, out float h, out float rc, out float sty){
+  const float cell=10.0;
+  float b=h12(g+vec2(9.7, 3.3)), k=h12(g+4.4);
+  rc=mix(2.2, 4.2, h12(g+vec2(2.1, 8.4)));
+  c=g*cell+rc+vec2(h12(g+vec2(4.2, 0.6)), h12(g+vec2(0.8, 6.1)))*(cell-2.0*rc);
+  if(ty<3.5){ sty=k<0.55?0.0:1.0; h=sty<0.5?mix(7.0, 13.0, b):mix(12.0, 28.0, b); }
+  else if(ty<4.5){ sty=k<0.55?2.0:(k<0.8?3.0:4.0); h=sty<2.5?mix(18.0, 34.0, b):(sty<3.5?mix(5.0, 9.0, b):mix(8.0, 16.0, b)); }
+  else { sty=5.0; h=mix(4.0, 18.0, b); rc=0.6; }
+  return true;
+}
+// A yard tree in the widest gap beside the house, if the lot has one.
+bool yardTree(vec2 g, vec2 mn, vec2 w, out vec2 c, out float h, out float rc, out float sty){
+  const float cell=24.0;
+  c=vec2(0.0); h=0.0; rc=0.0; sty=0.0;
+  if(h12(g+vec2(6.2, 1.9))>0.6) return false;
+  vec2 lo=g*cell, gl=mn-lo, gh=lo+cell-(mn+w);
+  bool alongX=max(gl.x, gh.x)>max(gl.y, gh.y);
+  float gap=alongX?max(gl.x, gh.x):max(gl.y, gh.y);
+  rc=min(3.6, gap*0.5-0.3);
+  if(rc<1.6) return false;
+  float along=h12(g+vec2(1.4, 5.5));
+  if(alongX){ c.x=gl.x>gh.x?lo.x+gl.x*0.5:mn.x+w.x+gh.x*0.5; c.y=lo.y+rc+along*(cell-2.0*rc); }
+  else { c.y=gl.y>gh.y?lo.y+gl.y*0.5:mn.y+w.y+gh.y*0.5; c.x=lo.x+rc+along*(cell-2.0*rc); }
+  sty=h12(g+vec2(8.8, 0.3))<0.8?0.0:1.0;
+  h=mix(5.0, 10.0, h12(g+vec2(2.7, 4.9)));
+  return true;
+}
+float sphT(vec3 ro, vec3 rd, vec3 c, float r){
+  vec3 oc=ro-c;
+  float b=dot(oc, rd), q=b*b-dot(oc, oc)+r*r;
+  if(q<0.0) return -1.0;
+  float t=-b-sqrt(q);
+  return t>0.05?t:-1.0;
+}
+// Trunk, then a crown of three clumps, a cone, or a flat umbrella, depending on the style.
+float treeT(vec3 ro, vec3 rd, vec2 c, float h, float rc, float sty, float seed, out vec3 n, out float part){
+  float tr=0.2+0.012*h, zt=h*0.3;
+  if(sty<0.5) zt=h-1.4*rc;
+  else if(sty<1.5) zt=h*0.3;
+  else if(sty<2.5){ tr=0.3+0.013*h; zt=h-0.5*rc; }
+  else if(sty<3.5){ tr=0.22; zt=h-0.2*rc; }
+  else if(sty<4.5){ tr=0.18; zt=h*0.15; }
+  else { tr=0.25+0.012*h; zt=h; }
+  float best=-1.0; part=0.0; n=vec3(0.0, 0.0, 1.0);
+  vec2 oc=ro.xy-c;
+  float A=dot(rd.xy, rd.xy);
+  if(A>1e-8){
+    float B=dot(oc, rd.xy), D=B*B-A*(dot(oc, oc)-tr*tr);
+    if(D>=0.0){
+      float t=(-B-sqrt(D))/A, z=ro.z+rd.z*t;
+      if(t>0.05 && z>=0.0 && z<=zt){ best=t; n=vec3(normalize(oc+rd.xy*t), 0.0); }
+    }
+  }
+  if(sty>4.5) return best;
+  if(sty<0.5 || (sty>1.5 && sty<2.5)){
+    bool lyc=sty>1.5;
+    for(int k=0;k<3+loopPad;k++){
+      float a=seed*6.2831853+float(k)*2.0944;
+      vec3 cc; float r;
+      if(lyc){ r=0.45*rc; cc=vec3(c+vec2(cos(a), sin(a))*0.5*rc, h-r-0.3*rc*float(k)/2.0); }
+      else if(k==0){ r=0.8*rc; cc=vec3(c, h-r); }
+      else { r=0.6*rc; cc=vec3(c+vec2(cos(a), sin(a))*0.35*rc, h-1.35*rc); }
+      float t=sphT(ro, rd, cc, r);
+      if(t>0.0 && (best<0.0 || t<best)){ best=t; n=normalize(ro+rd*t-cc); part=1.0; }
+    }
+  }else if(sty>2.5 && sty<3.5){
+    vec3 rad=vec3(rc, rc, 0.3*rc), o=(ro-vec3(c, h-0.3*rc))/rad, d=rd/rad;
+    float a=dot(d, d), b=dot(o, d), q=b*b-a*(dot(o, o)-1.0);
+    if(q>=0.0){
+      float t=(-b-sqrt(q))/a;
+      if(t>0.05 && (best<0.0 || t<best)){ best=t; n=normalize((o+d*t)/rad); part=1.0; }
+    }
+  }else{
+    // Cone from z0 up to the tip at h: conifers, and the narrow spindles of horsetails.
+    float z0=sty<1.5?h*0.15:h*0.1, R=sty<1.5?rc:0.45*rc, k=R/(h-z0);
+    vec3 f=vec3(oc, h-ro.z);
+    float a=A-k*k*rd.z*rd.z, b=2.0*(dot(f.xy, rd.xy)+k*k*f.z*rd.z), cq=dot(f.xy, f.xy)-k*k*f.z*f.z;
+    float q=b*b-4.0*a*cq;
+    if(abs(a)>1e-6 && q>=0.0){
+      float sq=sqrt(q), t0=(-b-sq)/(2.0*a), t1=(-b+sq)/(2.0*a), t=-1.0;
+      float z=ro.z+rd.z*t0; if(t0>0.05 && z>=z0 && z<=h) t=t0;
+      z=ro.z+rd.z*t1; if(t1>0.05 && z>=z0 && z<=h && (t<0.0 || t1<t)) t=t1;
+      if(t>0.0 && (best<0.0 || t<best)){
+        vec2 dd=ro.xy+rd.xy*t-c;
+        best=t; n=normalize(vec3(dd, k*max(length(dd), 0.001))); part=1.0;
+      }
+    }
+  }
+  return best;
+}
+// kOut: 6 tower, 7 house, 8 tree. aOut: tower height, house eave, or tree style*2+part.
+float marchTown(vec3 ro, vec3 rd, float tMax, vec4 tw, out vec3 nOut, out float kOut, out float aOut, out float sOut){
+  float ty=tw.w;
+  if(ty<0.5) return -1.0;
+  float cell=lotCell(ty);
+  vec2 span=cylSpan(ro, rd, tw.xy, tw.z+cell, -1.0, ty<1.5?180.0:(ty<2.5?16.0:36.0));
   if(span.x<0.0 || span.x>=tMax) return -1.0;
   float t1=min(span.y, tMax);
   vec2 g=floor((ro.xy+rd.xy*span.x)/cell);
   vec2 r=rd.xy, stp=vec2(r.x>=0.0?1.0:-1.0, r.y>=0.0?1.0:-1.0);
   float ax=abs(r.x), ay=abs(r.y);
   float tx=ax<1e-5?1e8:(((r.x>=0.0?g.x+1.0:g.x)*cell)-ro.x)/r.x;
-  float ty=ay<1e-5?1e8:(((r.y>=0.0?g.y+1.0:g.y)*cell)-ro.y)/r.y;
+  float ty2=ay<1e-5?1e8:(((r.y>=0.0?g.y+1.0:g.y)*cell)-ro.y)/r.y;
   float tdx=ax<1e-5?1e8:cell/ax, tdy=ay<1e-5?1e8:cell/ay;
   int steps=int(4.0*(tw.z+cell)/cell)+4;
   for(int i=0;i<steps+loopPad;i++){
     if(lotOcc(g, tw, cell)>0.5){
-      vec3 n; float a, s;
-      float t=city?towerT(ro, rd, g, tw, n, a, s):houseT(ro, rd, g, n, a, s);
-      if(t>0.0 && t<tMax){ nOut=n; aOut=a; sOut=s; return t; }
+      float best=-1.0;
+      bool tree=false; vec2 tc; float th, trc, tsty;
+      if(ty<1.5){
+        vec3 n; float a, s;
+        float t=towerT(ro, rd, g, tw, n, a, s);
+        if(t>0.0){ best=t; nOut=n; kOut=6.0; aOut=a; sOut=s; }
+      }else if(ty<2.5){
+        vec2 mn, w; bool swap; float eave, slope; vec3 n;
+        houseLot(g, mn, w, swap, eave, slope);
+        float t=houseT(ro, rd, mn, w, swap, eave, slope, n);
+        if(t>0.0){ best=t; nOut=n; kOut=7.0; aOut=eave; sOut=h12(g+vec2(5.3, 1.7)); }
+        tree=yardTree(g, mn, w, tc, th, trc, tsty);
+      }else tree=forestTree(g, ty, tc, th, trc, tsty);
+      if(tree){
+        vec3 n; float part, seed=h12(g+vec2(3.3, 7.1));
+        float t=treeT(ro, rd, tc, th, trc, tsty, seed, n, part);
+        if(t>0.0 && (best<0.0 || t<best)){ best=t; nOut=n; kOut=8.0; aOut=tsty*2.0+part; sOut=seed; }
+      }
+      if(best>0.0 && best<tMax) return best;
     }
-    if(min(tx, ty)>t1) break;
-    if(tx<ty){ g.x+=stp.x; tx+=tdx; }
-    else { g.y+=stp.y; ty+=tdy; }
+    if(min(tx, ty2)>t1) break;
+    if(tx<ty2){ g.x+=stp.x; tx+=tdx; }
+    else { g.y+=stp.y; ty2+=tdy; }
   }
   return -1.0;
 }
@@ -2388,8 +2522,7 @@ void main(){
       float kk=kind[i]; if(kk<0.5) continue;
       vec4 q=obj[i]; float t=-1.0; vec3 n=vec3(0.0,0.0,1.0);
       if(kk>3.5&&kk<4.5){ t=boxT(ro,rd,q.xy,q.z,q.w); if(t>0.0) n=boxN(ro+rd*t,q.xy,q.z,q.w); }
-      else if(kk>2.5&&kk<3.5){ t=ellT(ro,rd,q.xy,q.z,q.w); if(t>0.0) n=ellN(ro+rd*t,q.xy,q.z,q.w); }
-      else if(kk<2.5) t=marchMassif(ro,rd,q,step(1.5,kk));
+      else if(kk<3.5) t=marchMassif(ro,rd,q,kk>2.5?2.0:step(1.5,kk));
       else { t=coneT(ro,rd,q.xy,q.z,q.w); if(t>0.0) n=coneN(ro+rd*t,q.xy,q.z,q.w); }
       if(t>0.0&&t<tBest&&t<tGround){
         tBest=t; tObj=t; kObj=kk; iObj=float(i); qObj=q; nObj=n;
@@ -2408,9 +2541,9 @@ void main(){
     float cap=min(tBest, tGround);
     if(tHill>0.0) cap=min(cap, tHill);
     for(int i=0;i<int(townN)+loopPad;i++){
-      vec3 n; float a, s;
-      float t=marchTown(ro, rd, cap, town[i], n, a, s);
-      if(t>0.0 && t<cap){ cap=t; tTown=t; nTown=n; aTown=a; sTown=s; kTown=town[i].w>0.0?6.0:7.0; }
+      vec3 n; float k, a, s;
+      float t=marchTown(ro, rd, cap, town[i], n, k, a, s);
+      if(t>0.0 && t<cap){ cap=t; tTown=t; nTown=n; kTown=k; aTown=a; sTown=s; }
     }
   }
   if(tTown>0.0){
@@ -2424,7 +2557,7 @@ void main(){
   float kShade=0.0;
   if(objWins){
     pShade=ro+rd*tObj; kShade=kObj;
-    nOut=kObj<2.5?massifN(pShade.xy, qObj, step(1.5, kObj)):nObj;
+    nOut=kObj<3.5?massifN(pShade.xy, qObj, kObj>2.5?2.0:step(1.5, kObj)):nObj;
     if(dot(nOut, rd)>0.0) nOut=-nOut;
   }else if(hillWins){
     pShade=ro+rd*tHill; kShade=1.0; nOut=nHill;
@@ -2436,7 +2569,7 @@ void main(){
     return;
   }
   float sh=1.0;
-  if(kShade<0.5 || (kShade>=0.5 && kShade<2.5)) sh=scnShadow(vec3(pShade.xy, max(pShade.z, 0.0)), sd);
+  if(kShade<3.5) sh=scnShadow(vec3(pShade.xy, max(pShade.z, 0.0)), sd);
   if(hillWins){
     hitInfo=vec4(tHill, 1.0, sh, rHill);
     hitNrm=vec4(nOut, hHill);
@@ -2448,11 +2581,17 @@ void main(){
 `;
 const VRFS=`#version 300 es
 precision highp float;
+// VRFS_BOOT sets this to 0: sky and plain ground only, which compiles fast enough to show
+// while the full program compiles in the background.
+#define SCENERY 1
+uniform sampler2D noiseTex;
 uniform sampler2D sky; uniform sampler2D moonMap; uniform sampler2D starMap; uniform sampler2D starBin; uniform sampler2D starIdx; uniform sampler2D weather; uniform sampler2D hitInfo; uniform sampler2D hitNrm; uniform vec2 res;
 uniform float yaw,pitch,fov,sunAz,sunEl,sunRad,sunOn,nr,na,sunMu,showScn,mtnSnow;
 uniform float moonAz,moonEl,moonRad,moonOn,latRad,starPx,cloudCov,cloudScale,cloudDrift,cloudOn,clockH;
 uniform vec3 sunCol,ground,eye;
 uniform vec4 obj[12];
+uniform vec4 pond[8];
+uniform float pondN;
 uniform float kind[12];
 out vec4 fragColor;
 float h12(vec2 p){
@@ -2460,9 +2599,12 @@ float h12(vec2 p){
   q+=dot(q, q.yzx+33.33);
   return fract((q.x+q.y)*q.z);
 }
+// Value noise from a 128x128 texture of random values. Sampling at the lattice point plus the
+// smoothstepped fraction makes the bilinear filter do the smooth interpolation in one fetch,
+// which keeps the compiled shader far smaller than hashing four corners per call.
 float vN(vec2 p){
-  vec2 i=floor(p), f=fract(p), u=f*f*(3.0-2.0*f);
-  return mix(mix(h12(i), h12(i+vec2(1.0,0.0)), u.x), mix(h12(i+vec2(0.0,1.0)), h12(i+vec2(1.0,1.0)), u.x), u.y);
+  vec2 i=floor(p), f=fract(p);
+  return textureLod(noiseTex, (i+f*f*(3.0-2.0*f)+0.5)/128.0, 0.0).r;
 }
 float rollAt(vec2 p){
   return vN(p*0.00028)*16.0+vN(p*0.0001+vec2(3.0, 1.2))*12.0;
@@ -2475,7 +2617,8 @@ vec3 rollN(vec2 p){
 }
 vec3 vNd(vec2 p){ // value noise and its gradient
   vec2 i=floor(p), f=fract(p), u=f*f*(3.0-2.0*f), du=6.0*f*(1.0-f);
-  float a=h12(i), b=h12(i+vec2(1.0,0.0)), c=h12(i+vec2(0.0,1.0)), d=h12(i+vec2(1.0,1.0)), k=a-b-c+d;
+  float a=textureLod(noiseTex, (i+0.5)/128.0, 0.0).r, b=textureLod(noiseTex, (i+vec2(1.5, 0.5))/128.0, 0.0).r;
+  float c=textureLod(noiseTex, (i+vec2(0.5, 1.5))/128.0, 0.0).r, d=textureLod(noiseTex, (i+1.5)/128.0, 0.0).r, k=a-b-c+d;
   return vec3(a+(b-a)*u.x+(c-a)*u.y+k*u.x*u.y, du*vec2(b-a+k*u.y, c-a+k*u.x));
 }
 // Metre-scale relief on the open ground: xy is the height gradient, z the height in metres.
@@ -2504,7 +2647,7 @@ float groundMottle(vec2 p, float foot){
   }
   return m;
 }
-float massifRad(float R, float volc){ return R*mix(1.28, 1.12, volc); }
+float massifRad(float R, float volc){ return volc>1.5?R*1.08:R*mix(1.28, 1.12, volc); }
 float apparentEl(float h){ // Saemundsson 1986, true altitude (deg) to apparent
   if(h>80.0) return h;
   float u=h+10.3/(h+5.11);
@@ -2583,7 +2726,7 @@ void main(){
   }
   vec3 col;
   if(showScn<0.5){ kBest=0.0; tLand=-1.0; }
-  if(kBest>0.5&&kBest<2.5){
+  if(kBest>0.5&&kBest<3.5){
     float wl=clamp(tBest*0.034, 8.0, 220.0);
     float a=vN(pBest.xy/wl), b=vN(pBest.xy/wl+vec2(0.5,0.15)), c=vN(pBest.xy/wl+vec2(0.15,0.5));
     nBest=normalize(nBest+vec3(a-b, a-c, 0.0)*0.28);
@@ -2597,6 +2740,7 @@ void main(){
     vec3 nG=tLand>0.0?nBest:rollN(gp);
     gcol*=mix(0.90, 1.06, texture(weather, gp*0.00028+0.12).b);
     gcol*=mix(0.84, 1.10, vN(gp*0.00115+3.0));
+#if SCENERY
     float foot=tG*2.0*fy/res.y/sqrt(max(abs(rd.z), 0.002));
     vec3 relief=groundRelief(gp, foot);
     if(tLand<0.0) nG=normalize(nG+vec3(-relief.xy, 0.0));
@@ -2607,6 +2751,7 @@ void main(){
     gcol*=mix(vec3(1.0), mix(vec3(0.88, 1.04, 0.94), vec3(1.24, 1.06, 0.72), patchy), colourful);
     gcol*=1.0+groundMottle(gp, foot)*mix(0.3, 0.8, colourful);
     gcol*=1.0+clamp(relief.z*0.18, -0.14, 0.08);
+#endif
     gcol=mix(gcol, gcol*vec3(0.84, 0.78, 0.70), (1.0-smoothstep(0.55, 0.92, nG.z))*0.5);
     gcol=mix(gcol, gcol*vec3(1.06, 1.02, 0.95), smoothstep(28.0, 130.0, gp3.z)*0.4);
     if(cloudOn>0.5){
@@ -2623,8 +2768,77 @@ void main(){
       gcol*=rel*mix(0.80, 1.0, nG.z);
       gcol*=mix(0.58, 1.0, shBest);
     }
+#if SCENERY
+    // Pools: pond[i] is (centre, radius, kind) with kind 0 water, 1 magma, 2 ice, 3 swamp.
+    // The shore wanders with two octaves of noise. Hills are kept out of them by the hit pass.
+    if(tLand<0.0 && kBest<0.5){
+      float pk=-1.0, edge=0.0, shore=0.0;
+      for(int i=0;i<int(pondN);i++){
+        vec4 q=pond[i];
+        float d=length(gp-q.xy)/q.z;
+        if(d>1.5) continue;
+        d+=(vN(gp/(q.z*0.3)+q.xy*0.013)-0.5)*0.45+(vN(gp/(q.z*0.08)+5.0)-0.5)*0.1;
+        if(d<1.0){ pk=q.w; edge=(1.0-d)*q.z; break; }
+        shore=max(shore, 1.0-smoothstep(1.0, 1.0+5.0/q.z, d));
+        if(shore>0.0) pk=q.w-10.0;
+      }
+      float light=0.42+0.58*sunMu, detail=1.0-smoothstep(0.3, 1.5, foot);
+      if(pk>-0.5 && (pk<0.5 || pk>2.5)){
+        vec3 r1=vNd(gp*0.45), r2=vNd(gp*1.3+7.0);
+        vec3 wn=normalize(vec3(-(r1.yz*0.45+r2.yz*0.35)*0.12*detail, 1.0));
+        vec3 refl=reflect(rd, wn);
+        float fres=0.02+0.98*pow(1.0-clamp(-dot(rd, wn), 0.0, 1.0), 5.0);
+        vec3 deep=pk>2.5?vec3(0.035, 0.045, 0.02):vec3(0.012, 0.035, 0.05);
+        vec3 wc=mix(deep*light, skyLook(refl), fres);
+        wc+=sunCol*pow(max(dot(refl, sd), 0.0), 300.0)*step(0.0, sd.z)*2.0;
+        if(pk>2.5) wc=mix(wc, vec3(0.10, 0.16, 0.05)*light, smoothstep(0.55, 0.72, vN(gp/7.0))*0.75);
+        gcol=mix(gcol*0.55, wc, smoothstep(0.0, 3.0, edge));
+      }else if(pk>0.5 && pk<1.5){
+        float crust=vN(gp/9.0)*0.6+vN(gp/3.1)*0.4;
+        float crack=mix(0.1, 1.0-smoothstep(0.0, 0.05, abs(vN(gp/5.0+3.3)-0.5)), detail);
+        float pool=smoothstep(6.0, 40.0, edge)*smoothstep(0.45, 0.7, vN(gp/30.0+9.1));
+        float glow=max(pool, crack*0.8)*(0.75+0.25*crust)*smoothstep(0.0, 3.0, edge);
+        gcol=gcol*0.3*(0.8+0.4*crust)+vec3(1.9, 0.55, 0.08)*glow*(0.6+0.6*pool);
+      }else if(pk>1.5 && pk<2.5){
+        vec3 refl=reflect(rd, vec3(0.0, 0.0, 1.0));
+        float fres=0.02+0.98*pow(1.0-clamp(-rd.z, 0.0, 1.0), 5.0);
+        float crack=(1.0-smoothstep(0.0, 0.03, abs(vN(gp/12.0)-0.5)))*detail;
+        vec3 ice=gcol*vec3(0.55, 0.74, 0.92)*(0.9+0.2*vN(gp/40.0));
+        gcol=mix(ice, skyLook(refl), fres*0.7)+gcol*0.25*crack;
+      }else if(pk<-5.0){
+        float k=pk+10.0;
+        gcol*=k>0.5&&k<1.5?vec3(mix(1.0, 0.35, shore)):(k>1.5&&k<2.5?vec3(1.0):mix(vec3(1.0), vec3(0.62, 0.6, 0.56), shore));
+      }
+    }
+#endif
   }
-  if(kBest>5.5){
+#if SCENERY
+  if(kBest>7.5){
+    // Trees (8). hBest is style*2+part: part 0 trunk, 1 crown. Leaf clumps bump the crown
+    // normal at metre scale and fade with distance; foliage wraps light a little.
+    float sty=floor(hBest*0.5+0.25), part=hBest-sty*2.0, seed=qBest.w, foot=tBest*2.0*fy/res.y;
+    vec3 n=nBest, albedo;
+    if(part<0.5){
+      albedo=sty>4.5?vec3(0.05, 0.045, 0.04):(sty>1.5&&sty<2.5?vec3(0.30, 0.29, 0.21):vec3(0.27, 0.21, 0.15));
+      float ang=atan(n.y, n.x), detail=1.0-smoothstep(0.05, 0.2, foot);
+      float bark=sty>1.5&&sty<2.5
+        ?step(0.32, abs(fract(ang*1.6+pBest.z*0.8)-0.5)+abs(fract(ang*1.6-pBest.z*0.8)-0.5))
+        :step(0.3, fract(ang*3.0+vN(vec2(ang*3.0, pBest.z*0.5))*0.6));
+      albedo*=mix(1.0, 0.75+0.25*bark, detail);
+    }else{
+      vec3 leaf=sty<0.5?vec3(0.16, 0.27, 0.07):(sty<1.5?vec3(0.07, 0.16, 0.07):(sty<2.5?vec3(0.13, 0.21, 0.06):(sty<3.5?vec3(0.15, 0.29, 0.07):vec3(0.16, 0.25, 0.09))));
+      leaf*=mix(0.8, 1.2, fract(seed*13.1));
+      float detail=1.0-smoothstep(0.15, 0.6, foot);
+      vec3 q=pBest*1.3;
+      float a=vN(q.xy+q.z*1.7), b=vN(q.yz*1.1+3.1), c=vN(q.zx*1.2+7.3);
+      n=normalize(n+(vec3(a, b, c)-0.5)*1.4*detail);
+      albedo=leaf*mix(1.0, 0.7+0.6*a, detail);
+    }
+    float wrap=part>0.5?clamp(dot(n, sd)*0.65+0.35, 0.0, 1.0):max(dot(n, sd), 0.0);
+    float ao=mix(0.5, 1.0, n.z*0.5+0.5)*mix(0.7, 1.0, smoothstep(0.0, 2.0, pBest.z));
+    col=albedo*(0.45*ao+0.9*wrap)*(0.42+0.58*sunMu);
+    col=mix(col, skyLook(rd), clamp(1.0-exp(-tBest/16000.0), 0.0, 0.8));
+  }else if(kBest>5.5){
     // Towers (6) and houses (7). Wall coordinates are world x or y, which line up with the bays
     // because footprints sit on the bay grid. Window detail fades to its average once a bay
     // spans only a few pixels.
@@ -2676,7 +2890,18 @@ void main(){
     vec3 emit=vec3(0.0);
     if(kBest>4.5) albedo=vec3(0.10,0.26,0.08);
     else if(kBest>3.5) albedo=vec3(0.74,0.71,0.66);
-    else if(kBest>2.5) albedo=vec3(0.86,0.90,0.94);
+    else if(kBest>2.5){
+      // Glacier: white snow on the flats, blue ice on the cliffs, banded by its layers.
+      // Layers are hBest*0.04 thick, warped, and only some of them are deep blue.
+      float sp=hBest*0.04, lay=pBest.z/sp+(vN(pBest.xy/90.0)-0.5)*2.0+vN(pBest.xy/25.0)*0.5;
+      float detail=1.0-smoothstep(1.0, 4.0, tBest*2.0*fy/res.y/max(sp, 1.0));
+      float band=fract(lay), blue=step(0.45, h12(vec2(floor(lay), 3.7)));
+      float stripe=mix(0.25, blue*smoothstep(0.2, 0.35, band)*(1.0-smoothstep(0.65, 0.85, band)), detail);
+      vec3 face=mix(vec3(0.80, 0.89, 0.96), vec3(0.30, 0.56, 0.84), stripe*0.8);
+      face*=0.92+0.16*vN(pBest.xy/6.0+pBest.z*0.3);
+      albedo=mix(face, vec3(0.94, 0.96, 0.99), smoothstep(0.55, 0.85, nBest.z));
+      emit=vec3(0.06, 0.13, 0.22)*(1.0-smoothstep(0.4, 0.8, nBest.z))*(0.42+0.58*sunMu);
+    }
     else {
       float hh=clamp(pBest.z/max(hBest,1.0), 0.0, 1.6);
       float steep=clamp(nBest.z, 0.0, 1.0);
@@ -2707,12 +2932,12 @@ void main(){
       }
     }
     float ndl=max(dot(nBest,sd),0.0);
-    float sh=kBest<2.5?shBest:1.0;
+    float sh=kBest<3.5?shBest:1.0;
     float ao=mix(0.58, 1.0, clamp(nBest.z,0.0,1.0));
     float lit=(0.40*ao+0.95*ndl*sh)*(0.42+0.58*sunMu);
-    if(kBest>2.5&&kBest<3.5) lit=(0.78+0.35*ndl)*(0.85+0.15*sunMu);
+    if(kBest>2.5&&kBest<3.5) lit=(0.62+0.6*ndl*sh)*(0.42+0.58*sunMu); // ice scatters light into its shade
     col=albedo*lit+emit;
-    if(kBest<2.5){
+    if(kBest<3.5){
       float uTex=(fract(compDeg/360.0)*na+0.5)/(na+1.0);
       float vTex=((90.0-max(elevDeg,0.0))/90.0*nr+0.5)/(nr+1.0);
       vec3 skyC=texture(sky, vec2(uTex, vTex)).rgb;
@@ -2721,7 +2946,9 @@ void main(){
       float hh=pBest.z/max(hBest,1.0);
       col=mix(gcol, col, smoothstep(0.0, 0.035, hh));
     }
-  }else if(tLand>0.0){
+  }else
+#endif
+  if(tLand>0.0){
     float uTex=(fract(compDeg/360.0)*na+0.5)/(na+1.0);
     float vTex=((90.0-max(elevDeg,0.0))/90.0*nr+0.5)/(nr+1.0);
     vec3 skyC=texture(sky, vec2(uTex, vTex)).rgb;
@@ -2790,7 +3017,7 @@ void main(){
   }
   fragColor=vec4(col,1.0);
 }`;
-
+const VRFS_BOOT=VRFS.replace('#define SCENERY 1', '#define SCENERY 0');
 const CLOUDFS=`#version 300 es
 precision highp float;
 precision highp sampler2D;
@@ -3289,6 +3516,17 @@ function vrRestoreGL(gl){
   gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
   gl.activeTexture(gl.TEXTURE0); gl.useProgram(vrGL.prog);
 }
+// Uniform locations, texture units, and fixed values for a sky program (boot or full).
+function setupSkyProg(gl, prog){
+  gl.useProgram(prog);
+  const u={}; for(const n of ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','eye','nr','na','sunMu','showScn','mtnSnow','moonAz','moonEl','moonRad','moonOn','latRad','starPx','cloudCov','cloudScale','cloudDrift','cloudOn','clockH','pondN']) u[n]=gl.getUniformLocation(prog, n);
+  u.pond=gl.getUniformLocation(prog,'pond[0]');
+  u.obj=gl.getUniformLocation(prog,'obj[0]'); u.kind=gl.getUniformLocation(prog,'kind[0]');
+  for(const [n, unit] of [['sky',0],['moonMap',1],['starMap',3],['starBin',4],['starIdx',5],['weather',7],['hitInfo',10],['hitNrm',11],['noiseTex',12]]) gl.uniform1i(gl.getUniformLocation(prog, n), unit);
+  gl.uniform1f(u.fov, VR_FOV_DEG*Math.PI/180);
+  gl.uniform1f(u.sunRad, SUN_RADIUS_DEG*DISK_SCALE*Math.PI/180);
+  return u;
+}
 function initVR(){
   if(vrGL) return vrGL.gl;
   const canvas=document.getElementById('vrc');
@@ -3296,10 +3534,12 @@ function initVR(){
   if(!gl) return null;
   const vs=glShader(gl, gl.VERTEX_SHADER, '#version 300 es\nin vec2 a;void main(){gl_Position=vec4(a,0.0,1.0);}');
   if(!vs) return null;
-  // Only the sky program blocks. Hills and clouds compile meanwhile and appear when they're ready.
+  // Only the boot sky program blocks. The full sky, hills, and clouds compile meanwhile and
+  // take over when they're ready.
+  const skyJob=glProgramAsync(gl, vs, VRFS);
   const hitJob=glProgramAsync(gl, vs, HITFS);
   const cloudJobs=[CLOUDFS, COMPFS, TEMPFS, NOISEFS].map(src=>glProgramAsync(gl, vs, src));
-  const fs=glShader(gl, gl.FRAGMENT_SHADER, VRFS);
+  const fs=glShader(gl, gl.FRAGMENT_SHADER, VRFS_BOOT);
   if(!fs) return null;
   const prog=gl.createProgram(); gl.attachShader(prog,vs); gl.attachShader(prog,fs); gl.bindAttribLocation(prog,0,'a'); gl.linkProgram(prog);
   if(!gl.getProgramParameter(prog, gl.LINK_STATUS)){ console.warn(gl.getProgramInfoLog(prog)); return null; }
@@ -3313,11 +3553,17 @@ function initVR(){
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-  const u={}; for(const n of ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','eye','nr','na','sunMu','showScn','mtnSnow','moonAz','moonEl','moonRad','moonOn','latRad','starPx','cloudCov','cloudScale','cloudDrift','cloudOn','clockH']) u[n]=gl.getUniformLocation(prog, n);
-  u.obj=gl.getUniformLocation(prog,'obj[0]'); u.kind=gl.getUniformLocation(prog,'kind[0]');
-  gl.uniform1i(gl.getUniformLocation(prog,'sky'), 0);
-  gl.uniform1i(gl.getUniformLocation(prog,'moonMap'), 1);
-  gl.uniform1i(gl.getUniformLocation(prog,'weather'), 7);
+  const u=setupSkyProg(gl, prog);
+  // Random values for vN in the sky shader, on unit 12, which nothing else uses.
+  const noiseTex=gl.createTexture(), nd=new Uint8Array(128*128);
+  let seed=12345; for(let i=0;i<nd.length;i++){ seed=(Math.imul(seed, 1103515245)+12345)>>>0; nd[i]=seed>>>24; }
+  gl.activeTexture(gl.TEXTURE12); gl.bindTexture(gl.TEXTURE_2D, noiseTex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, 128, 128, 0, gl.RED, gl.UNSIGNED_BYTE, nd);
+  gl.activeTexture(gl.TEXTURE0);
   const moonTex=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, moonTex);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
@@ -3332,9 +3578,6 @@ function initVR(){
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, STAR_MAP_W, 2, 0, gl.RGBA, gl.FLOAT, new Float32Array(STAR_MAP_W*8));
-  gl.uniform1i(gl.getUniformLocation(prog,'starMap'), 3);
-  gl.uniform1i(gl.getUniformLocation(prog,'hitInfo'), 10);
-  gl.uniform1i(gl.getUniformLocation(prog,'hitNrm'), 11);
   const starBinTex=gl.createTexture();
   gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, starBinTex);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
@@ -3342,7 +3585,6 @@ function initVR(){
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 64, 6, 0, gl.RGBA, gl.FLOAT, new Float32Array(64*6*4));
-  gl.uniform1i(gl.getUniformLocation(prog,'starBin'), 4);
   const starIdxTex=gl.createTexture();
   gl.activeTexture(gl.TEXTURE5); gl.bindTexture(gl.TEXTURE_2D, starIdxTex);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
@@ -3350,11 +3592,8 @@ function initVR(){
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 1024, 32, 0, gl.RGBA, gl.FLOAT, new Float32Array(1024*32*4));
-  gl.uniform1i(gl.getUniformLocation(prog,'starIdx'), 5);
   gl.activeTexture(gl.TEXTURE0);
-  gl.uniform1f(u.fov, VR_FOV_DEG*Math.PI/180);
-  gl.uniform1f(u.sunRad, SUN_RADIUS_DEG*DISK_SCALE*Math.PI/180);
-  vrGL={gl,u,tex,prog,buf,moonTex,starTex,starBinTex,starIdxTex,starUploaded:-1};
+  vrGL={gl,u,tex,prog,buf,moonTex,starTex,starBinTex,starIdxTex,noiseTex,starUploaded:-1};
   if(moonReady) uploadMoon();
   // Stand-in hit buffers that say "nothing here, unshadowed" until the hit pass runs.
   const noHit=px=>{ const t=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
@@ -3362,6 +3601,13 @@ function initVR(){
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 1, 1, 0, gl.RGBA, gl.FLOAT, new Float32Array(px)); return t; };
   vrGL.noHitInfo=noHit([-1,0,1,0]); vrGL.noHitNrm=noHit([0,0,1,-1]);
   vrRestoreGL(gl);
+  whenLinked(gl, [skyJob], fp=>{
+    if(!fp||!vrGL) return;
+    const boot=vrGL.prog;
+    vrGL.u=setupSkyProg(gl, fp); vrGL.prog=fp; gl.deleteProgram(boot);
+    skyUploaded=-1; // nr and na are set with the sky texture
+    vrRestoreGL(gl); requestVR();
+  });
   whenLinked(gl, [hitJob], hp=>{ if(hp&&vrGL){ setupHitProg(gl, hp); vrRestoreGL(gl); requestVR(); } });
   whenLinked(gl, cloudJobs, (cp, pp, tp, np)=>{ if(cp&&pp&&np&&vrGL){ setupCloudProgs(gl, cp, pp, tp, np); vrRestoreGL(gl); requestVR(); } });
   return gl;
@@ -3427,26 +3673,45 @@ function mtnSnowFor(key){
   if(key==='proterozoic22') return 0.2;
   return 0;
 }
-function scRad(k, r){ return (k>0.5&&k<1.5)?r*1.28:(k>1.5&&k<2.5)?r*1.12:r; }
+function scRad(k, r){ return (k>0.5&&k<1.5)?r*1.28:(k>1.5&&k<2.5)?r*1.12:(k>2.5&&k<3.5)?r*1.08:r; }
 const MTN_SCALE=0.67; // massif and hill heights relative to the original layout
-// Towns: [bearing deg, distance m, 'city' or 'hood']. Counts are drawn per town; the radius
-// follows from the count and the lot occupancy in lotOcc (70% of city lots, 77% of house lots).
-const TOWNS={
-  ozonehole:[[60,3000,'city'],[190,2600,'city'],[150,620,'hood'],[230,950,'hood'],[310,1400,'hood']],
-  modern:[[35,2800,'city'],[215,3200,'city'],[175,560,'hood'],[125,1150,'hood'],[265,1300,'hood']],
-  modernpoll:[[20,2400,'city'],[80,3100,'city'],[180,2000,'city'],[290,2900,'city'],[130,700,'hood'],[235,820,'hood']],
-  y2100:[[0,2600,'city'],[95,2300,'city'],[220,3000,'city'],[160,620,'hood'],[275,1050,'hood'],[45,1250,'hood']],
+// Zones: [bearing deg, distance m, kind, radius m]. Cities and neighbourhoods draw a building
+// count instead, and their radius follows from it and the lot occupancy in lotOcc (70% of city
+// lots, 77% of house lots). Woods are lot grids too; pools are drawn by the sky shader.
+const WATER=[[30,350,'water',120],[95,600,'water',220],[320,500,'water',180],[60,1500,'water',400]];
+const ZONES={
+  hadean44:[[30,330,'magma',90],[95,520,'magma',150],[320,430,'magma',120],[255,1300,'magma',260],[40,1500,'magma',300]],
+  hadean40:[[30,330,'water',100],[95,520,'magma',140],[320,430,'water',130],[255,1300,'water',280],[40,1500,'magma',260]],
+  archean38:WATER, archean27thin:WATER, archean27:WATER, archean27vthick:WATER,
+  proterozoic22:[[20,520,'water',180],[300,720,'water',250],[100,480,'water',120]],
+  snowball07:[[30,320,'ice',120],[300,520,'ice',200],[60,700,'ice',160]],
+  carbon30:[[0,560,'carb',300],[70,520,'carb',230],[140,720,'carb',350],[205,560,'carb',260],[265,860,'carb',420],[325,620,'carb',270],[105,170,'swamp',55],[235,150,'swamp',45],[350,130,'swamp',40]],
+  kpg66:[[20,520,'dead',260],[300,650,'dead',300],[110,300,'water',70]],
+  volcanic:[[20,520,'wood',260],[80,720,'wood',300],[320,640,'wood',280],[120,330,'water',90]],
+  ozonehole:[[60,3000,'city'],[190,2600,'city'],[150,620,'hood'],[230,950,'hood'],[310,1400,'hood'],[10,900,'wood',280],[100,1300,'wood',300],[270,520,'water',140]],
+  modern:[[35,2800,'city'],[215,3200,'city'],[175,560,'hood'],[125,1150,'hood'],[265,1300,'hood'],[340,800,'wood',300],[70,900,'wood',260],[250,600,'water',140]],
+  modernpoll:[[20,2400,'city'],[80,3100,'city'],[180,2000,'city'],[290,2900,'city'],[130,700,'hood'],[235,820,'hood'],[330,700,'wood',220],[40,750,'water',130]],
+  y2100:[[0,2600,'city'],[95,2300,'city'],[220,3000,'city'],[160,620,'hood'],[275,1050,'hood'],[45,1250,'hood'],[330,650,'wood',250],[100,800,'wood',240],[215,700,'water',120]],
 };
+const ZONE_TYPE={city:1, hood:2, wood:3, carb:4, dead:5}, POND_KIND={water:0, magma:1, ice:2, swamp:3};
+const TOWNS={ozonehole:1, modern:1, modernpoll:1, y2100:1};
 const TOWN_MTNS=[[300,7500,2000,1200,1],[20,9000,2400,1400,1],[160,11000,2800,1600,1],[250,6400,1500,800,1],[70,8000,2200,1400,1],[115,5600,1300,700,1],[200,8500,2000,1100,1],[340,6200,1500,900,1]];
+// t: town[16] for the hit shader (pools go in as type 0 so hills keep out). p: pond[8] for the sky.
 function townsFor(key){
-  const list=TOWNS[key]||[], t=new Float32Array(32);
+  const list=ZONES[key]||[], t=new Float32Array(64), p=new Float32Array(32);
+  let tn=0, pn=0;
   list.forEach((s, i)=>{
-    const a=s[0]*Math.PI/180, city=s[2]==='city', r=h12xy(i*3.7+1.3, key.length*5.1+0.7);
-    const n=city?80+Math.floor(r*41):250+Math.floor(r*251);
-    const R=(city?42:24)*Math.sqrt(n/((city?0.70:0.773)*Math.PI));
-    t[i*4]=Math.sin(a)*s[1]; t[i*4+1]=Math.cos(a)*s[1]; t[i*4+2]=R; t[i*4+3]=city?n:-n;
+    const a=s[0]*Math.PI/180, x=Math.sin(a)*s[1], y=Math.cos(a)*s[1];
+    let R=s[3];
+    if(s[2]==='city'||s[2]==='hood'){
+      const city=s[2]==='city', r=h12xy(i*3.7+1.3, key.length*5.1+0.7);
+      const n=city?80+Math.floor(r*41):250+Math.floor(r*251);
+      R=(city?42:24)*Math.sqrt(n/((city?0.70:0.773)*Math.PI));
+    }
+    t.set([x, y, R, ZONE_TYPE[s[2]]||0], tn*4); tn++;
+    if(s[2] in POND_KIND){ p.set([x, y, R, POND_KIND[s[2]]], pn*4); pn++; }
   });
-  return {t, tn:list.length};
+  return {t, tn, p, pn};
 }
 const sceneCache={};
 function sceneFor(key){ return sceneCache[key]||(sceneCache[key]=buildScene(key)); }
@@ -3455,8 +3720,8 @@ function buildScene(key){ // [bearing deg, distance m, radius m, height m, kind]
     for(let i=0;i<12;i++){ const s=list[i]; if(!s) continue; const a=s[0]*Math.PI/180; o[i*4]=Math.sin(a)*s[1]; o[i*4+1]=Math.cos(a)*s[1]; o[i*4+2]=s[2]; o[i*4+3]=s[4]<2.5?s[3]*MTN_SCALE:s[3]; k[i]=s[4]; }
     return {o, k, ...townsFor(key)}; };
   const VOLC=[[175,320,80,150,2],[205,560,130,240,2],[140,900,200,340,2],[250,3000,700,520,2],[310,5200,1400,1000,1],[350,8000,2200,1500,1],[100,9000,2500,1600,1],[160,7000,1800,1100,1],[230,11000,2800,1700,1],[40,6500,1600,900,1],[70,4200,1100,780,1],[280,4800,1000,640,1]];
-  const ICE=[[165,220,70,36,3],[195,420,130,60,3],[120,700,220,90,3],[240,1100,300,120,3],[210,1900,900,200,3],[260,3400,1600,280,3],[320,2100,1000,220,3],[30,7000,2000,900,3],[100,9000,2400,1100,3],[190,8000,1800,800,3],[250,11000,2600,1200,3],[330,6000,1600,700,3]];
-  const TREES=[[10,70,5,24,5],[35,120,7,32,5],[60,85,4,20,5],[95,160,8,36,5],[140,95,6,28,5],[180,200,9,42,5],[220,110,5,26,5],[270,150,7,34,5],[40,6000,1600,900,1],[140,8500,2200,1300,1],[230,5000,1400,750,1],[310,10000,2500,1500,1]];
+  const ICE=[[165,900,350,260,3],[200,1500,500,420,3],[120,1900,600,380,3],[240,2600,800,600,3],[300,3500,1100,700,3],[30,5000,1500,900,3],[90,7000,2000,1100,3],[190,8000,1800,1000,3],[260,10000,2600,1300,3],[330,6000,1600,900,3],[60,3000,900,500,3]];
+  const TREES=[[40,6000,1600,900,1],[140,8500,2200,1300,1],[230,5000,1400,750,1],[310,10000,2500,1500,1],[100,7000,1800,1000,1],[190,9000,2400,1400,1]];
   const PEAKS=[[170,380,110,190,1],[200,720,170,300,1],[140,1200,260,420,1],[55,4200,1300,800,1],[95,2200,700,420,1],[230,4500,1400,880,1],[280,2600,800,500,1],[330,3800,1100,700,1],[70,8000,2200,1400,1],[160,9500,2600,1600,1],[240,7000,1800,1100,1],[310,11000,2800,1500,1]];
   if(key==='snowball07') return spots(ICE);
   if(key==='carbon30') return spots(TREES);
@@ -3507,14 +3772,22 @@ function hillClear(cx, cy, R){
   for(let i=0;i<sc.tn;i++){ if(Math.hypot(cx-sc.t[i*4], cy-sc.t[i*4+1])<sc.t[i*4+2]+R*1.28+60) return false; }
   return true;
 }
-// Footprint [x0, y0, x1, y1] of the building on lot (gx, gy) of town i, or null. Mirrors lotOcc,
-// lotCorner, towerT, and houseT in the hit shader.
+function lotCell(ty){ return ty<1.5?42:ty<2.5?24:10; }
+// Solid footprints on lot (gx, gy) of town i, as [x0, y0, x1, y1] boxes, buildings and tree
+// trunks alike. Mirrors lotOcc, lotCorner, towerT, houseLot, forestTree, and yardTree in the
+// hit shader.
 function townLot(sc, i, gx, gy){
-  const tx=sc.t[i*4], ty=sc.t[i*4+1], R=sc.t[i*4+2], city=sc.t[i*4+3]>0, cell=city?42:24;
+  const tx=sc.t[i*4], ty=sc.t[i*4+1], R=sc.t[i*4+2], type=sc.t[i*4+3], city=type<1.5, cell=lotCell(type);
+  if(type<0.5) return [];
   const r=Math.hypot((gx+0.5)*cell-tx, (gy+0.5)*cell-ty)/R;
-  if(r>=1) return null;
-  const p=city?0.95+(0.45-0.95)*r*r:0.92+(0.70-0.92)*r;
-  if(h12xy(gx*1.31+17, gy*1.31+17)>=p) return null;
+  if(r>=1) return [];
+  const p=city?0.95+(0.45-0.95)*r*r:type<2.5?0.92+(0.70-0.92)*r:0.85+(0.3-0.85)*r*r;
+  if(h12xy(gx*1.31+17, gy*1.31+17)>=p) return [];
+  const trunk=(cx, cy)=>[cx-0.6, cy-0.6, cx+0.6, cy+0.6];
+  if(type>2.5){
+    const rc=type>4.5?0.6:2.2+2*h12xy(gx+2.1, gy+8.4);
+    return [trunk(gx*cell+rc+h12xy(gx+4.2, gy+0.6)*(cell-2*rc), gy*cell+rc+h12xy(gx+0.8, gy+6.1)*(cell-2*rc))];
+  }
   const corner=(g, w, pitch, h)=>{ const lo=pitch*Math.ceil((g*cell+2.5)/pitch), hi=g*cell+cell-2.5-w; return lo+pitch*Math.floor(h*(Math.floor((hi-lo)/pitch)+1)); };
   let w, pitch;
   if(city){ w=[3*Math.floor(6+6.99*h12xy(gx+2.1, gy+8.4)), 3*Math.floor(6+6.99*h12xy(gx+9.7, gy+3.3))]; pitch=3; }
@@ -3524,12 +3797,23 @@ function townLot(sc, i, gx, gy){
     pitch=3.6;
   }
   const x0=corner(gx, w[0], pitch, h12xy(gx+4.2, gy+0.6)), y0=corner(gy, w[1], pitch, h12xy(gx+0.8, gy+6.1));
-  return [x0, y0, x0+w[0], y0+w[1]];
+  const out=[[x0, y0, x0+w[0], y0+w[1]]];
+  if(!city && h12xy(gx+6.2, gy+1.9)<=0.6){
+    const lo=[gx*cell, gy*cell], gl=[x0-lo[0], y0-lo[1]], gh=[lo[0]+cell-x0-w[0], lo[1]+cell-y0-w[1]];
+    const alongX=Math.max(gl[0], gh[0])>Math.max(gl[1], gh[1]);
+    const gap=alongX?Math.max(gl[0], gh[0]):Math.max(gl[1], gh[1]), rc=Math.min(3.6, gap*0.5-0.3), along=h12xy(gx+1.4, gy+5.5);
+    if(rc>=1.6){
+      if(alongX) out.push(trunk(gl[0]>gh[0]?lo[0]+gl[0]*0.5:x0+w[0]+gh[0]*0.5, lo[1]+rc+along*(cell-2*rc)));
+      else out.push(trunk(lo[0]+rc+along*(cell-2*rc), gl[1]>gh[1]?lo[1]+gl[1]*0.5:y0+w[1]+gh[1]*0.5));
+    }
+  }
+  return out;
 }
 function townSolid(sc, x, y, pad){
   for(let i=0;i<sc.tn;i++){
-    const cell=sc.t[i*4+3]>0?42:24, f=townLot(sc, i, Math.floor(x/cell), Math.floor(y/cell));
-    if(f && x>f[0]-pad && x<f[2]+pad && y>f[1]-pad && y<f[3]+pad) return true;
+    const cell=lotCell(sc.t[i*4+3]);
+    for(const f of townLot(sc, i, Math.floor(x/cell), Math.floor(y/cell)))
+      if(x>f[0]-pad && x<f[2]+pad && y>f[1]-pad && y<f[3]+pad) return true;
   }
   return false;
 }
@@ -3595,6 +3879,7 @@ function paintVR(){
   gl.uniform3fv(u.ground, groundRGB());
   gl.uniform1f(u.showScn, vrScenery?1:0);
   gl.uniform1f(u.mtnSnow, mtnSnowFor(EP[dIdx].key));
+  { const sz=sceneFor(EP[dIdx].key); gl.uniform4fv(u.pond, sz.p); gl.uniform1f(u.pondN, sz.pn); }
   gl.uniform1f(u.clockH, (minutes%DAYMIN)/60);
   const sc=sceneFor(EP[dIdx].key); gl.uniform4fv(u.obj, sc.o); gl.uniform1fv(u.kind, sc.k);
   gl.uniform1f(u.starPx, (VR_FOV_DEG*Math.PI/180)/Math.max(window.innerHeight,1));
