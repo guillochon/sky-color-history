@@ -74,6 +74,7 @@ function initVR(){
       gl.uniform1f(hu.fov, VR_FOV_DEG*Math.PI/180);
       gl.uniform1f(gl.getUniformLocation(hp,'scnCount'), 12);
       gl.uniform1f(gl.getUniformLocation(hp,'hillN'), 8);
+      gl.uniform1i(gl.getUniformLocation(hp,'loopPad'), 0);
       vrGL.hitProg=hp; vrGL.hu=hu; vrGL.hitFbo=gl.createFramebuffer(); vrGL.hitFloat=!!gl.getExtension('EXT_color_buffer_float');
       gl.useProgram(prog);
     }

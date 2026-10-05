@@ -1,5 +1,9 @@
 // Marched by the hit shader. massifRad must match scRad.
-// Hill cells must match hillHeight in vr_paint.js. hillN is a hit-shader uniform.
+// Hill cells must match hillHeight in vr_paint.js. hillN and loopPad are hit-shader uniforms.
+// On Windows, ANGLE hands this to the D3D compiler, which inlines every call and unrolls
+// every loop with a constant bound. loopPad is always 0; adding it to a bound keeps the loop
+// rolled, and each heavy function is called from one place inside such a loop. Written the
+// obvious way, this shader took over five seconds to compile on every page load.
 const TERR=`
 float h12(vec2 p){
   vec3 q=fract(vec3(p.xyx)*vec3(0.1031, 0.1030, 0.0973));
@@ -61,12 +65,14 @@ float massifH(vec2 p, vec4 q, float volc){
   float s1=texture(weather, c*0.00041+0.71).g;
   float ang=s0*6.2831853;
   vec2 off=vec2(cos(ang), sin(ang));
-  float h=onePeak(p, c+off*R*mix(0.09, 0.02, volc), R*0.88, H, volc, s0);
-  if(volc<0.5){
-    h=max(h, onePeak(p, c-off*R*0.36, R*0.50, H*(0.46+0.28*s1), 0.0, s1+0.17));
-    h=max(h, onePeak(p, c+vec2(-off.y, off.x)*R*0.40, R*0.38, H*(0.34+0.22*s0), 0.0, s0+0.63));
-  }else{
-    h=max(h, onePeak(p, c+off*R*0.50, R*0.30, H*0.46, 0.25, s1));
+  float h=0.0;
+  for(int k=0;k<(volc<0.5?3:2)+loopPad;k++){
+    vec2 pc=c+off*R*mix(0.09, 0.02, volc); float pr=R*0.88, ph=H, pv=volc, ps=s0;
+    if(k==1){
+      if(volc<0.5){ pc=c-off*R*0.36; pr=R*0.50; ph=H*(0.46+0.28*s1); pv=0.0; ps=s1+0.17; }
+      else { pc=c+off*R*0.50; pr=R*0.30; ph=H*0.46; pv=0.25; ps=s1; }
+    }else if(k==2){ pc=c+vec2(-off.y, off.x)*R*0.40; pr=R*0.38; ph=H*(0.34+0.22*s0); pv=0.0; ps=s0+0.63; }
+    h=max(h, onePeak(p, pc, pr, ph, pv, ps));
   }
   return h;
 }
@@ -97,35 +103,31 @@ float marchMassif(vec3 ro, vec3 rd, vec4 q, float volc){
   if(span.x<0.0) return -1.0;
   float t0=span.x, t1=min(span.y, tPlane);
   if(t1<t0) return -1.0;
-  vec3 p0=ro+rd*t0;
-  float h0=massifH(p0.xy, q, volc);
-  if(h0>0.3 && p0.z<=h0) return t0;
-  const int N=28;
-  float dt=(t1-t0)/float(N);
-  float prev=t0;
-  for(int i=1;i<=28;i++){
-    float t=min(t0+dt*float(i), t1);
+  // 28 steps across the span, then 6 bisections once a step lands inside.
+  float dt=(t1-t0)/28.0, prev=t0, lo=t0, hi=t0;
+  int bis=-1;
+  for(int i=0;i<=34+loopPad;i++){
+    float t=bis<0?min(t0+dt*float(i), t1):0.5*(lo+hi);
     vec3 p=ro+rd*t;
     float h=massifH(p.xy, q, volc);
-    if(h>0.3 && p.z<=h){
-      float lo=prev, hi=t;
-      for(int j=0;j<6;j++){
-        float mid=0.5*(lo+hi);
-        vec3 m=ro+rd*mid;
-        if(massifH(m.xy, q, volc)>=m.z) hi=mid; else lo=mid;
-      }
-      return hi;
+    if(bis<0){
+      if(h>0.3 && p.z<=h){ if(i==0) return t; lo=prev; hi=t; bis=0; }
+      else { prev=t; if(t>=t1) break; }
+    }else{
+      if(h>=p.z) hi=t; else lo=t;
+      if(++bis>=6) return hi;
     }
-    prev=t;
-    if(t>=t1) break;
   }
   return -1.0;
 }
 vec3 massifN(vec2 p, vec4 q, float volc){
   float e=max(massifRad(q.z, volc)*0.028, 3.0);
-  float hx=massifH(p+vec2(e,0.0), q, volc)-massifH(p-vec2(e,0.0), q, volc);
-  float hy=massifH(p+vec2(0.0,e), q, volc)-massifH(p-vec2(0.0,e), q, volc);
-  return normalize(vec3(-hx, -hy, 2.0*e));
+  vec4 s;
+  for(int k=0;k<4+loopPad;k++){
+    vec2 o=vec2(k==0?e:(k==1?-e:0.0), k==2?e:(k==3?-e:0.0));
+    s[k]=massifH(p+o, q, volc);
+  }
+  return normalize(vec3(-(s.x-s.y), -(s.z-s.w), 2.0*e));
 }
 float marchLand(vec3 ro, vec3 rd, float tMax, out vec3 nOut, out float ROut, out float HOut){
   nOut=vec3(0.0, 0.0, 1.0); ROut=1.0; HOut=1.0;

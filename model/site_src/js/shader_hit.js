@@ -9,6 +9,7 @@ uniform vec3 eye;
 uniform vec4 obj[12];
 uniform float kind[12];
 uniform float scnCount, hillN;
+uniform int loopPad;
 layout(location=0) out vec4 hitInfo;
 layout(location=1) out vec4 hitNrm;
 ${TERR}
@@ -18,13 +19,13 @@ float scnShadow(vec3 p, vec3 sd){
   vec2 dir=sd.xy; float hl=length(dir);
   if(hl<1e-3) return 1.0;
   dir/=hl; float rise=sd.z/hl;
-  for(int i=0;i<12;i++){
+  for(int i=0;i<12+loopPad;i++){
     float kk=kind[i];
     if(kk<0.5||kk>=2.5) continue;
     vec4 q=obj[i]; float volc=step(1.5, kk);
     float R=massifRad(q.z, volc);
     if(length(p.xy-q.xy)>R+q.w*min(5.5, 1.15/max(sd.z, 0.04))) continue;
-    for(int s=1;s<=5;s++){
+    for(int s=1;s<=5+loopPad;s++){
       float dist=R*(0.04*float(s)+0.018*float(s*s));
       float h=massifH(p.xy+dir*dist, q, volc);
       float pen=smoothstep(0.0, dist*0.18+3.0, h-(p.z+rise*dist));
