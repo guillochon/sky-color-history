@@ -112,8 +112,8 @@ function initVR(){
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 1024, 32, 0, gl.RGBA, gl.FLOAT, new Float32Array(1024*32*4));
   gl.activeTexture(gl.TEXTURE0);
-  vrGL={gl,u,tex,prog,buf,moonTex,starTex,starBinTex,starIdxTex,noiseTex,starUploaded:-1};
-  if(moonReady) uploadMoon();
+  vrGL={gl,u,tex,prog,buf,moonTex,starTex,starBinTex,starIdxTex,noiseTex,starUploaded:-1,
+    vs, hits:{}, hitFbo:gl.createFramebuffer(), hitFloat:!!gl.getExtension('EXT_color_buffer_float')};
   // Stand-in hit buffers that say "nothing here, unshadowed" until the hit pass runs.
   const noHit=px=>{ const t=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
@@ -127,9 +127,10 @@ function initVR(){
     skyUploaded=-1; // nr and na are set with the sky texture
     vrRestoreGL(gl); requestVR();
   });
-  vrGL.vs=vs; vrGL.hits={}; vrGL.hitFbo=gl.createFramebuffer(); vrGL.hitFloat=!!gl.getExtension('EXT_color_buffer_float');
   compileHit(gl, hitFlags(EP[dIdx].key));
   whenLinked(gl, cloudJobs, (cp, pp, tp, np)=>{ if(cp&&pp&&np&&vrGL){ setupCloudProgs(gl, cp, pp, tp, np); vrRestoreGL(gl); requestVR(); } });
+  // Last: when the moon image is already loaded this paints, so vrGL has to be complete.
+  if(moonReady) uploadMoon();
   return gl;
 }
 // Which scenery an epoch's hit program needs: towns, trees, glaciers, as '0'/'1' digits.
