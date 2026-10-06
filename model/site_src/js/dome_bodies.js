@@ -13,8 +13,8 @@ function placeStars(lat){
     if(!(p.alt>0)) continue;
     const dir=horizDir(p.az, p.alt);
     tex[o]=dir[0]; tex[o+1]=dir[1]; tex[o+2]=dir[2]; tex[o+3]=show.px;
-    const c=STAR_MAP_W*4+o; tex[c]=show.rgb[0]; tex[c+1]=show.rgb[1]; tex[c+2]=show.rgb[2]; tex[c+3]=1;
-    marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb});
+    const c=STAR_MAP_W*4+o; tex[c]=show.rgb[0]; tex[c+1]=show.rgb[1]; tex[c+2]=show.rgb[2]; tex[c+3]=star[2];
+    marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb, mag:star[2]});
     up.push({i, x:dir[0], y:dir[1], z:dir[2]});
   }
   placePlanets(lat, tex, marks, up, epochKey, year, LST);
@@ -22,21 +22,24 @@ function placeStars(lat){
   const bins=starBinsFor(up);
   return {tex, marks, bins:bins.info, idx:bins.idx, idxCount:bins.count};
 }
-function skyByte(colgrid, el, az){
-  const NR=colgrid.length-1, NA=colgrid[0].length-1, vz=Math.max(0,Math.min(90,90-el));
+// Sky luminance ratio at (el, az), interpolated in log from the dome grid.
+function skyRAt(rgrid, el, az){
+  const NR=rgrid.length-1, NA=rgrid[0].length-1, vz=Math.max(0,Math.min(90,90-el));
   let ang=az%360; if(ang<0) ang+=360;
-  const fr=vz/90*NR, ir=Math.min(NR-1,Math.floor(fr)), tr=fr-ir;
-  const fa=ang/360*NA, ia=Math.min(NA-1,Math.floor(fa)), ta=fa-ia;
-  const chan=q=>{ const a=colgrid[ir][ia][q]*(1-ta)+colgrid[ir][ia+1][q]*ta, b=colgrid[ir+1][ia][q]*(1-ta)+colgrid[ir+1][ia+1][q]*ta; return a*(1-tr)+b*tr; };
-  return 0.2126*chan(0)+0.7152*chan(1)+0.0722*chan(2);
+  const fr=vz/90*NR, ir=Math.min(NR-1,Math.floor(fr)), tr=fr-ir, fa=ang/360*NA, ia=Math.min(NA-1,Math.floor(fa)), ta=fa-ia, L=v=>Math.log(v);
+  const a=L(rgrid[ir][ia])*(1-ta)+L(rgrid[ir][ia+1])*ta, b=L(rgrid[ir+1][ia])*(1-ta)+L(rgrid[ir+1][ia+1])*ta;
+  return Math.exp(a*(1-tr)+b*tr);
 }
-function drawStarsOnDome(marks, colgrid){
+// A star shows in full when 0.8 mag brighter than the naked-eye limit for the sky around it,
+// fading out to 0.2 mag fainter than the limit.
+function starVisible(mag, L){ const lim=nakedEyeLimit(L); return 1-smooth01(lim-0.8, lim+0.2, mag); }
+function drawStarsOnDome(marks, rgrid, rCd){
   const W=dome.width, H=dome.height, cx=W/2, cy=H/2, R=W*0.46;
   dctx.save();
   dctx.beginPath(); dctx.arc(cx,cy,R,0,Math.PI*2); dctx.clip();
   dctx.globalCompositeOperation='lighter';
   for(const s of marks){
-    const night=1-smooth01(0.05, 0.22, skyByte(colgrid, s.el, s.az)/255);
+    const night=starVisible(s.mag==null?0:s.mag, skyRAt(rgrid, s.el, s.az)*rCd);
     if(night<0.03) continue;
     const rr=R*(90-s.el)/90, a=s.az*Math.PI/180, x=cx+rr*Math.sin(a), y=cy-rr*Math.cos(a);
     const col=s.rgb.map(c=>Math.round(Math.min(255, c*night*255)));

@@ -12,13 +12,37 @@ function XYZ2rgb(X, expo){ // linear rgb 0..1, soft hue-preserving clip
   r=Math.max(0,r*expo); gg=Math.max(0,gg*expo); b=Math.max(0,b*expo);
   const mx=Math.max(r,gg,b); if(mx>1){r/=mx;gg/=mx;b/=mx;} return [r,gg,b];
 }
+const ginv = s => s<=0.04045 ? s/12.92 : Math.pow((s+0.055)/1.055, 2.4);
+// Display curve, as linear light t for luminance r=Y/Yref. In daylight and twilight it is
+// k·r^p. A dark-adapted eye sees far more at night than that curve shows, so a second branch
+// gives the sRGB value as TOE_A − TOE_B·exp(−log10 L / TOE_W) for luminance L in cd/m²: black
+// at 8e-5 cd/m², the natural night sky (1.7e-4) a very dark grey at 13/255, the Milky Way on it
+// up to about 26, deep twilight and city skies near 32–35, a full-Moon sky 37, nautical
+// twilight about 41. Its slope eases with brightness, so the Milky Way keeps its contrast on a
+// dark sky while every step of twilight still darkens. The branches meet in a soft maximum
+// TOE_W2 wide, leaving the day curve unchanged above about 1 cd/m². TOE_CD converts r to cd/m²
+// with day.js's calibration of 969.5 cd/m² per model unit. Mirrored in the sky shader as toneT.
+const TOE_A=0.1674, TOE_B=0.002276, TOE_W=0.957, TOE_W2=0.012, TOE_CD=YREF*969.5;
+function toneT(r, k=0.85, p=0.4, cap=0.92){
+  if(!(r>0)) return 0;
+  const su=g(Math.min(cap, k*Math.pow(r, p))), sl=TOE_A-TOE_B*Math.exp(-Math.log10(r*TOE_CD)/TOE_W);
+  const m=Math.max(su, sl), s=m+TOE_W2*Math.log(1+Math.exp(-Math.abs(su-sl)/TOE_W2));
+  return ginv(Math.max(0, Math.min(1, s)));
+}
 function tone(X, Yref, k=0.85, p=0.4, cap=0.92, floor=0){ // returns sRGB 0..255
   // Non-positive luminance has no color. A hard floor above that cut a contour
   // into moonlight, so anything dimmer follows the same curve down to black.
   if(!(X[1]>0)) return [0,0,0];
-  let t=Math.min(cap, k*Math.pow(X[1]/Yref,p)); t=Math.max(t,floor);
+  const t=Math.max(toneT(X[1]/Yref, k, p, cap), floor);
   const rgb=XYZ2rgb(X, t/X[1]); return rgb.map(v=>Math.round(255*g(v)));
 }
+// Sky luminance r=Y/Yref stored in a byte (the VR sky texture's alpha): log10 r from -12 to 0.5.
+const LOGR_LO=-12, LOGR_SPAN=12.5;
+function encodeLogR(r){ return Math.round(255*Math.max(0, Math.min(1, (Math.log10(Math.max(r, 1e-13))-LOGR_LO)/LOGR_SPAN))); }
+// Faintest star visible against a sky of L cd/m² (the usual conversion to naked-eye limit, via the
+// sky's V surface brightness in mag/arcsec²).
+function skyMagArcsec(L){ return -2.5*Math.log10(Math.max(L, 1e-12)/10.8e4); }
+function nakedEyeLimit(L){ return 7.93-5*Math.log10(Math.pow(10, 4.316-skyMagArcsec(L)/5)+1); }
 function cct(x,y){ const n=(x-0.3320)/(0.1858-y); return Math.round(449*n**3+3525*n**2+6823.3*n+5520.33); }
 const hex = a => '#'+a.map(v=>v.toString(16).padStart(2,'0')).join('');
 

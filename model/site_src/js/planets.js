@@ -65,7 +65,7 @@ function placePlanets(lat, tex, marks, up, epochKey, year, LST){
     if(!(p.alt>0)) return;
     const show=planetDisplay(mag, tint), dir=horizDir(p.az, p.alt);
     tex[o]=dir[0]; tex[o+1]=dir[1]; tex[o+2]=dir[2]; tex[o+3]=show.px;
-    tex[c]=show.rgb[0]; tex[c+1]=show.rgb[1]; tex[c+2]=show.rgb[2]; tex[c+3]=1;
+    tex[c]=show.rgb[0]; tex[c+1]=show.rgb[1]; tex[c+2]=show.rgb[2]; tex[c+3]=mag;
     marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb, planet:name, mag});
     up.push({i:slot, x:dir[0], y:dir[1], z:dir[2]});
   });

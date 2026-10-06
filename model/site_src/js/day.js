@@ -55,8 +55,11 @@ function domeXYZ(key, lat, si, st, vz, azr){
 }
 function skySource(sza, az){
   // Samples run through 20° below the horizon. From there to 30°, fade that last sky to black.
+  // Past 9° down the model's twilight fades too slowly: measured zenith skies dim by about a
+  // magnitude per degree of depression until the natural night sky takes over near 18°, while
+  // the model's dim by a quarter of that. The extra 0.75 mag per degree closes the gap.
   const last=SZ[SZ.length-1], past=Math.max(0, sza-last);
-  const fade=past<=0 ? 1 : Math.max(0, 1-past/10);
+  const fade=(past<=0 ? 1 : Math.max(0, 1-past/10))*Math.pow(10, -0.3*Math.max(0, sza-99));
   const [si,st]=idx(SZ, Math.min(Math.max(sza, SZ[0]), last));
   return {si, st, fade, az, past};
 }
@@ -102,6 +105,78 @@ function findBeads(moon, sunAz, sza, rSun, rMoon, sunUp){
   });
   return {beads:out, beadW:env, beadDir};
 }
+// Model sky luminance to cd/m². The clear sky at the zenith with the Sun 45° up is about
+// 2.7 kcd/m², a typical measured value; the modern mid-latitude model sky there sets the scale
+// (about 970 cd/m² per unit). The full-Moon sky then comes out near 18 mag/arcsec², as measured.
+let CD_PER_UNIT=0;
+function cdPerUnit(){
+  if(!CD_PER_UNIT){ const q=skySource(45, 0); CD_PER_UNIT=2700/domeXYZ('modern', 'Mid-latitude', q.si, q.st, 0, 0)[1]; }
+  return CD_PER_UNIT;
+}
+// The night sky. The natural sky (airglow, zodiacal light, faint stars) is 22.0 mag/arcsec² at
+// the zenith (Leinert et al. 1998), brightening toward the horizon as airglow does: the slant
+// path through a layer 100 km up (van Rhijn). Extinction dims the direct light toward the
+// horizon, but the air scatters much of it back into view, so 40% is kept whatever the airmass;
+// the horizon comes out about twice the zenith, as measured at dark sites. Near neutral colour.
+// Artificial skyglow is for an observer in a mid-sized city of a few hundred thousand people:
+// zenith brightness (cd/m²) and the colour of the lamps' light scattered by the air.
+//   Today: 18.8 mag/arcsec² in all, typical of such a city centre in the World Atlas (Falchi et
+//     al. 2016), from a mix of high-pressure sodium and LED lamps.
+//   1980–2000: about six times the natural sky, as for mid-sized cities in the first atlas
+//     (Cinzano, Falchi & Elvidge 2001), orange high-pressure sodium.
+//   Polluted city: 1.6 times today's, as the extra haze scatters more of the same light back.
+//   2100: today's level, all LED. The trend cannot be projected that far: Kyba et al. 2023
+//     measured skies brightening 9.6% a year over 2011–2022.
+//   1815: oil lamps. Per head, Britain then used about 1/6500 of the light it did in 2000
+//     (Fouquet & Pearson 2006), so the glow is a few thousandths of the natural sky.
+// Within the city the glow rises about threefold toward the horizon.
+const NIGHT_NATURAL=1.71e-4, NIGHT_XY=[0.310, 0.330];
+const SKYGLOW={modern:[3.09e-3, 0.44, 0.40], modernpoll:[4.94e-3, 0.45, 0.40], ozonehole:[1.03e-3, 0.50, 0.41], y2100:[3.09e-3, 0.38, 0.38], volcanic:[3e-7, 0.52, 0.41]};
+// Extinction, magnitudes per airmass in V: clean air, and the hazier epochs.
+const EXT_K={modernpoll:0.5, volcanic:0.35};
+function extK(key){ return EXT_K[key]||0.25; }
+function nightRows(key, NR){
+  const cdu=cdPerUnit(), glow=SKYGLOW[key], q=6371/6471, rows=[];
+  for(let ir=0;ir<=NR;ir++){
+    const vz=Math.min(90*ir/NR, 89.5), el=90-vz, sz=Math.sin(vz*Math.PI/180);
+    const X=xyY2XYZ([NIGHT_XY[0], NIGHT_XY[1], NIGHT_NATURAL*(0.4+0.6*extinction(el, extK(key)))/Math.sqrt(1-q*q*sz*sz)/cdu]);
+    if(glow){ const G=xyY2XYZ([glow[1], glow[2], glow[0]*(1+2.2*Math.exp(-el/12))/cdu]); X[0]+=G[0]; X[1]+=G[1]; X[2]+=G[2]; }
+    rows.push(X);
+  }
+  return rows;
+}
+// Linear sRGB of XYZ, without the clip in XYZ2rgb.
+function xyzLin(X){ return [0,1,2].map(i=>M[i][0]*X[0]+M[i][1]*X[1]+M[i][2]*X[2]); }
+let MW_LIN=null; // milkyway.js loads after this file
+const SRGB_LIN=Array.from({length:256}, (_, i)=>ginv(i/255));
+// Adding the Milky Way (luminance ratio rMw) to sky of luminance ratio rBg under the display
+// curve: the pixel goes to the curve's value for the sum, its colour the luminance-weighted mix.
+// Returns the factor on the sky's linear colour and the weight of the Milky Way's.
+// toneT tabulated in log10 r (steps of 0.002 decade) for the per-pixel dome work.
+const toneLUTs={};
+function toneFast(r, k, p){
+  const key=k+'|'+p; let T=toneLUTs[key];
+  if(!T){ T=toneLUTs[key]=new Float32Array(6501); for(let i=0;i<=6500;i++) T[i]=toneT(Math.pow(10, -12+i*0.002), k, p, 0.95); }
+  const x=(Math.log10(Math.max(r, 1e-12))+12)/0.002, i=Math.min(6499, Math.floor(x)), f=Math.min(1, x-i);
+  return T[i]+(T[i+1]-T[i])*f;
+}
+function mwMix(rBg, rMw, k, p){
+  if(!MW_LIN) MW_LIN=xyzLin(xyY2XYZ([MW_XY[0], MW_XY[1], 1]));
+  const rNew=rBg+rMw, tBg=toneFast(rBg, k, p), tNew=toneFast(rNew, k, p);
+  return [tBg>0?(tNew/tBg)*(rBg/rNew):0, tNew*rMw/rNew];
+}
+// Linear light to an sRGB byte, through a 4096-step table.
+const LIN_BYTE=Array.from({length:4097}, (_, i)=>Math.round(255*g(i/4096)));
+function linToByte(v){ return LIN_BYTE[Math.max(0, Math.min(4096, Math.round(v*4096)))]; }
+// Light from the city on the base of a cloud: city clouds glow, amplifying the skyglow up to
+// about tenfold (Kyba et al. 2011, PLoS ONE 6, e17307). Here the base is lit to six times the
+// clear-sky glow at the zenith, as linear display light for the cloud shader.
+function cityUplight(key, Yref, k, p){
+  const glow=SKYGLOW[key];
+  if(!glow) return new Float32Array(3);
+  const c=tone(xyY2XYZ([glow[1], glow[2], 6*glow[0]/cdPerUnit()]), Yref, k, p, 0.95);
+  return new Float32Array(c.map(v=>Math.pow(v/255, 2.2)));
+}
 function renderDay(fast){
   vrNote='';
   const ep=EP[dIdx], rec=DAY.epochs[ep.key][dLat]; const {sza,az:sunAz}=sunGeom(LATDEG[dLat],minutes);
@@ -144,9 +219,10 @@ function renderDay(fast){
     ringK=1e-3*zen/Math.max(ring[0][1], 1e-30)*smooth01(0.5, 1, cover);
   }
   const addRing=(X, vz)=>{ if(!ring) return; const r=ring[Math.min(NR, Math.round(vz/90*NR))]; X[0]+=r[0]*ringK; X[1]+=r[1]*ringK; X[2]+=r[2]*ringK; };
+  const night=nightRows(ep.key, NR);
   let Ymax=1e-30, Yhold=1e-30, Ysun=1e-30;
   for(let ir=0;ir<=NR;ir++){ const row=[]; const vz=90*ir/NR; for(let ia=0;ia<=NA;ia++){ const comp=360*ia/NA;
-      const X=[0,0,0];
+      const X=night[ir].slice();
       const Xsun=addField(X, sunSrc, sunVis, vz, comp);
       if(Xsun){ const y=Xsun[1]*sunSrc.fade; if(y>Ysun) Ysun=y; if(Xsun[1]>Yhold) Yhold=Xsun[1]; }
       addField(X, moonSrc, mScale, vz, comp);
@@ -155,6 +231,24 @@ function renderDay(fast){
   const Ybase=past>0?Yhold:Math.max(Ysun,Ymax);
   const Yref = autoExpo ? Math.max(Ybase, 1e-6*YREF) : YREF; const k = autoExpo?0.85:0.85, p = autoExpo?0.5:0.4;
   const colgrid=grid.map(row=>row.map(X=>tone(X,Yref,k,p,0.95)));
+  const rgrid=grid.map(row=>row.map(X=>Math.max(X[1], 1e-30)/Yref));
+  // The Milky Way on the dome, per pixel, once the sky is dark enough for it to matter.
+  const cdu=cdPerUnit(), mwOn=!!mwMap && rgrid[0][0]<2e-6, galB=mwOn?galacticBasis(LATDEG[dLat]):null;
+  const lgrid=mwOn?rgrid.map(row=>row.map(v=>Math.log(v))):null, ek=extK(ep.key);
+  // The Milky Way and the sky under it vary slowly, so the mix is worked out once per 2×2 pixel
+  // block: each pixel's linear colour is scaled by mwA and gains mwB of the Milky Way's colour.
+  const W2=W>>1, mwA=mwOn&&!fast?new Float32Array(W2*(H>>1)):null, mwB=mwA?new Float32Array(mwA.length):null;
+  if(mwA) for(let j=0;j<(H>>1);j++) for(let i=0;i<W2;i++){
+    const dx=2*i+1-cx, dy=2*j+1-cy, rr=Math.hypot(dx, dy);
+    if(rr>R) continue;
+    let ang=Math.atan2(dx,-dy)*180/Math.PI; if(ang<0) ang+=360;
+    const el=90-90*rr/R, rMw=mwAt(galB, horizDir(ang, el))*extinction(el, ek)/(cdu*Yref);
+    if(!(rMw>0)) continue;
+    const fr=(rr/R)*NR, ir=Math.min(NR-1,Math.floor(fr)), tr=fr-ir, fa=ang/360*NA, ia=Math.min(NA-1,Math.floor(fa)), ta=fa-ia;
+    const la=lgrid[ir][ia]*(1-ta)+lgrid[ir][ia+1]*ta, lb=lgrid[ir+1][ia]*(1-ta)+lgrid[ir+1][ia+1]*ta, rBg=Math.exp(la*(1-tr)+lb*tr);
+    if(rMw<rBg*0.003) continue;
+    const m=mwMix(rBg, rMw, k, p); mwA[j*W2+i]=m[0]; mwB[j*W2+i]=m[1];
+  }
   if(!fast){ const img=dctx.createImageData(W,H), px=img.data;
   for(let y=0;y<H;y++)for(let x=0;x<W;x++){
     const dx=x-cx, dy=y-cy, r=Math.hypot(dx,dy); const o=(y*W+x)*4;
@@ -163,6 +257,10 @@ function renderDay(fast){
     let ang=Math.atan2(dx,-dy)*180/Math.PI; if(ang<0) ang+=360; const fa=ang/360*NA, ia=Math.min(NA-1,Math.floor(fa)), ta=fa-ia;
     for(let q=0;q<3;q++){ const a=colgrid[ir][ia][q]*(1-ta)+colgrid[ir][ia+1][q]*ta, b=colgrid[ir+1][ia][q]*(1-ta)+colgrid[ir+1][ia+1][q]*ta; px[o+q]=a*(1-tr)+b*tr; }
     px[o+3]=255;
+    if(mwA){
+      const bi=(y>>1)*W2+(x>>1), b=mwB[bi];
+      if(b>0){ const a=mwA[bi]; for(let q=0;q<3;q++) px[o+q]=linToByte(SRGB_LIN[Math.round(px[o+q])]*a+MW_LIN[q]*b); }
+    }
   }
   dctx.putImageData(img,0,0); }
   // sun
@@ -182,7 +280,7 @@ function renderDay(fast){
   const SUNR=DOME_DISK*moon.sunRadDeg/SUN_RADIUS_DEG, rr=R*sza/90, a=sunAz*Math.PI/180, sx=cx+rr*Math.sin(a), sy=cy-rr*Math.cos(a);
   const sunRGB=tone(sXd, sXd[1], 0.95,0.4,0.98);
   const stars=placeStars(LATDEG[dLat]);
-  if(!fast) drawStarsOnDome(stars.marks, colgrid);
+  if(!fast) drawStarsOnDome(stars.marks, rgrid, Yref*cdu);
   const sunUpPix=!fast && rr-SUNR<R && sunRelD>3e-4;
   if(sunUpPix){
     dctx.save(); dctx.beginPath(); dctx.arc(cx,cy,R,0,Math.PI*2); dctx.clip();
@@ -231,7 +329,7 @@ function renderDay(fast){
   }
   const sn=supernovaPlace(LATDEG[dLat]);
   if(!fast) drawSupernovaOnDome(sn);
-  skyNow={colgrid, sza, sunAz, sunRGB, sunVis, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE+35/60, moon, corona, beads, eclipse, central, stars:stars.tex, starBins:stars.bins, starIdx:stars.idx, starIdxCount:stars.idxCount, sn, moonRel:mScale/MOON_SUN_FULL, gen:++skyGen};
+  skyNow={colgrid, sza, sunAz, sunRGB, sunVis, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE+35/60, moon, corona, beads, eclipse, central, rgrid, cityUp:cityUplight(ep.key, Yref, k, p), Yref, toneK:k, toneP:p, rCd:Yref*cdu, gal:mwMap?galacticBasis(LATDEG[dLat]):null, extK:ek, stars:stars.tex, starBins:stars.bins, starIdx:stars.idx, starIdxCount:stars.idxCount, sn, moonRel:mScale/MOON_SUN_FULL, gen:++skyGen};
   document.getElementById('rmoon').textContent = (moon.el<-moon.radDeg ? 'below horizon' : moon.el.toFixed(1)+'°')+' · '+Math.round(moonLit(moon, sunAz, 90-sza)*100)+'% lit · '+(mScale/MOON_SUN_FULL).toPrecision(2)+'× full';
   if(vrOn) paintVR();
   if(fast) return;
@@ -243,9 +341,9 @@ function renderDay(fast){
   // readouts
   document.getElementById('hclock').textContent=clockLabel(minutes);
   document.getElementById('relev').textContent=(90-sza).toFixed(1)+'°';
-  const sumAt=(vz,comp)=>{ const X=[0,0,0]; addField(X,sunSrc,sunVis,vz,comp); addField(X,moonSrc,mScale,vz,comp); addRing(X,vz); return X; };
+  const sumAt=(vz,comp)=>{ const X=night[Math.min(NR, Math.round(vz/90*NR))].slice(); addField(X,sunSrc,sunVis,vz,comp); addField(X,moonSrc,mScale,vz,comp); addRing(X,vz); return X; };
   const zX=sumAt(0, sunAz), hX=sumAt(88, sunAz+90);
-  const fmt=X=>{ if(X[1]<=1e-7*YREF) return 'dark'; const s=X[0]+X[1]+X[2]; const c=cct(X[0]/s,X[1]/s); return (c>800&&c<60000? c.toLocaleString()+' K':'—')+` · ${(100*X[1]/YREF).toPrecision(2)}%`; };
+  const fmt=X=>{ if(X[1]*cdu<1) return skyMagArcsec(X[1]*cdu).toFixed(1)+' mag/arcsec²'; const s=X[0]+X[1]+X[2]; const c=cct(X[0]/s,X[1]/s); return (c>800&&c<60000? c.toLocaleString()+' K':'—')+` · ${(100*X[1]/YREF).toPrecision(2)}%`; };
   document.getElementById('rzen').textContent=fmt(zX); document.getElementById('rhor').textContent=fmt(hX);
   document.getElementById('rsun').textContent = sza>=90 ? 'below horizon' : (sunRel<=3e-4 ? 'not visible' : (()=>{const s=sX[0]+sX[1]+sX[2]; return cct(sX[0]/s,sX[1]/s).toLocaleString()+' K · '+(sunRel*100).toPrecision(2)+'%';})());
   if(eclipse) document.getElementById('rsun').textContent+=' · '+eclipse;

@@ -7,6 +7,8 @@ tslider.value=dIdx;
   hslider.value=String(minutes);
 })();
 moonImg.src='moon.jpg';
+// The Milky Way map takes a moment, so it is built once the page is up.
+(window.requestIdleCallback||setTimeout)(()=>{ buildMilkyWay(); renderDay(); });
 showEpoch(dIdx); renderDay(); warm();
 if(openVR) enterVR(true);
 function colorTip(canvas, tip, inside){

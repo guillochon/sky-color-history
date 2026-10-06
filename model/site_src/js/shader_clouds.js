@@ -30,6 +30,7 @@ float remap(float v, float lo, float hi, float a, float b){
 float sat(float x){ return clamp(x, 0.0, 1.0); }
 vec3 toLin(vec3 c){ return pow(max(c, vec3(0.0)), vec3(2.2)); }
 uniform float sunVis;
+uniform vec3 cityUp;
 // The tallest column this era grows, from flat stratus to towering cumulus.
 float layerThick(){ return mix(500.0, 7000.0, pow(cloudType, 1.6))*mix(0.75, 1.30, cloudTop); }
 // Henyey-Greenstein scaled so an isotropic scatterer is 1.
@@ -131,7 +132,8 @@ void main(){
   vec3 zen=toLin(texture(sky, vec2(0.5, 0.5/(nr+1.0))).rgb);
   vec3 mid=toLin(texture(sky, vec2((fract(sunAz/360.0+0.5)*na+0.5)/(na+1.0), (0.6*nr+0.5)/(nr+1.0))).rgb);
   vec3 ambTop=(zen*0.45+mid*0.55);
-  vec3 ambBot=toLin(groundCol)*0.55+mid*0.35;
+  // cityUp: the city's own light, reflected up from the streets onto the cloud base.
+  vec3 ambBot=toLin(groundCol)*0.55+mid*0.35+cityUp;
   // Sunlight that reaches a shaded side after bouncing off other clouds and the ground.
   vec3 bounce=sunL*0.03*sat(sd.z*2.0+0.2);
   float cosT=dot(rd, sd);

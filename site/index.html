@@ -133,7 +133,7 @@ button.tick.on{background:none;color:var(--ink)}
 </div>
 
 <h2>A day under that sky</h2>
-<p class="hint">A whole-sky (fisheye) view: the zenith is at the center and the horizon is the rim, north at the top. Equinox geometry, so the Sun rises due east at 6:00 and sets due west at 18:00 everywhere; at the poles the noon Sun sits only 15° above the horizon. The Moon is placed for the selected date and clock time at the selected latitude, on your time zone's central meridian. On this dome the Sun and Moon are enlarged together so the phase stays readable; in the VR view both are drawn at four times their true angular size. Moonlight is the same sky grid as sunlight, added on top, with the Moon at its own place in the sky. Its brightness follows the lunar phase and the Moon's angular size at that epoch. When the Moon covers part of the Sun, sunlight throughout the sky is scaled by the fraction of that drawn solar disk still visible, so a partial eclipse is more common than for the true sizes, and a true overlap is still covered. Both disks change size: the Moon with its distance on the date, an Earth radius closer when overhead, and the Sun with the Earth's distance through the year. A Moon near perigee covers the Sun completely; near apogee it leaves a ring. From 2.2 billion years ago back the Moon was close enough that every central eclipse is total. For each new Moon the view stands at the best seat, where parallax brings the Moon closest to the Sun. In totality the sky is lit from beyond the Moon's shadow: this epoch's twilight sky, with a sunset glow all round the horizon, about a thousandth as bright as the day sky. The pearly corona and a thin pink rim appear, with Baily's beads and the diamond ring at the edges of totality: the Moon's limb has mountains and valleys (about three times the real relief, so they show on the enlarged disk), and the last sunlight comes through the valleys. Because the disks are drawn enlarged, every phase lasts about four times as long, so play slows tenfold through totality and the annular ring. The thousand brightest stars are drawn on this dome and in the VR view where they stood in the epoch: their present-day places for most, 1815 for the volcanic year, and for the two supernova epochs the thousand brightest at that time, each moved in a straight line from its Hipparcos parallax, proper motion, and radial velocity (Earth's axis keeps today's tilt and direction, since its precession that long ago cannot be pinned down). The five naked-eye planets are placed for the selected date and clock time on today's orbits, in every epoch, as the Moon is, and drawn on the same magnitude scale. The faintest of them is a single pixel, and size grows with brightness so that the hundred brightest keep the sizes they already had. Year 2100 adds the communications satellites and, brighter than those, the Sunrise orbital datacenters, both on the same magnitude scale, and both move as the clock does.</p>
+<p class="hint">A whole-sky (fisheye) view: the zenith is at the center and the horizon is the rim, north at the top. Equinox geometry, so the Sun rises due east at 6:00 and sets due west at 18:00 everywhere; at the poles the noon Sun sits only 15° above the horizon. The Moon is placed for the selected date and clock time at the selected latitude, on your time zone's central meridian. On this dome the Sun and Moon are enlarged together so the phase stays readable; in the VR view both are drawn at four times their true angular size. Moonlight is the same sky grid as sunlight, added on top, with the Moon at its own place in the sky. Its brightness follows the lunar phase and the Moon's angular size at that epoch. When the Moon covers part of the Sun, sunlight throughout the sky is scaled by the fraction of that drawn solar disk still visible, so a partial eclipse is more common than for the true sizes, and a true overlap is still covered. Both disks change size: the Moon with its distance on the date, an Earth radius closer when overhead, and the Sun with the Earth's distance through the year. A Moon near perigee covers the Sun completely; near apogee it leaves a ring. From 2.2 billion years ago back the Moon was close enough that every central eclipse is total. For each new Moon the view stands at the best seat, where parallax brings the Moon closest to the Sun. In totality the sky is lit from beyond the Moon's shadow: this epoch's twilight sky, with a sunset glow all round the horizon, about a thousandth as bright as the day sky. The pearly corona and a thin pink rim appear, with Baily's beads and the diamond ring at the edges of totality: the Moon's limb has mountains and valleys (about three times the real relief, so they show on the enlarged disk), and the last sunlight comes through the valleys. Because the disks are drawn enlarged, every phase lasts about four times as long, so play slows tenfold through totality and the annular ring. The thousand brightest stars are drawn on this dome and in the VR view where they stood in the epoch: their present-day places for most, 1815 for the volcanic year, and for the two supernova epochs the thousand brightest at that time, each moved in a straight line from its Hipparcos parallax, proper motion, and radial velocity (Earth's axis keeps today's tilt and direction, since its precession that long ago cannot be pinned down). The five naked-eye planets are placed for the selected date and clock time on today's orbits, in every epoch, as the Moon is, and drawn on the same magnitude scale. The faintest of them is a single pixel, and size grows with brightness so that the hundred brightest keep the sizes they already had. Year 2100 adds the communications satellites and, brighter than those, the Sunrise orbital datacenters, both on the same magnitude scale, and both move as the clock does. At night the sky has its own light: airglow and faint starlight, and the Milky Way with its dust lanes and the Magellanic Clouds. In the modern epochs you stand in a mid-sized city, and its lamps light the sky: orange sodium glow in 1980–2000, whiter today and in 2100, brighter still in the polluted city, and almost nothing from the oil lamps of 1815. City skies hide the Milky Way and all but the brighter stars. Each star shows only if it is brighter than the faintest the eye can see against the sky around it, so stars come out one by one in twilight. Night skies are drawn as a dark-adapted eye sees them, so they are brighter than the daytime display curve would give.</p>
 <div class="row">
  <div>
   <div class="stage" id="dstage"><button type="button" id="vrbtn" class="vrbtn" title="Full-screen view: look around while the day plays">VR</button><div class="tip" id="dtip"></div><canvas id="dome" width="600" height="600" aria-label="Whole-sky view for the selected epoch, latitude and time of day"></canvas></div>
@@ -164,7 +164,7 @@ button.tick.on{background:none;color:var(--ink)}
  </div>
 </div>
 
-<div class="foot">Model and data: spherical-shell single scattering with a delta-Eddington multiple-scattering correction, 380–780 nm, CIE 1931 color matching, sRGB output without chromatic adaptation. Colors are what a daylight-balanced camera would record, not what an adapted eye would perceive. Clouds are omitted; paleoatmosphere compositions carry order-of-magnitude uncertainty. Time of day is interpolated between 34 computed solar zenith angles. From the horizon to 20° below it, those samples are spaced 1° apart; from 20° to 30° below, that last sky fades to black. The plane-parallel multiple-scattering term fades out from 10° above the horizon through sunrise. The Moon is a NASA LROC color map (SVS CGI Moon Kit). Moonlight is that same sky grid with the Moon in place of the Sun, added to the sunlight, and scaled by the Allen phase law (Krisciunas &amp; Schaefer 1991) and by the square of the Moon's angular size at that epoch. Its phase is the angle between it and the Sun drawn here. A solar eclipse scales that sunlight by the fraction of the drawn solar disk the Moon leaves uncovered, with the Moon's size from its distance on the date (Schlyter's lunar theory) and the Sun's from the Earth's orbit. In totality the light from outside the shadow is this epoch's sky with the Sun 6° down, averaged round the horizon and scaled to 10<sup>−3</sup> of the uneclipsed zenith: measured totality skies are about three orders of magnitude below the day sky, as bright as the end of civil twilight (Sharp, Lloyd &amp; Silverman 1966, <i>Applied Optics</i> 5, 787). Its size follows the Earth–Moon distance at each epoch: cyclostratigraphic distances from Farhat et al. 2022, and about 70% of today's distance at 3.2 Ga from the Moodies Group (Eulenfeld &amp; Heubeck 2023). Ages older than 3.2 Ga extend that trend and stay beyond 30 Earth radii. The thousand brightest stars are Yale Bright Star Catalogue places (Hoffleit &amp; Warren 1991), carried from J2000 to the year on the clock by precession and proper motion. The faintest is a single pixel, and size grows with brightness so that the hundred brightest keep the sizes they already had. In 2100 the moving points are two populations on that same magnitude scale, kept only while sunlit and brighter than magnitude 6.5. One is the Lawler, Boley, and Rein (2022) megaconstellation, about 65,000 satellites on the filed orbits, each a diffuse sphere of effective area 0.8 m². The other is Blue Origin's Sunrise orbital datacenters from Boley, Lawler, and Rein (2026): 51,600 Sun-synchronous satellites between 500 and 1,800 km, nodes spread 10° to either side of the terminator, each a diffuse sphere of 800 m² at albedo 0.2.</div>
+<div class="foot">Model and data: spherical-shell single scattering with a delta-Eddington multiple-scattering correction, 380–780 nm, CIE 1931 color matching, sRGB output without chromatic adaptation. Colors are what a daylight-balanced camera would record, not what an adapted eye would perceive. Clouds are omitted; paleoatmosphere compositions carry order-of-magnitude uncertainty. Time of day is interpolated between 34 computed solar zenith angles. From the horizon to 20° below it, those samples are spaced 1° apart; from 20° to 30° below, that last sky fades to black. The plane-parallel multiple-scattering term fades out from 10° above the horizon through sunrise. The Moon is a NASA LROC color map (SVS CGI Moon Kit). Moonlight is that same sky grid with the Moon in place of the Sun, added to the sunlight, and scaled by the Allen phase law (Krisciunas &amp; Schaefer 1991) and by the square of the Moon's angular size at that epoch. Its phase is the angle between it and the Sun drawn here. A solar eclipse scales that sunlight by the fraction of the drawn solar disk the Moon leaves uncovered, with the Moon's size from its distance on the date (Schlyter's lunar theory) and the Sun's from the Earth's orbit. In totality the light from outside the shadow is this epoch's sky with the Sun 6° down, averaged round the horizon and scaled to 10<sup>−3</sup> of the uneclipsed zenith: measured totality skies are about three orders of magnitude below the day sky, as bright as the end of civil twilight (Sharp, Lloyd &amp; Silverman 1966, <i>Applied Optics</i> 5, 787). Its size follows the Earth–Moon distance at each epoch: cyclostratigraphic distances from Farhat et al. 2022, and about 70% of today's distance at 3.2 Ga from the Moodies Group (Eulenfeld &amp; Heubeck 2023). Ages older than 3.2 Ga extend that trend and stay beyond 30 Earth radii. The thousand brightest stars are Yale Bright Star Catalogue places (Hoffleit &amp; Warren 1991), carried from J2000 to the year on the clock by precession and proper motion. The faintest is a single pixel, and size grows with brightness so that the hundred brightest keep the sizes they already had. The night sky without the Sun or Moon is calibrated in cd/m² (the model's clear zenith with the Sun 45° up set to 2.7 kcd/m², which puts the full-Moon sky near the measured 18 mag/arcsec²). The natural sky is 22.0 mag/arcsec² at the zenith (Leinert et al. 1998), brightening toward the horizon as airglow does. The Milky Way is a model in galactic coordinates (disk, bulge, star clouds, dust including the Great Rift and the Coalsack, the Magellanic Clouds), peaking at 20.6 mag/arcsec² in the Sagittarius star cloud. City skyglow at the zenith is 18.8 mag/arcsec² today, typical of a mid-sized city centre in the World Atlas (Falchi et al. 2016); about six times the natural sky for 1980–2000 (Cinzano, Falchi &amp; Elvidge 2001); 1.6 times today's in polluted air; today's level in 2100, since the recent brightening of 9.6% a year (Kyba et al. 2023) cannot be projected that far; and a few thousandths of the natural sky in 1815, when light use per head was about 1/6500 of 2000's (Fouquet &amp; Pearson 2006). Clouds over the city are lit from below to six times the clear-sky glow (Kyba et al. 2011). Stars fade out below the naked-eye limiting magnitude for the local sky brightness (the usual conversion from mag/arcsec², 7.93 − 5 log₁₀(10^(4.316 − m/5) + 1)), and twilight fades by about a magnitude per degree of solar depression past 9°. In 2100 the moving points are two populations on that same magnitude scale, kept only while sunlit and brighter than magnitude 6.5. One is the Lawler, Boley, and Rein (2022) megaconstellation, about 65,000 satellites on the filed orbits, each a diffuse sphere of effective area 0.8 m². The other is Blue Origin's Sunrise orbital datacenters from Boley, Lawler, and Rein (2026): 51,600 Sun-synchronous satellites between 500 and 1,800 km, nodes spread 10° to either side of the terminator, each a diffuse sphere of 800 m² at albedo 0.2.</div>
 </main>
 <div id="vr" aria-hidden="true">
 <canvas id="vrc"></canvas>
@@ -208,13 +208,37 @@ function XYZ2rgb(X, expo){ // linear rgb 0..1, soft hue-preserving clip
   r=Math.max(0,r*expo); gg=Math.max(0,gg*expo); b=Math.max(0,b*expo);
   const mx=Math.max(r,gg,b); if(mx>1){r/=mx;gg/=mx;b/=mx;} return [r,gg,b];
 }
+const ginv = s => s<=0.04045 ? s/12.92 : Math.pow((s+0.055)/1.055, 2.4);
+// Display curve, as linear light t for luminance r=Y/Yref. In daylight and twilight it is
+// k·r^p. A dark-adapted eye sees far more at night than that curve shows, so a second branch
+// gives the sRGB value as TOE_A − TOE_B·exp(−log10 L / TOE_W) for luminance L in cd/m²: black
+// at 8e-5 cd/m², the natural night sky (1.7e-4) a very dark grey at 13/255, the Milky Way on it
+// up to about 26, deep twilight and city skies near 32–35, a full-Moon sky 37, nautical
+// twilight about 41. Its slope eases with brightness, so the Milky Way keeps its contrast on a
+// dark sky while every step of twilight still darkens. The branches meet in a soft maximum
+// TOE_W2 wide, leaving the day curve unchanged above about 1 cd/m². TOE_CD converts r to cd/m²
+// with day.js's calibration of 969.5 cd/m² per model unit. Mirrored in the sky shader as toneT.
+const TOE_A=0.1674, TOE_B=0.002276, TOE_W=0.957, TOE_W2=0.012, TOE_CD=YREF*969.5;
+function toneT(r, k=0.85, p=0.4, cap=0.92){
+  if(!(r>0)) return 0;
+  const su=g(Math.min(cap, k*Math.pow(r, p))), sl=TOE_A-TOE_B*Math.exp(-Math.log10(r*TOE_CD)/TOE_W);
+  const m=Math.max(su, sl), s=m+TOE_W2*Math.log(1+Math.exp(-Math.abs(su-sl)/TOE_W2));
+  return ginv(Math.max(0, Math.min(1, s)));
+}
 function tone(X, Yref, k=0.85, p=0.4, cap=0.92, floor=0){ // returns sRGB 0..255
   // Non-positive luminance has no color. A hard floor above that cut a contour
   // into moonlight, so anything dimmer follows the same curve down to black.
   if(!(X[1]>0)) return [0,0,0];
-  let t=Math.min(cap, k*Math.pow(X[1]/Yref,p)); t=Math.max(t,floor);
+  const t=Math.max(toneT(X[1]/Yref, k, p, cap), floor);
   const rgb=XYZ2rgb(X, t/X[1]); return rgb.map(v=>Math.round(255*g(v)));
 }
+// Sky luminance r=Y/Yref stored in a byte (the VR sky texture's alpha): log10 r from -12 to 0.5.
+const LOGR_LO=-12, LOGR_SPAN=12.5;
+function encodeLogR(r){ return Math.round(255*Math.max(0, Math.min(1, (Math.log10(Math.max(r, 1e-13))-LOGR_LO)/LOGR_SPAN))); }
+// Faintest star visible against a sky of L cd/m² (the usual conversion to naked-eye limit, via the
+// sky's V surface brightness in mag/arcsec²).
+function skyMagArcsec(L){ return -2.5*Math.log10(Math.max(L, 1e-12)/10.8e4); }
+function nakedEyeLimit(L){ return 7.93-5*Math.log10(Math.pow(10, 4.316-skyMagArcsec(L)/5)+1); }
 function cct(x,y){ const n=(x-0.3320)/(0.1858-y); return Math.round(449*n**3+3525*n**2+6823.3*n+5520.33); }
 const hex = a => '#'+a.map(v=>v.toString(16).padStart(2,'0')).join('');
 
@@ -360,8 +384,11 @@ function domeXYZ(key, lat, si, st, vz, azr){
 }
 function skySource(sza, az){
   // Samples run through 20° below the horizon. From there to 30°, fade that last sky to black.
+  // Past 9° down the model's twilight fades too slowly: measured zenith skies dim by about a
+  // magnitude per degree of depression until the natural night sky takes over near 18°, while
+  // the model's dim by a quarter of that. The extra 0.75 mag per degree closes the gap.
   const last=SZ[SZ.length-1], past=Math.max(0, sza-last);
-  const fade=past<=0 ? 1 : Math.max(0, 1-past/10);
+  const fade=(past<=0 ? 1 : Math.max(0, 1-past/10))*Math.pow(10, -0.3*Math.max(0, sza-99));
   const [si,st]=idx(SZ, Math.min(Math.max(sza, SZ[0]), last));
   return {si, st, fade, az, past};
 }
@@ -407,6 +434,78 @@ function findBeads(moon, sunAz, sza, rSun, rMoon, sunUp){
   });
   return {beads:out, beadW:env, beadDir};
 }
+// Model sky luminance to cd/m². The clear sky at the zenith with the Sun 45° up is about
+// 2.7 kcd/m², a typical measured value; the modern mid-latitude model sky there sets the scale
+// (about 970 cd/m² per unit). The full-Moon sky then comes out near 18 mag/arcsec², as measured.
+let CD_PER_UNIT=0;
+function cdPerUnit(){
+  if(!CD_PER_UNIT){ const q=skySource(45, 0); CD_PER_UNIT=2700/domeXYZ('modern', 'Mid-latitude', q.si, q.st, 0, 0)[1]; }
+  return CD_PER_UNIT;
+}
+// The night sky. The natural sky (airglow, zodiacal light, faint stars) is 22.0 mag/arcsec² at
+// the zenith (Leinert et al. 1998), brightening toward the horizon as airglow does: the slant
+// path through a layer 100 km up (van Rhijn). Extinction dims the direct light toward the
+// horizon, but the air scatters much of it back into view, so 40% is kept whatever the airmass;
+// the horizon comes out about twice the zenith, as measured at dark sites. Near neutral colour.
+// Artificial skyglow is for an observer in a mid-sized city of a few hundred thousand people:
+// zenith brightness (cd/m²) and the colour of the lamps' light scattered by the air.
+//   Today: 18.8 mag/arcsec² in all, typical of such a city centre in the World Atlas (Falchi et
+//     al. 2016), from a mix of high-pressure sodium and LED lamps.
+//   1980–2000: about six times the natural sky, as for mid-sized cities in the first atlas
+//     (Cinzano, Falchi & Elvidge 2001), orange high-pressure sodium.
+//   Polluted city: 1.6 times today's, as the extra haze scatters more of the same light back.
+//   2100: today's level, all LED. The trend cannot be projected that far: Kyba et al. 2023
+//     measured skies brightening 9.6% a year over 2011–2022.
+//   1815: oil lamps. Per head, Britain then used about 1/6500 of the light it did in 2000
+//     (Fouquet & Pearson 2006), so the glow is a few thousandths of the natural sky.
+// Within the city the glow rises about threefold toward the horizon.
+const NIGHT_NATURAL=1.71e-4, NIGHT_XY=[0.310, 0.330];
+const SKYGLOW={modern:[3.09e-3, 0.44, 0.40], modernpoll:[4.94e-3, 0.45, 0.40], ozonehole:[1.03e-3, 0.50, 0.41], y2100:[3.09e-3, 0.38, 0.38], volcanic:[3e-7, 0.52, 0.41]};
+// Extinction, magnitudes per airmass in V: clean air, and the hazier epochs.
+const EXT_K={modernpoll:0.5, volcanic:0.35};
+function extK(key){ return EXT_K[key]||0.25; }
+function nightRows(key, NR){
+  const cdu=cdPerUnit(), glow=SKYGLOW[key], q=6371/6471, rows=[];
+  for(let ir=0;ir<=NR;ir++){
+    const vz=Math.min(90*ir/NR, 89.5), el=90-vz, sz=Math.sin(vz*Math.PI/180);
+    const X=xyY2XYZ([NIGHT_XY[0], NIGHT_XY[1], NIGHT_NATURAL*(0.4+0.6*extinction(el, extK(key)))/Math.sqrt(1-q*q*sz*sz)/cdu]);
+    if(glow){ const G=xyY2XYZ([glow[1], glow[2], glow[0]*(1+2.2*Math.exp(-el/12))/cdu]); X[0]+=G[0]; X[1]+=G[1]; X[2]+=G[2]; }
+    rows.push(X);
+  }
+  return rows;
+}
+// Linear sRGB of XYZ, without the clip in XYZ2rgb.
+function xyzLin(X){ return [0,1,2].map(i=>M[i][0]*X[0]+M[i][1]*X[1]+M[i][2]*X[2]); }
+let MW_LIN=null; // milkyway.js loads after this file
+const SRGB_LIN=Array.from({length:256}, (_, i)=>ginv(i/255));
+// Adding the Milky Way (luminance ratio rMw) to sky of luminance ratio rBg under the display
+// curve: the pixel goes to the curve's value for the sum, its colour the luminance-weighted mix.
+// Returns the factor on the sky's linear colour and the weight of the Milky Way's.
+// toneT tabulated in log10 r (steps of 0.002 decade) for the per-pixel dome work.
+const toneLUTs={};
+function toneFast(r, k, p){
+  const key=k+'|'+p; let T=toneLUTs[key];
+  if(!T){ T=toneLUTs[key]=new Float32Array(6501); for(let i=0;i<=6500;i++) T[i]=toneT(Math.pow(10, -12+i*0.002), k, p, 0.95); }
+  const x=(Math.log10(Math.max(r, 1e-12))+12)/0.002, i=Math.min(6499, Math.floor(x)), f=Math.min(1, x-i);
+  return T[i]+(T[i+1]-T[i])*f;
+}
+function mwMix(rBg, rMw, k, p){
+  if(!MW_LIN) MW_LIN=xyzLin(xyY2XYZ([MW_XY[0], MW_XY[1], 1]));
+  const rNew=rBg+rMw, tBg=toneFast(rBg, k, p), tNew=toneFast(rNew, k, p);
+  return [tBg>0?(tNew/tBg)*(rBg/rNew):0, tNew*rMw/rNew];
+}
+// Linear light to an sRGB byte, through a 4096-step table.
+const LIN_BYTE=Array.from({length:4097}, (_, i)=>Math.round(255*g(i/4096)));
+function linToByte(v){ return LIN_BYTE[Math.max(0, Math.min(4096, Math.round(v*4096)))]; }
+// Light from the city on the base of a cloud: city clouds glow, amplifying the skyglow up to
+// about tenfold (Kyba et al. 2011, PLoS ONE 6, e17307). Here the base is lit to six times the
+// clear-sky glow at the zenith, as linear display light for the cloud shader.
+function cityUplight(key, Yref, k, p){
+  const glow=SKYGLOW[key];
+  if(!glow) return new Float32Array(3);
+  const c=tone(xyY2XYZ([glow[1], glow[2], 6*glow[0]/cdPerUnit()]), Yref, k, p, 0.95);
+  return new Float32Array(c.map(v=>Math.pow(v/255, 2.2)));
+}
 function renderDay(fast){
   vrNote='';
   const ep=EP[dIdx], rec=DAY.epochs[ep.key][dLat]; const {sza,az:sunAz}=sunGeom(LATDEG[dLat],minutes);
@@ -449,9 +548,10 @@ function renderDay(fast){
     ringK=1e-3*zen/Math.max(ring[0][1], 1e-30)*smooth01(0.5, 1, cover);
   }
   const addRing=(X, vz)=>{ if(!ring) return; const r=ring[Math.min(NR, Math.round(vz/90*NR))]; X[0]+=r[0]*ringK; X[1]+=r[1]*ringK; X[2]+=r[2]*ringK; };
+  const night=nightRows(ep.key, NR);
   let Ymax=1e-30, Yhold=1e-30, Ysun=1e-30;
   for(let ir=0;ir<=NR;ir++){ const row=[]; const vz=90*ir/NR; for(let ia=0;ia<=NA;ia++){ const comp=360*ia/NA;
-      const X=[0,0,0];
+      const X=night[ir].slice();
       const Xsun=addField(X, sunSrc, sunVis, vz, comp);
       if(Xsun){ const y=Xsun[1]*sunSrc.fade; if(y>Ysun) Ysun=y; if(Xsun[1]>Yhold) Yhold=Xsun[1]; }
       addField(X, moonSrc, mScale, vz, comp);
@@ -460,6 +560,24 @@ function renderDay(fast){
   const Ybase=past>0?Yhold:Math.max(Ysun,Ymax);
   const Yref = autoExpo ? Math.max(Ybase, 1e-6*YREF) : YREF; const k = autoExpo?0.85:0.85, p = autoExpo?0.5:0.4;
   const colgrid=grid.map(row=>row.map(X=>tone(X,Yref,k,p,0.95)));
+  const rgrid=grid.map(row=>row.map(X=>Math.max(X[1], 1e-30)/Yref));
+  // The Milky Way on the dome, per pixel, once the sky is dark enough for it to matter.
+  const cdu=cdPerUnit(), mwOn=!!mwMap && rgrid[0][0]<2e-6, galB=mwOn?galacticBasis(LATDEG[dLat]):null;
+  const lgrid=mwOn?rgrid.map(row=>row.map(v=>Math.log(v))):null, ek=extK(ep.key);
+  // The Milky Way and the sky under it vary slowly, so the mix is worked out once per 2×2 pixel
+  // block: each pixel's linear colour is scaled by mwA and gains mwB of the Milky Way's colour.
+  const W2=W>>1, mwA=mwOn&&!fast?new Float32Array(W2*(H>>1)):null, mwB=mwA?new Float32Array(mwA.length):null;
+  if(mwA) for(let j=0;j<(H>>1);j++) for(let i=0;i<W2;i++){
+    const dx=2*i+1-cx, dy=2*j+1-cy, rr=Math.hypot(dx, dy);
+    if(rr>R) continue;
+    let ang=Math.atan2(dx,-dy)*180/Math.PI; if(ang<0) ang+=360;
+    const el=90-90*rr/R, rMw=mwAt(galB, horizDir(ang, el))*extinction(el, ek)/(cdu*Yref);
+    if(!(rMw>0)) continue;
+    const fr=(rr/R)*NR, ir=Math.min(NR-1,Math.floor(fr)), tr=fr-ir, fa=ang/360*NA, ia=Math.min(NA-1,Math.floor(fa)), ta=fa-ia;
+    const la=lgrid[ir][ia]*(1-ta)+lgrid[ir][ia+1]*ta, lb=lgrid[ir+1][ia]*(1-ta)+lgrid[ir+1][ia+1]*ta, rBg=Math.exp(la*(1-tr)+lb*tr);
+    if(rMw<rBg*0.003) continue;
+    const m=mwMix(rBg, rMw, k, p); mwA[j*W2+i]=m[0]; mwB[j*W2+i]=m[1];
+  }
   if(!fast){ const img=dctx.createImageData(W,H), px=img.data;
   for(let y=0;y<H;y++)for(let x=0;x<W;x++){
     const dx=x-cx, dy=y-cy, r=Math.hypot(dx,dy); const o=(y*W+x)*4;
@@ -468,6 +586,10 @@ function renderDay(fast){
     let ang=Math.atan2(dx,-dy)*180/Math.PI; if(ang<0) ang+=360; const fa=ang/360*NA, ia=Math.min(NA-1,Math.floor(fa)), ta=fa-ia;
     for(let q=0;q<3;q++){ const a=colgrid[ir][ia][q]*(1-ta)+colgrid[ir][ia+1][q]*ta, b=colgrid[ir+1][ia][q]*(1-ta)+colgrid[ir+1][ia+1][q]*ta; px[o+q]=a*(1-tr)+b*tr; }
     px[o+3]=255;
+    if(mwA){
+      const bi=(y>>1)*W2+(x>>1), b=mwB[bi];
+      if(b>0){ const a=mwA[bi]; for(let q=0;q<3;q++) px[o+q]=linToByte(SRGB_LIN[Math.round(px[o+q])]*a+MW_LIN[q]*b); }
+    }
   }
   dctx.putImageData(img,0,0); }
   // sun
@@ -487,7 +609,7 @@ function renderDay(fast){
   const SUNR=DOME_DISK*moon.sunRadDeg/SUN_RADIUS_DEG, rr=R*sza/90, a=sunAz*Math.PI/180, sx=cx+rr*Math.sin(a), sy=cy-rr*Math.cos(a);
   const sunRGB=tone(sXd, sXd[1], 0.95,0.4,0.98);
   const stars=placeStars(LATDEG[dLat]);
-  if(!fast) drawStarsOnDome(stars.marks, colgrid);
+  if(!fast) drawStarsOnDome(stars.marks, rgrid, Yref*cdu);
   const sunUpPix=!fast && rr-SUNR<R && sunRelD>3e-4;
   if(sunUpPix){
     dctx.save(); dctx.beginPath(); dctx.arc(cx,cy,R,0,Math.PI*2); dctx.clip();
@@ -536,7 +658,7 @@ function renderDay(fast){
   }
   const sn=supernovaPlace(LATDEG[dLat]);
   if(!fast) drawSupernovaOnDome(sn);
-  skyNow={colgrid, sza, sunAz, sunRGB, sunVis, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE+35/60, moon, corona, beads, eclipse, central, stars:stars.tex, starBins:stars.bins, starIdx:stars.idx, starIdxCount:stars.idxCount, sn, moonRel:mScale/MOON_SUN_FULL, gen:++skyGen};
+  skyNow={colgrid, sza, sunAz, sunRGB, sunVis, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE+35/60, moon, corona, beads, eclipse, central, rgrid, cityUp:cityUplight(ep.key, Yref, k, p), Yref, toneK:k, toneP:p, rCd:Yref*cdu, gal:mwMap?galacticBasis(LATDEG[dLat]):null, extK:ek, stars:stars.tex, starBins:stars.bins, starIdx:stars.idx, starIdxCount:stars.idxCount, sn, moonRel:mScale/MOON_SUN_FULL, gen:++skyGen};
   document.getElementById('rmoon').textContent = (moon.el<-moon.radDeg ? 'below horizon' : moon.el.toFixed(1)+'°')+' · '+Math.round(moonLit(moon, sunAz, 90-sza)*100)+'% lit · '+(mScale/MOON_SUN_FULL).toPrecision(2)+'× full';
   if(vrOn) paintVR();
   if(fast) return;
@@ -548,9 +670,9 @@ function renderDay(fast){
   // readouts
   document.getElementById('hclock').textContent=clockLabel(minutes);
   document.getElementById('relev').textContent=(90-sza).toFixed(1)+'°';
-  const sumAt=(vz,comp)=>{ const X=[0,0,0]; addField(X,sunSrc,sunVis,vz,comp); addField(X,moonSrc,mScale,vz,comp); addRing(X,vz); return X; };
+  const sumAt=(vz,comp)=>{ const X=night[Math.min(NR, Math.round(vz/90*NR))].slice(); addField(X,sunSrc,sunVis,vz,comp); addField(X,moonSrc,mScale,vz,comp); addRing(X,vz); return X; };
   const zX=sumAt(0, sunAz), hX=sumAt(88, sunAz+90);
-  const fmt=X=>{ if(X[1]<=1e-7*YREF) return 'dark'; const s=X[0]+X[1]+X[2]; const c=cct(X[0]/s,X[1]/s); return (c>800&&c<60000? c.toLocaleString()+' K':'—')+` · ${(100*X[1]/YREF).toPrecision(2)}%`; };
+  const fmt=X=>{ if(X[1]*cdu<1) return skyMagArcsec(X[1]*cdu).toFixed(1)+' mag/arcsec²'; const s=X[0]+X[1]+X[2]; const c=cct(X[0]/s,X[1]/s); return (c>800&&c<60000? c.toLocaleString()+' K':'—')+` · ${(100*X[1]/YREF).toPrecision(2)}%`; };
   document.getElementById('rzen').textContent=fmt(zX); document.getElementById('rhor').textContent=fmt(hX);
   document.getElementById('rsun').textContent = sza>=90 ? 'below horizon' : (sunRel<=3e-4 ? 'not visible' : (()=>{const s=sX[0]+sX[1]+sX[2]; return cct(sX[0]/s,sX[1]/s).toLocaleString()+' K · '+(sunRel*100).toPrecision(2)+'%';})());
   if(eclipse) document.getElementById('rsun').textContent+=' · '+eclipse;
@@ -3824,7 +3946,7 @@ function placePlanets(lat, tex, marks, up, epochKey, year, LST){
     if(!(p.alt>0)) return;
     const show=planetDisplay(mag, tint), dir=horizDir(p.az, p.alt);
     tex[o]=dir[0]; tex[o+1]=dir[1]; tex[o+2]=dir[2]; tex[o+3]=show.px;
-    tex[c]=show.rgb[0]; tex[c+1]=show.rgb[1]; tex[c+2]=show.rgb[2]; tex[c+3]=1;
+    tex[c]=show.rgb[0]; tex[c+1]=show.rgb[1]; tex[c+2]=show.rgb[2]; tex[c+3]=mag;
     marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb, planet:name, mag});
     up.push({i:slot, x:dir[0], y:dir[1], z:dir[2]});
   });
@@ -3953,6 +4075,98 @@ function starBinsFor(up){
   }
   return {info, idx, count:cursor};
 }
+// The Milky Way, as V surface brightness (cd/m²) on a grid in galactic longitude and latitude,
+// built once in the browser. It is a model, not a survey: a disk whose brightness along the
+// plane follows the bright star fields (Sagittarius, Scutum, Cygnus, Carina, Crux and Centaurus,
+// Norma and Scorpius) and fades toward the anticentre, thicker toward the bulge, mottled by
+// noise; a bulge; the Sagittarius and Scutum star clouds; dust in a thin layer that splits the
+// band from Cygnus to Sagittarius (the Great Rift), plus the Coalsack and the Ophiuchus and
+// Taurus clouds; and the Magellanic Clouds and M31. The brightest field, the Sagittarius star
+// cloud, is set to 6e-4 cd/m² (about 20.6 mag/arcsec² on its own, 20.3 with the natural sky),
+// and the band elsewhere runs from about 40% of that in Cygnus to a tenth toward the
+// anticentre, in line with the integrated starlight of Leinert et al. 1998 (A&AS 127, 1). Its
+// colour is that of integrated starlight, about 4800 K.
+const MW_W=1024, MW_H=288, MW_BMAX=50, MW_PEAK=6e-4, MW_XY=[0.350, 0.360];
+let mwMap=null;
+function mwHash(ix, iy, seed){
+  let h=Math.imul(ix, 374761393)^Math.imul(iy, 668265263)^Math.imul(seed, 1442695041);
+  h=Math.imul(h^(h>>>13), 1274126177); h^=h>>>16;
+  return (h>>>0)/4294967296;
+}
+// Value noise on cells of `cell` degrees, periodic in longitude.
+function mwNoise(l, b, cell, seed){
+  const P=Math.round(360/cell), x=(l+180)/cell, y=(b+90)/cell, ix=Math.floor(x), iy=Math.floor(y);
+  const fx=x-ix, fy=y-iy, u=fx*fx*(3-2*fx), v=fy*fy*(3-2*fy), w=i=>((i%P)+P)%P;
+  const a=mwHash(w(ix), iy, seed), c=mwHash(w(ix+1), iy, seed), d=mwHash(w(ix), iy+1, seed), e=mwHash(w(ix+1), iy+1, seed);
+  return a+(c-a)*u+(d-a)*v+(a-c-d+e)*u*v;
+}
+function mwFbm(l, b, cell, seed){ return 0.55*mwNoise(l, b, cell, seed)+0.3*mwNoise(l, b, cell/2.5, seed+7)+0.15*mwNoise(l, b, cell/6, seed+13); }
+function mwSurface(l, b){
+  const dl=c=>((l-c+540)%360)-180, gs=(x, w)=>Math.exp(-0.5*(x/w)*(x/w));
+  const spot=(lc, bc, wl, wb)=>gs(dl(lc), wl)*gs(b-bc, wb);
+  const A=0.15+1.0*gs(dl(0), 24)+0.6*gs(dl(27), 7)+1.6*gs(dl(76), 13)+0.3*gs(dl(130), 30)
+    +0.9*gs(dl(287), 13)+0.8*gs(dl(310), 15)+0.6*gs(dl(338), 11);
+  const h=5.0+4.0*gs(dl(0), 35);
+  let I=A*Math.exp(-Math.abs(b)/h)*(0.45+1.1*mwFbm(l, b, 2.4, 1));
+  I+=0.8*spot(0, -1, 10, 8)*(0.7+0.6*mwFbm(l, b, 1.6, 2));
+  I+=0.5*spot(2, -4.5, 3, 2.5)+0.3*spot(27, -2.5, 2.5, 2);
+  const rift=1.2*Math.exp(-Math.pow(dl(38)/42, 4));
+  let tau=(0.2+0.8*gs(dl(35), 50))*Math.exp(-Math.abs(b-rift)/2.0)*(0.35+1.3*mwFbm(l, b, 1.2, 3));
+  tau+=1.3*spot(301, -1, 2.0, 2.0)+0.9*spot(354, 16, 6, 5)*mwFbm(l, b, 1.5, 4)*2+0.5*spot(172, -15, 6, 5)*mwFbm(l, b, 1.5, 5)*2;
+  I*=Math.exp(-tau);
+  I+=0.6*spot(280.5, -32.9, 3.2, 2.6)*(0.7+0.6*mwFbm(l, b, 1.0, 6))+0.32*spot(302.8, -44.3, 1.6, 1.1)+0.22*spot(121.2, -21.6, 1.1, 0.45);
+  return I;
+}
+function buildMilkyWay(){
+  if(mwMap) return mwMap;
+  const m=new Float32Array(MW_W*MW_H);
+  let peak=0;
+  for(let j=0;j<MW_H;j++){
+    const b=-MW_BMAX+(j+0.5)/MW_H*2*MW_BMAX;
+    for(let i=0;i<MW_W;i++){ const v=mwSurface(-180+(i+0.5)/MW_W*360, b); m[j*MW_W+i]=v; if(v>peak) peak=v; }
+  }
+  for(let i=0;i<m.length;i++) m[i]*=MW_PEAK/peak;
+  return mwMap=m;
+}
+function mwSample(l, b){
+  if(!mwMap || Math.abs(b)>=MW_BMAX) return 0;
+  const x=((l+180)/360*MW_W-0.5+MW_W)%MW_W, y=Math.max(0, Math.min(MW_H-1.001, (b+MW_BMAX)/(2*MW_BMAX)*MW_H-0.5));
+  const i=Math.floor(x), j=Math.floor(y), fx=x-i, fy=y-j, i1=(i+1)%MW_W;
+  const at=(a, c)=>mwMap[c*MW_W+a];
+  return (at(i, j)*(1-fx)+at(i1, j)*fx)*(1-fy)+(at(i, j+1)*(1-fx)+at(i1, j+1)*fx)*fy;
+}
+// The galactic axes (toward the centre, toward l=90°, toward the north pole) in the local
+// horizon frame (east, north, up), for the date, clock time, and latitude shown. They are moved
+// from J2000 to the stars' year with the same precession as the stars.
+const GAL_AXES=[[-0.0548755604, -0.8734370902, -0.4838350155], [0.4941094279, -0.4448296300, 0.7469822445], [-0.8676661490, -0.1980763734, 0.4559837762]];
+function galacticBasis(lat){
+  const epochKey=EP[dIdx].key, ins=instantUT();
+  const year=STAR_YEAR[epochKey]||+(document.getElementById('moonDate').value||localISODate(new Date())).slice(0,4);
+  const eq=moonEquatorial(dayNumber(ins.y,ins.m,ins.D,ins.ut));
+  const LST=rev(rev(eq.Ls+180+ins.ut*15)+ins.lon);
+  const toHoriz=v=>{
+    const ra=Math.atan2(v[1], v[0])*180/Math.PI, dec=Math.asin(Math.max(-1, Math.min(1, v[2])))*180/Math.PI;
+    const place=starMeanPlace([ra, dec, 0, 0, 0, 0], epochKey, year);
+    let H=rev(LST-rev(place.ra)); if(H>180) H-=360;
+    const p=altaz(lat, place.dec, H); return horizDir(p.az, p.alt);
+  };
+  // Rows of GAL_AXES are the galactic axes in J2000 equatorial coordinates.
+  return GAL_AXES.map(toHoriz);
+}
+// Brightness (cd/m²) of the Milky Way seen in horizon direction d, before the air.
+function mwAt(basis, d){
+  const x=vdot(d, basis[0]), y=vdot(d, basis[1]), z=vdot(d, basis[2]);
+  return mwSample(Math.atan2(y, x)*180/Math.PI, Math.asin(Math.max(-1, Math.min(1, z)))*180/Math.PI);
+}
+// Atmospheric extinction toward true altitude el (degrees), k magnitudes per airmass
+// (Kasten & Young 1989 airmass).
+function extinction(el, k){
+  if(el<=-1) return 0;
+  const h=Math.max(el, 0), X=1/(Math.sin(h*Math.PI/180)+0.50572*Math.pow(h+6.07995, -1.6364));
+  return Math.pow(10, -0.4*k*(X-1));
+}
+// The Milky Way's colour at unit luminance, in linear sRGB, for the sky shader.
+function mwLinGLSL(){ return xyzLin(xyY2XYZ([MW_XY[0], MW_XY[1], 1])).map(v=>v.toFixed(5)).join(', '); }
 // Lawler, Boley & Rein 2022, AJ 163, 21: every filed shell of Starlink, OneWeb,
 // Kuiper, and StarNet/GW, 65,262 satellites. Brightness is their Lambertian sphere
 // with effective area 0.8 m², plus 0.5 mag of fixed scatter and Kasten & Young
@@ -4040,11 +4254,11 @@ function placeSatellites(latDeg, tex, marks, up){
   const nDome=Math.min(hit.length, DOME_SAT_CAP), nTex=Math.min(hit.length, SAT_CAP);
   for(let k=0;k<nDome;k++){
     const s=hit[k], show=pointDisplay(s.mag), dir=horizDir(s.az, s.el);
-    marks.push({az:s.az, el:s.el, px:show.px, rgb:show.rgb});
+    marks.push({az:s.az, el:s.el, px:show.px, rgb:show.rgb, mag:s.mag});
     if(k>=nTex) continue;
     const i=STAR_N+PLANET_N+k, o=i*4;
     tex[o]=dir[0]; tex[o+1]=dir[1]; tex[o+2]=dir[2]; tex[o+3]=show.px;
-    const c=STAR_MAP_W*4+o; tex[c]=show.rgb[0]; tex[c+1]=show.rgb[1]; tex[c+2]=show.rgb[2]; tex[c+3]=1;
+    const c=STAR_MAP_W*4+o; tex[c]=show.rgb[0]; tex[c+1]=show.rgb[1]; tex[c+2]=show.rgb[2]; tex[c+3]=s.mag;
     up.push({i, x:dir[0], y:dir[1], z:dir[2]});
   }
 }
@@ -4063,8 +4277,8 @@ function placeStars(lat){
     if(!(p.alt>0)) continue;
     const dir=horizDir(p.az, p.alt);
     tex[o]=dir[0]; tex[o+1]=dir[1]; tex[o+2]=dir[2]; tex[o+3]=show.px;
-    const c=STAR_MAP_W*4+o; tex[c]=show.rgb[0]; tex[c+1]=show.rgb[1]; tex[c+2]=show.rgb[2]; tex[c+3]=1;
-    marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb});
+    const c=STAR_MAP_W*4+o; tex[c]=show.rgb[0]; tex[c+1]=show.rgb[1]; tex[c+2]=show.rgb[2]; tex[c+3]=star[2];
+    marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb, mag:star[2]});
     up.push({i, x:dir[0], y:dir[1], z:dir[2]});
   }
   placePlanets(lat, tex, marks, up, epochKey, year, LST);
@@ -4072,21 +4286,24 @@ function placeStars(lat){
   const bins=starBinsFor(up);
   return {tex, marks, bins:bins.info, idx:bins.idx, idxCount:bins.count};
 }
-function skyByte(colgrid, el, az){
-  const NR=colgrid.length-1, NA=colgrid[0].length-1, vz=Math.max(0,Math.min(90,90-el));
+// Sky luminance ratio at (el, az), interpolated in log from the dome grid.
+function skyRAt(rgrid, el, az){
+  const NR=rgrid.length-1, NA=rgrid[0].length-1, vz=Math.max(0,Math.min(90,90-el));
   let ang=az%360; if(ang<0) ang+=360;
-  const fr=vz/90*NR, ir=Math.min(NR-1,Math.floor(fr)), tr=fr-ir;
-  const fa=ang/360*NA, ia=Math.min(NA-1,Math.floor(fa)), ta=fa-ia;
-  const chan=q=>{ const a=colgrid[ir][ia][q]*(1-ta)+colgrid[ir][ia+1][q]*ta, b=colgrid[ir+1][ia][q]*(1-ta)+colgrid[ir+1][ia+1][q]*ta; return a*(1-tr)+b*tr; };
-  return 0.2126*chan(0)+0.7152*chan(1)+0.0722*chan(2);
+  const fr=vz/90*NR, ir=Math.min(NR-1,Math.floor(fr)), tr=fr-ir, fa=ang/360*NA, ia=Math.min(NA-1,Math.floor(fa)), ta=fa-ia, L=v=>Math.log(v);
+  const a=L(rgrid[ir][ia])*(1-ta)+L(rgrid[ir][ia+1])*ta, b=L(rgrid[ir+1][ia])*(1-ta)+L(rgrid[ir+1][ia+1])*ta;
+  return Math.exp(a*(1-tr)+b*tr);
 }
-function drawStarsOnDome(marks, colgrid){
+// A star shows in full when 0.8 mag brighter than the naked-eye limit for the sky around it,
+// fading out to 0.2 mag fainter than the limit.
+function starVisible(mag, L){ const lim=nakedEyeLimit(L); return 1-smooth01(lim-0.8, lim+0.2, mag); }
+function drawStarsOnDome(marks, rgrid, rCd){
   const W=dome.width, H=dome.height, cx=W/2, cy=H/2, R=W*0.46;
   dctx.save();
   dctx.beginPath(); dctx.arc(cx,cy,R,0,Math.PI*2); dctx.clip();
   dctx.globalCompositeOperation='lighter';
   for(const s of marks){
-    const night=1-smooth01(0.05, 0.22, skyByte(colgrid, s.el, s.az)/255);
+    const night=starVisible(s.mag==null?0:s.mag, skyRAt(rgrid, s.el, s.az)*rCd);
     if(night<0.03) continue;
     const rr=R*(90-s.el)/90, a=s.az*Math.PI/180, x=cx+rr*Math.sin(a), y=cy-rr*Math.cos(a);
     const col=s.rgb.map(c=>Math.round(Math.min(255, c*night*255)));
@@ -4918,6 +5135,31 @@ uniform float moonAz,moonEl,moonRad,moonOn,latRad,starPx,cloudCov,cloudScale,clo
 uniform vec3 snDir,snCol,snLight,mlDir,mlLight;
 uniform vec3 sunCol,ground,eye;
 uniform float corona;
+uniform sampler2D mwTex;
+uniform vec4 toneU; // display curve: k, p, cap, cd/m² per unit r (color.js toneT)
+uniform float rCd,mwOn,mwScale,mwK;
+uniform vec3 galX,galY,galZ;
+float lin2s(float v){ return v<=0.0031308?12.92*v:1.055*pow(v, 1.0/2.4)-0.055; }
+float s2lin(float v){ return v<=0.04045?v/12.92:pow((v+0.055)/1.055, 2.4); }
+vec3 s2lin3(vec3 c){ return vec3(s2lin(c.r), s2lin(c.g), s2lin(c.b)); }
+vec3 lin2s3(vec3 c){ return vec3(lin2s(c.r), lin2s(c.g), lin2s(c.b)); }
+// Display linear light for luminance ratio r (color.js toneT).
+float toneT(float r){
+  if(r<=0.0) return 0.0;
+  float su=lin2s(min(toneU.z, toneU.x*pow(r, toneU.y))), sl=${TOE_A}-${TOE_B}*exp(-log(r*toneU.w)/(2.302585*${TOE_W}));
+  float m=max(su, sl), s=m+${TOE_W2}*log(1.0+exp(-abs(su-sl)/${TOE_W2}));
+  return s2lin(clamp(s, 0.0, 1.0));
+}
+// Naked-eye limiting magnitude against a sky of L cd/m² (color.js nakedEyeLimit).
+float nakedEyeLimit(float L){
+  float msky=-2.5*log(max(L, 1e-12)/10.8e4)/2.302585;
+  return 7.93-5.0*log(pow(10.0, 4.316-msky/5.0)+1.0)/2.302585;
+}
+// Extinction toward true altitude el (degrees), k magnitudes per airmass (milkyway.js).
+float extinctionAt(float el, float k){
+  float h=max(el, 0.0), X=1.0/(sin(h*0.01745329252)+0.50572*pow(h+6.07995, -1.6364));
+  return pow(10.0, -0.4*k*(X-1.0));
+}
 uniform vec4 beads[6];
 float limbH(float pa){ return 0.002*sin(7.0*pa+1.3)+0.00167*sin(12.0*pa+4.1)+0.00133*sin(19.0*pa+2.2)+0.001*sin(29.0*pa+5.0)+0.00083*sin(41.0*pa+0.7)+0.00067*sin(57.0*pa+3.3)+0.0005*sin(83.0*pa+1.9); } // moon.js limbH
 uniform vec4 obj[12];
@@ -5311,8 +5553,11 @@ void main(){
   }else{
     float uTex=(fract(compDeg/360.0)*na+0.5)/(na+1.0);
     float vTex=((90.0-max(elevDeg,0.0))/90.0*nr+0.5)/(nr+1.0);
-    vec3 skyC=texture(sky, vec2(uTex,vTex)).rgb;
+    vec4 skyT=texture(sky, vec2(uTex,vTex));
+    vec3 skyC=skyT.rgb;
     float skyL=dot(skyC, vec3(0.2126, 0.7152, 0.0722));
+    // Sky luminance as a fraction of the reference, carried in the texture's alpha as a log.
+    float rBg=pow(10.0, skyT.a*${LOGR_SPAN.toFixed(1)}+${LOGR_LO.toFixed(1)});
     float te=trueAlt(elevDeg), teR=te*0.01745329252, cth=cos(teR);
     vec3 src=vec3(sin(comp)*cth, cos(comp)*cth, sin(teR));
     bool inSun=sunOn>0.5&&te>-1.0&&dot(src,sd)>cos(sunRad);
@@ -5349,6 +5594,22 @@ void main(){
         vec3 moonC=alb*(0.06+0.94*lit)*T;
         float skyY=dot(skyC, vec3(0.2126, 0.7152, 0.0722));
         skyC+=moonC*(1.0-smoothstep(0.0, 1.15, skyY));
+        }
+      }
+    }
+    if(mwOn>0.5 && !onBody && te>-1.0 && rBg<6e-6){
+      // The Milky Way, behind the air: its light dimmed by extinction and added to the sky's
+      // under the same display curve, coloured by its share.
+      vec3 gq=vec3(dot(src, galX), dot(src, galY), dot(src, galZ));
+      float gb=asin(clamp(gq.z, -1.0, 1.0))*57.2957795;
+      if(abs(gb)<${MW_BMAX.toFixed(1)}){
+        float gl=atan(gq.y, gq.x)*57.2957795;
+        float rMw=texture(mwTex, vec2((gl+180.0)/360.0, (gb+${MW_BMAX.toFixed(1)})/${(2*MW_BMAX).toFixed(1)})).r*mwScale*extinctionAt(te, mwK);
+        if(rMw>rBg*0.003){
+          float rNew=rBg+rMw, tBg=toneT(rBg), tNew=toneT(rNew);
+          vec3 mwLin=vec3(${mwLinGLSL()});
+          vec3 lin=s2lin3(skyC)*(tBg>0.0?(tNew/tBg)*(rBg/rNew):0.0)+mwLin*tNew*(rMw/rNew);
+          skyC=lin2s3(clamp(lin, 0.0, 1.0));
         }
       }
     }
@@ -5392,8 +5653,9 @@ void main(){
         +dark*(0.14*exp(-a/0.05)+0.035*exp(-a/0.3)+0.012));
     }
     if(!onBody && te>0.0){
-      float night=1.0-smoothstep(0.05, 0.22, skyL);
-      if(night>0.02){
+      // Each star shows when brighter than the naked-eye limit for the sky around it.
+      float lim=nakedEyeLimit(rBg*rCd);
+      if(lim>-5.0){
         int cell=starCubeCell(src);
         vec4 info=texelFetch(starBin, ivec2(cell- (cell/64)*64, cell/64), 0);
         int start=int(info.r+0.5), count=int(info.g+0.5);
@@ -5407,7 +5669,8 @@ void main(){
           float c=dot(src, sp.xyz);
           if(c<1.0-8.0*sig*sig) continue;
           float wgt=exp(-0.5*max(0.0, 2.0*(1.0-c))/(sig*sig));
-          skyC+=texelFetch(starMap, ivec2(si, 1), 0).rgb*wgt*night;
+          vec4 sc=texelFetch(starMap, ivec2(si, 1), 0);
+          skyC+=sc.rgb*wgt*(1.0-smoothstep(lim-0.8, lim+0.2, sc.a));
         }
       }
     }
@@ -5449,6 +5712,7 @@ float remap(float v, float lo, float hi, float a, float b){
 float sat(float x){ return clamp(x, 0.0, 1.0); }
 vec3 toLin(vec3 c){ return pow(max(c, vec3(0.0)), vec3(2.2)); }
 uniform float sunVis;
+uniform vec3 cityUp;
 // The tallest column this era grows, from flat stratus to towering cumulus.
 float layerThick(){ return mix(500.0, 7000.0, pow(cloudType, 1.6))*mix(0.75, 1.30, cloudTop); }
 // Henyey-Greenstein scaled so an isotropic scatterer is 1.
@@ -5550,7 +5814,8 @@ void main(){
   vec3 zen=toLin(texture(sky, vec2(0.5, 0.5/(nr+1.0))).rgb);
   vec3 mid=toLin(texture(sky, vec2((fract(sunAz/360.0+0.5)*na+0.5)/(na+1.0), (0.6*nr+0.5)/(nr+1.0))).rgb);
   vec3 ambTop=(zen*0.45+mid*0.55);
-  vec3 ambBot=toLin(groundCol)*0.55+mid*0.35;
+  // cityUp: the city's own light, reflected up from the streets onto the cloud base.
+  vec3 ambBot=toLin(groundCol)*0.55+mid*0.35+cityUp;
   // Sunlight that reaches a shaded side after bouncing off other clouds and the ground.
   vec3 bounce=sunL*0.03*sat(sd.z*2.0+0.2);
   float cosT=dot(rd, sd);
@@ -5957,11 +6222,11 @@ function vrRestoreGL(gl){
 // Uniform locations, texture units, and fixed values for a sky program (boot or full).
 function setupSkyProg(gl, prog){
   gl.useProgram(prog);
-  const u={}; for(const n of ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','eye','nr','na','sunMu','showScn','mtnSnow','moonAz','moonEl','moonRad','moonOn','latRad','starPx','cloudCov','cloudScale','cloudDrift','cloudOn','clockH','pondN','snowCover','waterT','snOn','snDir','snCol','snLight','mlDir','mlLight','corona']) u[n]=gl.getUniformLocation(prog, n);
+  const u={}; for(const n of ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','eye','nr','na','sunMu','showScn','mtnSnow','moonAz','moonEl','moonRad','moonOn','latRad','starPx','cloudCov','cloudScale','cloudDrift','cloudOn','clockH','pondN','snowCover','waterT','snOn','snDir','snCol','snLight','mlDir','mlLight','corona','toneU','rCd','mwOn','mwScale','mwK','galX','galY','galZ']) u[n]=gl.getUniformLocation(prog, n);
   u.beads=gl.getUniformLocation(prog,'beads[0]');
   u.pond=gl.getUniformLocation(prog,'pond[0]');
   u.obj=gl.getUniformLocation(prog,'obj[0]'); u.kind=gl.getUniformLocation(prog,'kind[0]');
-  for(const [n, unit] of [['sky',0],['moonMap',1],['starMap',3],['starBin',4],['starIdx',5],['weather',7],['hitInfo',10],['hitNrm',11],['noiseTex',12]]) gl.uniform1i(gl.getUniformLocation(prog, n), unit);
+  for(const [n, unit] of [['sky',0],['moonMap',1],['starMap',3],['starBin',4],['starIdx',5],['weather',7],['hitInfo',10],['hitNrm',11],['noiseTex',12],['mwTex',13]]) gl.uniform1i(gl.getUniformLocation(prog, n), unit);
   gl.uniform1f(u.fov, vrFov*Math.PI/180);
   gl.uniform1f(u.sunRad, SUN_RADIUS_DEG*DISK_SCALE*Math.PI/180);
   return u;
@@ -6098,7 +6363,7 @@ function setupHitProg(gl, hp){
 function setupCloudProgs(gl, cp, pp, tp, np){
   const vols=makeCloudVolumes(gl, np);
   if(!vols){ console.warn('cloud noise build failed'); return; }
-  const names=['res','yaw','pitch','fov','eye','sunAz','sunEl','sunCol','sunMu','showScn','cloudCov','cloudScale','cloudDrift','cloudTime','cloudFrame','nr','na','cloudType','cloudBase','cloudTop','cloudCirrus','useHDR','groundCol','sunVis','cloudDeck','snDir','snLight','mlDir','mlLight'];
+  const names=['res','yaw','pitch','fov','eye','sunAz','sunEl','sunCol','sunMu','showScn','cloudCov','cloudScale','cloudDrift','cloudTime','cloudFrame','nr','na','cloudType','cloudBase','cloudTop','cloudCirrus','useHDR','groundCol','sunVis','cityUp','cloudDeck','snDir','snLight','mlDir','mlLight'];
   const cu={}; for(const n of names) cu[n]=gl.getUniformLocation(cp, n);
   cu.obj=gl.getUniformLocation(cp,'obj[0]'); cu.kind=gl.getUniformLocation(cp,'kind[0]');
   const weather=ensureWeather(gl);
@@ -6346,7 +6611,7 @@ function paintVR(){
   const cg=skyNow.colgrid, h=cg.length, w=cg[0].length;
   if(skyUploaded!==skyNow.gen){
     const data=new Uint8Array(w*h*4);
-    for(let y=0;y<h;y++) for(let x=0;x<w;x++){ const p=cg[y][x], o=(y*w+x)*4; data[o]=p[0]; data[o+1]=p[1]; data[o+2]=p[2]; data[o+3]=255; }
+    for(let y=0;y<h;y++) for(let x=0;x<w;x++){ const p=cg[y][x], o=(y*w+x)*4; data[o]=p[0]; data[o+1]=p[1]; data[o+2]=p[2]; data[o+3]=encodeLogR(skyNow.rgrid[y][x]); }
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
     skyUploaded=skyNow.gen;
@@ -6365,6 +6630,23 @@ function paintVR(){
   gl.uniform1f(u.sunOn, skyNow.sunOn?1:0);
   gl.uniform1f(u.sunRad, skyNow.moon.sunRadDeg*DISK_SCALE*Math.PI/180);
   gl.uniform1f(u.corona, skyNow.corona||0);
+  // The night sky: the display curve, the Milky Way (uploaded once it is built), and limits.
+  gl.uniform4f(u.toneU, skyNow.toneK, skyNow.toneP, 0.95, TOE_CD);
+  gl.uniform1f(u.rCd, skyNow.rCd);
+  if(mwMap && !vrGL.mwTex){
+    const t=gl.createTexture(), half=new Float32Array(mwMap.length);
+    for(let i=0;i<half.length;i++) half[i]=mwMap[i]*1e4;
+    gl.activeTexture(gl.TEXTURE13); gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R16F, MW_W, MW_H, 0, gl.RED, gl.FLOAT, half);
+    gl.activeTexture(gl.TEXTURE0); vrGL.mwTex=t;
+  }
+  gl.uniform1f(u.mwOn, vrGL.mwTex&&skyNow.gal?1:0);
+  if(vrGL.mwTex&&skyNow.gal){
+    gl.uniform1f(u.mwScale, 1e-4/skyNow.rCd); gl.uniform1f(u.mwK, skyNow.extK);
+    gl.uniform3fv(u.galX, skyNow.gal[0]); gl.uniform3fv(u.galY, skyNow.gal[1]); gl.uniform3fv(u.galZ, skyNow.gal[2]);
+  }
   gl.uniform4fv(u.beads, skyNow.beads||new Float32Array(24));
   gl.uniform1f(u.sunMu, Math.max(0, Math.sin(apparentEl(90-skyNow.sza)*Math.PI/180))*(skyNow.sunVis==null?1:skyNow.sunVis));
   gl.uniform3fv(u.sunCol, new Float32Array(skyNow.sunRGB.map(v=>v/255)));
@@ -6475,6 +6757,7 @@ function paintVR(){
     gl.uniform3fv(cu.mlLight, vrGL.mlLight||new Float32Array(3)); if(vrGL.mlDir) gl.uniform3fv(cu.mlDir, vrGL.mlDir); gl.uniform1f(cu.cloudBase, field.base); gl.uniform1f(cu.cloudTop, field.top); gl.uniform1f(cu.cloudCirrus, field.cirrus);
     gl.uniform1f(cu.useHDR, vrGL.cloudHDR?1:0);
     gl.uniform1f(cu.sunVis, skyNow.sunVis==null?1:skyNow.sunVis);
+    gl.uniform3fv(cu.cityUp, skyNow.cityUp||new Float32Array(3));
     gl.uniform4fv(cu.obj, sc.o); gl.uniform1fv(cu.kind, sc.k);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     let shown=vrGL.cloudTex;
@@ -6949,6 +7232,8 @@ tslider.value=dIdx;
   hslider.value=String(minutes);
 })();
 moonImg.src='moon.jpg';
+// The Milky Way map takes a moment, so it is built once the page is up.
+(window.requestIdleCallback||setTimeout)(()=>{ buildMilkyWay(); renderDay(); });
 showEpoch(dIdx); renderDay(); warm();
 if(openVR) enterVR(true);
 function colorTip(canvas, tip, inside){

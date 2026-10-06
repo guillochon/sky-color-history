@@ -10,6 +10,31 @@ uniform float moonAz,moonEl,moonRad,moonOn,latRad,starPx,cloudCov,cloudScale,clo
 uniform vec3 snDir,snCol,snLight,mlDir,mlLight;
 uniform vec3 sunCol,ground,eye;
 uniform float corona;
+uniform sampler2D mwTex;
+uniform vec4 toneU; // display curve: k, p, cap, cd/m² per unit r (color.js toneT)
+uniform float rCd,mwOn,mwScale,mwK;
+uniform vec3 galX,galY,galZ;
+float lin2s(float v){ return v<=0.0031308?12.92*v:1.055*pow(v, 1.0/2.4)-0.055; }
+float s2lin(float v){ return v<=0.04045?v/12.92:pow((v+0.055)/1.055, 2.4); }
+vec3 s2lin3(vec3 c){ return vec3(s2lin(c.r), s2lin(c.g), s2lin(c.b)); }
+vec3 lin2s3(vec3 c){ return vec3(lin2s(c.r), lin2s(c.g), lin2s(c.b)); }
+// Display linear light for luminance ratio r (color.js toneT).
+float toneT(float r){
+  if(r<=0.0) return 0.0;
+  float su=lin2s(min(toneU.z, toneU.x*pow(r, toneU.y))), sl=${TOE_A}-${TOE_B}*exp(-log(r*toneU.w)/(2.302585*${TOE_W}));
+  float m=max(su, sl), s=m+${TOE_W2}*log(1.0+exp(-abs(su-sl)/${TOE_W2}));
+  return s2lin(clamp(s, 0.0, 1.0));
+}
+// Naked-eye limiting magnitude against a sky of L cd/m² (color.js nakedEyeLimit).
+float nakedEyeLimit(float L){
+  float msky=-2.5*log(max(L, 1e-12)/10.8e4)/2.302585;
+  return 7.93-5.0*log(pow(10.0, 4.316-msky/5.0)+1.0)/2.302585;
+}
+// Extinction toward true altitude el (degrees), k magnitudes per airmass (milkyway.js).
+float extinctionAt(float el, float k){
+  float h=max(el, 0.0), X=1.0/(sin(h*0.01745329252)+0.50572*pow(h+6.07995, -1.6364));
+  return pow(10.0, -0.4*k*(X-1.0));
+}
 uniform vec4 beads[6];
 float limbH(float pa){ return 0.002*sin(7.0*pa+1.3)+0.00167*sin(12.0*pa+4.1)+0.00133*sin(19.0*pa+2.2)+0.001*sin(29.0*pa+5.0)+0.00083*sin(41.0*pa+0.7)+0.00067*sin(57.0*pa+3.3)+0.0005*sin(83.0*pa+1.9); } // moon.js limbH
 uniform vec4 obj[12];
@@ -403,8 +428,11 @@ void main(){
   }else{
     float uTex=(fract(compDeg/360.0)*na+0.5)/(na+1.0);
     float vTex=((90.0-max(elevDeg,0.0))/90.0*nr+0.5)/(nr+1.0);
-    vec3 skyC=texture(sky, vec2(uTex,vTex)).rgb;
+    vec4 skyT=texture(sky, vec2(uTex,vTex));
+    vec3 skyC=skyT.rgb;
     float skyL=dot(skyC, vec3(0.2126, 0.7152, 0.0722));
+    // Sky luminance as a fraction of the reference, carried in the texture's alpha as a log.
+    float rBg=pow(10.0, skyT.a*${LOGR_SPAN.toFixed(1)}+${LOGR_LO.toFixed(1)});
     float te=trueAlt(elevDeg), teR=te*0.01745329252, cth=cos(teR);
     vec3 src=vec3(sin(comp)*cth, cos(comp)*cth, sin(teR));
     bool inSun=sunOn>0.5&&te>-1.0&&dot(src,sd)>cos(sunRad);
@@ -441,6 +469,22 @@ void main(){
         vec3 moonC=alb*(0.06+0.94*lit)*T;
         float skyY=dot(skyC, vec3(0.2126, 0.7152, 0.0722));
         skyC+=moonC*(1.0-smoothstep(0.0, 1.15, skyY));
+        }
+      }
+    }
+    if(mwOn>0.5 && !onBody && te>-1.0 && rBg<6e-6){
+      // The Milky Way, behind the air: its light dimmed by extinction and added to the sky's
+      // under the same display curve, coloured by its share.
+      vec3 gq=vec3(dot(src, galX), dot(src, galY), dot(src, galZ));
+      float gb=asin(clamp(gq.z, -1.0, 1.0))*57.2957795;
+      if(abs(gb)<${MW_BMAX.toFixed(1)}){
+        float gl=atan(gq.y, gq.x)*57.2957795;
+        float rMw=texture(mwTex, vec2((gl+180.0)/360.0, (gb+${MW_BMAX.toFixed(1)})/${(2*MW_BMAX).toFixed(1)})).r*mwScale*extinctionAt(te, mwK);
+        if(rMw>rBg*0.003){
+          float rNew=rBg+rMw, tBg=toneT(rBg), tNew=toneT(rNew);
+          vec3 mwLin=vec3(${mwLinGLSL()});
+          vec3 lin=s2lin3(skyC)*(tBg>0.0?(tNew/tBg)*(rBg/rNew):0.0)+mwLin*tNew*(rMw/rNew);
+          skyC=lin2s3(clamp(lin, 0.0, 1.0));
         }
       }
     }
@@ -484,8 +528,9 @@ void main(){
         +dark*(0.14*exp(-a/0.05)+0.035*exp(-a/0.3)+0.012));
     }
     if(!onBody && te>0.0){
-      float night=1.0-smoothstep(0.05, 0.22, skyL);
-      if(night>0.02){
+      // Each star shows when brighter than the naked-eye limit for the sky around it.
+      float lim=nakedEyeLimit(rBg*rCd);
+      if(lim>-5.0){
         int cell=starCubeCell(src);
         vec4 info=texelFetch(starBin, ivec2(cell- (cell/64)*64, cell/64), 0);
         int start=int(info.r+0.5), count=int(info.g+0.5);
@@ -499,7 +544,8 @@ void main(){
           float c=dot(src, sp.xyz);
           if(c<1.0-8.0*sig*sig) continue;
           float wgt=exp(-0.5*max(0.0, 2.0*(1.0-c))/(sig*sig));
-          skyC+=texelFetch(starMap, ivec2(si, 1), 0).rgb*wgt*night;
+          vec4 sc=texelFetch(starMap, ivec2(si, 1), 0);
+          skyC+=sc.rgb*wgt*(1.0-smoothstep(lim-0.8, lim+0.2, sc.a));
         }
       }
     }
