@@ -58,11 +58,12 @@ function instantUT(){
     ut:local.getUTCHours()+local.getUTCMinutes()/60+local.getUTCSeconds()/3600,
     lon:-local.getTimezoneOffset()/60*15 };
 }
-// Low-precision lunar theory, Schlyter / van Flandern & Pulkkinen, about 0.05°.
-function moonEquatorial(d){
+// Low-precision lunar theory, Schlyter / van Flandern & Pulkkinen, about 0.05°. The Moon's own
+// angles run on dm (moonDay), the Sun's on d.
+function moonEquatorial(d, dm=d){
   const ecl=23.4393-3.563e-7*d;
   const ws=282.9404+4.70935e-5*d, Ms=rev(356.0470+0.9856002585*d);
-  const Nm=rev(125.1228-0.0529538083*d), wm=rev(318.0634+0.1643573223*d), Mm=rev(115.3654+13.0649929509*d);
+  const Nm=rev(125.1228-0.0529538083*dm), wm=rev(318.0634+0.1643573223*dm), Mm=rev(115.3654+13.0649929509*dm);
   const e=0.054900, a=60.2666, i=5.1454;
   let E=Mm+e*(180/Math.PI)*sind(Mm)*(1+e*cosd(Mm));
   E=E-(E-e*(180/Math.PI)*sind(E)-Mm)/(1-e*cosd(E));
@@ -82,24 +83,31 @@ function moonEquatorial(d){
 }
 // The Sun is placed for the date by sunEquatorial (calendar.js); sunGeom gives its hour angle
 // from the clock. Eclipses are this Sun and the Moon.
-const DN_UNIX=dayNumber(1970,1,1,0), DN_NEW0=dayNumber(2000,1,6,18.23), SYNODIC=29.530589;
+const DN_UNIX=dayNumber(1970,1,1,0), DN_NEW0=dayNumber(2000,1,6,18.23);
+// A closer Moon goes round faster: by Kepler's third law its angular speed goes as the
+// distance to the power -1.5 (the 2000 new Moon is kept as the reference). The month is then
+// 27.6 days of today's at 700 Ma, 22.6 at 2.2 Ga, 20.3 at 2.7 Ga and 14.7 at 4.4 Ga: 28 to 31
+// of each epoch's own shorter days, and 18 months a year at 2.7 Ga, as tidal rhythmites suggest.
+function moonRate(){ return Math.pow(MOON_RE_NOW/(MOON_RE[EP[dIdx].key]||MOON_RE_NOW), 1.5); }
+function moonDay(d){ return DN_NEW0+(d-DN_NEW0)*moonRate(); }
+function synodic(){ return 360/(13.17639648*moonRate()-0.98564736); }
 function dayOfMs(ms){ return DN_UNIX+ms/86400000; }
 function eqVec(ra, dec){ return [cosd(dec)*cosd(ra), cosd(dec)*sind(ra), sind(dec)]; }
-function geoPair(d){ const eq=moonEquatorial(d), sun=sunEquatorial(d); return {eq, m:eqVec(eq.RA, eq.Dec), s:eqVec(sun.RA, sun.Dec)}; }
+function geoPair(d){ const eq=moonEquatorial(d, moonDay(d)), sun=sunEquatorial(d); return {eq, m:eqVec(eq.RA, eq.Dec), s:eqVec(sun.RA, sun.Dec)}; }
 // Closest geocentric approach of the Moon to that Sun in lunation k (golden-section search
-// within 2.5 days of the mean new Moon), cached.
+// within 2.5 days of the mean new Moon), cached per Moon speed.
 const lunations=new Map();
 function lunation(k){
-  let L=lunations.get(k); if(L) return L;
+  const id=k+'|'+moonRate(); let L=lunations.get(id); if(L) return L;
   const f=t=>{ const g=geoPair(t); return -(g.m[0]*g.s[0]+g.m[1]*g.s[1]+g.m[2]*g.s[2]); };
-  const gr=(Math.sqrt(5)-1)/2; let a=DN_NEW0+k*SYNODIC-2.5, b=a+5, c=b-gr*(b-a), e=a+gr*(b-a), fc=f(c), fe=f(e);
+  const gr=(Math.sqrt(5)-1)/2; let a=DN_NEW0+k*synodic()-2.5, b=a+5, c=b-gr*(b-a), e=a+gr*(b-a), fc=f(c), fe=f(e);
   for(let i=0;i<40;i++){
     if(fc<fe){ b=e; e=c; fe=fc; c=b-gr*(b-a); fc=f(c); }
     else { a=c; c=e; fc=fe; e=a+gr*(b-a); fe=f(e); }
   }
   const t0=(a+b)/2, g=geoPair(t0);
   L={t0, d:[g.s[0]-g.m[0], g.s[1]-g.m[1], g.s[2]-g.m[2]], r:g.eq.r};
-  lunations.set(k, L); return L;
+  lunations.set(id, L); return L;
 }
 // The best seat. Seen from the Earth's surface the Moon shifts by up to its horizontal parallax
 // (about 1°) against the Sun, so around each new Moon the page stands where that shift brings
@@ -108,7 +116,7 @@ function lunation(k){
 // the eclipse, so the Moon still crosses the Sun at its true speed, and fades out from 8 to 17
 // hours away, when the Moon is far from the Sun.
 function moonAt(d){
-  const g=geoPair(d), k=Math.round((d-DN_NEW0)/SYNODIC), L=lunation(k);
+  const g=geoPair(d), k=Math.round((d-DN_NEW0)/synodic()), L=lunation(k);
   const sc=(MOON_RE[EP[dIdx].key]||MOON_RE_NOW)/MOON_RE_NOW, gap=Math.hypot(L.d[0], L.d[1], L.d[2]);
   const w=(1-smooth01(0.35, 0.7, Math.abs(d-L.t0)))*Math.min(1, Math.asin(1/(L.r*sc))/Math.max(gap, 1e-9));
   const v=vnorm([g.m[0]+L.d[0]*w, g.m[1]+L.d[1]*w, g.m[2]+L.d[2]*w]);

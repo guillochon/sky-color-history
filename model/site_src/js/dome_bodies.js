@@ -140,8 +140,8 @@ function eclipseGap(ms, central, scale=DISK_SCALE){
 // Returns {start, end, type} or null.
 function findNextEclipse(afterMs, central){
   const msOf=d=>(d-DN_UNIX)*86400000, gr=(Math.sqrt(5)-1)/2, f=ms=>eclipseGap(ms, central);
-  let k=Math.round((dayOfMs(afterMs)-DN_NEW0)/SYNODIC)-1;
-  const kEnd=k+Math.ceil((central?40:8)*12.37)+2;
+  let k=Math.round((dayOfMs(afterMs)-DN_NEW0)/synodic())-1;
+  const kEnd=k+Math.ceil((central?40:8)*TROPICAL_YEAR/synodic())+2;
   for(;k<=kEnd;k++){
     const t0=msOf(lunation(k).t0), span=0.3*86400000;
     let a=t0-span, b=t0+span, c=b-gr*(b-a), e=a+gr*(b-a), fc=f(c), fe=f(e);
