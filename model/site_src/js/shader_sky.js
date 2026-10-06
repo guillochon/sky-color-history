@@ -11,7 +11,7 @@ uniform vec3 snDir,snCol,snLight,mlDir,mlLight;
 uniform vec3 sunCol,ground,eye;
 uniform float corona;
 uniform vec4 beads[6];
-float limbH(float pa){ return 0.006*sin(7.0*pa+1.3)+0.005*sin(12.0*pa+4.1)+0.004*sin(19.0*pa+2.2)+0.003*sin(29.0*pa+5.0)+0.0025*sin(41.0*pa+0.7)+0.002*sin(57.0*pa+3.3)+0.0015*sin(83.0*pa+1.9); } // moon.js limbH
+float limbH(float pa){ return 0.002*sin(7.0*pa+1.3)+0.00167*sin(12.0*pa+4.1)+0.00133*sin(19.0*pa+2.2)+0.001*sin(29.0*pa+5.0)+0.00083*sin(41.0*pa+0.7)+0.00067*sin(57.0*pa+3.3)+0.0005*sin(83.0*pa+1.9); } // moon.js limbH
 uniform vec4 obj[12];
 uniform vec4 pond[8];
 uniform float pondN;
@@ -420,7 +420,7 @@ void main(){
       vec3 east=normalize(cross(north, md));
       // The limb has mountains and valleys; sunlight through the valleys makes Baily's beads.
       float cm=dot(src,md);
-      bool inMoon=cm>cos(moonRad*1.03)&&acos(clamp(cm, -1.0, 1.0))<moonRad*(1.0+limbH(atan(dot(src,east), dot(src,north))));
+      bool inMoon=cm>cos(moonRad*1.01)&&acos(clamp(cm, -1.0, 1.0))<moonRad*(1.0+limbH(atan(dot(src,east), dot(src,north))));
       if(inMoon){
         onBody=true;
         if(inSun) skyC=vec3(0.0);

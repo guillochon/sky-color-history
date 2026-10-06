@@ -61,8 +61,7 @@ function skySource(sza, az){
   return {si, st, fade, az, past};
 }
 // Baily's beads: walk round the Moon's limb (with its relief, limbH) in the plane of the sky and
-// find the runs of position angle where photosphere still shows between the limb and the far
-// edge of the Sun. Each run is a bead, placed at its area-weighted centre. Their glare follows
+// find where photosphere still shows between the limb and the far edge of the Sun. Their glare follows
 // the photosphere left (with the relief) and fades as more of it shows; each bead gets the
 // square root of its share of the largest. Returns up to six as vec4s (direction, strength).
 function findBeads(moon, sunAz, sza, rSun, rMoon, sunUp){
@@ -70,7 +69,7 @@ function findBeads(moon, sunAz, sza, rSun, rMoon, sunUp){
   if(!sunUp) return none;
   const b=moonBasis(moon), sd=horizDir(sunAz, 90-sza), d2r=Math.PI/180;
   const cosSep=Math.max(-1, Math.min(1, vdot(sd, b.md))), sep=Math.acos(cosSep);
-  if(sep>(rSun+rMoon*1.03)*d2r) return none;
+  if(sep>(rSun+rMoon*1.01)*d2r) return none;
   const k=sep>1e-9?sep/Math.sqrt(Math.max(1-cosSep*cosSep, 1e-18)):1;
   const cx=vdot(sd, b.east)*k, cy=vdot(sd, b.north)*k, R=rSun*d2r, c2=cx*cx+cy*cy;
   const N=720, dth=2*Math.PI/N, w=new Float64Array(N), rm=new Float64Array(N);
@@ -84,21 +83,22 @@ function findBeads(moon, sunAz, sza, rSun, rMoon, sunUp){
   const vis=total/(Math.PI*R*R);
   const env=smooth01(0, 0.0015, vis)*(1-smooth01(0.012, 0.045, vis));
   if(!(env>0)) return none;
-  let start=0; while(start<N && w[start]>0) start++;
-  if(start===N) return none; // the whole limb shows: no beads
-  const runs=[]; let cur=null;
-  for(let j=1;j<=N;j++){
-    const i=(start+j)%N;
-    if(w[i]>0){ if(!cur) cur={a:0, s:0, x:0, y:0}; const th=i*dth; cur.a+=w[i]; cur.x+=w[i]*rm[i]*Math.sin(th); cur.y+=w[i]*rm[i]*Math.cos(th); }
-    else if(cur){ runs.push(cur); cur=null; }
+  // A bead at each local peak of the visible width along the limb (a valley in the relief), with
+  // the light between the neighbouring troughs.
+  const at=i=>w[(i+N)%N], peaks=[];
+  for(let i=0;i<N;i++){
+    if(!(w[i]>0) || w[i]<at(i-1) || w[i]<=at(i+1)) continue;
+    let a=w[i], j=i-1; while(at(j)>0 && at(j)<=at(j+1) && i-j<N/2){ a+=at(j); j--; }
+    j=i+1; while(at(j)>0 && at(j)<=at(j-1) && j-i<N/2){ a+=at(j); j++; }
+    peaks.push({i, a});
   }
-  runs.sort((p, q)=>q.a-p.a);
-  const top=runs.slice(0, 6), amax=top.length?top[0].a:1;
+  peaks.sort((p, q)=>q.a-p.a);
+  const top=peaks.slice(0, 6), amax=top.length?top[0].a:1;
   let beadDir=[0,0,1];
-  top.forEach((r, j)=>{
-    const x=r.x/r.a, y=r.y/r.a, dir=vnorm(vadd(b.md, vscale(b.east, x), vscale(b.north, y)));
+  top.forEach((p, j)=>{
+    const th=p.i*dth, dir=vnorm(vadd(b.md, vscale(b.east, rm[p.i]*Math.sin(th)), vscale(b.north, rm[p.i]*Math.cos(th))));
     if(j===0) beadDir=dir;
-    out.set([dir[0], dir[1], dir[2], env*Math.sqrt(r.a/amax)], j*4);
+    out.set([dir[0], dir[1], dir[2], env*Math.sqrt(p.a/amax)], j*4);
   });
   return {beads:out, beadW:env, beadDir};
 }
