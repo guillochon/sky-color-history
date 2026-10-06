@@ -9,18 +9,16 @@
     <button type="button" id="vrbtn" class="cta">Step into the sky <span aria-hidden="true">→</span></button>
     <p class="cta-note"><span class="keys-hint">Full screen, first person. Mouse to look, <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> to walk, scroll to zoom, <kbd>E</kbd> or <kbd>T</kbd> for the next eclipse, <kbd>Esc</kbd> to leave.</span><span class="touch-hint">Full screen, first person. Drag to look; the buttons along the bottom step time, change era, and find eclipses.</span></p>
    </div>
-   <div class="hero-dome">
-    <div class="stage" id="dstage"><button type="button" id="vrbtn2" class="vrmini" title="Open this sky in VR">VR</button><div class="tip" id="dtip"></div><canvas id="dome" width="600" height="600" aria-label="Whole-sky view for the selected epoch, latitude and time of day"></canvas></div>
-    <p class="dome-cap">The whole sky right now, as a fisheye: zenith in the middle, horizon at the rim, north up.</p>
+   <div class="hero-moments">
+    <h2 class="moments-h">Jump to a moment</h2>
+    <div class="moments" id="moments"></div>
    </div>
   </div>
-  <h2 class="moments-h">Jump to a moment</h2>
-  <div class="moments" id="moments"></div>
  </div>
 </header>
 
 <main>
-<section class="controlbar" aria-label="Epoch, place and time">
+<section class="controlbar" aria-label="Epoch">
  <div class="cb-row">
   <span class="cb-label">Epoch</span>
   <select id="depoch" aria-label="Epoch"></select>
@@ -28,16 +26,39 @@
  </div>
  <input id="tslider" type="range" min="0" max="EPOCH_MAX" step="0.01" value="MODERN_IDX" aria-label="Epoch">
  <div class="track" id="ttrack"></div>
- <div class="cb-row cb-day">
-  <span class="cb-label">Time of day</span>
-  <button id="hplay" aria-pressed="false">Play</button>
-  <span id="hclock" class="clock"></span>
-  <label class="cb-date">Date <input id="moonDate" type="date" aria-label="Date for the Moon and planets"></label>
-  <span role="group" aria-label="Latitude" class="cb-lat"><button data-lat="Equator" aria-pressed="false">Equator</button><button data-lat="Mid-latitude" aria-pressed="true">45°</button><button data-lat="Polar" aria-pressed="false">75°</button></span>
-  <button id="expo" aria-pressed="false" title="Normalize brightness so that color is visible in dim skies">Auto-exposure</button>
+</section>
+
+<section class="sky" aria-labelledby="sky-h">
+ <div class="row">
+  <div class="sky-dome">
+    <div class="stage" id="dstage"><button type="button" id="vrbtn2" class="vrmini" title="Open this sky in VR">VR</button><div class="tip" id="dtip"></div><canvas id="dome" width="600" height="600" aria-label="Whole-sky view for the selected epoch, latitude and time of day"></canvas></div>
+   <p class="legend">The whole sky as a fisheye: zenith in the middle, horizon at the rim, north up.</p>
+  </div>
+  <div class="sky-side">
+   <h2 id="sky-h" class="sec-h">A day under that sky</h2>
+   <div class="day-controls">
+    <div class="cb-row cb-day">
+     <button id="hplay" aria-pressed="false">Play</button>
+     <span id="hclock" class="clock"></span>
+     <label class="cb-date">Date <input id="moonDate" type="date" aria-label="Date for the Moon and planets"></label>
+     <span role="group" aria-label="Latitude" class="cb-lat"><button data-lat="Equator" aria-pressed="false">Equator</button><button data-lat="Mid-latitude" aria-pressed="true">45°</button><button data-lat="Polar" aria-pressed="false">75°</button></span>
+     <button id="expo" aria-pressed="false" title="Normalize brightness so that color is visible in dim skies">Auto-exposure</button>
+    </div>
+    <input id="hslider" type="range" min="0" max="1440" step="5" value="720" aria-label="Time of day (minutes)">
+    <div class="track" id="htrack"></div>
+   </div>
+   <h3 class="sub-h">Right now</h3>
+   <div class="readout">
+    <div>Sun elevation<b id="relev"></b></div>
+    <div>Zenith<b id="rzen"></b></div>
+    <div>Horizon<b id="rhor"></b></div>
+    <div>Sun's disk<b id="rsun"></b></div>
+    <div>Moon<b id="rmoon"></b></div>
+   </div>
+   <div class="swatchbar" id="hbar"></div>
+   <p class="legend">The sky along the Sun's vertical: from the horizon under the Sun, through the zenith, to the opposite horizon.</p>
  </div>
- <input id="hslider" type="range" min="0" max="1440" step="5" value="720" aria-label="Time of day (minutes)">
- <div class="track" id="htrack"></div>
+ </div>
 </section>
 
 <section class="epoch" aria-label="The selected epoch">
@@ -56,16 +77,6 @@
    <h3 class="sub-h">Noon sky</h3>
    <div class="domes" id="tdomes"></div>
    <p class="legend">Zenith at the top, horizon at the bottom, at the equator, mid-latitudes and the summer pole. Brightness relative to today's clean sky.</p>
-   <h3 class="sub-h">Right now</h3>
-   <div class="readout">
-    <div>Sun elevation<b id="relev"></b></div>
-    <div>Zenith<b id="rzen"></b></div>
-    <div>Horizon<b id="rhor"></b></div>
-    <div>Sun's disk<b id="rsun"></b></div>
-    <div>Moon<b id="rmoon"></b></div>
-   </div>
-   <div class="swatchbar" id="hbar"></div>
-   <p class="legend">The sky along the Sun's vertical: from the horizon under the Sun, through the zenith, to the opposite horizon.</p>
   </div>
  </div>
 </section>

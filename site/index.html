@@ -107,7 +107,7 @@ button.tick.on{background:none;color:var(--ink)}
 .toplinks a{color:#aeb4c0;text-decoration:none;display:inline-flex;align-items:center;gap:.4rem}
 .toplinks a:hover{color:#fff}
 .toplinks svg{width:1.05em;height:1.05em;fill:currentColor}
-.hero-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:2.6rem;align-items:center;margin-top:2.2rem}
+.hero-grid{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:2.8rem;align-items:center;margin-top:2.2rem}
 .hero h1{font-size:clamp(2.3rem,5.2vw,4rem);line-height:1.02;margin:0 0 1rem}
 .hero .lede{color:#c3c8d2;font-size:1.18rem;max-width:34em}
 .cta{margin:1.4rem 0 .7rem;font-size:1.45rem;font-weight:600;color:#1c1400;background:#ffc400;border:0;border-radius:10px;padding:.8rem 1.6rem;box-shadow:0 0 0 5px rgba(255,196,0,.22),0 12px 30px rgba(0,0,0,.45);transition:transform .15s,background .15s}
@@ -115,20 +115,18 @@ button.tick.on{background:none;color:var(--ink)}
 .cta span{display:inline-block;transition:transform .15s}.cta:hover span{transform:translateX(4px)}
 .cta-note{font-size:.88rem;color:#9ea5b3;max-width:36em}
 .cta-note kbd,.hero kbd{font:inherit;font-size:.8rem;border:1px solid rgba(255,255,255,.35);border-radius:3px;padding:0 .3rem;margin:0 .08rem}
-.hero-dome .stage{border-radius:12px;background:#0a0c12;box-shadow:0 20px 50px rgba(0,0,0,.45)}
 .vrmini{position:absolute;top:.6rem;right:.6rem;z-index:6;font-weight:700;letter-spacing:.12em;color:#1c1400;background:#ffc400;border:0;border-radius:6px;padding:.3rem .75rem}
 .vrmini:hover{background:#ffd84a}
-.dome-cap{font-size:.82rem;color:#8e95a3;margin:.5rem 0 0}
-.moments-h{font-size:1.05rem;font-weight:400;letter-spacing:.06em;text-transform:uppercase;color:#9ea5b3;margin:2.6rem 0 .8rem}
-.moments{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.85rem}
+.moments-h{font-size:1rem;font-weight:400;letter-spacing:.06em;text-transform:uppercase;color:#9ea5b3;margin:0 0 .8rem}
+.moments{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem}
 .moment{display:flex;flex-direction:column;padding:0;text-align:left;color:#e9ebef;background:#121725;border:1px solid rgba(255,255,255,.12);border-radius:12px;overflow:hidden;cursor:pointer;transition:transform .15s,border-color .15s}
 .moment:hover,.moment:focus-visible{transform:translateY(-2px);border-color:#ffc400}
-.moment-sky{display:block;height:88px}
+.moment-sky{display:block;height:64px}
 .moment-sky svg{display:block;width:100%;height:100%}
 .moment-text{display:block;padding:.6rem .75rem .75rem}
 .moment-text b{display:block;font-weight:500;font-size:1rem;line-height:1.2}
 .moment-text small{display:block;margin-top:.2rem;color:#a3aab8;font-size:.84rem;line-height:1.3}
-@media (max-width:900px){.hero-grid{grid-template-columns:1fr;gap:1.6rem}.hero-dome{max-width:520px}.moments{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:900px){.hero-grid{grid-template-columns:1fr;gap:2rem}}
 @media (max-width:560px){.cta{width:100%}.moments{grid-auto-flow:column;grid-template-columns:none;grid-auto-columns:78%;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:.4rem}.moment{scroll-snap-align:start}}
 /* One control bar for the epoch, the time of day, the date and the place. */
 .controlbar{margin:1.4rem 0 0;padding:.3rem 0 .4rem;border-bottom:1px solid var(--rule)}
@@ -165,6 +163,11 @@ h2.epoch-title{margin:.1rem 0 .2rem;font-size:1.9rem;font-weight:400;line-height
 .how details b{color:var(--ink);font-weight:500}
 .touch-hint{display:none}
 @media (hover:none) and (pointer:coarse){.keys-hint{display:none}.touch-hint{display:inline}}
+/* A day under that sky: the dome beside the clock that moves it. */
+.sky{margin-top:2.2rem}
+.sky .stage{border-radius:10px}
+.sec-h{margin:0 0 .2rem}
+.day-controls .cb-row:first-child{margin-top:.6rem}
 </style></head><body>
 <header class="hero">
  <div class="hero-in">
@@ -176,18 +179,16 @@ h2.epoch-title{margin:.1rem 0 .2rem;font-size:1.9rem;font-weight:400;line-height
     <button type="button" id="vrbtn" class="cta">Step into the sky <span aria-hidden="true">→</span></button>
     <p class="cta-note"><span class="keys-hint">Full screen, first person. Mouse to look, <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> to walk, scroll to zoom, <kbd>E</kbd> or <kbd>T</kbd> for the next eclipse, <kbd>Esc</kbd> to leave.</span><span class="touch-hint">Full screen, first person. Drag to look; the buttons along the bottom step time, change era, and find eclipses.</span></p>
    </div>
-   <div class="hero-dome">
-    <div class="stage" id="dstage"><button type="button" id="vrbtn2" class="vrmini" title="Open this sky in VR">VR</button><div class="tip" id="dtip"></div><canvas id="dome" width="600" height="600" aria-label="Whole-sky view for the selected epoch, latitude and time of day"></canvas></div>
-    <p class="dome-cap">The whole sky right now, as a fisheye: zenith in the middle, horizon at the rim, north up.</p>
+   <div class="hero-moments">
+    <h2 class="moments-h">Jump to a moment</h2>
+    <div class="moments" id="moments"></div>
    </div>
   </div>
-  <h2 class="moments-h">Jump to a moment</h2>
-  <div class="moments" id="moments"></div>
  </div>
 </header>
 
 <main>
-<section class="controlbar" aria-label="Epoch, place and time">
+<section class="controlbar" aria-label="Epoch">
  <div class="cb-row">
   <span class="cb-label">Epoch</span>
   <select id="depoch" aria-label="Epoch"></select>
@@ -195,16 +196,39 @@ h2.epoch-title{margin:.1rem 0 .2rem;font-size:1.9rem;font-weight:400;line-height
  </div>
  <input id="tslider" type="range" min="0" max="16" step="0.01" value="14" aria-label="Epoch">
  <div class="track" id="ttrack"></div>
- <div class="cb-row cb-day">
-  <span class="cb-label">Time of day</span>
-  <button id="hplay" aria-pressed="false">Play</button>
-  <span id="hclock" class="clock"></span>
-  <label class="cb-date">Date <input id="moonDate" type="date" aria-label="Date for the Moon and planets"></label>
-  <span role="group" aria-label="Latitude" class="cb-lat"><button data-lat="Equator" aria-pressed="false">Equator</button><button data-lat="Mid-latitude" aria-pressed="true">45°</button><button data-lat="Polar" aria-pressed="false">75°</button></span>
-  <button id="expo" aria-pressed="false" title="Normalize brightness so that color is visible in dim skies">Auto-exposure</button>
+</section>
+
+<section class="sky" aria-labelledby="sky-h">
+ <div class="row">
+  <div class="sky-dome">
+    <div class="stage" id="dstage"><button type="button" id="vrbtn2" class="vrmini" title="Open this sky in VR">VR</button><div class="tip" id="dtip"></div><canvas id="dome" width="600" height="600" aria-label="Whole-sky view for the selected epoch, latitude and time of day"></canvas></div>
+   <p class="legend">The whole sky as a fisheye: zenith in the middle, horizon at the rim, north up.</p>
+  </div>
+  <div class="sky-side">
+   <h2 id="sky-h" class="sec-h">A day under that sky</h2>
+   <div class="day-controls">
+    <div class="cb-row cb-day">
+     <button id="hplay" aria-pressed="false">Play</button>
+     <span id="hclock" class="clock"></span>
+     <label class="cb-date">Date <input id="moonDate" type="date" aria-label="Date for the Moon and planets"></label>
+     <span role="group" aria-label="Latitude" class="cb-lat"><button data-lat="Equator" aria-pressed="false">Equator</button><button data-lat="Mid-latitude" aria-pressed="true">45°</button><button data-lat="Polar" aria-pressed="false">75°</button></span>
+     <button id="expo" aria-pressed="false" title="Normalize brightness so that color is visible in dim skies">Auto-exposure</button>
+    </div>
+    <input id="hslider" type="range" min="0" max="1440" step="5" value="720" aria-label="Time of day (minutes)">
+    <div class="track" id="htrack"></div>
+   </div>
+   <h3 class="sub-h">Right now</h3>
+   <div class="readout">
+    <div>Sun elevation<b id="relev"></b></div>
+    <div>Zenith<b id="rzen"></b></div>
+    <div>Horizon<b id="rhor"></b></div>
+    <div>Sun's disk<b id="rsun"></b></div>
+    <div>Moon<b id="rmoon"></b></div>
+   </div>
+   <div class="swatchbar" id="hbar"></div>
+   <p class="legend">The sky along the Sun's vertical: from the horizon under the Sun, through the zenith, to the opposite horizon.</p>
  </div>
- <input id="hslider" type="range" min="0" max="1440" step="5" value="720" aria-label="Time of day (minutes)">
- <div class="track" id="htrack"></div>
+ </div>
 </section>
 
 <section class="epoch" aria-label="The selected epoch">
@@ -223,16 +247,6 @@ h2.epoch-title{margin:.1rem 0 .2rem;font-size:1.9rem;font-weight:400;line-height
    <h3 class="sub-h">Noon sky</h3>
    <div class="domes" id="tdomes"></div>
    <p class="legend">Zenith at the top, horizon at the bottom, at the equator, mid-latitudes and the summer pole. Brightness relative to today's clean sky.</p>
-   <h3 class="sub-h">Right now</h3>
-   <div class="readout">
-    <div>Sun elevation<b id="relev"></b></div>
-    <div>Zenith<b id="rzen"></b></div>
-    <div>Horizon<b id="rhor"></b></div>
-    <div>Sun's disk<b id="rsun"></b></div>
-    <div>Moon<b id="rmoon"></b></div>
-   </div>
-   <div class="swatchbar" id="hbar"></div>
-   <p class="legend">The sky along the Sun's vertical: from the horizon under the Sun, through the zenith, to the opposite horizon.</p>
   </div>
  </div>
 </section>
