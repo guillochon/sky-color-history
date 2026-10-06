@@ -413,7 +413,7 @@ function paintVR(){
     gl.disable(gl.BLEND);
     gl.activeTexture(gl.TEXTURE0); gl.useProgram(vrGL.prog);
   }
-  const hh=minutes>=DAYMIN?24:Math.floor(minutes/60), mm=minutes>=DAYMIN?0:Math.floor(minutes%60), ss=minutes>=DAYMIN?0:Math.floor((minutes%1)*60);
+  const [hh, mm, ss]=clockParts(minutes);
   const lat=dLat==='Polar'?'75°':dLat==='Mid-latitude'?'45°':'equator';
   document.getElementById('vrplace').textContent=EP[dIdx].name+' · '+lat;
   document.querySelector('.vrnote').textContent=vrCaption();

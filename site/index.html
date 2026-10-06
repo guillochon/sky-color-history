@@ -296,6 +296,7 @@ h2.epoch-title{margin:.1rem 0 .2rem;font-size:1.9rem;font-weight:400;line-height
   <p>Without the Sun or Moon the sky has its own light. The model is calibrated in cd/m² (the clear zenith with the Sun 45° up is 2.7 kcd/m², which puts the full-Moon sky at the measured 18 mag/arcsec²).</p>
   <ul>
    <li><b>Natural sky.</b> Airglow, zodiacal light and faint stars: 22.0 mag/arcsec² at the zenith (Leinert et al. 1998), brighter toward the horizon.</li>
+   <li><b>Airglow.</b> About half of that light is airglow, and nearly all of it needs free oxygen: the green and red lines of oxygen atoms, the hydroxyl and sodium bands that run on ozone. It is weaker at 2.2 Ga (30%) and in Snowball Earth (80%). Before the Great Oxidation Event it is gone, replaced by a faint violet glow from oxygen split off CO₂, like the Venus nightglow (Krasnopolsky 1983), so Archean and Hadean nights are darker and bluer. These strengths are estimates.</li>
    <li><b>The Milky Way.</b> A model in galactic coordinates: disk, bulge, star clouds, dust (the Great Rift and the Coalsack) and the Magellanic Clouds, peaking at 20.2 mag/arcsec² in the Sagittarius star cloud. In the older epochs its brightest part lies where the Galactic centre was then, from the Sun's orbit traced back (only nominal beyond a billion years).</li>
    <li><b>City light.</b> In the modern epochs you stand in a mid-sized city. Its zenith glow is 18.8 mag/arcsec² today (Falchi et al. 2016), about six times the natural sky with orange sodium lamps in 1980–2000 (Cinzano, Falchi &amp; Elvidge 2001), 1.6 times today's in polluted air, today's level in 2100 (the recent 9.6% a year, Kyba et al. 2023, cannot be projected that far), and almost nothing from the oil lamps of 1815 (Fouquet &amp; Pearson 2006). Clouds over the city are lit from below (Kyba et al. 2011).</li>
    <li><b>Through the air.</b> Starlight dims by 0.15 magnitude per airmass from the gas plus 1.086 times the epoch's haze optical depth: the impact winter's soot takes two magnitudes off every star, and the Early Hadean's 30 bar of CO₂ hides them all.</li>
@@ -306,6 +307,7 @@ h2.epoch-title{margin:.1rem 0 .2rem;font-size:1.9rem;font-weight:400;line-height
  <details>
   <summary>Color and brightness</summary>
   <p>The sky model is spherical-shell single scattering with a delta-Eddington multiple-scattering correction, from 380 to 780 nm, with CIE 1931 color matching and sRGB output without chromatic adaptation: colors are what a daylight-balanced camera would record, not what an adapted eye would perceive. Clouds are omitted from the model (the VR clouds are scenery), and the compositions of the ancient atmospheres carry order-of-magnitude uncertainty.</p>
+  <p>The clock runs over one solar day of the epoch. Days were shorter when the Moon was closer: the Earth–Moon angular momentum is held fixed, giving 23.8 hours at 66 Ma, 21.9 at 700 Ma, 17.4 at 2.2 Ga, 15.6 at 2.7 Ga and about 12½ in the Hadean, matching Farhat et al. 2022. Play runs at the same pace in hours, so short days pass faster.</p>
   <p>The time of day is interpolated between 34 computed Sun heights, 1° apart from the horizon to 20° below it; past 9° below, twilight dims by about a magnitude per degree, as measured. Night skies are drawn as a dark-adapted eye sees them, brighter than the daytime display curve would give, and Auto-exposure normalizes brightness so that color shows in dim skies.</p>
  </details>
 </section>
@@ -620,6 +622,35 @@ function cdPerUnit(){
 //     (Fouquet & Pearson 2006), so the glow is a few thousandths of the natural sky.
 // Within the city the glow rises about threefold toward the horizon.
 const NIGHT_NATURAL=1.71e-4, NIGHT_XY=[0.310, 0.330];
+// The airglow's share depends on the air. In V about half of today's dark sky is airglow (Leinert
+// et al. 1998). The other half, zodiacal light and faint starlight, is sunlight-coloured (5772 K,
+// xy 0.3265, 0.3361), which leaves the airglow at xy 0.294, 0.324 for the measured total.
+// Nearly all of the visible airglow needs free oxygen: the 557.7 nm green line and the 630 nm red
+// line from O atoms made by splitting O2, the OH bands (H + O3), the sodium D lines (cycled
+// through O3 and O), and the NO2 continuum (NO + O). So:
+//   - With O2 at 1% of today's level (2.2 Ga), the Schumann-Runge light that splits it is
+//     absorbed lower down, where the atoms recombine fast, so few atoms remain near 95 km. The
+//     green line goes as about the cube of their density, and ozone is down to 66 DU. Kept at 30%:
+//     an estimate, as no model of this nightglow exists.
+//   - Snowball Earth's thinner ozone (169 DU) and somewhat lower O2: 80%.
+//   - With no O2 at all, the oxygen airglow is gone. O atoms still come from CO2 split by
+//     sunlight, as on Venus and Mars, and recombine on the night side to glow in the violet
+//     O2 Herzberg II bands (Venus: Krasnopolsky 1983), near 400–500 nm. Their photons are
+//     taken to number about as many as today's airglow photons. Violet light looks dim to the eye,
+//     so their luminance is about 15% of today's airglow (band shape: a Gaussian at 450 nm, 45 nm
+//     wide, xy 0.145, 0.120).
+const NIGHT_REST_XY=[0.3265, 0.3361], AIRGLOW_XY=[0.294, 0.324], HERZBERG_XY=[0.145, 0.120], AIRGLOW_SHARE=0.5;
+const AIRGLOW_O={proterozoic22:0.3, snowball07:0.8, archean27thin:0, archean27:0, archean27vthick:0, archean38:0, hadean40:0, hadean44:0};
+const AIRGLOW_CO2={archean27thin:0.15, archean27:0.15, archean27vthick:0.15, archean38:0.15, hadean40:0.15, hadean44:0.15};
+// The natural night sky at the zenith outside the air (cd/m², XYZ) for epoch key.
+function nightNatural(key){
+  const fo=AIRGLOW_O[key]??1, fc=AIRGLOW_CO2[key]||0, out=[0,0,0];
+  for(const [xy, Y] of [[NIGHT_REST_XY, 1-AIRGLOW_SHARE], [AIRGLOW_XY, AIRGLOW_SHARE*fo], [HERZBERG_XY, AIRGLOW_SHARE*fc]]){
+    if(!(Y>0)) continue;
+    const X=xyY2XYZ([xy[0], xy[1], Y*NIGHT_NATURAL]); out[0]+=X[0]; out[1]+=X[1]; out[2]+=X[2];
+  }
+  return out;
+}
 const SKYGLOW={modern:[3.09e-3, 0.44, 0.40], modernpoll:[4.94e-3, 0.45, 0.40], ozonehole:[1.03e-3, 0.50, 0.41], y2100:[3.09e-3, 0.38, 0.38], volcanic:[3e-7, 0.52, 0.41]};
 // Extinction of starlight, magnitudes per airmass in V: about 0.15 from the gas (Rayleigh and
 // ozone) plus 1.086 times each epoch's aerosol or haze optical depth at 550 nm. Clean air is
@@ -636,10 +667,10 @@ function absZenith(key){ return key==='kpg66' ? Math.pow(10, -0.4*1.086*1.5) : 1
 // A star's magnitude through the air at true altitude el, relative to clean air at the zenith.
 function starThroughAir(mag, el, key){ const k=extK(key); return mag-2.5*Math.log10(Math.max(extinction(el, k), 1e-9))+(k-0.25); }
 function nightRows(key, NR){
-  const cdu=cdPerUnit(), glow=SKYGLOW[key], q=6371/6471, rows=[];
+  const cdu=cdPerUnit(), glow=SKYGLOW[key], q=6371/6471, rows=[], N=nightNatural(key);
   for(let ir=0;ir<=NR;ir++){
     const vz=Math.min(90*ir/NR, 89.5), el=90-vz, sz=Math.sin(vz*Math.PI/180);
-    const X=xyY2XYZ([NIGHT_XY[0], NIGHT_XY[1], NIGHT_NATURAL*absZenith(key)*(0.4+0.6*extinction(el, extK(key)))/Math.sqrt(1-q*q*sz*sz)/cdu]);
+    const f=absZenith(key)*(0.4+0.6*extinction(el, extK(key)))/Math.sqrt(1-q*q*sz*sz)/cdu, X=N.map(v=>v*f);
     if(glow){ const G=xyY2XYZ([glow[1], glow[2], glow[0]*(1+2.2*Math.exp(-el/12))/cdu]); X[0]+=G[0]; X[1]+=G[1]; X[2]+=G[2]; }
     rows.push(X);
   }
@@ -841,7 +872,7 @@ function renderDay(fast){
   dctx.font='italic 20px Newsreader, Georgia, serif'; dctx.fillText(ep.short, 12, H-27);
   dctx.font='15px Newsreader, Georgia, serif'; dctx.fillText(`${ep.age} · ${dLat==='Polar'?'75° latitude':dLat==='Mid-latitude'?'45° latitude':'equator'}`, 12, H-8);
   // readouts
-  document.getElementById('hclock').textContent=clockLabel(minutes);
+  document.getElementById('hclock').textContent=clockLabel(minutes)+(dayHours()<24?` · ${dayHours()}-hour day`:'');
   document.getElementById('relev').textContent=(90-sza).toFixed(1)+'°';
   const sumAt=(vz,comp)=>{ const X=night[Math.min(NR, Math.round(vz/90*NR))].slice(); addField(X,sunSrc,sunVis,vz,comp); addField(X,moonSrc,mScale,vz,comp); addRing(X,vz); return X; };
   const zX=sumAt(0, sunAz), hX=sumAt(88, sunAz+90);
@@ -863,9 +894,16 @@ const hslider=document.getElementById('hslider'); hslider.addEventListener('inpu
 document.getElementById('moonDate').addEventListener('change',()=>renderDay());
 const htrack=document.getElementById('htrack');
 const HMIN=+hslider.min, HMAX=+hslider.max;
-function clockLabel(m){ if(m>=DAYMIN) return '24:00'; const hh=Math.floor(m/60), mm=Math.floor(m%60); return hh+':'+String(mm).padStart(2,'0'); }
-for(let m=HMIN, n=0; m<=HMAX; m+=60, n++){ const t=document.createElement('button'); t.type='button'; t.className='tick row'+(n%2); t.style.left=(100*(m-HMIN)/(HMAX-HMIN))+'%'; t.dataset.min=String(m); t.innerHTML=`<i></i><span class="lb">${clockLabel(m)}</span>`; t.addEventListener('click',()=>{ minutes=m; hslider.value=minutes; renderDay(); }); htrack.appendChild(t); }
-function markHour(){ const ticks=[...htrack.querySelectorAll('.tick')]; let best=0, bd=Infinity; ticks.forEach((t,j)=>{ const d=Math.abs(+t.dataset.min-minutes); if(d<bd){ bd=d; best=j; } }); ticks.forEach((t,j)=>{ const on=j===best; t.classList.toggle('on',on); if(on) t.setAttribute('aria-current','true'); else t.removeAttribute('aria-current'); }); }
+// The time of day in the epoch's own hours: m is the fraction of the day times DAYMIN.
+function clockParts(m){ const h=Math.min(m, DAYMIN)/DAYMIN*dayHours(), s=Math.floor(h*3600+1e-6); return [Math.floor(s/3600), Math.floor(s/60)%60, s%60]; }
+function clockLabel(m){ const [hh, mm]=clockParts(m); return hh+':'+String(mm).padStart(2,'0'); }
+// A tick at each of the epoch's hours, built again when the day length changes.
+function buildTicks(){
+  const L=dayHours(); if(htrack.dataset.hours===String(L)) return;
+  htrack.dataset.hours=String(L); htrack.innerHTML='';
+  for(let n=0; n<=L; n++){ const m=n/L*DAYMIN; const t=document.createElement('button'); t.type='button'; t.className='tick row'+(n%2); t.style.left=(100*(m-HMIN)/(HMAX-HMIN))+'%'; t.dataset.min=String(m); t.innerHTML=`<i></i><span class="lb">${n}:00</span>`; t.addEventListener('click',()=>{ minutes=m; hslider.value=minutes; renderDay(); }); htrack.appendChild(t); }
+}
+function markHour(){ buildTicks(); const ticks=[...htrack.querySelectorAll('.tick')]; let best=0, bd=Infinity; ticks.forEach((t,j)=>{ const d=Math.abs(+t.dataset.min-minutes); if(d<bd){ bd=d; best=j; } }); ticks.forEach((t,j)=>{ const on=j===best; t.classList.toggle('on',on); if(on) t.setAttribute('aria-current','true'); else t.removeAttribute('aria-current'); }); }
 const expo=document.getElementById('expo'); expo.addEventListener('click',()=>{ autoExpo=!autoExpo; expo.setAttribute('aria-pressed',autoExpo); renderDay(); });
 let hTimer=null, dayPlaying=false, playRAF=0, playStamp=0; const hplay=document.getElementById('hplay');
 // Play slows tenfold as the Sun goes from 85% to 99% covered and through an annular phase, so
@@ -880,18 +918,19 @@ function adoptPlayRate(){
   if(!dayPlaying) return;
   if(vrOn){
     // Page play covers 2.5 minutes of sky per 60 ms. In VR that rate is five times slower, and time advances continuously so the Sun does not jump.
+    // The rate is in hours, so a shorter day goes by faster.
     playStamp=performance.now();
     const frame=now=>{
       if(!dayPlaying||!vrOn) return;
       playRAF=requestAnimationFrame(frame);
       let dt=(now-playStamp)/1000; playStamp=now; if(dt>0.05) dt=0.05;
       stepWalk(dt);
-      minutes+=dt*(2.5/0.06)/5*eclipseSlow();
+      minutes+=dt*(2.5/0.06)/5*eclipseSlow()*24/dayHours();
       while(minutes>=DAYMIN){ minutes-=DAYMIN; shiftMoonDate(1); }
       hslider.value=minutes; renderDay(true);
     };
     playRAF=requestAnimationFrame(frame);
-  }else hTimer=setInterval(()=>{ minutes+=2.5*eclipseSlow(); while(minutes>=DAYMIN){ minutes-=DAYMIN; shiftMoonDate(1); } hslider.value=minutes; renderDay(); },60);
+  }else hTimer=setInterval(()=>{ minutes+=2.5*eclipseSlow()*24/dayHours(); while(minutes>=DAYMIN){ minutes-=DAYMIN; shiftMoonDate(1); } hslider.value=minutes; renderDay(); },60);
 }
 hplay.addEventListener('click',()=>{
   if(dayPlaying){ dayPlaying=false; adoptPlayRate(); hplay.textContent='Play'; hplay.setAttribute('aria-pressed','false'); if(vrOn) syncVRLink(true); if(vrOn&&walking()) pumpWalk(); }
@@ -920,6 +959,19 @@ const MOON_RE={
   archean38:40.4, hadean40:39.8, hadean44:38.7
 };
 const MOON_R_KM=1737.4, EARTH_R_KM=6378.14;
+// Length of the solar day in hours, from the Moon distances above: the Earth-Moon angular
+// momentum is held fixed, so a closer Moon means a faster-spinning Earth. This reproduces the
+// day lengths Farhat et al. 2022 (Tables D.1, D.2) give for their Moon distances to within
+// 0.1 h, and it gives 15.2 h at 3.2 Ga.
+const DAY_HOURS={
+  kpg66:23.8, carbon30:22.6, snowball07:21.9, proterozoic22:17.4,
+  archean27thin:15.6, archean27:15.6, archean27vthick:15.6,
+  archean38:12.8, hadean40:12.6, hadean44:12.3
+};
+// The page's clock runs over one solar day of the epoch, so a day has dayHours() hours. The
+// variable `minutes` stays the fraction of that day times 1440, so the Sun, Moon, stars and
+// calendar all keep step with it.
+function dayHours(){ return DAY_HOURS[EP[dIdx].key]||24; }
 // Allen 1976 phase law, as used by Krisciunas & Schaefer 1991, PASP 103, 1033.
 // Full-Moon V is −12.73 and the Sun is −26.74, both at mean distance. Within 7°
 // of full the Moon is up to 35% brighter than that curve (opposition surge).
@@ -15019,7 +15071,7 @@ function paintVR(){
     gl.disable(gl.BLEND);
     gl.activeTexture(gl.TEXTURE0); gl.useProgram(vrGL.prog);
   }
-  const hh=minutes>=DAYMIN?24:Math.floor(minutes/60), mm=minutes>=DAYMIN?0:Math.floor(minutes%60), ss=minutes>=DAYMIN?0:Math.floor((minutes%1)*60);
+  const [hh, mm, ss]=clockParts(minutes);
   const lat=dLat==='Polar'?'75°':dLat==='Mid-latitude'?'45°':'equator';
   document.getElementById('vrplace').textContent=EP[dIdx].name+' · '+lat;
   document.querySelector('.vrnote').textContent=vrCaption();
@@ -15213,7 +15265,7 @@ function applyLink(){
   const raw=q.get('t');
   if(raw){
     let m=NaN;
-    if(raw.includes(':')){ const p=raw.split(':'); m=(+p[0])*60+(+p[1]||0); }
+    if(raw.includes(':')){ const p=raw.split(':'); m=((+p[0])*60+(+p[1]||0))*24/dayHours(); } // in the epoch's hours
     else m=+raw;
     if(m>=0 && m<=DAYMIN){ minutes=m; hslider.value=String(minutes); }
   }

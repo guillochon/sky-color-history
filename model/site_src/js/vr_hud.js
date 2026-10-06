@@ -182,7 +182,7 @@ function applyLink(){
   const raw=q.get('t');
   if(raw){
     let m=NaN;
-    if(raw.includes(':')){ const p=raw.split(':'); m=(+p[0])*60+(+p[1]||0); }
+    if(raw.includes(':')){ const p=raw.split(':'); m=((+p[0])*60+(+p[1]||0))*24/dayHours(); } // in the epoch's hours
     else m=+raw;
     if(m>=0 && m<=DAYMIN){ minutes=m; hslider.value=String(minutes); }
   }

@@ -19,6 +19,19 @@ const MOON_RE={
   archean38:40.4, hadean40:39.8, hadean44:38.7
 };
 const MOON_R_KM=1737.4, EARTH_R_KM=6378.14;
+// Length of the solar day in hours, from the Moon distances above: the Earth-Moon angular
+// momentum is held fixed, so a closer Moon means a faster-spinning Earth. This reproduces the
+// day lengths Farhat et al. 2022 (Tables D.1, D.2) give for their Moon distances to within
+// 0.1 h, and it gives 15.2 h at 3.2 Ga.
+const DAY_HOURS={
+  kpg66:23.8, carbon30:22.6, snowball07:21.9, proterozoic22:17.4,
+  archean27thin:15.6, archean27:15.6, archean27vthick:15.6,
+  archean38:12.8, hadean40:12.6, hadean44:12.3
+};
+// The page's clock runs over one solar day of the epoch, so a day has dayHours() hours. The
+// variable `minutes` stays the fraction of that day times 1440, so the Sun, Moon, stars and
+// calendar all keep step with it.
+function dayHours(){ return DAY_HOURS[EP[dIdx].key]||24; }
 // Allen 1976 phase law, as used by Krisciunas & Schaefer 1991, PASP 103, 1033.
 // Full-Moon V is −12.73 and the Sun is −26.74, both at mean distance. Within 7°
 // of full the Moon is up to 35% brighter than that curve (opposition surge).
