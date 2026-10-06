@@ -211,16 +211,18 @@ function paintVR(){
   const {gl,u,tex}=vrGL, c=gl.canvas;
   gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.disable(gl.BLEND); gl.drawBuffers([gl.BACK]);
   gl.viewport(0,0,c.width,c.height);
+  gl.useProgram(vrGL.prog);
+  const cg=skyNow.colgrid, h=cg.length, w=cg[0].length;
   if(skyUploaded!==skyNow.gen){
-    const cg=skyNow.colgrid, h=cg.length, w=cg[0].length, data=new Uint8Array(w*h*4);
+    const data=new Uint8Array(w*h*4);
     for(let y=0;y<h;y++) for(let x=0;x<w;x++){ const p=cg[y][x], o=(y*w+x)*4; data[o]=p[0]; data[o+1]=p[1]; data[o+2]=p[2]; data[o+3]=255; }
-    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
-    gl.uniform1f(u.nr, h-1); gl.uniform1f(u.na, w-1); skyUploaded=skyNow.gen;
+    skyUploaded=skyNow.gen;
   }
+  gl.uniform1f(u.nr, h-1); gl.uniform1f(u.na, w-1);
   gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, vrGL.moonTex);
   gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex);
-  gl.useProgram(vrGL.prog);
   gl.uniform2f(u.res, c.width, c.height);
   gl.uniform1f(u.yaw, vrYaw*Math.PI/180); gl.uniform1f(u.pitch, vrPitch*Math.PI/180);
   const ez=eyeZ();
@@ -230,6 +232,9 @@ function paintVR(){
   gl.uniform1f(u.moonRad, skyNow.moon.rad*DISK_SCALE); gl.uniform1f(u.moonOn, skyNow.moon.on?1:0);
   gl.uniform1f(u.latRad, LATDEG[dLat]*Math.PI/180);
   gl.uniform1f(u.sunOn, skyNow.sunOn?1:0);
+  gl.uniform1f(u.sunRad, skyNow.moon.sunRadDeg*DISK_SCALE*Math.PI/180);
+  gl.uniform1f(u.corona, skyNow.corona||0);
+  gl.uniform4fv(u.bead, new Float32Array(skyNow.bead||[0,0,1,0]));
   gl.uniform1f(u.sunMu, Math.max(0, Math.sin(apparentEl(90-skyNow.sza)*Math.PI/180))*(skyNow.sunVis==null?1:skyNow.sunVis));
   gl.uniform3fv(u.sunCol, new Float32Array(skyNow.sunRGB.map(v=>v/255)));
   gl.uniform3fv(u.ground, groundRGB());
@@ -304,6 +309,8 @@ function paintVR(){
     }
   }
   gl.activeTexture(gl.TEXTURE10); gl.bindTexture(gl.TEXTURE_2D, vrGL.hitInfo||vrGL.noHitInfo); gl.activeTexture(gl.TEXTURE11); gl.bindTexture(gl.TEXTURE_2D, vrGL.hitInfo?vrGL.hitNrm:vrGL.noHitNrm); gl.activeTexture(gl.TEXTURE0);
+  // ensureHitTarget binds new hit textures on the active unit, which can be the sky's.
+  gl.bindTexture(gl.TEXTURE_2D, tex);
   gl.drawArrays(gl.TRIANGLES, 0, 6);
   if(vrClouds&&vrGL.cloudProg&&vrGL.noise){
     vrGL.cloudFrame=(vrGL.cloudFrame||0)+1;
@@ -390,7 +397,7 @@ function paintVR(){
   const lat=dLat==='Polar'?'75°':dLat==='Mid-latitude'?'45°':'equator';
   document.getElementById('vrplace').textContent=EP[dIdx].name+' · '+lat;
   document.querySelector('.vrnote').textContent=vrCaption();
-  document.getElementById('vrclock').textContent=(document.getElementById('moonDate').value||'')+' · '+hh+':'+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0')+' · '+(dayPlaying?'playing':'paused')+(vrClouds&&vrGL.field?' · clouds '+Math.round(vrGL.field.cov*100)+'%':'')+(vrNote?' · '+vrNote:'');
+  document.getElementById('vrclock').textContent=(document.getElementById('moonDate').value||'')+' · '+hh+':'+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0')+' · '+(dayPlaying?'playing':'paused')+(skyNow.eclipse?' · '+skyNow.eclipse:'')+(vrClouds&&vrGL.field?' · clouds '+Math.round(vrGL.field.cov*100)+'%':'')+(vrNote?' · '+vrNote:'');
   placeBodyMarks();
   syncVRLink(false);
   // Water and magma move in real time, so keep painting at about 30 fps while one is in view.

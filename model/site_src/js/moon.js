@@ -23,7 +23,10 @@ const MOON_R_KM=1737.4, EARTH_R_KM=6378.14;
 // of full the Moon is up to 35% brighter than that curve (opposition surge).
 const MOON_V_FULL=-12.73, MOON_V_SUN=-26.74, MOON_OPP=0.35, MOON_RE_NOW=60.14;
 const MOON_SUN_FULL=Math.pow(10, -0.4*(MOON_V_FULL-MOON_V_SUN));
-function moonRadiusDeg(key){ return Math.atan(MOON_R_KM/((MOON_RE[key]||60.14)*EARTH_R_KM))*180/Math.PI; }
+// Apparent lunar radius at a distance of r Earth radii from the observer.
+function moonRadiusAt(r){ return Math.atan(MOON_R_KM/(r*EARTH_R_KM))*180/Math.PI; }
+// Apparent solar radius for the Sun's mean anomaly M: the mean radius over the Earth-Sun distance in AU.
+function sunRadiusAt(M){ return SUN_RADIUS_DEG/(1.00014-0.01671*cosd(M)-0.00014*cosd(2*M)); }
 function rev(x){ x%=360; return x<0?x+360:x; }
 function sind(x){ return Math.sin(x*Math.PI/180); }
 function cosd(x){ return Math.cos(x*Math.PI/180); }
@@ -63,7 +66,50 @@ function moonEquatorial(d){
   const r=r0-0.58*cosd(Mm-2*Dm)-0.46*cosd(2*Dm);
   const xg=r*cosd(lonecl)*cosd(latecl), yg=r*sind(lonecl)*cosd(latecl), zg=r*sind(latecl);
   const ye=yg*cosd(ecl)-zg*sind(ecl), ze=yg*sind(ecl)+zg*cosd(ecl);
-  return {RA:Math.atan2(ye,xg)*180/Math.PI, Dec:Math.atan2(ze,Math.hypot(xg,ye))*180/Math.PI, Ls};
+  return {RA:Math.atan2(ye,xg)*180/Math.PI, Dec:Math.atan2(ze,Math.hypot(xg,ye))*180/Math.PI, Ls, Ms, r};
+}
+// The page's Sun keeps to the celestial equator, at right ascension Ls (sunGeom gives its hour
+// angle from the clock). Eclipses are this Sun and the Moon.
+const DN_UNIX=dayNumber(1970,1,1,0), DN_NEW0=dayNumber(2000,1,6,18.23), SYNODIC=29.530589;
+function dayOfMs(ms){ return DN_UNIX+ms/86400000; }
+function eqVec(ra, dec){ return [cosd(dec)*cosd(ra), cosd(dec)*sind(ra), sind(dec)]; }
+function geoPair(d){ const eq=moonEquatorial(d); return {eq, m:eqVec(eq.RA, eq.Dec), s:eqVec(eq.Ls, 0)}; }
+// Closest geocentric approach of the Moon to that Sun in lunation k (golden-section search
+// within 2.5 days of the mean new Moon), cached.
+const lunations=new Map();
+function lunation(k){
+  let L=lunations.get(k); if(L) return L;
+  const f=t=>{ const g=geoPair(t); return -(g.m[0]*g.s[0]+g.m[1]*g.s[1]+g.m[2]*g.s[2]); };
+  const gr=(Math.sqrt(5)-1)/2; let a=DN_NEW0+k*SYNODIC-2.5, b=a+5, c=b-gr*(b-a), e=a+gr*(b-a), fc=f(c), fe=f(e);
+  for(let i=0;i<40;i++){
+    if(fc<fe){ b=e; e=c; fe=fc; c=b-gr*(b-a); fc=f(c); }
+    else { a=c; c=e; fc=fe; e=a+gr*(b-a); fe=f(e); }
+  }
+  const t0=(a+b)/2, g=geoPair(t0);
+  L={t0, d:[g.s[0]-g.m[0], g.s[1]-g.m[1], g.s[2]-g.m[2]], r:g.eq.r};
+  lunations.set(k, L); return L;
+}
+// The best seat. Seen from the Earth's surface the Moon shifts by up to its horizontal parallax
+// (about 1°) against the Sun, so around each new Moon the page stands where that shift brings
+// it closest to the Sun: at the moment of closest geocentric approach the Moon is moved toward
+// the Sun by the parallax, or all the way if the gap is smaller. The offset is held fixed through
+// the eclipse, so the Moon still crosses the Sun at its true speed, and fades out from 8 to 17
+// hours away, when the Moon is far from the Sun.
+function moonAt(d){
+  const g=geoPair(d), k=Math.round((d-DN_NEW0)/SYNODIC), L=lunation(k);
+  const sc=(MOON_RE[EP[dIdx].key]||MOON_RE_NOW)/MOON_RE_NOW, gap=Math.hypot(L.d[0], L.d[1], L.d[2]);
+  const w=(1-smooth01(0.35, 0.7, Math.abs(d-L.t0)))*Math.min(1, Math.asin(1/(L.r*sc))/Math.max(gap, 1e-9));
+  const v=vnorm([g.m[0]+L.d[0]*w, g.m[1]+L.d[1]*w, g.m[2]+L.d[2]*w]);
+  return {v, s:g.s, RA:Math.atan2(v[1], v[0])*180/Math.PI, Dec:Math.asin(Math.max(-1, Math.min(1, v[2])))*180/Math.PI, Ls:g.eq.Ls, Ms:g.eq.Ms, r:g.eq.r*sc};
+}
+// The eclipse at time ms: separation and true radii in degrees. The Moon's distance is from the
+// observer, an Earth radius closer than the Earth's centre with the Moon overhead.
+function eclipseAt(ms){
+  const m=moonAt(dayOfMs(ms)), t=new Date(ms);
+  const min=t.getHours()*60+t.getMinutes()+t.getSeconds()/60+t.getMilliseconds()/60000;
+  const el=90-sunGeom(LATDEG[dLat], min).sza;
+  const sep=Math.acos(Math.max(-1, Math.min(1, m.v[0]*m.s[0]+m.v[1]*m.s[1]+m.v[2]*m.s[2])))*180/Math.PI;
+  return {sep, rS:sunRadiusAt(m.Ms), rM:moonRadiusAt(m.r-Math.max(0, sind(el))), el};
 }
 function altaz(lat,dec,H){
   const phi=lat*Math.PI/180, d=dec*Math.PI/180, h=H*Math.PI/180;
@@ -74,10 +120,10 @@ function altaz(lat,dec,H){
   return {alt, az};
 }
 function lunarPlace(lat){
-  const ins=instantUT(), eq=moonEquatorial(dayNumber(ins.y,ins.m,ins.D,ins.ut));
+  const ins=instantUT(), eq=moonAt(dayNumber(ins.y,ins.m,ins.D,ins.ut));
   const GMST=rev(eq.Ls+180+ins.ut*15), LST=rev(GMST+ins.lon);
   let H=rev(LST-rev(eq.RA)); if(H>180) H-=360;
-  const p=altaz(lat, eq.Dec, H), radDeg=moonRadiusDeg(EP[dIdx].key);
-  return {az:p.az, el:p.alt, radDeg, rad:radDeg*Math.PI/180, on:apparentEl(p.alt)>-radDeg*DISK_SCALE};
+  const p=altaz(lat, eq.Dec, H), radDeg=moonRadiusAt(eq.r-Math.max(0, sind(p.alt))), sunRadDeg=sunRadiusAt(eq.Ms);
+  return {az:p.az, el:p.alt, radDeg, rad:radDeg*Math.PI/180, sunRadDeg, on:apparentEl(p.alt)>-radDeg*DISK_SCALE};
 }
 

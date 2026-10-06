@@ -56,7 +56,7 @@ function drawMoonPhase(lit, toward){
 }
 function placeBodyMarks(){
   const sunEl=90-skyNow.sza, moon=skyNow.moon;
-  const sun=projectBody(sunEl, skyNow.sunAz, SUN_RADIUS_DEG*DISK_SCALE);
+  const sun=projectBody(sunEl, skyNow.sunAz, skyNow.moon.sunRadDeg*DISK_SCALE);
   const moonProj=projectBody(moon.el, moon.az, moon.radDeg*DISK_SCALE);
   const sunMark=document.getElementById('sunmark');
   const sunAt=placeMark(sunMark, sun, !(skyNow.sunOn && sun.inView));
@@ -103,20 +103,25 @@ function stepMinutes(d){
 function stepEpoch(d){
   dIdx=(dIdx+d%EP.length+EP.length)%EP.length; sel.value=String(dIdx); renderDay(); warm();
 }
-function jumpNextEclipse(){
-  if(dayPlaying){ dayPlaying=false; adoptPlayRate(); hplay.textContent='Play'; hplay.setAttribute('aria-pressed','false'); syncVRPad(); }
+function pageMs(){
   const raw=(document.getElementById('moonDate').value)||localISODate(new Date());
   const [Y,M,D]=raw.split('-').map(Number);
-  let after=new Date(Y,M-1,D,0,0,0,0).getTime()+minutes*60000+1000;
-  let start=null;
+  return new Date(Y,M-1,D,0,0,0,0).getTime()+minutes*60000;
+}
+// Jump to 30 minutes before the next eclipse, or with central set to 5 minutes before the next
+// total or annular phase. Pressing again from that lead moves on to the one after.
+function jumpNextEclipse(central){
+  if(dayPlaying){ dayPlaying=false; adoptPlayRate(); hplay.textContent='Play'; hplay.setAttribute('aria-pressed','false'); syncVRPad(); }
+  const lead=(central?5:30)*60*1000;
+  let after=pageMs()+1000, ev=null;
   for(let n=0;n<6;n++){
-    start=findNextEclipse(after);
-    if(start==null) break;
-    if(Math.abs(start-30*60*1000-(after-1000))>90*1000) break;
-    after=start+1000;
+    ev=findNextEclipse(after, central);
+    if(!ev) break;
+    if(Math.abs(ev.start-lead-(after-1000))>90*1000) break;
+    after=ev.start+1000;
   }
-  if(start==null){ vrNote='no eclipse in the next eight years'; paintVR(); return; }
-  const t=new Date(start-30*60*1000);
+  if(!ev){ vrNote=central?'no total or annular eclipse in the next forty years':'no eclipse in the next eight years'; paintVR(); return; }
+  const t=new Date(ev.start-lead);
   document.getElementById('moonDate').value=localISODate(t);
   minutes=t.getHours()*60+t.getMinutes()+t.getSeconds()/60+t.getMilliseconds()/60000;
   hslider.value=minutes;

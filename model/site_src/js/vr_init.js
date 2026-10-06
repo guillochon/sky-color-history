@@ -39,7 +39,7 @@ function vrRestoreGL(gl){
 // Uniform locations, texture units, and fixed values for a sky program (boot or full).
 function setupSkyProg(gl, prog){
   gl.useProgram(prog);
-  const u={}; for(const n of ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','eye','nr','na','sunMu','showScn','mtnSnow','moonAz','moonEl','moonRad','moonOn','latRad','starPx','cloudCov','cloudScale','cloudDrift','cloudOn','clockH','pondN','snowCover','waterT','snOn','snDir','snCol','snLight','mlDir','mlLight']) u[n]=gl.getUniformLocation(prog, n);
+  const u={}; for(const n of ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','eye','nr','na','sunMu','showScn','mtnSnow','moonAz','moonEl','moonRad','moonOn','latRad','starPx','cloudCov','cloudScale','cloudDrift','cloudOn','clockH','pondN','snowCover','waterT','snOn','snDir','snCol','snLight','mlDir','mlLight','corona','bead']) u[n]=gl.getUniformLocation(prog, n);
   u.pond=gl.getUniformLocation(prog,'pond[0]');
   u.obj=gl.getUniformLocation(prog,'obj[0]'); u.kind=gl.getUniformLocation(prog,'kind[0]');
   for(const [n, unit] of [['sky',0],['moonMap',1],['starMap',3],['starBin',4],['starIdx',5],['weather',7],['hitInfo',10],['hitNrm',11],['noiseTex',12]]) gl.uniform1i(gl.getUniformLocation(prog, n), unit);
@@ -124,7 +124,7 @@ function initVR(){
     if(!fp||!vrGL) return;
     const boot=vrGL.prog;
     vrGL.u=setupSkyProg(gl, fp); vrGL.prog=fp; gl.deleteProgram(boot);
-    skyUploaded=-1; // nr and na are set with the sky texture
+    skyUploaded=-1;
     vrRestoreGL(gl); requestVR();
   });
   compileHit(gl, hitFlags(EP[dIdx].key));

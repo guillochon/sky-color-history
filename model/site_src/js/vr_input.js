@@ -172,7 +172,8 @@ document.addEventListener('keydown',e=>{
     if(e.key==='ArrowLeft'){ e.preventDefault(); stepMinutes(-5); return; }
     if(e.key==='ArrowUp'||e.key===']'){ e.preventDefault(); stepEpoch(1); return; }
     if(e.key==='ArrowDown'||e.key==='['){ e.preventDefault(); stepEpoch(-1); return; }
-    if(k==='e'&&!e.repeat){ e.preventDefault(); jumpNextEclipse(); return; }
+    if(k==='e'&&!e.repeat){ e.preventDefault(); jumpNextEclipse(false); return; }
+    if(k==='t'&&!e.repeat){ e.preventDefault(); jumpNextEclipse(true); return; }
     return;
   }
   if(document.activeElement.tagName==='INPUT'||document.activeElement.tagName==='SELECT') return;
@@ -200,7 +201,8 @@ document.querySelectorAll('.vrpad button, .vrplay').forEach(b=>{
     else if(act==='play') hplay.click();
     else if(act==='time') stepMinutes(+b.dataset.dir);
     else if(act==='era') stepEpoch(+b.dataset.dir);
-    else if(act==='eclipse') jumpNextEclipse();
+    else if(act==='eclipse') jumpNextEclipse(false);
+    else if(act==='central') jumpNextEclipse(true);
     syncVRPad();
   });
 });

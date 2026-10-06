@@ -9,6 +9,8 @@ uniform float yaw,pitch,fov,sunAz,sunEl,sunRad,sunOn,nr,na,sunMu,showScn,mtnSnow
 uniform float moonAz,moonEl,moonRad,moonOn,latRad,starPx,cloudCov,cloudScale,cloudDrift,cloudOn,clockH,snowCover,waterT,snOn;
 uniform vec3 snDir,snCol,snLight,mlDir,mlLight;
 uniform vec3 sunCol,ground,eye;
+uniform float corona;
+uniform vec4 bead;
 uniform vec4 obj[12];
 uniform vec4 pond[8];
 uniform float pondN;
@@ -434,6 +436,30 @@ void main(){
         skyC+=moonC*(1.0-smoothstep(0.0, 1.15, skyY));
         }
       }
+    }
+    if(corona>0.001 && !onBody && te>-1.0){
+      // The corona around the hidden Sun: a bright inner glow falling off steeply, and fainter
+      // streamers, strongest toward the solar equator, out to about six solar radii. A thin pink
+      // rim (chromosphere) with a few prominences shows where the Moon's edge is close.
+      vec3 cn=vec3(0.0, cos(latRad), sin(latRad)), nn=cn-sd*dot(cn, sd);
+      nn=dot(nn, nn)<1e-6?vec3(1.0, 0.0, 0.0):normalize(nn);
+      vec3 ee=normalize(cross(nn, sd));
+      float a=acos(clamp(dot(src, sd), -1.0, 1.0))/sunRad;
+      float pa=atan(dot(src, ee), dot(src, nn));
+      vec2 ring=vec2(cos(pa), sin(pa));
+      float streak=vN(ring*3.0+vec2(17.0, 5.0))*0.7+vN(ring*9.0+vec2(3.0, 11.0))*0.3;
+      float streamer=(0.25+1.6*streak*streak)*(0.5+0.5*abs(ring.y));
+      float I=(1.0*pow(a, -6.0)+0.9*pow(a, -2.2)*streamer)*(1.0-smoothstep(3.5, 6.5, a));
+      float prom=smoothstep(0.62, 0.86, vN(ring*7.0+vec2(29.0, 2.0)));
+      float rim=1.0-smoothstep(1.0, 1.03+0.07*prom, a);
+      float mu=max(sin(max(te, 0.0)*0.01745329252), 0.04);
+      vec3 T=exp(-vec3(0.12, 0.22, 0.48)/mu);
+      skyC+=corona*T*(I*vec3(1.0, 0.97, 0.92)+rim*vec3(1.0, 0.3, 0.42)*1.5);
+    }
+    if(bead.w>0.0 && te>-1.0){
+      // The diamond ring: glare around the last sliver of the photosphere.
+      float a=acos(clamp(dot(src, bead.xyz), -1.0, 1.0)), px=2.0*fy/res.y, g=a/(px*5.0);
+      skyC+=sunCol*bead.w*(2.0/(1.0+g*g)+0.9*exp(-a/(sunRad*0.9)));
     }
     if(snOn>0.5 && te>0.0){
       // The supernova: unresolved, so a core of a couple of pixels and a glare halo, plus the

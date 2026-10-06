@@ -121,17 +121,6 @@ function sunCovered(sep, rSun, rMoon){
   const area=r2*ang+R2*bng-0.5*Math.sqrt(Math.max(0,(-d+rSun+R)*(d+rSun-R)*(d-rSun+R)*(d+rSun+R)));
   return Math.min(1, Math.max(0, area/(Math.PI*r2)));
 }
-function moonSunSep(lat, ms){
-  const t=new Date(ms);
-  const min=t.getHours()*60+t.getMinutes()+t.getSeconds()/60+t.getMilliseconds()/60000;
-  const ut=t.getUTCHours()+t.getUTCMinutes()/60+t.getUTCSeconds()/3600+t.getUTCMilliseconds()/3600000;
-  const lon=-t.getTimezoneOffset()/60*15;
-  const eq=moonEquatorial(dayNumber(t.getUTCFullYear(), t.getUTCMonth()+1, t.getUTCDate(), ut));
-  const GMST=rev(eq.Ls+180+ut*15), LST=rev(GMST+lon);
-  let H=rev(LST-rev(eq.RA)); if(H>180) H-=360;
-  const p=altaz(lat, eq.Dec, H), sun=sunGeom(lat, min);
-  return Math.acos(Math.max(-1,Math.min(1,vdot(horizDir(p.az,p.alt), horizDir(sun.az, 90-sun.sza)))))*180/Math.PI;
-}
 // Equinox Sun is above the horizon strictly between 06:00 and 18:00 local time.
 function sunUpDuring(a, b){
   if(!(b>a)) return false;
@@ -146,27 +135,46 @@ function sunUpDuring(a, b){
   }
   return false;
 }
-function findNextEclipse(afterMs){
-  const lat=LATDEG[dLat], limit=DISK_SCALE*(SUN_RADIUS_DEG+moonRadiusDeg(EP[dIdx].key));
-  const hit=ms=>moonSunSep(lat, ms)<limit;
-  const step=10*60*1000, horizon=afterMs+8*365.25*86400000;
-  let prev=hit(afterMs), t=afterMs+step;
-  while(t<=horizon){
-    const now=hit(t);
-    if(now && !prev){
-      let lo=t-step, hi=t;
-      for(let i=0;i<18;i++){ const mid=(lo+hi)/2; if(hit(mid)) hi=mid; else lo=mid; }
-      const start=hi;
-      let end=t, guard=start+20*3600000;
-      while(end<guard && hit(end)) end+=step;
-      lo=Math.max(start, end-step); hi=Math.min(end, guard);
-      for(let i=0;i<18;i++){ const mid=(lo+hi)/2; if(hit(mid)) lo=mid; else hi=mid; }
-      if(sunUpDuring(start, hi)) return start;
-      t=hi+step; prev=false; continue;
+// How far the enlarged disks are from the eclipse condition at time ms: negative while they
+// overlap, or with central set while one disk lies wholly inside the other.
+function eclipseGap(ms, central, scale=DISK_SCALE){
+  const e=eclipseAt(ms);
+  return e.sep-scale*(central?Math.abs(e.rM-e.rS):e.rS+e.rM);
+}
+// The first eclipse starting after afterMs with the Sun up, searched new Moon by new Moon:
+// any overlap of the disks as drawn in VR, or with central set a total or annular phase.
+// Returns {start, end, type} or null.
+function findNextEclipse(afterMs, central){
+  const msOf=d=>(d-DN_UNIX)*86400000, gr=(Math.sqrt(5)-1)/2, f=ms=>eclipseGap(ms, central);
+  let k=Math.round((dayOfMs(afterMs)-DN_NEW0)/SYNODIC)-1;
+  const kEnd=k+Math.ceil((central?40:8)*12.37)+2;
+  for(;k<=kEnd;k++){
+    const t0=msOf(lunation(k).t0), span=0.3*86400000;
+    let a=t0-span, b=t0+span, c=b-gr*(b-a), e=a+gr*(b-a), fc=f(c), fe=f(e);
+    for(let i=0;i<30;i++){
+      if(fc<fe){ b=e; e=c; fe=fc; c=b-gr*(b-a); fc=f(c); }
+      else { a=c; c=e; fc=fe; e=a+gr*(b-a); fe=f(e); }
     }
-    prev=now; t+=step;
+    const mid=(a+b)/2;
+    if(f(mid)>=0 || f(t0-span)<0 || f(t0+span)<0) continue;
+    let lo=t0-span, hi=mid;
+    for(let i=0;i<24;i++){ const m=(lo+hi)/2; if(f(m)<0) hi=m; else lo=m; }
+    const start=hi; lo=mid; hi=t0+span;
+    for(let i=0;i<24;i++){ const m=(lo+hi)/2; if(f(m)<0) lo=m; else hi=m; }
+    const end=lo;
+    if(start<=afterMs || !sunUpDuring(start, end)) continue;
+    const g=eclipseAt(mid);
+    return {start, end, type:central?(g.rM>g.rS?'total':'annular'):'partial'};
   }
   return null;
+}
+// When the current total or annular phase ends, for the time left in the readouts.
+function centralEnd(ms, scale){
+  if(eclipseGap(ms, true, scale)>=0) return null;
+  let lo=ms, hi=ms+0.3*86400000;
+  if(eclipseGap(hi, true, scale)<0) return null;
+  for(let i=0;i<24;i++){ const m=(lo+hi)/2; if(eclipseGap(m, true, scale)<0) lo=m; else hi=m; }
+  return lo;
 }
 const moonImg=new Image(), moonSprite=document.createElement('canvas');
 moonSprite.width=moonSprite.height=96;
