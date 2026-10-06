@@ -143,6 +143,28 @@ for k in order:
     z = hx(lat['zenith'], Yz); h = hx(lat['horizon'], Yz)
     hero += f'<a href="#{k}" class="hero-dome" style="background:linear-gradient(to bottom,{z},{h})" title="{r["name"]}"><span>{ages[k]}</span></a>'
 
+
+# Stars that outshone today's Sirius, from stellar_encounters.py.
+ENC = json.load(open(ROOT / 'encounters.json', encoding='utf-8'))
+ENC_PROSE = [
+"Sirius, at magnitude −1.46, is the brightest star in today's night sky, but it has not always been. The Sun's neighbours drift past it at tens of kilometres a second, so a star a hundred parsecs away now may have passed within a few parsecs of it a few million years ago. Tracing every Hipparcos star that has a radial velocity back 10 Myr through the Galaxy, with 2,000 draws over each star's measurement errors, finds eleven that outshone today's Sirius (table below). The brightest is θ Columbae, a fifth-magnitude star today, which passed about 2 pc from the Sun 4.7 million years ago and peaked near magnitude −5, as bright as Venus at its best; Gaia DR3 astrometry gives the same (−5.2 at 2.1 pc, 5.1 million years ago). ε Canis Majoris reached −4.35 4.4 million years ago, a result known since Tomkin (1998), and β Canis Majoris −3.6 at the same time. From about 3.5 to 5 million years ago the night sky held at least two stars brighter than any star today, and at times three.",
+"These stars now lie in Columba, Canis Major and Puppis because that is the solar antapex: the Sun moves toward Hercules at about 20 km/s relative to its neighbours, so the stars it has passed end up behind it. The closest pass, ζ Leporis at 1.3 pc 850,000 years ago, came as close as α Centauri is now, far too distant to disturb the planets. Only distance changes the brightness here. ε and β Canis Majoris are giants 12 to 22 million years old and were probably a few tenths of a magnitude fainter then. Algol's radial velocity (3.7 ± 3.9 km/s, hard to measure in an eclipsing binary) is too uncertain to say whether it passed within 1.3 or 28 pc of the Sun. Rigel, Saiph, Mintaka, Alnitak and ξ Persei also come out bright, but 6 to 10 million years ago, about their own ages, so they are left out. The site's skies do not show these peaks: the supernova epochs (1.78 Ma and 342 ka) fall between them, though at 342 ka Aldebaran is close to its peak of −1.5.",
+]
+def _rng(q, fmt='{:.2f}'): return f"{fmt.format(q[1])} <small>({fmt.format(q[0])} to {fmt.format(q[2])})</small>"
+enc_rows = ''.join(
+    f"<tr><td>{e['name']}</td><td>{e['sptype']}</td><td>{e['v_now']:.2f}, {e['d_now']:.0f} pc</td>"
+    f"<td>{_rng(e['peak'])}</td><td>{e['dmin'][1]:.1f}</td><td>{e['myr'][1]:.2f}</td><td>{e['p_sirius']*100:.0f}%</td></tr>"
+    for e in ENC)
+encounter_section = f"""
+<h3>Stars brighter than Sirius</h3>
+<p>{ENC_PROSE[0]}</p>
+<div class="wrap"><table>
+<tr><th>Star</th><th>Type</th><th>Today: V, distance</th><th>Peak V (68% range)</th><th>Closest (pc)</th><th>Million years ago</th><th>Draws brighter than Sirius</th></tr>
+{enc_rows}
+</table></div>
+<p>{ENC_PROSE[1]}</p>
+"""
+
 sections = ''
 for k in order:
     r = byk[k]
@@ -264,7 +286,7 @@ th{{color:var(--ink2);font-weight:300}}
 
 {limb_section}
 {sections}
-
+{encounter_section}
 <h3>Caveats</h3>
 <p>Paleoatmospheric compositions carry order-of-magnitude uncertainty, and the haze optical properties are taken from Titan-analog tholins; the three haze cases bracket that uncertainty. Aerosol loads for every pre-Cenozoic epoch are educated guesses. The color-matching functions use an analytic fit, and colors are shown without chromatic adaptation, so the tints represent what a modern camera set to daylight balance would record rather than what an adapted observer would "see" (an adapted eye would perceive the hazy Archean sky as nearer to white and the modern sky as bluer than shown). Clouds are omitted throughout. The two-stream multiple-scattering term is approximate for the thickest atmospheres, where a full Monte Carlo treatment would refine the exact tint of the Hadean sky.</p>
 
@@ -288,6 +310,10 @@ th{{color:var(--ink2);font-weight:300}}
 <p>Salvati M. &amp; Sacco B. (2008). The Milagro anticenter hot spots: cosmic rays from the Geminga supernova? <i>Astronomy &amp; Astrophysics</i>, doi:10.1051/0004-6361:200809586.</p>
 <p>Richardson D., Jenkins R.L., Wright J., Maddox L. (2014). Absolute-magnitude distributions of supernovae. <i>Astronomical Journal</i> 147, 118.</p>
 <p>Thomas B.C. et al. (2016). Terrestrial effects of nearby supernovae in the early Pleistocene. <i>Astrophysical Journal Letters</i> 826, L3.</p>
+<p>Tomkin J. (1998). Once and future celestial kings. <i>Sky &amp; Telescope</i> 95(4), 59.</p>
+<p>Anderson E. &amp; Francis C. (2012). XHIP: an extended Hipparcos compilation. <i>Astronomy Letters</i> 38, 331.</p>
+<p>Gaia Collaboration, Vallenari A. et al. (2023). Gaia Data Release 3: summary of the content and survey properties. <i>Astronomy &amp; Astrophysics</i> 674, A1.</p>
+<p>Schönrich R., Binney J., Dehnen W. (2010). Local kinematics and the local standard of rest. <i>Monthly Notices of the Royal Astronomical Society</i> 403, 1829.</p>
 <p>Lawler S.M., Boley A.C., Rein H. (2022). Visibility predictions for near-future satellite megaconstellations. <i>Astronomical Journal</i> 163, 21.</p>
 <p>Boley A.C., Lawler S.M., Rein H. (2026). Rings in the sky: orbital data centres and potential impacts to astronomy and the sky. arXiv:2608.02757.</p>
 </div>

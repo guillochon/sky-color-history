@@ -20,7 +20,8 @@ def tex(s):
            '₂': r'$_2$', '₃': r'$_3$', '₄': r'$_4$', 'τ': r'$\tau$', 'μ': r'$\mu$', 'λ': r'$\lambda$', 'ω': r'$\omega$',
            '⁻': '^{-', '⁶': '6}', '²': r'$^2$', '³': r'$^3$', '⁴': r'$^4$'}
     s = s.replace('⁶⁰', '$^{60}$')
-    rep.update({'−': '$-$', '±': r'$\pm$', 'ζ': r'$\zeta$'})
+    rep.update({'−': '$-$', '±': r'$\pm$', 'ζ': r'$\zeta$', 'θ': r'$\theta$', 'ε': r'$\varepsilon$', 'β': r'$\beta$',
+                'ν': r'$\nu$', 'ρ': r'$\rho$', 'ξ': r'$\xi$', 'α': r'$\alpha$'})
     for a, b in rep.items(): s = s.replace(a, b)
     s = s.replace('$_2$$_2$', '$_{22}$')
     s = re.sub(r'10\^\{-(\d)\}', r'$10^{-\1}$', s)
@@ -34,6 +35,24 @@ def tex(s):
 H = ns['html']
 def sec(title):
     m = re.search(r'<h3>'+re.escape(title)+r'</h3>\s*<p>(.*?)</p>', H, re.S); return tex(m.group(1))
+
+# Stars that outshone today's Sirius (gen_report's ENC, from stellar_encounters.py).
+enc_rows = '\n'.join(
+    f"{tex(e['name'])} & {e['sptype']} & ${e['v_now']:.2f}$, {e['d_now']:.0f} & ${e['peak'][1]:.2f}$ (${e['peak'][0]:.2f}$ to ${e['peak'][2]:.2f}$) & "
+    f"{e['dmin'][1]:.1f} & {e['myr'][1]:.2f} & {e['p_sirius']*100:.0f}\\% \\\\" for e in ns['ENC'])
+encounter_tex = tex(ns['ENC_PROSE'][0]).replace('Tomkin (1998)', r'\citet{tomkin1998}').replace('(table below)', r'(Table~\ref{tab:encounters})') + r"""
+
+\begin{table*}[t]\centering\footnotesize
+\caption{Stars that outshone today's Sirius ($V=-1.46$) in the last 10 million years, traced back through the Galaxy from Hipparcos astrometry (XHIP) with 2,000 draws over the measurement errors. Peak magnitudes are medians with the 68\% range; the last column is the fraction of draws brighter than Sirius today. Brightness changes with distance only.}
+\label{tab:encounters}
+\rowcolors{2}{rowa}{white}
+\begin{tabularx}{\textwidth}{@{}Yllrrrr@{}}\toprule
+Star & Type & Today: $V$, pc & Peak $V$ (68\% range) & Closest (pc) & Myr ago & Brighter than Sirius \\ \midrule
+""" + enc_rows + r"""
+\bottomrule\end{tabularx}
+\end{table*}
+
+""" + tex(ns['ENC_PROSE'][1])
 
 epoch_blocks = ''
 for k in order:
@@ -219,6 +238,10 @@ Epoch & Noon zenith & Horizon & Sunset \\ \midrule
 The """ + NUMBER_WORDS[len(order)] + r""" panels that follow are laid out identically so they can be compared at a glance. Each panel begins with the epoch's name and a one-line summary of the atmosphere assumed (Table~\ref{tab:epochs} gives the full parameters). The upper row shows the noon sky dome at three latitudes---the equator, a mid-latitude site and the summer pole---with the zenith at the top of each swatch and the horizon at the bottom, the correlated color temperatures of both printed above, and the Sun's disk drawn in its own color, at its noon elevation, and with a brightness that reflects how much of it survives the atmosphere (where the Sun would not be visible at all, the swatch says so). The two strips beneath trace the sky from the solar horizon across the zenith to the antisolar horizon at two moments: with the Sun sitting on the horizon, and with it $4^\circ$ below, in civil twilight. All swatches are shown at a brightness relative to today's clean sky, so a dim epoch reads as dim; the paragraph after each panel explains what the colors mean and why they arise.
 """ + epoch_blocks + r"""
 
+\Needspace*{12\baselineskip}
+\section*{Stars brighter than Sirius}
+""" + encounter_tex + r"""
+
 \section*{Caveats}
 """ + sec('Caveats') + r"""
 
@@ -257,7 +280,11 @@ bib = r"""@article{arney2016, author={Arney, Giada and Domagal-Goldman, Shawn D.
 @article{cooke2021, author={Cooke, Gregory J. and Marsh, Daniel R. and Walsh, Catherine and Black, Benjamin and Lamarque, Jean-Francois}, title={A revised lower estimate of ozone columns during {Earth}'s oxygenated history}, journal={Royal Society Open Science}, volume={9}, pages={211165}, year={2021}}
 @article{lawler2022, author={Lawler, Samantha M. and Boley, Aaron C. and Rein, Hanno}, title={Visibility predictions for near-future satellite megaconstellations: latitudes near 50 degrees will experience the worst light pollution}, journal={Astronomical Journal}, volume={163}, pages={21}, year={2022}}
 @article{boley2026, author={Boley, Aaron C. and Lawler, Samantha M. and Rein, Hanno}, title={Rings in the sky: orbital data centres and potential impacts to astronomy and the sky}, journal={arXiv e-prints}, pages={arXiv:2608.02757}, year={2026}}
-@article{pellizza2005, author={Pellizza, L. J. and Mignani, R. P. and Grenier, I. A. and Mirabel, I. F.}, title={On the local birth place of {Geminga}}, journal={Astronomy \& Astrophysics}, year={2005}, doi={10.1051/0004-6361:20042377}}
+@article{tomkin1998, author={Tomkin, Jocelyn}, title={Once and future celestial kings}, journal={Sky \& Telescope}, volume={95}, number={4}, pages={59}, year={1998}}
+@article{anderson2012, author={Anderson, E. and Francis, Ch.}, title={{XHIP}: An extended {Hipparcos} compilation}, journal={Astronomy Letters}, volume={38}, pages={331--346}, year={2012}}
+@article{gaia2023, author={{Gaia Collaboration} and Vallenari, A. and others}, title={{Gaia} {Data Release 3}: Summary of the content and survey properties}, journal={Astronomy \& Astrophysics}, volume={674}, pages={A1}, year={2023}}
+@article{schoenrich2010, author={Sch{\"o}nrich, Ralph and Binney, James and Dehnen, Walter}, title={Local kinematics and the local standard of rest}, journal={Monthly Notices of the Royal Astronomical Society}, volume={403}, pages={1829--1833}, year={2010}}
+@article{pellizza2005,author={Pellizza, L. J. and Mignani, R. P. and Grenier, I. A. and Mirabel, I. F.}, title={On the local birth place of {Geminga}}, journal={Astronomy \& Astrophysics}, year={2005}, doi={10.1051/0004-6361:20042377}}
 @article{salvati2008, author={Salvati, M. and Sacco, B.}, title={The {Milagro} anticenter hot spots: cosmic rays from the {Geminga} supernova?}, journal={Astronomy \& Astrophysics}, year={2008}, doi={10.1051/0004-6361:200809586}}
 @article{richardson2014, author={Richardson, Dean and Jenkins, Robert L. and Wright, John and Maddox, Larry}, title={Absolute-magnitude distributions of supernovae}, journal={Astronomical Journal}, volume={147}, pages={118}, year={2014}}
 @article{thomas2016, author={Thomas, Brian C. and others}, title={Terrestrial effects of nearby supernovae in the early {Pleistocene}}, journal={Astrophysical Journal Letters}, volume={826}, pages={L3}, year={2016}}
