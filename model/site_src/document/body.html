@@ -40,7 +40,7 @@
     <div class="cb-row cb-day">
      <button id="hplay" aria-pressed="false">Play</button>
      <span id="hclock" class="clock"></span>
-     <label class="cb-date">Date <input id="moonDate" type="date" aria-label="Date for the Moon and planets"></label>
+     <span class="cb-date" role="group" aria-label="Date">Date <select id="dMonth" aria-label="Month"></select><select id="dDay" aria-label="Day"></select><input id="dYear" type="number" min="1" max="9999" step="1" aria-label="Year"><input id="moonDate" type="hidden"></span>
      <span role="group" aria-label="Latitude" class="cb-lat"><button data-lat="Equator" aria-pressed="false">Equator</button><button data-lat="Mid-latitude" aria-pressed="true">45°</button><button data-lat="Polar" aria-pressed="false">75°</button></span>
      <button id="expo" aria-pressed="false" title="Normalize brightness so that color is visible in dim skies">Auto-exposure</button>
     </div>
@@ -128,6 +128,7 @@
   <summary>Color and brightness</summary>
   <p>The sky model is spherical-shell single scattering with a delta-Eddington multiple-scattering correction, from 380 to 780 nm, with CIE 1931 color matching and sRGB output without chromatic adaptation: colors are what a daylight-balanced camera would record, not what an adapted eye would perceive. Clouds are omitted from the model (the VR clouds are scenery), and the compositions of the ancient atmospheres carry order-of-magnitude uncertainty.</p>
   <p>The clock runs over one solar day of the epoch. Days were shorter when the Moon was closer: the Earth–Moon angular momentum is held fixed, giving 23.8 hours at 66 Ma, 21.9 at 700 Ma, 17.4 at 2.2 Ga, 15.6 at 2.7 Ga and about 12½ in the Hadean, matching Farhat et al. 2022. Play runs at the same pace in hours, so short days pass faster.</p>
+  <p>The year is the same length in seconds in every epoch (the Earth's orbit is set by the Sun's mass, which has barely changed), so it holds more of the shorter days: 368 at 66 Ma, 562 at 2.7 Ga, 713 in the Early Hadean. Those epochs count twelve equal months of 30 to 60 days; the 24-hour epochs keep the Gregorian calendar. The Sun follows the seasons for the date, with today's 23.4° tilt in every epoch (the Moon has held it between about 22° and 24.5°), and sunlight is 3.4% stronger at perihelion in January than on average. The clock is sundial time: the Sun crosses the meridian at noon.</p>
   <p>The time of day is interpolated between 34 computed Sun heights, 1° apart from the horizon to 20° below it; past 9° below, twilight dims by about a magnitude per degree, as measured. Night skies are drawn as a dark-adapted eye sees them, brighter than the daytime display curve would give, and Auto-exposure normalizes brightness so that color shows in dim skies.</p>
  </details>
 </section>

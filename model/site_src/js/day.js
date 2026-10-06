@@ -6,8 +6,8 @@ const DAYMIN=1440; // midnight to midnight
 sel.value=dIdx;
 const LATDEG={'Equator':0,'Mid-latitude':45,'Polar':75};
 const SZ=DAY.szas, VZ=DAY.vz, AZ=DAY.az;
-function sunGeom(lat,min){ const h=(min/60-12)*15*Math.PI/180, phi=lat*Math.PI/180; const cz=Math.cos(phi)*Math.cos(h); const z=Math.acos(Math.max(-1,Math.min(1,cz)))*180/Math.PI;
-  const A=Math.atan2(Math.sin(h), Math.cos(h)*Math.sin(phi)); let comp=180+A*180/Math.PI; if(lat===0){ comp = h<0?90:270; } return {sza:z, az:((comp%360)+360)%360}; }
+// The Sun at clock time min (sundial time) and declination dec, by default the page date's.
+function sunGeom(lat, min, dec=sunEquatorial(astroDay()).Dec){ const p=altaz(lat, dec, (min/60-12)*15); return {sza:90-p.alt, az:p.az}; }
 function idx(xs,x){ if(x<=xs[0]) return [0,0]; for(let i=0;i<xs.length-1;i++) if(x<xs[i+1]) return [i,(x-xs[i])/(xs[i+1]-xs[i])]; return [xs.length-2,1]; }
 // interpolate XYZ of the dome grid at (sza, vz, azrel): linear in sza, monotone cubic in vz and az
 function herm(xs, ys, x){ // PCHIP: ys is an array of [X,Y,Z]; stays between adjacent samples
@@ -218,15 +218,18 @@ function cityUplight(key, Yref, k, p){
   return new Float32Array(c.map(v=>Math.pow(v/255, 2.2)));
 }
 function renderDay(fast){
-  vrNote='';
-  const ep=EP[dIdx], rec=DAY.epochs[ep.key][dLat]; const {sza,az:sunAz}=sunGeom(LATDEG[dLat],minutes);
+  vrNote=''; syncDateUI();
+  const ep=EP[dIdx], rec=DAY.epochs[ep.key][dLat], sunNow=sunEquatorial(astroDay()); const {sza,az:sunAz}=sunGeom(LATDEG[dLat], minutes, sunNow.Dec);
+  // Sunlight, and the moonlight it makes, go as the inverse square of the distance from the Sun:
+  // 3.4% brighter at perihelion in January than on average, 3.3% dimmer at aphelion in July.
+  const sunFlux=1/(sunNow.au*sunNow.au);
   const W=dome.width,H=dome.height, cx=W/2, cy=H/2, R=W*0.46;
   // Moonlight is the Sun's sky field, evaluated at the Moon and added. Hold the
   // Sun's pre-fade luminance so auto-exposure does not undo the twilight fade.
   const sunSrc=skySource(sza, sunAz);
   const moon=lunarPlace(LATDEG[dLat]);
   const moonSrc=skySource(90-moon.el, moon.az);
-  const mScale=moonSkyScale(moon, sunAz, 90-sza);
+  const mScale=moonSkyScale(moon, sunAz, 90-sza)*sunFlux;
   const si=sunSrc.si, st=sunSrc.st, past=sunSrc.past;
   const NR=72, NA=144; const grid=[];
   const addField=(X, src, scale, vz, comp)=>{
@@ -263,7 +266,7 @@ function renderDay(fast){
   let Ymax=1e-30, Yhold=1e-30, Ysun=1e-30;
   for(let ir=0;ir<=NR;ir++){ const row=[]; const vz=90*ir/NR; for(let ia=0;ia<=NA;ia++){ const comp=360*ia/NA;
       const X=night[ir].slice();
-      const Xsun=addField(X, sunSrc, sunVis, vz, comp);
+      const Xsun=addField(X, sunSrc, sunVis*sunFlux, vz, comp);
       if(Xsun){ const y=Xsun[1]*sunSrc.fade; if(y>Ysun) Ysun=y; if(Xsun[1]>Yhold) Yhold=Xsun[1]; }
       addField(X, moonSrc, mScale, vz, comp);
       addRing(X, vz);
@@ -381,9 +384,9 @@ function renderDay(fast){
   dctx.font='italic 20px Newsreader, Georgia, serif'; dctx.fillText(ep.short, 12, H-27);
   dctx.font='15px Newsreader, Georgia, serif'; dctx.fillText(`${ep.age} · ${dLat==='Polar'?'75° latitude':dLat==='Mid-latitude'?'45° latitude':'equator'}`, 12, H-8);
   // readouts
-  document.getElementById('hclock').textContent=clockLabel(minutes)+(dayHours()<24?` · ${dayHours()}-hour day`:'');
+  document.getElementById('hclock').textContent=clockLabel(minutes)+(dayHours()<24?` · ${dayHours()}-hour day · ${Math.round(yearDays())}-day year`:'');
   document.getElementById('relev').textContent=(90-sza).toFixed(1)+'°';
-  const sumAt=(vz,comp)=>{ const X=night[Math.min(NR, Math.round(vz/90*NR))].slice(); addField(X,sunSrc,sunVis,vz,comp); addField(X,moonSrc,mScale,vz,comp); addRing(X,vz); return X; };
+  const sumAt=(vz,comp)=>{ const X=night[Math.min(NR, Math.round(vz/90*NR))].slice(); addField(X,sunSrc,sunVis*sunFlux,vz,comp); addField(X,moonSrc,mScale,vz,comp); addRing(X,vz); return X; };
   const zX=sumAt(0, sunAz), hX=sumAt(88, sunAz+90);
   const fmt=X=>{ if(X[1]*cdu<1) return skyMagArcsec(X[1]*cdu).toFixed(1)+' mag/arcsec²'; const s=X[0]+X[1]+X[2]; const c=cct(X[0]/s,X[1]/s); return (c>800&&c<60000? c.toLocaleString()+' K':'—')+` · ${(100*X[1]/YREF).toPrecision(2)}%`; };
   document.getElementById('rzen').textContent=fmt(zX); document.getElementById('rhor').textContent=fmt(hX);
@@ -400,7 +403,6 @@ function warm(){ const ep=EP[dIdx], key=ep.key, lat=dLat; let s=0; const step=()
 sel.addEventListener('change',()=>setEpoch(+sel.value));
 document.querySelectorAll('[data-lat]').forEach(b=>b.addEventListener('click',()=>{ dLat=b.dataset.lat; document.querySelectorAll('[data-lat]').forEach(x=>x.setAttribute('aria-pressed',x===b)); renderDay(); warm(); }));
 const hslider=document.getElementById('hslider'); hslider.addEventListener('input',()=>{ minutes=+hslider.value; renderDay(); });
-document.getElementById('moonDate').addEventListener('change',()=>renderDay());
 const htrack=document.getElementById('htrack');
 const HMIN=+hslider.min, HMAX=+hslider.max;
 // The time of day in the epoch's own hours: m is the fraction of the day times DAYMIN.

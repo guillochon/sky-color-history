@@ -1,10 +1,9 @@
 // Star places use this year for proper motion and precession, instead of the date picker's.
 const STAR_YEAR={volcanic:1815};
 function placeStars(lat){
-  const epochKey=EP[dIdx].key, ins=instantUT(), list=STARS_EPOCH[epochKey]||STARS;
-  const year=STAR_YEAR[epochKey]||+(document.getElementById('moonDate').value||localISODate(new Date())).slice(0,4);
-  const eq=moonEquatorial(dayNumber(ins.y,ins.m,ins.D,ins.ut));
-  const LST=rev(rev(eq.Ls+180+ins.ut*15)+ins.lon);
+  const epochKey=EP[dIdx].key, list=STARS_EPOCH[epochKey]||STARS;
+  const year=STAR_YEAR[epochKey]||pageDate()[0];
+  const LST=localSidereal();
   const tex=new Float32Array(STAR_MAP_W*8), marks=[], up=[];
   for(let i=0;i<list.length && i<STAR_N;i++){
     const star=list[i], place=starMeanPlace(star, epochKey, year);
@@ -79,9 +78,7 @@ const SUPERNOVA={
 function supernovaPlace(lat){
   const sn=SUPERNOVA[EP[dIdx].key];
   if(!sn) return null;
-  const ins=instantUT(), year=+(document.getElementById('moonDate').value||localISODate(new Date())).slice(0,4);
-  const eq=moonEquatorial(dayNumber(ins.y,ins.m,ins.D,ins.ut));
-  const LST=rev(rev(eq.Ls+180+ins.ut*15)+ins.lon);
+  const year=pageDate()[0], LST=localSidereal();
   const place=starMeanPlace([sn.ra, sn.dec, sn.mag, 0, 0, 0], EP[dIdx].key, year);
   let H=rev(LST-rev(place.ra)); if(H>180) H-=360;
   const p=altaz(lat, place.dec, H);
@@ -126,18 +123,10 @@ function sunCovered(sep, rSun, rMoon){
   const area=r2*ang+R2*bng-0.5*Math.sqrt(Math.max(0,(-d+rSun+R)*(d+rSun-R)*(d-rSun+R)*(d+rSun+R)));
   return Math.min(1, Math.max(0, area/(Math.PI*r2)));
 }
-// Equinox Sun is above the horizon strictly between 06:00 and 18:00 local time.
+// Whether the Sun is up at any point of an eclipse from a to b (ms), sampled ninefold.
 function sunUpDuring(a, b){
   if(!(b>a)) return false;
-  const rise=6*3600000, day=86400000;
-  let t=a;
-  for(let n=0;n<3;n++){
-    const d=new Date(t), sod=((d.getHours()*60+d.getMinutes())*60+d.getSeconds())*1000+d.getMilliseconds();
-    const up0=t-sod+rise, up1=up0+12*3600000;
-    if(up0<b && up1>a) return true;
-    t=up0+day;
-    if(t>=b) break;
-  }
+  for(let n=0;n<=8;n++) if(eclipseAt(a+(b-a)*n/8).el>0) return true;
   return false;
 }
 // How far the enlarged disks are from the eclipse condition at time ms: negative while they

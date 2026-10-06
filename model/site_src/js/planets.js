@@ -44,7 +44,7 @@ function planetDisplay(mag, tint){
 // Write the planets into slots STAR_N to STAR_N+PLANET_N-1 of the star texture. Positions are
 // J2000, precessed to the same year as the stars so they sit correctly among them.
 function placePlanets(lat, tex, marks, up, epochKey, year, LST){
-  const ins=instantUT(), T=(dayNumber(ins.y, ins.m, ins.D, ins.ut)-1.5)/36525;
+  const T=(astroDay()-1.5)/36525;
   const earth=planetHelio(PLANET_EARTH[0], PLANET_EARTH[1], T), R=Math.hypot(...earth);
   const eps=23.43928*Math.PI/180, ce=Math.cos(eps), se=Math.sin(eps);
   // Saturn's ring-plane pole, J2000 equatorial (RA 40.589, Dec 83.537).

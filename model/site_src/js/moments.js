@@ -1,7 +1,8 @@
 // Moments: cards on the landing page, oldest first, that open the VR view at a chosen sky. Each sets the epoch,
 // latitude, date and clock time, then where to look: toward the Sun (the default), a direction
-// (look: [azimuth, elevation]), or the supernova (look: 'sn'). The eclipse card finds the total
-// eclipse after its date as the t key does. Moments about the sky itself open with clouds off
+// (look: [azimuth, elevation]), or the supernova (look: 'sn'). The eclipse card finds the next total
+// eclipse from today with the Sun up, as the t key does but passing over annular ones. Moments
+// about the sky itself open with clouds off
 // (c brings them back).
 const MOMENTS=[
   {epoch:'hadean44', date:'2026-03-20', t:1050, title:'A Hadean evening, 4.4 Ga', sub:'Thirty bars of CO₂ under a young, faint Sun', art:'day'},
@@ -11,7 +12,7 @@ const MOMENTS=[
   {epoch:'geminga', date:'2026-01-15', t:1320, look:'sn', title:'The Geminga supernova', sub:'342,000 years ago, a star in Orion as bright as the quarter Moon', art:'nova'},
   {epoch:'volcanic', date:'2026-07-08', t:1380, look:[180, 32], title:'A town night in 1815', sub:'Oil lamps light the streets but barely touch the sky', art:'stars'},
   {epoch:'modern', date:'2026-07-08', t:1380, look:[180, 32], title:'A city night, today', sub:'Sodium and LED glow hides all but the brightest stars', art:'city'},
-  {epoch:'modern', date:'2029-09-01', eclipse:true, title:'Totality, September 2029', sub:'The corona, Baily’s beads, and a sunset all round the horizon', art:'eclipse'},
+  {epoch:'modern', date:null, eclipse:true, title:'The next total eclipse', sub:'The corona, Baily’s beads, and a sunset all round the horizon', art:'eclipse'},
 ];
 const MOMENT_ART={
   eclipse:'<defs><radialGradient id="mglow"><stop offset=".5" stop-color="#f4ecd8" stop-opacity=".6"/><stop offset="1" stop-color="#f4ecd8" stop-opacity="0"/></radialGradient></defs><circle cx="60" cy="38" r="26" fill="url(#mglow)"/><circle cx="60" cy="38" r="14.5" fill="none" stroke="#fbf3e0" stroke-width="1.6"/><circle cx="60" cy="38" r="13.6" fill="#05070c"/>',
@@ -39,10 +40,10 @@ function openMoment(m){
   setEpoch(EP.findIndex(e=>e.key===m.epoch));
   dLat='Mid-latitude';
   document.querySelectorAll('[data-lat]').forEach(x=>x.setAttribute('aria-pressed', x.dataset.lat===dLat?'true':'false'));
-  document.getElementById('moonDate').value=m.date;
+  document.getElementById('moonDate').value=m.date||localISODate(new Date());
   minutes=m.eclipse?0:m.t; hslider.value=String(minutes);
   renderDay();
-  if(m.eclipse) jumpNextEclipse(true);
+  if(m.eclipse) jumpNextEclipse(true, true);
   vrClouds=m.art==='day';
   enterVR(false);
   syncVRPad();

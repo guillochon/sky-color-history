@@ -64,7 +64,7 @@ const WIKI={
 function showEpoch(pos){
   tPos=pos; drawGlobeAt(pos);
   const i=Math.round(pos);
-  if(i!==dIdx){ dIdx=i; sel.value=String(i); renderDay(); warm(); }
+  if(i!==dIdx){ const yf=yearFraction(), L=dayHours(); dIdx=i; if(dayHours()!==L) document.getElementById('moonDate').value=dateAtFraction(...yf); sel.value=String(i); renderDay(); warm(); }
   if(i===tIdx && document.getElementById('tname').textContent) return; tIdx=i;
   const ep=EP[i];
   document.getElementById('tname').textContent=ep.name;

@@ -103,27 +103,23 @@ function stepMinutes(d){
 function stepEpoch(d){
   setEpoch((dIdx+d%EP.length+EP.length)%EP.length);
 }
-function pageMs(){
-  const raw=(document.getElementById('moonDate').value)||localISODate(new Date());
-  const [Y,M,D]=raw.split('-').map(Number);
-  return new Date(Y,M-1,D,0,0,0,0).getTime()+minutes*60000;
-}
 // Jump to 30 minutes before the next eclipse, or with central set to 5 minutes before the next
 // total or annular phase. Pressing again from that lead moves on to the one after.
-function jumpNextEclipse(central){
+// With totalOnly, annular eclipses are passed over too.
+function jumpNextEclipse(central, totalOnly){
   if(dayPlaying){ dayPlaying=false; adoptPlayRate(); hplay.textContent='Play'; hplay.setAttribute('aria-pressed','false'); syncVRPad(); }
   const lead=(central?5:30)*60*1000;
   let after=pageMs()+1000, ev=null;
-  for(let n=0;n<6;n++){
+  for(let n=0;n<12;n++){
     ev=findNextEclipse(after, central);
     if(!ev) break;
-    if(Math.abs(ev.start-lead-(after-1000))>90*1000) break;
+    if(Math.abs(ev.start-lead-(after-1000))>90*1000 && !(totalOnly && ev.type!=='total')) break;
     after=ev.start+1000;
   }
   if(!ev){ vrNote=central?'no total or annular eclipse in the next forty years':'no eclipse in the next eight years'; paintVR(); return; }
-  const t=new Date(ev.start-lead);
-  document.getElementById('moonDate').value=localISODate(t);
-  minutes=t.getHours()*60+t.getMinutes()+t.getSeconds()/60+t.getMilliseconds()/60000;
+  const at=pageAt(dayOfMs(ev.start-lead));
+  document.getElementById('moonDate').value=at.date;
+  minutes=at.min;
   hslider.value=minutes;
   const g=sunGeom(LATDEG[dLat], minutes), elev=90-g.sza;
   vrYaw=g.az; vrPitch=Math.max(-8, Math.min(15, elev-8));

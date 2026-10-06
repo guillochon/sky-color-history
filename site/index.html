@@ -134,6 +134,8 @@ button.tick.on{background:none;color:var(--ink)}
 .cb-label{min-width:7.5em;font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2)}
 .clock{font-size:1.2rem;min-width:5.5ch}
 .cb-lat{display:inline-flex}
+.cb-date{display:inline-flex;align-items:center;gap:.3rem}
+#dYear{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg2);border:1px solid var(--rule);border-radius:3px;padding:.24rem .4rem;width:5.2em}
 .cb-lat button{border-radius:0;margin-left:-1px}
 .cb-lat button:first-child{border-radius:3px 0 0 3px;margin-left:0}.cb-lat button:last-child{border-radius:0 3px 3px 0}
 @media (max-width:560px){.cb-label{min-width:100%}}
@@ -220,7 +222,7 @@ h2.epoch-title{margin:.1rem 0 .2rem;font-size:1.9rem;font-weight:400;line-height
     <div class="cb-row cb-day">
      <button id="hplay" aria-pressed="false">Play</button>
      <span id="hclock" class="clock"></span>
-     <label class="cb-date">Date <input id="moonDate" type="date" aria-label="Date for the Moon and planets"></label>
+     <span class="cb-date" role="group" aria-label="Date">Date <select id="dMonth" aria-label="Month"></select><select id="dDay" aria-label="Day"></select><input id="dYear" type="number" min="1" max="9999" step="1" aria-label="Year"><input id="moonDate" type="hidden"></span>
      <span role="group" aria-label="Latitude" class="cb-lat"><button data-lat="Equator" aria-pressed="false">Equator</button><button data-lat="Mid-latitude" aria-pressed="true">45°</button><button data-lat="Polar" aria-pressed="false">75°</button></span>
      <button id="expo" aria-pressed="false" title="Normalize brightness so that color is visible in dim skies">Auto-exposure</button>
     </div>
@@ -308,6 +310,7 @@ h2.epoch-title{margin:.1rem 0 .2rem;font-size:1.9rem;font-weight:400;line-height
   <summary>Color and brightness</summary>
   <p>The sky model is spherical-shell single scattering with a delta-Eddington multiple-scattering correction, from 380 to 780 nm, with CIE 1931 color matching and sRGB output without chromatic adaptation: colors are what a daylight-balanced camera would record, not what an adapted eye would perceive. Clouds are omitted from the model (the VR clouds are scenery), and the compositions of the ancient atmospheres carry order-of-magnitude uncertainty.</p>
   <p>The clock runs over one solar day of the epoch. Days were shorter when the Moon was closer: the Earth–Moon angular momentum is held fixed, giving 23.8 hours at 66 Ma, 21.9 at 700 Ma, 17.4 at 2.2 Ga, 15.6 at 2.7 Ga and about 12½ in the Hadean, matching Farhat et al. 2022. Play runs at the same pace in hours, so short days pass faster.</p>
+  <p>The year is the same length in seconds in every epoch (the Earth's orbit is set by the Sun's mass, which has barely changed), so it holds more of the shorter days: 368 at 66 Ma, 562 at 2.7 Ga, 713 in the Early Hadean. Those epochs count twelve equal months of 30 to 60 days; the 24-hour epochs keep the Gregorian calendar. The Sun follows the seasons for the date, with today's 23.4° tilt in every epoch (the Moon has held it between about 22° and 24.5°), and sunlight is 3.4% stronger at perihelion in January than on average. The clock is sundial time: the Sun crosses the meridian at noon.</p>
   <p>The time of day is interpolated between 34 computed Sun heights, 1° apart from the horizon to 20° below it; past 9° below, twilight dims by about a magnitude per degree, as measured. Night skies are drawn as a dark-adapted eye sees them, brighter than the daytime display curve would give, and Auto-exposure normalizes brightness so that color shows in dim skies.</p>
  </details>
 </section>
@@ -455,7 +458,7 @@ const WIKI={
 function showEpoch(pos){
   tPos=pos; drawGlobeAt(pos);
   const i=Math.round(pos);
-  if(i!==dIdx){ dIdx=i; sel.value=String(i); renderDay(); warm(); }
+  if(i!==dIdx){ const yf=yearFraction(), L=dayHours(); dIdx=i; if(dayHours()!==L) document.getElementById('moonDate').value=dateAtFraction(...yf); sel.value=String(i); renderDay(); warm(); }
   if(i===tIdx && document.getElementById('tname').textContent) return; tIdx=i;
   const ep=EP[i];
   document.getElementById('tname').textContent=ep.name;
@@ -497,8 +500,8 @@ const DAYMIN=1440; // midnight to midnight
 sel.value=dIdx;
 const LATDEG={'Equator':0,'Mid-latitude':45,'Polar':75};
 const SZ=DAY.szas, VZ=DAY.vz, AZ=DAY.az;
-function sunGeom(lat,min){ const h=(min/60-12)*15*Math.PI/180, phi=lat*Math.PI/180; const cz=Math.cos(phi)*Math.cos(h); const z=Math.acos(Math.max(-1,Math.min(1,cz)))*180/Math.PI;
-  const A=Math.atan2(Math.sin(h), Math.cos(h)*Math.sin(phi)); let comp=180+A*180/Math.PI; if(lat===0){ comp = h<0?90:270; } return {sza:z, az:((comp%360)+360)%360}; }
+// The Sun at clock time min (sundial time) and declination dec, by default the page date's.
+function sunGeom(lat, min, dec=sunEquatorial(astroDay()).Dec){ const p=altaz(lat, dec, (min/60-12)*15); return {sza:90-p.alt, az:p.az}; }
 function idx(xs,x){ if(x<=xs[0]) return [0,0]; for(let i=0;i<xs.length-1;i++) if(x<xs[i+1]) return [i,(x-xs[i])/(xs[i+1]-xs[i])]; return [xs.length-2,1]; }
 // interpolate XYZ of the dome grid at (sza, vz, azrel): linear in sza, monotone cubic in vz and az
 function herm(xs, ys, x){ // PCHIP: ys is an array of [X,Y,Z]; stays between adjacent samples
@@ -709,15 +712,18 @@ function cityUplight(key, Yref, k, p){
   return new Float32Array(c.map(v=>Math.pow(v/255, 2.2)));
 }
 function renderDay(fast){
-  vrNote='';
-  const ep=EP[dIdx], rec=DAY.epochs[ep.key][dLat]; const {sza,az:sunAz}=sunGeom(LATDEG[dLat],minutes);
+  vrNote=''; syncDateUI();
+  const ep=EP[dIdx], rec=DAY.epochs[ep.key][dLat], sunNow=sunEquatorial(astroDay()); const {sza,az:sunAz}=sunGeom(LATDEG[dLat], minutes, sunNow.Dec);
+  // Sunlight, and the moonlight it makes, go as the inverse square of the distance from the Sun:
+  // 3.4% brighter at perihelion in January than on average, 3.3% dimmer at aphelion in July.
+  const sunFlux=1/(sunNow.au*sunNow.au);
   const W=dome.width,H=dome.height, cx=W/2, cy=H/2, R=W*0.46;
   // Moonlight is the Sun's sky field, evaluated at the Moon and added. Hold the
   // Sun's pre-fade luminance so auto-exposure does not undo the twilight fade.
   const sunSrc=skySource(sza, sunAz);
   const moon=lunarPlace(LATDEG[dLat]);
   const moonSrc=skySource(90-moon.el, moon.az);
-  const mScale=moonSkyScale(moon, sunAz, 90-sza);
+  const mScale=moonSkyScale(moon, sunAz, 90-sza)*sunFlux;
   const si=sunSrc.si, st=sunSrc.st, past=sunSrc.past;
   const NR=72, NA=144; const grid=[];
   const addField=(X, src, scale, vz, comp)=>{
@@ -754,7 +760,7 @@ function renderDay(fast){
   let Ymax=1e-30, Yhold=1e-30, Ysun=1e-30;
   for(let ir=0;ir<=NR;ir++){ const row=[]; const vz=90*ir/NR; for(let ia=0;ia<=NA;ia++){ const comp=360*ia/NA;
       const X=night[ir].slice();
-      const Xsun=addField(X, sunSrc, sunVis, vz, comp);
+      const Xsun=addField(X, sunSrc, sunVis*sunFlux, vz, comp);
       if(Xsun){ const y=Xsun[1]*sunSrc.fade; if(y>Ysun) Ysun=y; if(Xsun[1]>Yhold) Yhold=Xsun[1]; }
       addField(X, moonSrc, mScale, vz, comp);
       addRing(X, vz);
@@ -872,9 +878,9 @@ function renderDay(fast){
   dctx.font='italic 20px Newsreader, Georgia, serif'; dctx.fillText(ep.short, 12, H-27);
   dctx.font='15px Newsreader, Georgia, serif'; dctx.fillText(`${ep.age} · ${dLat==='Polar'?'75° latitude':dLat==='Mid-latitude'?'45° latitude':'equator'}`, 12, H-8);
   // readouts
-  document.getElementById('hclock').textContent=clockLabel(minutes)+(dayHours()<24?` · ${dayHours()}-hour day`:'');
+  document.getElementById('hclock').textContent=clockLabel(minutes)+(dayHours()<24?` · ${dayHours()}-hour day · ${Math.round(yearDays())}-day year`:'');
   document.getElementById('relev').textContent=(90-sza).toFixed(1)+'°';
-  const sumAt=(vz,comp)=>{ const X=night[Math.min(NR, Math.round(vz/90*NR))].slice(); addField(X,sunSrc,sunVis,vz,comp); addField(X,moonSrc,mScale,vz,comp); addRing(X,vz); return X; };
+  const sumAt=(vz,comp)=>{ const X=night[Math.min(NR, Math.round(vz/90*NR))].slice(); addField(X,sunSrc,sunVis*sunFlux,vz,comp); addField(X,moonSrc,mScale,vz,comp); addRing(X,vz); return X; };
   const zX=sumAt(0, sunAz), hX=sumAt(88, sunAz+90);
   const fmt=X=>{ if(X[1]*cdu<1) return skyMagArcsec(X[1]*cdu).toFixed(1)+' mag/arcsec²'; const s=X[0]+X[1]+X[2]; const c=cct(X[0]/s,X[1]/s); return (c>800&&c<60000? c.toLocaleString()+' K':'—')+` · ${(100*X[1]/YREF).toPrecision(2)}%`; };
   document.getElementById('rzen').textContent=fmt(zX); document.getElementById('rhor').textContent=fmt(hX);
@@ -891,7 +897,6 @@ function warm(){ const ep=EP[dIdx], key=ep.key, lat=dLat; let s=0; const step=()
 sel.addEventListener('change',()=>setEpoch(+sel.value));
 document.querySelectorAll('[data-lat]').forEach(b=>b.addEventListener('click',()=>{ dLat=b.dataset.lat; document.querySelectorAll('[data-lat]').forEach(x=>x.setAttribute('aria-pressed',x===b)); renderDay(); warm(); }));
 const hslider=document.getElementById('hslider'); hslider.addEventListener('input',()=>{ minutes=+hslider.value; renderDay(); });
-document.getElementById('moonDate').addEventListener('change',()=>renderDay());
 const htrack=document.getElementById('htrack');
 const HMIN=+hslider.min, HMAX=+hslider.max;
 // The time of day in the epoch's own hours: m is the fraction of the day times DAYMIN.
@@ -991,15 +996,8 @@ function sind(x){ return Math.sin(x*Math.PI/180); }
 function cosd(x){ return Math.cos(x*Math.PI/180); }
 function dayNumber(y,m,D,ut){ const div=(a,b)=>Math.trunc(a/b); return 367*y - div(7*(y+div(m+9,12)),4) + div(275*m,9) + D - 730530 + ut/24; }
 function localISODate(t){ const p=n=>String(n).padStart(2,'0'); return t.getFullYear()+'-'+p(t.getMonth()+1)+'-'+p(t.getDate()); }
-function shiftMoonDate(days){
-  const el=document.getElementById('moonDate');
-  const raw=el.value||localISODate(new Date());
-  const [Y,M,D]=raw.split('-').map(Number);
-  el.value=localISODate(new Date(Y, M-1, D+days));
-}
 function instantUT(){
-  const raw=(document.getElementById('moonDate').value)||localISODate(new Date());
-  const [Y,M,D]=raw.split('-').map(Number);
+  const [Y,M,D]=pageDate();
   const local=new Date(Y,M-1,D, Math.floor(minutes/60), Math.floor(minutes%60), Math.floor((minutes*60)%60));
   return { y:local.getUTCFullYear(), m:local.getUTCMonth()+1, D:local.getUTCDate(),
     ut:local.getUTCHours()+local.getUTCMinutes()/60+local.getUTCSeconds()/3600,
@@ -1027,12 +1025,12 @@ function moonEquatorial(d){
   const ye=yg*cosd(ecl)-zg*sind(ecl), ze=yg*sind(ecl)+zg*cosd(ecl);
   return {RA:Math.atan2(ye,xg)*180/Math.PI, Dec:Math.atan2(ze,Math.hypot(xg,ye))*180/Math.PI, Ls, Ms, r};
 }
-// The page's Sun keeps to the celestial equator, at right ascension Ls (sunGeom gives its hour
-// angle from the clock). Eclipses are this Sun and the Moon.
+// The Sun is placed for the date by sunEquatorial (calendar.js); sunGeom gives its hour angle
+// from the clock. Eclipses are this Sun and the Moon.
 const DN_UNIX=dayNumber(1970,1,1,0), DN_NEW0=dayNumber(2000,1,6,18.23), SYNODIC=29.530589;
 function dayOfMs(ms){ return DN_UNIX+ms/86400000; }
 function eqVec(ra, dec){ return [cosd(dec)*cosd(ra), cosd(dec)*sind(ra), sind(dec)]; }
-function geoPair(d){ const eq=moonEquatorial(d); return {eq, m:eqVec(eq.RA, eq.Dec), s:eqVec(eq.Ls, 0)}; }
+function geoPair(d){ const eq=moonEquatorial(d), sun=sunEquatorial(d); return {eq, m:eqVec(eq.RA, eq.Dec), s:eqVec(sun.RA, sun.Dec)}; }
 // Closest geocentric approach of the Moon to that Sun in lunation k (golden-section search
 // within 2.5 days of the mean new Moon), cached.
 const lunations=new Map();
@@ -1064,9 +1062,8 @@ function moonAt(d){
 // The eclipse at time ms: separation and true radii in degrees. The Moon's distance is from the
 // observer, an Earth radius closer than the Earth's centre with the Moon overhead.
 function eclipseAt(ms){
-  const m=moonAt(dayOfMs(ms)), t=new Date(ms);
-  const min=t.getHours()*60+t.getMinutes()+t.getSeconds()/60+t.getMilliseconds()/60000;
-  const el=90-sunGeom(LATDEG[dLat], min).sza;
+  const d=dayOfMs(ms), m=moonAt(d);
+  const el=90-sunGeom(LATDEG[dLat], pageAt(d).min, Math.asin(Math.max(-1, Math.min(1, m.s[2])))*180/Math.PI).sza;
   const sep=Math.acos(Math.max(-1, Math.min(1, m.v[0]*m.s[0]+m.v[1]*m.s[1]+m.v[2]*m.s[2])))*180/Math.PI;
   return {sep, rS:sunRadiusAt(m.Ms), rM:moonRadiusAt(m.r-Math.max(0, sind(el))), el};
 }
@@ -1079,13 +1076,107 @@ function altaz(lat,dec,H){
   return {alt, az};
 }
 function lunarPlace(lat){
-  const ins=instantUT(), eq=moonAt(dayNumber(ins.y,ins.m,ins.D,ins.ut));
-  const GMST=rev(eq.Ls+180+ins.ut*15), LST=rev(GMST+ins.lon);
-  let H=rev(LST-rev(eq.RA)); if(H>180) H-=360;
+  const eq=moonAt(astroDay());
+  let H=rev(localSidereal()-rev(eq.RA)); if(H>180) H-=360;
   const p=altaz(lat, eq.Dec, H), radDeg=moonRadiusAt(eq.r-Math.max(0, sind(p.alt))), sunRadDeg=sunRadiusAt(eq.Ms);
   return {az:p.az, el:p.alt, radDeg, rad:radDeg*Math.PI/180, sunRadDeg, on:apparentEl(p.alt)>-radDeg*DISK_SCALE};
 }
 
+/* ---------- the epoch's calendar, and the Sun through the year ---------- */
+// The year is the same length in seconds in every epoch: the Earth's orbit is set by the Sun's
+// mass, and the planets do not drift. (The Sun has lost well under 1% of its mass to its wind
+// since the Archean, which would make the year then at most 2% shorter; that is left out.) A
+// year of shorter days holds more of them: 368 at 66 Ma, 562 at 2.7 Ga, 713 in the Early Hadean.
+// Epochs with 24-hour days keep the Gregorian calendar, so their dates and eclipses are real.
+// The others count twelve equal months of 30 to 60 days; year lengths alternate so the calendar
+// keeps step with the seasons, and year 2000 starts where the Gregorian 2000 does.
+const TROPICAL_YEAR=365.24219;
+const MONTH_NAMES=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function gregorian(){ return dayHours()===24; }
+function yearDays(){ return TROPICAL_YEAR*24/dayHours(); }
+// Day index (days of the epoch since 2000 Jan 1) where year Y starts, and its length.
+function yearStart(Y){ return Math.floor((Y-2000)*yearDays()); }
+function yearLen(Y){ return yearStart(Y+1)-yearStart(Y); }
+// Day within the year where month m (1–12) starts, and its length.
+function monthStart(Y, m){ return Math.round((m-1)*yearLen(Y)/12); }
+function monthLen(Y, m){
+  if(gregorian()) return new Date(Y, m, 0).getDate();
+  return (m===12?yearLen(Y):monthStart(Y, m+1))-monthStart(Y, m);
+}
+function fmtDate(Y, M, D){ const p=n=>String(n).padStart(2,'0'); return String(Y).padStart(4,'0')+'-'+p(M)+'-'+p(D); }
+// The page date as [Y, M, D], with the month and day held to this epoch's calendar.
+function parseDate(raw){
+  const p=(raw||'').split('-').map(Number);
+  if(p.length!==3 || p.some(v=>!Number.isFinite(v))){ const t=new Date(); return [t.getFullYear(), t.getMonth()+1, t.getDate()]; }
+  const Y=Math.round(p[0]), M=Math.max(1, Math.min(12, Math.round(p[1])));
+  return [Y, M, Math.max(1, Math.min(monthLen(Y, M), Math.round(p[2])))];
+}
+function pageDate(){ return parseDate(document.getElementById('moonDate').value); }
+function epochDayIndex(Y, M, D){ return yearStart(Y)+monthStart(Y, M)+D-1; }
+function epochDateOf(k){
+  let Y=2000+Math.floor(k/yearDays());
+  while(yearStart(Y)>k) Y--;
+  while(yearStart(Y+1)<=k) Y++;
+  const off=k-yearStart(Y); let M=12;
+  while(M>1 && monthStart(Y, M)>off) M--;
+  return [Y, M, off-monthStart(Y, M)+1];
+}
+function shiftMoonDate(days){
+  const el=document.getElementById('moonDate'), [Y,M,D]=pageDate();
+  el.value=gregorian() ? localISODate(new Date(Y, M-1, D+days)) : fmtDate(...epochDateOf(epochDayIndex(Y, M, D)+days));
+}
+// The instant shown, as a day number of today's 24-hour days for the ephemerides. In the other
+// calendars time runs from local midnight starting 2000 Jan 1, on standard time.
+const DN_2000=dayNumber(2000,1,1,0), TZ_STD=-new Date(2000,0,1).getTimezoneOffset()/60;
+function astroDay(){
+  if(gregorian()){ const ins=instantUT(); return dayNumber(ins.y, ins.m, ins.D, ins.ut); }
+  const [Y,M,D]=pageDate();
+  return DN_2000-TZ_STD/24+(epochDayIndex(Y, M, D)+minutes/DAYMIN)*dayHours()/24;
+}
+// The page date and clock at day number d.
+function pageAt(d){
+  if(gregorian()){ const t=new Date((d-DN_UNIX)*86400000); return {date:localISODate(t), min:t.getHours()*60+t.getMinutes()+t.getSeconds()/60+t.getMilliseconds()/60000}; }
+  const E=(d-DN_2000+TZ_STD/24)*24/dayHours(), k=Math.floor(E);
+  return {date:fmtDate(...epochDateOf(k)), min:(E-k)*DAYMIN};
+}
+function pageMs(){ return (astroDay()-DN_UNIX)*86400000; }
+// Moving between calendars keeps the season: the same year and fraction of it.
+function yearFraction(){
+  const [Y,M,D]=pageDate();
+  if(gregorian()){ const a=dayNumber(Y,1,1,0); return [Y, (dayNumber(Y,M,D,0)-a)/(dayNumber(Y+1,1,1,0)-a)]; }
+  return [Y, (monthStart(Y, M)+D-1)/yearLen(Y)];
+}
+function dateAtFraction(Y, f){
+  if(gregorian()){ const a=dayNumber(Y,1,1,0), n=dayNumber(Y+1,1,1,0)-a; return localISODate(new Date(Y, 0, 1+Math.min(n-1, Math.round(f*n)))); }
+  return fmtDate(...epochDateOf(yearStart(Y)+Math.min(yearLen(Y)-1, Math.round(f*yearLen(Y)))));
+}
+// The Sun for day number d (Schlyter's elements, with the equation of centre): right ascension,
+// declination, ecliptic longitude, mean anomaly, and distance in AU. The axis keeps today's tilt
+// in every epoch; the Moon has held it between about 22° and 24.5°.
+const OBLIQUITY=23.44;
+function sunEquatorial(d){
+  const Ms=rev(356.0470+0.9856002585*d), lam=rev(282.9404+4.70935e-5*d+Ms+1.9148*sind(Ms)+0.0200*sind(2*Ms));
+  return {RA:rev(Math.atan2(cosd(OBLIQUITY)*sind(lam), cosd(lam))*180/Math.PI), Dec:Math.asin(sind(OBLIQUITY)*sind(lam))*180/Math.PI,
+    lam, Ms, au:1.00014-0.01671*cosd(Ms)-0.00014*cosd(2*Ms)};
+}
+// The clock is sundial time: the Sun crosses the meridian at 12:00. Local sidereal time follows
+// from the Sun's right ascension and its hour angle.
+function localSidereal(){ return rev(sunEquatorial(astroDay()).RA+(minutes/60-12)*15); }
+// The date picker: month, day and year, with as many days in a month as this epoch has.
+const dMonth=document.getElementById('dMonth'), dDay=document.getElementById('dDay'), dYear=document.getElementById('dYear');
+MONTH_NAMES.forEach((n, i)=>{ const o=document.createElement('option'); o.value=String(i+1); o.textContent=n; dMonth.appendChild(o); });
+function syncDateUI(){
+  const [Y,M,D]=pageDate(), n=monthLen(Y, M);
+  if(dDay.options.length!==n){ dDay.innerHTML=''; for(let i=1;i<=n;i++){ const o=document.createElement('option'); o.value=String(i); o.textContent=String(i); dDay.appendChild(o); } }
+  dMonth.value=String(M); dDay.value=String(D); if(document.activeElement!==dYear) dYear.value=String(Y);
+}
+function readDateUI(){
+  const Y=Math.round(+dYear.value), M=+dMonth.value;
+  if(!Number.isFinite(Y) || Y<1 || Y>9999) return;
+  document.getElementById('moonDate').value=fmtDate(Y, M, Math.max(1, Math.min(+dDay.value||1, monthLen(Y, M))));
+  renderDay();
+}
+[dMonth, dDay, dYear].forEach(el=>el.addEventListener('change', readDateUI));
 // Yale Bright Star Catalogue, 5th revised ed. (Hoffleit & Warren 1991): the thousand
 // brightest stars at J2000.0. T CrB is left out; the catalog magnitude is its 1946
 // outburst, and the star is about tenth magnitude the rest of the time. Each row is
@@ -12171,7 +12262,7 @@ function planetDisplay(mag, tint){
 // Write the planets into slots STAR_N to STAR_N+PLANET_N-1 of the star texture. Positions are
 // J2000, precessed to the same year as the stars so they sit correctly among them.
 function placePlanets(lat, tex, marks, up, epochKey, year, LST){
-  const ins=instantUT(), T=(dayNumber(ins.y, ins.m, ins.D, ins.ut)-1.5)/36525;
+  const T=(astroDay()-1.5)/36525;
   const earth=planetHelio(PLANET_EARTH[0], PLANET_EARTH[1], T), R=Math.hypot(...earth);
   const eps=23.43928*Math.PI/180, ce=Math.cos(eps), se=Math.sin(eps);
   // Saturn's ring-plane pole, J2000 equatorial (RA 40.589, Dec 83.537).
@@ -12386,10 +12477,9 @@ function mwSample(l, b){
 // from J2000 to the stars' year with the same precession as the stars.
 const GAL_AXES=[[-0.0548755604, -0.8734370902, -0.4838350155], [0.4941094279, -0.4448296300, 0.7469822445], [-0.8676661490, -0.1980763734, 0.4559837762]];
 function galacticBasis(lat){
-  const epochKey=EP[dIdx].key, ins=instantUT();
-  const year=STAR_YEAR[epochKey]||+(document.getElementById('moonDate').value||localISODate(new Date())).slice(0,4);
-  const eq=moonEquatorial(dayNumber(ins.y,ins.m,ins.D,ins.ut));
-  const LST=rev(rev(eq.Ls+180+ins.ut*15)+ins.lon);
+  const epochKey=EP[dIdx].key;
+  const year=STAR_YEAR[epochKey]||pageDate()[0];
+  const LST=localSidereal();
   const toHoriz=v=>{
     const ra=Math.atan2(v[1], v[0])*180/Math.PI, dec=Math.asin(Math.max(-1, Math.min(1, v[2])))*180/Math.PI;
     const place=starMeanPlace([ra, dec, 0, 0, 0, 0], epochKey, year);
@@ -12522,10 +12612,9 @@ function placeSatellites(latDeg, tex, marks, up){
 // Star places use this year for proper motion and precession, instead of the date picker's.
 const STAR_YEAR={volcanic:1815};
 function placeStars(lat){
-  const epochKey=EP[dIdx].key, ins=instantUT(), list=STARS_EPOCH[epochKey]||STARS;
-  const year=STAR_YEAR[epochKey]||+(document.getElementById('moonDate').value||localISODate(new Date())).slice(0,4);
-  const eq=moonEquatorial(dayNumber(ins.y,ins.m,ins.D,ins.ut));
-  const LST=rev(rev(eq.Ls+180+ins.ut*15)+ins.lon);
+  const epochKey=EP[dIdx].key, list=STARS_EPOCH[epochKey]||STARS;
+  const year=STAR_YEAR[epochKey]||pageDate()[0];
+  const LST=localSidereal();
   const tex=new Float32Array(STAR_MAP_W*8), marks=[], up=[];
   for(let i=0;i<list.length && i<STAR_N;i++){
     const star=list[i], place=starMeanPlace(star, epochKey, year);
@@ -12600,9 +12689,7 @@ const SUPERNOVA={
 function supernovaPlace(lat){
   const sn=SUPERNOVA[EP[dIdx].key];
   if(!sn) return null;
-  const ins=instantUT(), year=+(document.getElementById('moonDate').value||localISODate(new Date())).slice(0,4);
-  const eq=moonEquatorial(dayNumber(ins.y,ins.m,ins.D,ins.ut));
-  const LST=rev(rev(eq.Ls+180+ins.ut*15)+ins.lon);
+  const year=pageDate()[0], LST=localSidereal();
   const place=starMeanPlace([sn.ra, sn.dec, sn.mag, 0, 0, 0], EP[dIdx].key, year);
   let H=rev(LST-rev(place.ra)); if(H>180) H-=360;
   const p=altaz(lat, place.dec, H);
@@ -12647,18 +12734,10 @@ function sunCovered(sep, rSun, rMoon){
   const area=r2*ang+R2*bng-0.5*Math.sqrt(Math.max(0,(-d+rSun+R)*(d+rSun-R)*(d-rSun+R)*(d+rSun+R)));
   return Math.min(1, Math.max(0, area/(Math.PI*r2)));
 }
-// Equinox Sun is above the horizon strictly between 06:00 and 18:00 local time.
+// Whether the Sun is up at any point of an eclipse from a to b (ms), sampled ninefold.
 function sunUpDuring(a, b){
   if(!(b>a)) return false;
-  const rise=6*3600000, day=86400000;
-  let t=a;
-  for(let n=0;n<3;n++){
-    const d=new Date(t), sod=((d.getHours()*60+d.getMinutes())*60+d.getSeconds())*1000+d.getMilliseconds();
-    const up0=t-sod+rise, up1=up0+12*3600000;
-    if(up0<b && up1>a) return true;
-    t=up0+day;
-    if(t>=b) break;
-  }
+  for(let n=0;n<=8;n++) if(eclipseAt(a+(b-a)*n/8).el>0) return true;
   return false;
 }
 // How far the enlarged disks are from the eclipse condition at time ms: negative while they
@@ -15186,27 +15265,23 @@ function stepMinutes(d){
 function stepEpoch(d){
   setEpoch((dIdx+d%EP.length+EP.length)%EP.length);
 }
-function pageMs(){
-  const raw=(document.getElementById('moonDate').value)||localISODate(new Date());
-  const [Y,M,D]=raw.split('-').map(Number);
-  return new Date(Y,M-1,D,0,0,0,0).getTime()+minutes*60000;
-}
 // Jump to 30 minutes before the next eclipse, or with central set to 5 minutes before the next
 // total or annular phase. Pressing again from that lead moves on to the one after.
-function jumpNextEclipse(central){
+// With totalOnly, annular eclipses are passed over too.
+function jumpNextEclipse(central, totalOnly){
   if(dayPlaying){ dayPlaying=false; adoptPlayRate(); hplay.textContent='Play'; hplay.setAttribute('aria-pressed','false'); syncVRPad(); }
   const lead=(central?5:30)*60*1000;
   let after=pageMs()+1000, ev=null;
-  for(let n=0;n<6;n++){
+  for(let n=0;n<12;n++){
     ev=findNextEclipse(after, central);
     if(!ev) break;
-    if(Math.abs(ev.start-lead-(after-1000))>90*1000) break;
+    if(Math.abs(ev.start-lead-(after-1000))>90*1000 && !(totalOnly && ev.type!=='total')) break;
     after=ev.start+1000;
   }
   if(!ev){ vrNote=central?'no total or annular eclipse in the next forty years':'no eclipse in the next eight years'; paintVR(); return; }
-  const t=new Date(ev.start-lead);
-  document.getElementById('moonDate').value=localISODate(t);
-  minutes=t.getHours()*60+t.getMinutes()+t.getSeconds()/60+t.getMilliseconds()/60000;
+  const at=pageAt(dayOfMs(ev.start-lead));
+  document.getElementById('moonDate').value=at.date;
+  minutes=at.min;
   hslider.value=minutes;
   const g=sunGeom(LATDEG[dLat], minutes), elev=90-g.sza;
   vrYaw=g.az; vrPitch=Math.max(-8, Math.min(15, elev-8));
@@ -15490,8 +15565,9 @@ document.querySelectorAll('.vrpad button, .vrplay').forEach(b=>{
 syncVRPad();
 // Moments: cards on the landing page, oldest first, that open the VR view at a chosen sky. Each sets the epoch,
 // latitude, date and clock time, then where to look: toward the Sun (the default), a direction
-// (look: [azimuth, elevation]), or the supernova (look: 'sn'). The eclipse card finds the total
-// eclipse after its date as the t key does. Moments about the sky itself open with clouds off
+// (look: [azimuth, elevation]), or the supernova (look: 'sn'). The eclipse card finds the next total
+// eclipse from today with the Sun up, as the t key does but passing over annular ones. Moments
+// about the sky itself open with clouds off
 // (c brings them back).
 const MOMENTS=[
   {epoch:'hadean44', date:'2026-03-20', t:1050, title:'A Hadean evening, 4.4 Ga', sub:'Thirty bars of CO₂ under a young, faint Sun', art:'day'},
@@ -15501,7 +15577,7 @@ const MOMENTS=[
   {epoch:'geminga', date:'2026-01-15', t:1320, look:'sn', title:'The Geminga supernova', sub:'342,000 years ago, a star in Orion as bright as the quarter Moon', art:'nova'},
   {epoch:'volcanic', date:'2026-07-08', t:1380, look:[180, 32], title:'A town night in 1815', sub:'Oil lamps light the streets but barely touch the sky', art:'stars'},
   {epoch:'modern', date:'2026-07-08', t:1380, look:[180, 32], title:'A city night, today', sub:'Sodium and LED glow hides all but the brightest stars', art:'city'},
-  {epoch:'modern', date:'2029-09-01', eclipse:true, title:'Totality, September 2029', sub:'The corona, Baily’s beads, and a sunset all round the horizon', art:'eclipse'},
+  {epoch:'modern', date:null, eclipse:true, title:'The next total eclipse', sub:'The corona, Baily’s beads, and a sunset all round the horizon', art:'eclipse'},
 ];
 const MOMENT_ART={
   eclipse:'<defs><radialGradient id="mglow"><stop offset=".5" stop-color="#f4ecd8" stop-opacity=".6"/><stop offset="1" stop-color="#f4ecd8" stop-opacity="0"/></radialGradient></defs><circle cx="60" cy="38" r="26" fill="url(#mglow)"/><circle cx="60" cy="38" r="14.5" fill="none" stroke="#fbf3e0" stroke-width="1.6"/><circle cx="60" cy="38" r="13.6" fill="#05070c"/>',
@@ -15529,10 +15605,10 @@ function openMoment(m){
   setEpoch(EP.findIndex(e=>e.key===m.epoch));
   dLat='Mid-latitude';
   document.querySelectorAll('[data-lat]').forEach(x=>x.setAttribute('aria-pressed', x.dataset.lat===dLat?'true':'false'));
-  document.getElementById('moonDate').value=m.date;
+  document.getElementById('moonDate').value=m.date||localISODate(new Date());
   minutes=m.eclipse?0:m.t; hslider.value=String(minutes);
   renderDay();
-  if(m.eclipse) jumpNextEclipse(true);
+  if(m.eclipse) jumpNextEclipse(true, true);
   vrClouds=m.art==='day';
   enterVR(false);
   syncVRPad();

@@ -127,6 +127,8 @@ button.tick.on{background:none;color:var(--ink)}
 .cb-label{min-width:7.5em;font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2)}
 .clock{font-size:1.2rem;min-width:5.5ch}
 .cb-lat{display:inline-flex}
+.cb-date{display:inline-flex;align-items:center;gap:.3rem}
+#dYear{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg2);border:1px solid var(--rule);border-radius:3px;padding:.24rem .4rem;width:5.2em}
 .cb-lat button{border-radius:0;margin-left:-1px}
 .cb-lat button:first-child{border-radius:3px 0 0 3px;margin-left:0}.cb-lat button:last-child{border-radius:0 3px 3px 0}
 @media (max-width:560px){.cb-label{min-width:100%}}

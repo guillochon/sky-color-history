@@ -50,6 +50,7 @@ PARTS = [
     'js/globe.js',
     'js/day.js',
     'js/moon.js',
+    'js/calendar.js',
     'js/stars_catalog.js',
     'js/stars_epochs.js',
     'js/planets.js',

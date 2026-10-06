@@ -63,10 +63,9 @@ function mwSample(l, b){
 // from J2000 to the stars' year with the same precession as the stars.
 const GAL_AXES=[[-0.0548755604, -0.8734370902, -0.4838350155], [0.4941094279, -0.4448296300, 0.7469822445], [-0.8676661490, -0.1980763734, 0.4559837762]];
 function galacticBasis(lat){
-  const epochKey=EP[dIdx].key, ins=instantUT();
-  const year=STAR_YEAR[epochKey]||+(document.getElementById('moonDate').value||localISODate(new Date())).slice(0,4);
-  const eq=moonEquatorial(dayNumber(ins.y,ins.m,ins.D,ins.ut));
-  const LST=rev(rev(eq.Ls+180+ins.ut*15)+ins.lon);
+  const epochKey=EP[dIdx].key;
+  const year=STAR_YEAR[epochKey]||pageDate()[0];
+  const LST=localSidereal();
   const toHoriz=v=>{
     const ra=Math.atan2(v[1], v[0])*180/Math.PI, dec=Math.asin(Math.max(-1, Math.min(1, v[2])))*180/Math.PI;
     const place=starMeanPlace([ra, dec, 0, 0, 0, 0], epochKey, year);
