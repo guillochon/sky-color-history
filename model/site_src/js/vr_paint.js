@@ -234,7 +234,7 @@ function paintVR(){
   gl.uniform1f(u.sunOn, skyNow.sunOn?1:0);
   gl.uniform1f(u.sunRad, skyNow.moon.sunRadDeg*DISK_SCALE*Math.PI/180);
   gl.uniform1f(u.corona, skyNow.corona||0);
-  gl.uniform4fv(u.bead, new Float32Array(skyNow.bead||[0,0,1,0]));
+  gl.uniform4fv(u.beads, skyNow.beads||new Float32Array(24));
   gl.uniform1f(u.sunMu, Math.max(0, Math.sin(apparentEl(90-skyNow.sza)*Math.PI/180))*(skyNow.sunVis==null?1:skyNow.sunVis));
   gl.uniform3fv(u.sunCol, new Float32Array(skyNow.sunRGB.map(v=>v/255)));
   gl.uniform3fv(u.ground, groundRGB());

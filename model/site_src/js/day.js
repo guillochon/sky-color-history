@@ -60,6 +60,48 @@ function skySource(sza, az){
   const [si,st]=idx(SZ, Math.min(Math.max(sza, SZ[0]), last));
   return {si, st, fade, az, past};
 }
+// Baily's beads: walk round the Moon's limb (with its relief, limbH) in the plane of the sky and
+// find the runs of position angle where photosphere still shows between the limb and the far
+// edge of the Sun. Each run is a bead, placed at its area-weighted centre. Their glare follows
+// the photosphere left (with the relief) and fades as more of it shows; each bead gets the
+// square root of its share of the largest. Returns up to six as vec4s (direction, strength).
+function findBeads(moon, sunAz, sza, rSun, rMoon, sunUp){
+  const out=new Float32Array(24), none={beads:out, beadW:0, beadDir:[0,0,1]};
+  if(!sunUp) return none;
+  const b=moonBasis(moon), sd=horizDir(sunAz, 90-sza), d2r=Math.PI/180;
+  const cosSep=Math.max(-1, Math.min(1, vdot(sd, b.md))), sep=Math.acos(cosSep);
+  if(sep>(rSun+rMoon*1.03)*d2r) return none;
+  const k=sep>1e-9?sep/Math.sqrt(Math.max(1-cosSep*cosSep, 1e-18)):1;
+  const cx=vdot(sd, b.east)*k, cy=vdot(sd, b.north)*k, R=rSun*d2r, c2=cx*cx+cy*cy;
+  const N=720, dth=2*Math.PI/N, w=new Float64Array(N), rm=new Float64Array(N);
+  let total=0;
+  for(let i=0;i<N;i++){
+    const th=i*dth, ux=Math.sin(th), uy=Math.cos(th), uc=ux*cx+uy*cy, disc=uc*uc-(c2-R*R);
+    if(disc<=0) continue;
+    const far=uc+Math.sqrt(disc), near=Math.max(0, uc-Math.sqrt(disc)), lo=Math.max(near, rMoon*d2r*(1+limbH(th)));
+    if(far>lo){ w[i]=(far*far-lo*lo)/2*dth; rm[i]=(far+lo)/2; total+=w[i]; }
+  }
+  const vis=total/(Math.PI*R*R);
+  const env=smooth01(0, 0.0015, vis)*(1-smooth01(0.012, 0.045, vis));
+  if(!(env>0)) return none;
+  let start=0; while(start<N && w[start]>0) start++;
+  if(start===N) return none; // the whole limb shows: no beads
+  const runs=[]; let cur=null;
+  for(let j=1;j<=N;j++){
+    const i=(start+j)%N;
+    if(w[i]>0){ if(!cur) cur={a:0, s:0, x:0, y:0}; const th=i*dth; cur.a+=w[i]; cur.x+=w[i]*rm[i]*Math.sin(th); cur.y+=w[i]*rm[i]*Math.cos(th); }
+    else if(cur){ runs.push(cur); cur=null; }
+  }
+  runs.sort((p, q)=>q.a-p.a);
+  const top=runs.slice(0, 6), amax=top.length?top[0].a:1;
+  let beadDir=[0,0,1];
+  top.forEach((r, j)=>{
+    const x=r.x/r.a, y=r.y/r.a, dir=vnorm(vadd(b.md, vscale(b.east, x), vscale(b.north, y)));
+    if(j===0) beadDir=dir;
+    out.set([dir[0], dir[1], dir[2], env*Math.sqrt(r.a/amax)], j*4);
+  });
+  return {beads:out, beadW:env, beadDir};
+}
 function renderDay(fast){
   vrNote='';
   const ep=EP[dIdx], rec=DAY.epochs[ep.key][dLat]; const {sza,az:sunAz}=sunGeom(LATDEG[dLat],minutes);
@@ -152,10 +194,7 @@ function renderDay(fast){
   // full Moon's brightness), the ring while the last sliver is going.
   const sunUp=sza<90+SUN_RADIUS_DEG*diskScale;
   const corona=sunUp?1-smooth01(0.003, 0.03, sunVis):0;
-  const beadW=sunUp?smooth01(0, 0.0015, sunVis)*(1-smooth01(0.012, 0.045, sunVis)):0;
-  const sDir=horizDir(sunAz, 90-sza), mDir=horizDir(moon.az, moon.el);
-  let away=vnorm(vadd(sDir, vscale(mDir, -1), [0,0,0])); away=vnorm(vadd(away, vscale(sDir, -vdot(away, sDir)), [0,0,0]));
-  const beadDir=vnorm(vadd(sDir, vscale(away, Math.tan(rSun*0.97*Math.PI/180)), [0,0,0]));
+  const {beads, beadW, beadDir}=findBeads(moon, sunAz, sza, rSun, rMoon, sunUp);
   if(!fast && sunUpPix && (corona>0 || beadW>0)){
     const mrr=R*(90-moon.el)/90, ma=moon.az*Math.PI/180, mx=cx+mrr*Math.sin(ma), my=cy-mrr*Math.cos(ma), mr=moon.radDeg*(DOME_DISK/SUN_RADIUS_DEG);
     dctx.save(); dctx.beginPath(); dctx.arc(cx,cy,R,0,Math.PI*2); dctx.clip();
@@ -170,6 +209,7 @@ function renderDay(fast){
   }
   if(!fast) drawMoonOnDome(moon, sunAz, 90-sza, sunUpPix?{x:sx,y:sy,r:SUNR}:null);
   if(!fast && sunUpPix && beadW>0){
+    // The dome is too coarse for separate beads; the brightest stands for them.
     const bAz=Math.atan2(beadDir[0], beadDir[1]), bZ=90-Math.asin(beadDir[2])*180/Math.PI, br=R*bZ/90, bx=cx+br*Math.sin(bAz), by=cy-br*Math.cos(bAz);
     const g=dctx.createRadialGradient(bx,by,0,bx,by,SUNR*3);
     g.addColorStop(0, `rgba(255,255,250,${beadW})`); g.addColorStop(0.15, `rgba(255,250,235,${0.6*beadW})`); g.addColorStop(1, 'rgba(255,250,235,0)');
@@ -186,7 +226,7 @@ function renderDay(fast){
   }
   const sn=supernovaPlace(LATDEG[dLat]);
   if(!fast) drawSupernovaOnDome(sn);
-  skyNow={colgrid, sza, sunAz, sunRGB, sunVis, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE+35/60, moon, corona, bead:[...beadDir, beadW], eclipse, central, stars:stars.tex, starBins:stars.bins, starIdx:stars.idx, starIdxCount:stars.idxCount, sn, moonRel:mScale/MOON_SUN_FULL, gen:++skyGen};
+  skyNow={colgrid, sza, sunAz, sunRGB, sunVis, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE+35/60, moon, corona, beads, eclipse, central, stars:stars.tex, starBins:stars.bins, starIdx:stars.idx, starIdxCount:stars.idxCount, sn, moonRel:mScale/MOON_SUN_FULL, gen:++skyGen};
   document.getElementById('rmoon').textContent = (moon.el<-moon.radDeg ? 'below horizon' : moon.el.toFixed(1)+'°')+' · '+Math.round(moonLit(moon, sunAz, 90-sza)*100)+'% lit · '+(mScale/MOON_SUN_FULL).toPrecision(2)+'× full';
   if(vrOn) paintVR();
   if(fast) return;

@@ -133,7 +133,7 @@ button.tick.on{background:none;color:var(--ink)}
 </div>
 
 <h2>A day under that sky</h2>
-<p class="hint">A whole-sky (fisheye) view: the zenith is at the center and the horizon is the rim, north at the top. Equinox geometry, so the Sun rises due east at 6:00 and sets due west at 18:00 everywhere; at the poles the noon Sun sits only 15° above the horizon. The Moon is placed for the selected date and clock time at the selected latitude, on your time zone's central meridian. On this dome the Sun and Moon are enlarged together so the phase stays readable; in the VR view both are drawn at four times their true angular size. Moonlight is the same sky grid as sunlight, added on top, with the Moon at its own place in the sky. Its brightness follows the lunar phase and the Moon's angular size at that epoch. When the Moon covers part of the Sun, sunlight throughout the sky is scaled by the fraction of that drawn solar disk still visible, so a partial eclipse is more common than for the true sizes, and a true overlap is still covered. Both disks change size: the Moon with its distance on the date, an Earth radius closer when overhead, and the Sun with the Earth's distance through the year. A Moon near perigee covers the Sun completely; near apogee it leaves a ring. From 2.2 billion years ago back the Moon was close enough that every central eclipse is total. For each new Moon the view stands at the best seat, where parallax brings the Moon closest to the Sun. In totality the sky is lit from beyond the Moon's shadow: this epoch's twilight sky, with a sunset glow all round the horizon, about a thousandth as bright as the day sky. The pearly corona and a thin pink rim appear, with the diamond ring at the edges of totality. Because the disks are drawn enlarged, every phase lasts about four times as long, so play slows tenfold through totality and the annular ring. The thousand brightest stars are drawn on this dome and in the VR view where they stood in the epoch: their present-day places for most, 1815 for the volcanic year, and for the two supernova epochs the thousand brightest at that time, each moved in a straight line from its Hipparcos parallax, proper motion, and radial velocity (Earth's axis keeps today's tilt and direction, since its precession that long ago cannot be pinned down). The five naked-eye planets are placed for the selected date and clock time on today's orbits, in every epoch, as the Moon is, and drawn on the same magnitude scale. The faintest of them is a single pixel, and size grows with brightness so that the hundred brightest keep the sizes they already had. Year 2100 adds the communications satellites and, brighter than those, the Sunrise orbital datacenters, both on the same magnitude scale, and both move as the clock does.</p>
+<p class="hint">A whole-sky (fisheye) view: the zenith is at the center and the horizon is the rim, north at the top. Equinox geometry, so the Sun rises due east at 6:00 and sets due west at 18:00 everywhere; at the poles the noon Sun sits only 15° above the horizon. The Moon is placed for the selected date and clock time at the selected latitude, on your time zone's central meridian. On this dome the Sun and Moon are enlarged together so the phase stays readable; in the VR view both are drawn at four times their true angular size. Moonlight is the same sky grid as sunlight, added on top, with the Moon at its own place in the sky. Its brightness follows the lunar phase and the Moon's angular size at that epoch. When the Moon covers part of the Sun, sunlight throughout the sky is scaled by the fraction of that drawn solar disk still visible, so a partial eclipse is more common than for the true sizes, and a true overlap is still covered. Both disks change size: the Moon with its distance on the date, an Earth radius closer when overhead, and the Sun with the Earth's distance through the year. A Moon near perigee covers the Sun completely; near apogee it leaves a ring. From 2.2 billion years ago back the Moon was close enough that every central eclipse is total. For each new Moon the view stands at the best seat, where parallax brings the Moon closest to the Sun. In totality the sky is lit from beyond the Moon's shadow: this epoch's twilight sky, with a sunset glow all round the horizon, about a thousandth as bright as the day sky. The pearly corona and a thin pink rim appear, with Baily's beads and the diamond ring at the edges of totality: the Moon's limb has mountains and valleys (ten times the real relief, so they show on the enlarged disk), and the last sunlight comes through the valleys. Because the disks are drawn enlarged, every phase lasts about four times as long, so play slows tenfold through totality and the annular ring. The thousand brightest stars are drawn on this dome and in the VR view where they stood in the epoch: their present-day places for most, 1815 for the volcanic year, and for the two supernova epochs the thousand brightest at that time, each moved in a straight line from its Hipparcos parallax, proper motion, and radial velocity (Earth's axis keeps today's tilt and direction, since its precession that long ago cannot be pinned down). The five naked-eye planets are placed for the selected date and clock time on today's orbits, in every epoch, as the Moon is, and drawn on the same magnitude scale. The faintest of them is a single pixel, and size grows with brightness so that the hundred brightest keep the sizes they already had. Year 2100 adds the communications satellites and, brighter than those, the Sunrise orbital datacenters, both on the same magnitude scale, and both move as the clock does.</p>
 <div class="row">
  <div>
   <div class="stage" id="dstage"><button type="button" id="vrbtn" class="vrbtn" title="Full-screen view: look around while the day plays">VR</button><div class="tip" id="dtip"></div><canvas id="dome" width="600" height="600" aria-label="Whole-sky view for the selected epoch, latitude and time of day"></canvas></div>
@@ -365,6 +365,48 @@ function skySource(sza, az){
   const [si,st]=idx(SZ, Math.min(Math.max(sza, SZ[0]), last));
   return {si, st, fade, az, past};
 }
+// Baily's beads: walk round the Moon's limb (with its relief, limbH) in the plane of the sky and
+// find the runs of position angle where photosphere still shows between the limb and the far
+// edge of the Sun. Each run is a bead, placed at its area-weighted centre. Their glare follows
+// the photosphere left (with the relief) and fades as more of it shows; each bead gets the
+// square root of its share of the largest. Returns up to six as vec4s (direction, strength).
+function findBeads(moon, sunAz, sza, rSun, rMoon, sunUp){
+  const out=new Float32Array(24), none={beads:out, beadW:0, beadDir:[0,0,1]};
+  if(!sunUp) return none;
+  const b=moonBasis(moon), sd=horizDir(sunAz, 90-sza), d2r=Math.PI/180;
+  const cosSep=Math.max(-1, Math.min(1, vdot(sd, b.md))), sep=Math.acos(cosSep);
+  if(sep>(rSun+rMoon*1.03)*d2r) return none;
+  const k=sep>1e-9?sep/Math.sqrt(Math.max(1-cosSep*cosSep, 1e-18)):1;
+  const cx=vdot(sd, b.east)*k, cy=vdot(sd, b.north)*k, R=rSun*d2r, c2=cx*cx+cy*cy;
+  const N=720, dth=2*Math.PI/N, w=new Float64Array(N), rm=new Float64Array(N);
+  let total=0;
+  for(let i=0;i<N;i++){
+    const th=i*dth, ux=Math.sin(th), uy=Math.cos(th), uc=ux*cx+uy*cy, disc=uc*uc-(c2-R*R);
+    if(disc<=0) continue;
+    const far=uc+Math.sqrt(disc), near=Math.max(0, uc-Math.sqrt(disc)), lo=Math.max(near, rMoon*d2r*(1+limbH(th)));
+    if(far>lo){ w[i]=(far*far-lo*lo)/2*dth; rm[i]=(far+lo)/2; total+=w[i]; }
+  }
+  const vis=total/(Math.PI*R*R);
+  const env=smooth01(0, 0.0015, vis)*(1-smooth01(0.012, 0.045, vis));
+  if(!(env>0)) return none;
+  let start=0; while(start<N && w[start]>0) start++;
+  if(start===N) return none; // the whole limb shows: no beads
+  const runs=[]; let cur=null;
+  for(let j=1;j<=N;j++){
+    const i=(start+j)%N;
+    if(w[i]>0){ if(!cur) cur={a:0, s:0, x:0, y:0}; const th=i*dth; cur.a+=w[i]; cur.x+=w[i]*rm[i]*Math.sin(th); cur.y+=w[i]*rm[i]*Math.cos(th); }
+    else if(cur){ runs.push(cur); cur=null; }
+  }
+  runs.sort((p, q)=>q.a-p.a);
+  const top=runs.slice(0, 6), amax=top.length?top[0].a:1;
+  let beadDir=[0,0,1];
+  top.forEach((r, j)=>{
+    const x=r.x/r.a, y=r.y/r.a, dir=vnorm(vadd(b.md, vscale(b.east, x), vscale(b.north, y)));
+    if(j===0) beadDir=dir;
+    out.set([dir[0], dir[1], dir[2], env*Math.sqrt(r.a/amax)], j*4);
+  });
+  return {beads:out, beadW:env, beadDir};
+}
 function renderDay(fast){
   vrNote='';
   const ep=EP[dIdx], rec=DAY.epochs[ep.key][dLat]; const {sza,az:sunAz}=sunGeom(LATDEG[dLat],minutes);
@@ -457,10 +499,7 @@ function renderDay(fast){
   // full Moon's brightness), the ring while the last sliver is going.
   const sunUp=sza<90+SUN_RADIUS_DEG*diskScale;
   const corona=sunUp?1-smooth01(0.003, 0.03, sunVis):0;
-  const beadW=sunUp?smooth01(0, 0.0015, sunVis)*(1-smooth01(0.012, 0.045, sunVis)):0;
-  const sDir=horizDir(sunAz, 90-sza), mDir=horizDir(moon.az, moon.el);
-  let away=vnorm(vadd(sDir, vscale(mDir, -1), [0,0,0])); away=vnorm(vadd(away, vscale(sDir, -vdot(away, sDir)), [0,0,0]));
-  const beadDir=vnorm(vadd(sDir, vscale(away, Math.tan(rSun*0.97*Math.PI/180)), [0,0,0]));
+  const {beads, beadW, beadDir}=findBeads(moon, sunAz, sza, rSun, rMoon, sunUp);
   if(!fast && sunUpPix && (corona>0 || beadW>0)){
     const mrr=R*(90-moon.el)/90, ma=moon.az*Math.PI/180, mx=cx+mrr*Math.sin(ma), my=cy-mrr*Math.cos(ma), mr=moon.radDeg*(DOME_DISK/SUN_RADIUS_DEG);
     dctx.save(); dctx.beginPath(); dctx.arc(cx,cy,R,0,Math.PI*2); dctx.clip();
@@ -475,6 +514,7 @@ function renderDay(fast){
   }
   if(!fast) drawMoonOnDome(moon, sunAz, 90-sza, sunUpPix?{x:sx,y:sy,r:SUNR}:null);
   if(!fast && sunUpPix && beadW>0){
+    // The dome is too coarse for separate beads; the brightest stands for them.
     const bAz=Math.atan2(beadDir[0], beadDir[1]), bZ=90-Math.asin(beadDir[2])*180/Math.PI, br=R*bZ/90, bx=cx+br*Math.sin(bAz), by=cy-br*Math.cos(bAz);
     const g=dctx.createRadialGradient(bx,by,0,bx,by,SUNR*3);
     g.addColorStop(0, `rgba(255,255,250,${beadW})`); g.addColorStop(0.15, `rgba(255,250,235,${0.6*beadW})`); g.addColorStop(1, 'rgba(255,250,235,0)');
@@ -491,7 +531,7 @@ function renderDay(fast){
   }
   const sn=supernovaPlace(LATDEG[dLat]);
   if(!fast) drawSupernovaOnDome(sn);
-  skyNow={colgrid, sza, sunAz, sunRGB, sunVis, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE+35/60, moon, corona, bead:[...beadDir, beadW], eclipse, central, stars:stars.tex, starBins:stars.bins, starIdx:stars.idx, starIdxCount:stars.idxCount, sn, moonRel:mScale/MOON_SUN_FULL, gen:++skyGen};
+  skyNow={colgrid, sza, sunAz, sunRGB, sunVis, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE+35/60, moon, corona, beads, eclipse, central, stars:stars.tex, starBins:stars.bins, starIdx:stars.idx, starIdxCount:stars.idxCount, sn, moonRel:mScale/MOON_SUN_FULL, gen:++skyGen};
   document.getElementById('rmoon').textContent = (moon.el<-moon.radDeg ? 'below horizon' : moon.el.toFixed(1)+'°')+' · '+Math.round(moonLit(moon, sunAz, 90-sza)*100)+'% lit · '+(mScale/MOON_SUN_FULL).toPrecision(2)+'× full';
   if(vrOn) paintVR();
   if(fast) return;
@@ -586,6 +626,11 @@ const MOON_R_KM=1737.4, EARTH_R_KM=6378.14;
 // of full the Moon is up to 35% brighter than that curve (opposition surge).
 const MOON_V_FULL=-12.73, MOON_V_SUN=-26.74, MOON_OPP=0.35, MOON_RE_NOW=60.14;
 const MOON_SUN_FULL=Math.pow(10, -0.4*(MOON_V_FULL-MOON_V_SUN));
+// The Moon's limb profile: relative change in its radius at position angle pa (radians from
+// north through east), mountains and valleys from a few fixed waves. Real limb relief is about
+// 0.2% of the radius; this is ten times that, so the beads show on the enlarged disk. Mirrored
+// in the sky shader as limbH.
+function limbH(pa){ return 0.006*Math.sin(7*pa+1.3)+0.005*Math.sin(12*pa+4.1)+0.004*Math.sin(19*pa+2.2)+0.003*Math.sin(29*pa+5.0)+0.0025*Math.sin(41*pa+0.7)+0.002*Math.sin(57*pa+3.3)+0.0015*Math.sin(83*pa+1.9); }
 // Apparent lunar radius at a distance of r Earth radii from the observer.
 function moonRadiusAt(r){ return Math.atan(MOON_R_KM/(r*EARTH_R_KM))*180/Math.PI; }
 // Apparent solar radius for the Sun's mean anomaly M: the mean radius over the Earth-Sun distance in AU.
@@ -4869,7 +4914,8 @@ uniform float moonAz,moonEl,moonRad,moonOn,latRad,starPx,cloudCov,cloudScale,clo
 uniform vec3 snDir,snCol,snLight,mlDir,mlLight;
 uniform vec3 sunCol,ground,eye;
 uniform float corona;
-uniform vec4 bead;
+uniform vec4 beads[6];
+float limbH(float pa){ return 0.006*sin(7.0*pa+1.3)+0.005*sin(12.0*pa+4.1)+0.004*sin(19.0*pa+2.2)+0.003*sin(29.0*pa+5.0)+0.0025*sin(41.0*pa+0.7)+0.002*sin(57.0*pa+3.3)+0.0015*sin(83.0*pa+1.9); } // moon.js limbH
 uniform vec4 obj[12];
 uniform vec4 pond[8];
 uniform float pondN;
@@ -5271,15 +5317,18 @@ void main(){
     if(moonOn>0.5&&te>-1.2){
       float mA=moonAz*0.01745329252, mZ=(90.0-moonEl)*0.01745329252;
       vec3 md=normalize(vec3(sin(mA)*sin(mZ), cos(mA)*sin(mZ), cos(mZ)));
-      if(dot(src,md)>cos(moonRad)){
+      vec3 ncp=vec3(0.0, cos(latRad), sin(latRad));
+      vec3 north=ncp-md*dot(ncp,md);
+      if(dot(north,north)<1e-6) north=vec3(1.0,0.0,0.0);
+      north=normalize(north);
+      vec3 east=normalize(cross(north, md));
+      // The limb has mountains and valleys; sunlight through the valleys makes Baily's beads.
+      float cm=dot(src,md);
+      bool inMoon=cm>cos(moonRad*1.03)&&acos(clamp(cm, -1.0, 1.0))<moonRad*(1.0+limbH(atan(dot(src,east), dot(src,north))));
+      if(inMoon){
         onBody=true;
         if(inSun) skyC=vec3(0.0);
         else {
-        vec3 ncp=vec3(0.0, cos(latRad), sin(latRad));
-        vec3 north=ncp-md*dot(ncp,md);
-        if(dot(north,north)<1e-6) north=vec3(1.0,0.0,0.0);
-        north=normalize(north);
-        vec3 east=normalize(cross(north, md));
         float s=sin(moonRad);
         float x=dot(src,east)/s, y=dot(src,north)/s, rr=sqrt(x*x+y*y);
         if(rr>1.0){ x/=rr; y/=rr; rr=1.0; }
@@ -5315,10 +5364,16 @@ void main(){
       vec3 T=exp(-vec3(0.12, 0.22, 0.48)/mu);
       skyC+=corona*T*(I*vec3(1.0, 0.97, 0.92)+rim*vec3(1.0, 0.3, 0.42)*1.5);
     }
-    if(bead.w>0.0 && te>-1.0){
-      // The diamond ring: glare around the last sliver of the photosphere.
-      float a=acos(clamp(dot(src, bead.xyz), -1.0, 1.0)), px=2.0*fy/res.y, g=a/(px*5.0);
-      skyC+=sunCol*bead.w*(2.0/(1.0+g*g)+0.9*exp(-a/(sunRad*0.9)));
+    if(beads[0].w>0.0 && te>-1.0){
+      // Baily's beads and the diamond ring: glare around each piece of photosphere still
+      // showing through the limb valleys.
+      float px=2.0*fy/res.y;
+      for(int i=0;i<6;i++){
+        vec4 b=beads[i];
+        if(b.w<=0.0) break;
+        float a=acos(clamp(dot(src, b.xyz), -1.0, 1.0)), g=a/(px*2.5*sqrt(b.w));
+        skyC+=sunCol*b.w*(2.5/(1.0+g*g)+0.35*exp(-a/(sunRad*0.3)));
+      }
     }
     if(snOn>0.5 && te>0.0){
       // The supernova: unresolved, so a core of a couple of pixels and a glare halo, plus the
@@ -5895,7 +5950,8 @@ function vrRestoreGL(gl){
 // Uniform locations, texture units, and fixed values for a sky program (boot or full).
 function setupSkyProg(gl, prog){
   gl.useProgram(prog);
-  const u={}; for(const n of ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','eye','nr','na','sunMu','showScn','mtnSnow','moonAz','moonEl','moonRad','moonOn','latRad','starPx','cloudCov','cloudScale','cloudDrift','cloudOn','clockH','pondN','snowCover','waterT','snOn','snDir','snCol','snLight','mlDir','mlLight','corona','bead']) u[n]=gl.getUniformLocation(prog, n);
+  const u={}; for(const n of ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','eye','nr','na','sunMu','showScn','mtnSnow','moonAz','moonEl','moonRad','moonOn','latRad','starPx','cloudCov','cloudScale','cloudDrift','cloudOn','clockH','pondN','snowCover','waterT','snOn','snDir','snCol','snLight','mlDir','mlLight','corona']) u[n]=gl.getUniformLocation(prog, n);
+  u.beads=gl.getUniformLocation(prog,'beads[0]');
   u.pond=gl.getUniformLocation(prog,'pond[0]');
   u.obj=gl.getUniformLocation(prog,'obj[0]'); u.kind=gl.getUniformLocation(prog,'kind[0]');
   for(const [n, unit] of [['sky',0],['moonMap',1],['starMap',3],['starBin',4],['starIdx',5],['weather',7],['hitInfo',10],['hitNrm',11],['noiseTex',12]]) gl.uniform1i(gl.getUniformLocation(prog, n), unit);
@@ -6302,7 +6358,7 @@ function paintVR(){
   gl.uniform1f(u.sunOn, skyNow.sunOn?1:0);
   gl.uniform1f(u.sunRad, skyNow.moon.sunRadDeg*DISK_SCALE*Math.PI/180);
   gl.uniform1f(u.corona, skyNow.corona||0);
-  gl.uniform4fv(u.bead, new Float32Array(skyNow.bead||[0,0,1,0]));
+  gl.uniform4fv(u.beads, skyNow.beads||new Float32Array(24));
   gl.uniform1f(u.sunMu, Math.max(0, Math.sin(apparentEl(90-skyNow.sza)*Math.PI/180))*(skyNow.sunVis==null?1:skyNow.sunVis));
   gl.uniform3fv(u.sunCol, new Float32Array(skyNow.sunRGB.map(v=>v/255)));
   gl.uniform3fv(u.ground, groundRGB());

@@ -24,6 +24,11 @@ const MOON_R_KM=1737.4, EARTH_R_KM=6378.14;
 // of full the Moon is up to 35% brighter than that curve (opposition surge).
 const MOON_V_FULL=-12.73, MOON_V_SUN=-26.74, MOON_OPP=0.35, MOON_RE_NOW=60.14;
 const MOON_SUN_FULL=Math.pow(10, -0.4*(MOON_V_FULL-MOON_V_SUN));
+// The Moon's limb profile: relative change in its radius at position angle pa (radians from
+// north through east), mountains and valleys from a few fixed waves. Real limb relief is about
+// 0.2% of the radius; this is ten times that, so the beads show on the enlarged disk. Mirrored
+// in the sky shader as limbH.
+function limbH(pa){ return 0.006*Math.sin(7*pa+1.3)+0.005*Math.sin(12*pa+4.1)+0.004*Math.sin(19*pa+2.2)+0.003*Math.sin(29*pa+5.0)+0.0025*Math.sin(41*pa+0.7)+0.002*Math.sin(57*pa+3.3)+0.0015*Math.sin(83*pa+1.9); }
 // Apparent lunar radius at a distance of r Earth radii from the observer.
 function moonRadiusAt(r){ return Math.atan(MOON_R_KM/(r*EARTH_R_KM))*180/Math.PI; }
 // Apparent solar radius for the Sun's mean anomaly M: the mean radius over the Earth-Sun distance in AU.

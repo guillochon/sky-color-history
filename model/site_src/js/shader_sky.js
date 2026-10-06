@@ -10,7 +10,8 @@ uniform float moonAz,moonEl,moonRad,moonOn,latRad,starPx,cloudCov,cloudScale,clo
 uniform vec3 snDir,snCol,snLight,mlDir,mlLight;
 uniform vec3 sunCol,ground,eye;
 uniform float corona;
-uniform vec4 bead;
+uniform vec4 beads[6];
+float limbH(float pa){ return 0.006*sin(7.0*pa+1.3)+0.005*sin(12.0*pa+4.1)+0.004*sin(19.0*pa+2.2)+0.003*sin(29.0*pa+5.0)+0.0025*sin(41.0*pa+0.7)+0.002*sin(57.0*pa+3.3)+0.0015*sin(83.0*pa+1.9); } // moon.js limbH
 uniform vec4 obj[12];
 uniform vec4 pond[8];
 uniform float pondN;
@@ -412,15 +413,18 @@ void main(){
     if(moonOn>0.5&&te>-1.2){
       float mA=moonAz*0.01745329252, mZ=(90.0-moonEl)*0.01745329252;
       vec3 md=normalize(vec3(sin(mA)*sin(mZ), cos(mA)*sin(mZ), cos(mZ)));
-      if(dot(src,md)>cos(moonRad)){
+      vec3 ncp=vec3(0.0, cos(latRad), sin(latRad));
+      vec3 north=ncp-md*dot(ncp,md);
+      if(dot(north,north)<1e-6) north=vec3(1.0,0.0,0.0);
+      north=normalize(north);
+      vec3 east=normalize(cross(north, md));
+      // The limb has mountains and valleys; sunlight through the valleys makes Baily's beads.
+      float cm=dot(src,md);
+      bool inMoon=cm>cos(moonRad*1.03)&&acos(clamp(cm, -1.0, 1.0))<moonRad*(1.0+limbH(atan(dot(src,east), dot(src,north))));
+      if(inMoon){
         onBody=true;
         if(inSun) skyC=vec3(0.0);
         else {
-        vec3 ncp=vec3(0.0, cos(latRad), sin(latRad));
-        vec3 north=ncp-md*dot(ncp,md);
-        if(dot(north,north)<1e-6) north=vec3(1.0,0.0,0.0);
-        north=normalize(north);
-        vec3 east=normalize(cross(north, md));
         float s=sin(moonRad);
         float x=dot(src,east)/s, y=dot(src,north)/s, rr=sqrt(x*x+y*y);
         if(rr>1.0){ x/=rr; y/=rr; rr=1.0; }
@@ -456,10 +460,16 @@ void main(){
       vec3 T=exp(-vec3(0.12, 0.22, 0.48)/mu);
       skyC+=corona*T*(I*vec3(1.0, 0.97, 0.92)+rim*vec3(1.0, 0.3, 0.42)*1.5);
     }
-    if(bead.w>0.0 && te>-1.0){
-      // The diamond ring: glare around the last sliver of the photosphere.
-      float a=acos(clamp(dot(src, bead.xyz), -1.0, 1.0)), px=2.0*fy/res.y, g=a/(px*5.0);
-      skyC+=sunCol*bead.w*(2.0/(1.0+g*g)+0.9*exp(-a/(sunRad*0.9)));
+    if(beads[0].w>0.0 && te>-1.0){
+      // Baily's beads and the diamond ring: glare around each piece of photosphere still
+      // showing through the limb valleys.
+      float px=2.0*fy/res.y;
+      for(int i=0;i<6;i++){
+        vec4 b=beads[i];
+        if(b.w<=0.0) break;
+        float a=acos(clamp(dot(src, b.xyz), -1.0, 1.0)), g=a/(px*2.5*sqrt(b.w));
+        skyC+=sunCol*b.w*(2.5/(1.0+g*g)+0.35*exp(-a/(sunRad*0.3)));
+      }
     }
     if(snOn>0.5 && te>0.0){
       // The supernova: unresolved, so a core of a couple of pixels and a glare halo, plus the
