@@ -173,7 +173,7 @@ button.tick.on{background:none;color:var(--ink)}
 <div class="vrhud">
   <div class="vrtop"><div id="vrplace"></div><div class="vrtop-right"><div id="vrclock"></div><button type="button" id="vrpad-play" class="vrplay" data-act="play" aria-pressed="true" aria-label="Pause"><svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg><svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l12 7-12 7z"/></svg></button></div></div>
   <div class="vrbot">
-    <div class="vrkeys"><span>mouse looks</span><span><kbd>w</kbd><kbd>a</kbd><kbd>s</kbd><kbd>d</kbd> move</span><span><kbd>shift</kbd> faster</span><span><kbd>h</kbd> scenery</span><span><kbd>c</kbd> clouds</span><span><kbd>m</kbd> <span id="vrmusiclabel">music</span></span><span><kbd>esc</kbd> leave</span><span><kbd>space</kbd> play / pause</span><span><kbd>←</kbd><kbd>→</kbd> step time</span><span><kbd>↑</kbd><kbd>↓</kbd> change era</span><span><kbd>e</kbd> next eclipse</span><span><kbd>t</kbd> next total / annular</span></div>
+    <div class="vrkeys"><span>mouse looks</span><span>scroll zooms</span><span><kbd>w</kbd><kbd>a</kbd><kbd>s</kbd><kbd>d</kbd> move</span><span><kbd>shift</kbd> faster</span><span><kbd>h</kbd> scenery</span><span><kbd>c</kbd> clouds</span><span><kbd>m</kbd> <span id="vrmusiclabel">music</span></span><span><kbd>esc</kbd> leave</span><span><kbd>space</kbd> play / pause</span><span><kbd>←</kbd><kbd>→</kbd> step time</span><span><kbd>↑</kbd><kbd>↓</kbd> change era</span><span><kbd>e</kbd> next eclipse</span><span><kbd>t</kbd> next total / annular</span></div>
     <div class="vrnote">The plain, the shapes, and the clouds are scenery. The sky is the model.</div>
     <div class="vrpad" role="toolbar" aria-label="View controls">
       <div class="vrpad-row">
@@ -563,7 +563,8 @@ hplay.addEventListener('click',()=>{
 /* ---------- first-person view of the day sky ---------- */
 const SUN_RADIUS_DEG=0.2666; // mean solar angular radius: IAU radius over one astronomical unit
 const SUNANG=SUN_RADIUS_DEG; // VR disk. The fisheye enlarges the Sun and Moon together.
-const VR_FOV_DEG=60; // twice the angle a desktop monitor fills
+let vrFov=60; // VR vertical field of view in degrees: twice the angle a desktop monitor fills; the scroll wheel zooms it
+const VR_FOV_MIN=10, VR_FOV_MAX=90;
 const DISK_SCALE=4; // Sun and Moon are drawn at four times their angular size
 const DOME_DISK=11; // fisheye solar radius in pixels, half the previous enlargement
 // Sæmundsson 1986: true altitude (degrees) to apparent altitude. Matches Bennett in the shader.
@@ -3872,7 +3873,7 @@ function pointDisplay(mag){
 }
 function starBinsFor(up){
   const pxMax=STAR_PX_ANCHOR*Math.pow(42, 0.22);
-  const sig=pxMax*(VR_FOV_DEG*Math.PI/180)/Math.max(window.innerHeight, 1);
+  const sig=pxMax*(VR_FOV_MAX*Math.PI/180)/Math.max(window.innerHeight, 1);
   const cutoff=Math.acos(Math.max(-1, Math.min(1, 1-8*sig*sig)))*180/Math.PI;
   const infl=Math.min(12, cutoff+0.8);
   const cosKeep=Math.cos((STAR_CELL_HD+infl)*Math.PI/180);
@@ -5898,7 +5899,7 @@ function setupSkyProg(gl, prog){
   u.pond=gl.getUniformLocation(prog,'pond[0]');
   u.obj=gl.getUniformLocation(prog,'obj[0]'); u.kind=gl.getUniformLocation(prog,'kind[0]');
   for(const [n, unit] of [['sky',0],['moonMap',1],['starMap',3],['starBin',4],['starIdx',5],['weather',7],['hitInfo',10],['hitNrm',11],['noiseTex',12]]) gl.uniform1i(gl.getUniformLocation(prog, n), unit);
-  gl.uniform1f(u.fov, VR_FOV_DEG*Math.PI/180);
+  gl.uniform1f(u.fov, vrFov*Math.PI/180);
   gl.uniform1f(u.sunRad, SUN_RADIUS_DEG*DISK_SCALE*Math.PI/180);
   return u;
 }
@@ -6025,7 +6026,7 @@ function setupHitProg(gl, hp){
   ensureWeather(gl);
   gl.useProgram(hp);
   gl.uniform1i(gl.getUniformLocation(hp,'weather'), 7);
-  gl.uniform1f(hu.fov, VR_FOV_DEG*Math.PI/180);
+  gl.uniform1f(hu.fov, vrFov*Math.PI/180);
   gl.uniform1f(gl.getUniformLocation(hp,'scnCount'), 12);
   gl.uniform1f(gl.getUniformLocation(hp,'hillN'), 8);
   gl.uniform1i(gl.getUniformLocation(hp,'loopPad'), 0);
@@ -6045,11 +6046,11 @@ function setupCloudProgs(gl, cp, pp, tp, np){
   gl.uniform1i(gl.getUniformLocation(cp,'weather'), 7);
   gl.uniform1i(gl.getUniformLocation(cp,'sky'), 0);
   gl.uniform1i(gl.getUniformLocation(cp,'hitInfo'), 10);
-  gl.uniform1f(cu.fov, VR_FOV_DEG*Math.PI/180);
+  gl.uniform1f(cu.fov, vrFov*Math.PI/180);
   gl.uniform1f(cu.useHDR, hdr?1:0);
   const compU={}; for(const n of ['res','yaw','pitch','fov','showScn']) compU[n]=gl.getUniformLocation(pp, n);
   compU.eye=gl.getUniformLocation(pp,'eye'); compU.obj=gl.getUniformLocation(pp,'obj[0]'); compU.kind=gl.getUniformLocation(pp,'kind[0]');
-  gl.useProgram(pp); gl.uniform1i(gl.getUniformLocation(pp,'cloudTex'), 2); gl.uniform1i(gl.getUniformLocation(pp,'hitInfo'), 10); gl.uniform1f(compU.fov, VR_FOV_DEG*Math.PI/180);
+  gl.useProgram(pp); gl.uniform1i(gl.getUniformLocation(pp,'cloudTex'), 2); gl.uniform1i(gl.getUniformLocation(pp,'hitInfo'), 10); gl.uniform1f(compU.fov, vrFov*Math.PI/180);
   let tu=null;
   if(tp){
     tu={}; for(const n of ['res','yaw','pitch','prevYaw','prevPitch','fov','histValid','histW']) tu[n]=gl.getUniformLocation(tp, n);
@@ -6058,7 +6059,7 @@ function setupCloudProgs(gl, cp, pp, tp, np){
     gl.uniform1i(gl.getUniformLocation(tp,'currTex'), 2);
     gl.uniform1i(gl.getUniformLocation(tp,'histTex'), 9);
     gl.uniform1i(gl.getUniformLocation(tp,'metaTex'), 8);
-    gl.uniform1f(tu.fov, VR_FOV_DEG*Math.PI/180);
+    gl.uniform1f(tu.fov, vrFov*Math.PI/180);
   }
   vrGL.cloudProg=cp; vrGL.compProg=pp; vrGL.tempProg=tp; vrGL.cu=cu; vrGL.compU=compU; vrGL.tu=tu;
   vrGL.noise=vols.base; vrGL.noiseDetail=vols.detail; vrGL.weather=weather;
@@ -6260,9 +6261,9 @@ function ensureHitTarget(w, h){
 }
 // Whether a pool that moves (water, swamp, or magma) is on screen and within 6 km.
 function movingPoolInView(){
-  if(!vrScenery || vrPitch-VR_FOV_DEG*0.5>0) return false;
+  if(!vrScenery || vrPitch-vrFov*0.5>0) return false;
   const sc=sceneFor(EP[dIdx].key), c=document.getElementById('vrc');
-  const half=Math.atan(Math.tan(VR_FOV_DEG*Math.PI/360)*c.width/Math.max(c.height, 1))*180/Math.PI;
+  const half=Math.atan(Math.tan(vrFov*Math.PI/360)*c.width/Math.max(c.height, 1))*180/Math.PI;
   for(let i=0;i<sc.pn;i++){
     if(sc.p[i*4+3]===POND_KIND.ice) continue;
     const dx=sc.p[i*4]-vrX, dy=sc.p[i*4+1]-vrY, d=Math.hypot(dx, dy), R=sc.p[i*4+2]*1.3;
@@ -6290,7 +6291,7 @@ function paintVR(){
   gl.uniform1f(u.nr, h-1); gl.uniform1f(u.na, w-1);
   gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, vrGL.moonTex);
   gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex);
-  gl.uniform2f(u.res, c.width, c.height);
+  gl.uniform2f(u.res, c.width, c.height); gl.uniform1f(u.fov, vrFov*Math.PI/180);
   gl.uniform1f(u.yaw, vrYaw*Math.PI/180); gl.uniform1f(u.pitch, vrPitch*Math.PI/180);
   const ez=eyeZ();
   gl.uniform3f(u.eye, vrX, vrY, ez);
@@ -6332,7 +6333,7 @@ function paintVR(){
   { const sz=sceneFor(EP[dIdx].key); gl.uniform4fv(u.pond, sz.p); gl.uniform1f(u.pondN, sz.pn); }
   gl.uniform1f(u.clockH, (minutes%DAYMIN)/60);
   const sc=sceneFor(EP[dIdx].key); gl.uniform4fv(u.obj, sc.o); gl.uniform1fv(u.kind, sc.k);
-  gl.uniform1f(u.starPx, (VR_FOV_DEG*Math.PI/180)/Math.max(window.innerHeight,1));
+  gl.uniform1f(u.starPx, (vrFov*Math.PI/180)/Math.max(window.innerHeight,1));
   if(skyNow.stars && vrGL.starTex && vrGL.starUploaded!==skyNow.gen){
     gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, vrGL.starTex);
     gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, STAR_MAP_W, 2, gl.RGBA, gl.FLOAT, skyNow.stars);
@@ -6360,7 +6361,7 @@ function paintVR(){
       gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
       gl.viewport(0,0,c.width,c.height);
       gl.useProgram(vrGL.hitProg);
-      const hu=vrGL.hu;
+      const hu=vrGL.hu; gl.uniform1f(hu.fov, vrFov*Math.PI/180);
       if(vrGL.weather){ gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, vrGL.weather); }
       gl.uniform2f(hu.res, c.width, c.height);
       gl.uniform1f(hu.yaw, vrYaw*Math.PI/180); gl.uniform1f(hu.pitch, vrPitch*Math.PI/180);
@@ -6388,7 +6389,7 @@ function paintVR(){
     gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.cloudFbo);
     gl.drawBuffers(vrGL.cloudMRT?[gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]:[gl.COLOR_ATTACHMENT0]);
     gl.viewport(0,0,cw,ch); gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.useProgram(vrGL.cloudProg);
+    gl.useProgram(vrGL.cloudProg); gl.uniform1f(cu.fov, vrFov*Math.PI/180);
     gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_3D, vrGL.noise);
     gl.activeTexture(gl.TEXTURE6); gl.bindTexture(gl.TEXTURE_3D, vrGL.noiseDetail);
     gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, vrGL.weather);
@@ -6418,7 +6419,9 @@ function paintVR(){
       gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.accumFbo);
       gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
       gl.useProgram(vrGL.tempProg);
-      const tu=vrGL.tu;
+      const tu=vrGL.tu; gl.uniform1f(tu.fov, vrFov*Math.PI/180);
+      // A zoom changes the projection, so the history can't be reprojected.
+      if(vrGL.histFov!==vrFov){ vrGL.histFov=vrFov; vrGL.histOk=false; }
       gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, vrGL.cloudTex);
       gl.activeTexture(gl.TEXTURE8); gl.bindTexture(gl.TEXTURE_2D, vrGL.metaTex);
       gl.activeTexture(gl.TEXTURE9); gl.bindTexture(gl.TEXTURE_2D, vrGL.histTex);
@@ -6429,7 +6432,7 @@ function paintVR(){
       gl.uniform3f(tu.prevEye, vrGL.prevEyeX||vrX, vrGL.prevEyeY||vrY, vrGL.prevEyeZ==null?ez:vrGL.prevEyeZ);
       gl.uniform1f(tu.histValid, vrGL.histOk?1:0);
       // 0.9 while the view moves; once it holds still, a running average up to 0.97.
-      const ak=[vrYaw,vrPitch,vrX,vrY,minutes,dIdx,dLat,cw,ch].join('|');
+      const ak=[vrYaw,vrPitch,vrFov,vrX,vrY,minutes,dIdx,dLat,cw,ch].join('|');
       vrGL.accN=ak===vrGL.accKey?(vrGL.accN||9)+1:9; vrGL.accKey=ak;
       gl.uniform1f(tu.histW, Math.min(0.97, vrGL.accN/(vrGL.accN+1)));
       gl.drawArrays(gl.TRIANGLES, 0, 6);
@@ -6441,7 +6444,7 @@ function paintVR(){
     }
     vrGL.prevYaw=vrYaw*Math.PI/180; vrGL.prevPitch=vrPitch*Math.PI/180; vrGL.prevEyeX=vrX; vrGL.prevEyeY=vrY; vrGL.prevEyeZ=ez;
     // The march is jittered per frame; repaint a few times after the view settles so it converges.
-    const sk=[vrYaw,vrPitch,vrX,vrY,minutes,dIdx,dLat,cw,ch].join('|');
+    const sk=[vrYaw,vrPitch,vrFov,vrX,vrY,minutes,dIdx,dLat,cw,ch].join('|');
     if(sk!==vrGL.settleKey){ vrGL.settleKey=sk; vrGL.settle=48; }
     if(vrGL.settle>0){ vrGL.settle--; requestVR(); }
     gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.drawBuffers([gl.BACK]); gl.viewport(0,0,c.width,c.height);
@@ -6450,7 +6453,7 @@ function paintVR(){
     gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, vrGL.weather);
     gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, shown);
     if(vrGL.hitInfo){ gl.activeTexture(gl.TEXTURE10); gl.bindTexture(gl.TEXTURE_2D, vrGL.hitInfo); gl.activeTexture(gl.TEXTURE2); }
-    const pu=vrGL.compU;
+    const pu=vrGL.compU; gl.uniform1f(pu.fov, vrFov*Math.PI/180);
     gl.uniform2f(pu.res, c.width, c.height);
     gl.uniform1f(pu.yaw, vrYaw*Math.PI/180); gl.uniform1f(pu.pitch, vrPitch*Math.PI/180);
     gl.uniform3f(pu.eye, vrX, vrY, ez);
@@ -6464,14 +6467,14 @@ function paintVR(){
   const lat=dLat==='Polar'?'75°':dLat==='Mid-latitude'?'45°':'equator';
   document.getElementById('vrplace').textContent=EP[dIdx].name+' · '+lat;
   document.querySelector('.vrnote').textContent=vrCaption();
-  document.getElementById('vrclock').textContent=(document.getElementById('moonDate').value||'')+' · '+hh+':'+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0')+' · '+(dayPlaying?'playing':'paused')+(skyNow.eclipse?' · '+skyNow.eclipse:'')+(vrClouds&&vrGL.field?' · clouds '+Math.round(vrGL.field.cov*100)+'%':'')+(vrNote?' · '+vrNote:'');
+  document.getElementById('vrclock').textContent=(document.getElementById('moonDate').value||'')+' · '+hh+':'+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0')+' · '+(dayPlaying?'playing':'paused')+(Math.abs(vrFov-60)>0.5?' · '+Math.round(vrFov)+'° view':'')+(skyNow.eclipse?' · '+skyNow.eclipse:'')+(vrClouds&&vrGL.field?' · clouds '+Math.round(vrGL.field.cov*100)+'%':'')+(vrNote?' · '+vrNote:'');
   placeBodyMarks();
   syncVRLink(false);
   // Water and magma move in real time, so keep painting at about 30 fps while one is in view.
   if(!vrGL.poolTimer && movingPoolInView()) vrGL.poolTimer=setTimeout(()=>{ vrGL.poolTimer=0; requestVR(); }, 33);
 }
 function projectBody(elDeg, azDeg, radiusDeg){
-  const fov=VR_FOV_DEG*Math.PI/180, W=window.innerWidth, H=window.innerHeight;
+  const fov=vrFov*Math.PI/180, W=window.innerWidth, H=window.innerHeight;
   const fy=Math.tan(fov*0.5), fx=fy*(W/Math.max(H,1));
   const yaw=vrYaw*Math.PI/180, pitch=vrPitch*Math.PI/180;
   const cp=Math.cos(pitch), sp=Math.sin(pitch), cy=Math.cos(yaw), sy=Math.sin(yaw);
@@ -6539,7 +6542,7 @@ function placeBodyMarks(){
   }
 }
 function requestVR(){ if(!vrOn||vrRAF) return; vrRAF=requestAnimationFrame(()=>{ vrRAF=0; paintVR(); }); }
-function lookVR(dx, dy){ const deg=VR_FOV_DEG/Math.max(window.innerHeight,1); vrYaw=(vrYaw+dx*deg)%360; if(vrYaw<0) vrYaw+=360; vrPitch=Math.max(-80, Math.min(85, vrPitch-dy*deg)); requestVR(); }
+function lookVR(dx, dy){ const deg=vrFov/Math.max(window.innerHeight,1); vrYaw=(vrYaw+dx*deg)%360; if(vrYaw<0) vrYaw+=360; vrPitch=Math.max(-80, Math.min(85, vrPitch-dy*deg)); requestVR(); }
 function walking(){ return vrHeld.has('w')||vrHeld.has('a')||vrHeld.has('s')||vrHeld.has('d'); }
 function stepWalk(dt){
   if(dt>0.05) dt=0.05;
@@ -6794,6 +6797,14 @@ window.addEventListener('popstate',()=>{
   vrNav=false;
 });
 const vrc=document.getElementById('vrc');
+// The scroll wheel zooms between a 10° and a 90° field of view, by the same factor per notch.
+window.addEventListener('wheel', e=>{
+  if(!vrOn) return;
+  e.preventDefault();
+  const px=e.deltaMode===1?e.deltaY*33:e.deltaMode===2?e.deltaY*400:e.deltaY;
+  vrFov=Math.max(VR_FOV_MIN, Math.min(VR_FOV_MAX, vrFov*Math.exp(px*0.0015)));
+  requestVR();
+}, {passive:false});
 window.addEventListener('mousemove', e=>{ if(!vrOn) return; if(!e.movementX&&!e.movementY) return; lookVR(e.movementX, e.movementY); });
 window.addEventListener('pointerdown', ()=>{ if(!vrOn) return; pokeVRMusic(); if(document.pointerLockElement===vrc) return; vrRelock=true; lockLook(); setTimeout(()=>{ vrRelock=false; }, 400); });
 let vrTX=0, vrTY=0;

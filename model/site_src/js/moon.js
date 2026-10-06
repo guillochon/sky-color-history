@@ -1,7 +1,8 @@
 /* ---------- first-person view of the day sky ---------- */
 const SUN_RADIUS_DEG=0.2666; // mean solar angular radius: IAU radius over one astronomical unit
 const SUNANG=SUN_RADIUS_DEG; // VR disk. The fisheye enlarges the Sun and Moon together.
-const VR_FOV_DEG=60; // twice the angle a desktop monitor fills
+let vrFov=60; // VR vertical field of view in degrees: twice the angle a desktop monitor fills; the scroll wheel zooms it
+const VR_FOV_MIN=10, VR_FOV_MAX=90;
 const DISK_SCALE=4; // Sun and Moon are drawn at four times their angular size
 const DOME_DISK=11; // fisheye solar radius in pixels, half the previous enlargement
 // Sæmundsson 1986: true altitude (degrees) to apparent altitude. Matches Bennett in the shader.

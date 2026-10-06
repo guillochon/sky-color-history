@@ -1,5 +1,5 @@
 function projectBody(elDeg, azDeg, radiusDeg){
-  const fov=VR_FOV_DEG*Math.PI/180, W=window.innerWidth, H=window.innerHeight;
+  const fov=vrFov*Math.PI/180, W=window.innerWidth, H=window.innerHeight;
   const fy=Math.tan(fov*0.5), fx=fy*(W/Math.max(H,1));
   const yaw=vrYaw*Math.PI/180, pitch=vrPitch*Math.PI/180;
   const cp=Math.cos(pitch), sp=Math.sin(pitch), cy=Math.cos(yaw), sy=Math.sin(yaw);
@@ -67,7 +67,7 @@ function placeBodyMarks(){
   }
 }
 function requestVR(){ if(!vrOn||vrRAF) return; vrRAF=requestAnimationFrame(()=>{ vrRAF=0; paintVR(); }); }
-function lookVR(dx, dy){ const deg=VR_FOV_DEG/Math.max(window.innerHeight,1); vrYaw=(vrYaw+dx*deg)%360; if(vrYaw<0) vrYaw+=360; vrPitch=Math.max(-80, Math.min(85, vrPitch-dy*deg)); requestVR(); }
+function lookVR(dx, dy){ const deg=vrFov/Math.max(window.innerHeight,1); vrYaw=(vrYaw+dx*deg)%360; if(vrYaw<0) vrYaw+=360; vrPitch=Math.max(-80, Math.min(85, vrPitch-dy*deg)); requestVR(); }
 function walking(){ return vrHeld.has('w')||vrHeld.has('a')||vrHeld.has('s')||vrHeld.has('d'); }
 function stepWalk(dt){
   if(dt>0.05) dt=0.05;

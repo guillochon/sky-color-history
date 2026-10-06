@@ -92,7 +92,7 @@ function pointDisplay(mag){
 }
 function starBinsFor(up){
   const pxMax=STAR_PX_ANCHOR*Math.pow(42, 0.22);
-  const sig=pxMax*(VR_FOV_DEG*Math.PI/180)/Math.max(window.innerHeight, 1);
+  const sig=pxMax*(VR_FOV_MAX*Math.PI/180)/Math.max(window.innerHeight, 1);
   const cutoff=Math.acos(Math.max(-1, Math.min(1, 1-8*sig*sig)))*180/Math.PI;
   const infl=Math.min(12, cutoff+0.8);
   const cosKeep=Math.cos((STAR_CELL_HD+infl)*Math.PI/180);

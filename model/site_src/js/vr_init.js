@@ -43,7 +43,7 @@ function setupSkyProg(gl, prog){
   u.pond=gl.getUniformLocation(prog,'pond[0]');
   u.obj=gl.getUniformLocation(prog,'obj[0]'); u.kind=gl.getUniformLocation(prog,'kind[0]');
   for(const [n, unit] of [['sky',0],['moonMap',1],['starMap',3],['starBin',4],['starIdx',5],['weather',7],['hitInfo',10],['hitNrm',11],['noiseTex',12]]) gl.uniform1i(gl.getUniformLocation(prog, n), unit);
-  gl.uniform1f(u.fov, VR_FOV_DEG*Math.PI/180);
+  gl.uniform1f(u.fov, vrFov*Math.PI/180);
   gl.uniform1f(u.sunRad, SUN_RADIUS_DEG*DISK_SCALE*Math.PI/180);
   return u;
 }
@@ -170,7 +170,7 @@ function setupHitProg(gl, hp){
   ensureWeather(gl);
   gl.useProgram(hp);
   gl.uniform1i(gl.getUniformLocation(hp,'weather'), 7);
-  gl.uniform1f(hu.fov, VR_FOV_DEG*Math.PI/180);
+  gl.uniform1f(hu.fov, vrFov*Math.PI/180);
   gl.uniform1f(gl.getUniformLocation(hp,'scnCount'), 12);
   gl.uniform1f(gl.getUniformLocation(hp,'hillN'), 8);
   gl.uniform1i(gl.getUniformLocation(hp,'loopPad'), 0);
@@ -190,11 +190,11 @@ function setupCloudProgs(gl, cp, pp, tp, np){
   gl.uniform1i(gl.getUniformLocation(cp,'weather'), 7);
   gl.uniform1i(gl.getUniformLocation(cp,'sky'), 0);
   gl.uniform1i(gl.getUniformLocation(cp,'hitInfo'), 10);
-  gl.uniform1f(cu.fov, VR_FOV_DEG*Math.PI/180);
+  gl.uniform1f(cu.fov, vrFov*Math.PI/180);
   gl.uniform1f(cu.useHDR, hdr?1:0);
   const compU={}; for(const n of ['res','yaw','pitch','fov','showScn']) compU[n]=gl.getUniformLocation(pp, n);
   compU.eye=gl.getUniformLocation(pp,'eye'); compU.obj=gl.getUniformLocation(pp,'obj[0]'); compU.kind=gl.getUniformLocation(pp,'kind[0]');
-  gl.useProgram(pp); gl.uniform1i(gl.getUniformLocation(pp,'cloudTex'), 2); gl.uniform1i(gl.getUniformLocation(pp,'hitInfo'), 10); gl.uniform1f(compU.fov, VR_FOV_DEG*Math.PI/180);
+  gl.useProgram(pp); gl.uniform1i(gl.getUniformLocation(pp,'cloudTex'), 2); gl.uniform1i(gl.getUniformLocation(pp,'hitInfo'), 10); gl.uniform1f(compU.fov, vrFov*Math.PI/180);
   let tu=null;
   if(tp){
     tu={}; for(const n of ['res','yaw','pitch','prevYaw','prevPitch','fov','histValid','histW']) tu[n]=gl.getUniformLocation(tp, n);
@@ -203,7 +203,7 @@ function setupCloudProgs(gl, cp, pp, tp, np){
     gl.uniform1i(gl.getUniformLocation(tp,'currTex'), 2);
     gl.uniform1i(gl.getUniformLocation(tp,'histTex'), 9);
     gl.uniform1i(gl.getUniformLocation(tp,'metaTex'), 8);
-    gl.uniform1f(tu.fov, VR_FOV_DEG*Math.PI/180);
+    gl.uniform1f(tu.fov, vrFov*Math.PI/180);
   }
   vrGL.cloudProg=cp; vrGL.compProg=pp; vrGL.tempProg=tp; vrGL.cu=cu; vrGL.compU=compU; vrGL.tu=tu;
   vrGL.noise=vols.base; vrGL.noiseDetail=vols.detail; vrGL.weather=weather;

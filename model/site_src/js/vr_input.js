@@ -135,6 +135,14 @@ window.addEventListener('popstate',()=>{
   vrNav=false;
 });
 const vrc=document.getElementById('vrc');
+// The scroll wheel zooms between a 10° and a 90° field of view, by the same factor per notch.
+window.addEventListener('wheel', e=>{
+  if(!vrOn) return;
+  e.preventDefault();
+  const px=e.deltaMode===1?e.deltaY*33:e.deltaMode===2?e.deltaY*400:e.deltaY;
+  vrFov=Math.max(VR_FOV_MIN, Math.min(VR_FOV_MAX, vrFov*Math.exp(px*0.0015)));
+  requestVR();
+}, {passive:false});
 window.addEventListener('mousemove', e=>{ if(!vrOn) return; if(!e.movementX&&!e.movementY) return; lookVR(e.movementX, e.movementY); });
 window.addEventListener('pointerdown', ()=>{ if(!vrOn) return; pokeVRMusic(); if(document.pointerLockElement===vrc) return; vrRelock=true; lockLook(); setTimeout(()=>{ vrRelock=false; }, 400); });
 let vrTX=0, vrTY=0;
