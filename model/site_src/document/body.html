@@ -31,7 +31,7 @@
 <section class="sky" aria-labelledby="sky-h">
  <div class="row">
   <div class="sky-dome">
-    <div class="stage" id="dstage"><button type="button" id="vrbtn2" class="vrmini" title="Open this sky in VR">VR</button><div class="tip" id="dtip"></div><canvas id="dome" width="600" height="600" aria-label="Whole-sky view for the selected epoch, latitude and time of day"></canvas></div>
+    <div class="stage" id="dstage"><button type="button" id="vrbtn2" class="vrmini" title="Open this sky in VR">VR</button><div class="tip" id="dtip"></div><canvas id="dome" width="600" height="600" aria-label="Whole-sky view for the selected epoch, latitude and time of day"></canvas><canvas id="domeAur" width="600" height="600" aria-hidden="true"></canvas></div>
    <p class="legend">The whole sky as a fisheye: zenith in the middle, horizon at the rim, north up.</p>
   </div>
   <div class="sky-side">
@@ -43,6 +43,7 @@
      <span class="cb-date" role="group" aria-label="Date">Date <select id="dMonth" aria-label="Month"></select><select id="dDay" aria-label="Day"></select><input id="dYear" type="number" min="1" max="9999" step="1" aria-label="Year"><input id="moonDate" type="hidden"></span>
      <span role="group" aria-label="Latitude" class="cb-lat"><button data-lat="Equator" aria-pressed="false">Equator</button><button data-lat="Mid-latitude" aria-pressed="true">45°</button><button data-lat="Polar" aria-pressed="false">75°</button></span>
      <button id="expo" aria-pressed="false" title="Normalize brightness so that color is visible in dim skies">Auto-exposure</button>
+     <button id="aurstorm" aria-pressed="false" title="A great geomagnetic storm, like that of September 1859: the aurora spreads far toward the equator">Aurora storm</button>
     </div>
     <input id="hslider" type="range" min="0" max="1440" step="5" value="720" aria-label="Time of day (minutes)">
     <div class="track" id="htrack"></div>
@@ -54,6 +55,7 @@
     <div>Horizon<b id="rhor"></b></div>
     <div>Sun's disk<b id="rsun"></b></div>
     <div>Moon<b id="rmoon"></b></div>
+    <div>Aurora<b id="raur"></b></div>
    </div>
    <div class="swatchbar" id="hbar"></div>
    <p class="legend">The sky along the Sun's vertical: from the horizon under the Sun, through the zenith, to the opposite horizon.</p>
@@ -122,6 +124,16 @@
    <li><b>City light.</b> In the modern epochs you stand in a mid-sized city. Its zenith glow is 18.8 mag/arcsec² today (Falchi et al. 2016), about six times the natural sky with orange sodium lamps in 1980–2000 (Cinzano, Falchi &amp; Elvidge 2001), 1.6 times today's in polluted air, today's level in 2100 (the recent 9.6% a year, Kyba et al. 2023, cannot be projected that far), and almost nothing from the oil lamps of 1815 (Fouquet &amp; Pearson 2006). Clouds over the city are lit from below (Kyba et al. 2011).</li>
    <li><b>Through the air.</b> Starlight dims by 0.15 magnitude per airmass from the gas plus 1.086 times the epoch's haze optical depth: the impact winter's soot takes two magnitudes off every star, and the Early Hadean's 30 bar of CO₂ hides them all.</li>
    <li><b>What shows.</b> Each star shows only when brighter than the naked-eye limit for the sky around it, so stars come out one by one in twilight and cities keep only the brightest.</li>
+  </ul>
+ </details>
+
+ <details>
+  <summary>Aurorae</summary>
+  <p>The aurora is an oval round the magnetic pole, fixed relative to the Sun, taken here with the magnetic pole at the geographic one. Today, on a moderately active night (Kp 3), it spans about 63–72° latitude on the night side and 73–78° on the day side (Feldstein's ovals), so from 75° it passes to the south in the evening and overhead around noon in the polar night, and from 45° it is out of sight. Storms widen it toward the equator; <b>Aurora storm</b> shows a storm of the class of September 1859.</p>
+  <ul>
+   <li><b>Where, then.</b> The oval's field lines reach out to the magnetopause, whose distance goes as the sixth root of the field's pressure over the solar wind's. At 3.45 Ga a weaker field and the young Sun's much denser wind held the magnetopause at about half today's distance (Tarduno et al. 2010), which brings the oval down to the mid-latitudes. A young, active Sun also makes storms the usual state (Airapetian et al. 2016). The oval moves back toward the pole through the Proterozoic as the wind weakens.</li>
+   <li><b>What color.</b> Today's green (557.7 nm) and red (630 nm) come from oxygen atoms. With no free oxygen, the Archean and Hadean aurora is nitrogen's: violet N₂⁺ bands and a pink border of N₂ first positive bands where faster electrons reach lowest, with a weak green line from CO₂, as Perseverance saw on Mars (Knutsen et al. 2025). At 2.2 Ga the oxygen lines are about a third of today's. The early Hadean's 30 bar of CO₂ hides it.</li>
+   <li><b>How it looks.</b> Each arc is a thin sheet along the field lines, leaning toward the equator going up, so rays overhead converge on the magnetic zenith. Green fills the lower 100–150 km, red tops reach 250 km and more, and sunlit tops glow violet, as N₂⁺ scatters sunlight. Arcs fold and ripple, rays drift along them in real time, substorms brighten the arcs near midnight twice a night, and the diffuse aurora toward dawn pulses in patches. Brightness is for a dark-adapted eye: rods see violet far better than cones do and hardly see the red line, so red tops often show in photographs but barely to the eye. Line strengths for the ancient atmospheres are estimates.</li>
   </ul>
  </details>
 

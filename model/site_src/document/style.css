@@ -161,6 +161,8 @@ h2.epoch-title{margin:.1rem 0 .2rem;font-size:1.9rem;font-weight:400;line-height
 /* A day under that sky: the dome beside the clock that moves it. */
 .sky{margin-top:2.2rem}
 .sky .stage{border-radius:10px}
+/* The dome with its aurora, drawn over the dome when there is one. */
+#domeAur{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;display:none}
 .sec-h{margin:0 0 .2rem}
 .day-controls .cb-row:first-child{margin-top:.6rem}
 /* In the narrower column beside the dome, label every other hour (and the current one). */

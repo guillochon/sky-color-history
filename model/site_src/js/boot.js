@@ -12,13 +12,13 @@ moonImg.src='moon.jpg';
 (window.requestIdleCallback||setTimeout)(()=>{ buildMilkyWay(); renderDay(); });
 showEpoch(dIdx); renderDay(); warm();
 if(openVR) enterVR(true);
-function colorTip(canvas, tip, inside){
+function colorTip(canvas, tip, inside, pixel=()=>null){
   const ctx=canvas.getContext('2d'); let cur=null, copiedUntil=0, hovering=false, px=0, py=0;
   const refresh=()=>{
     if(!hovering){ tip.style.display='none'; return; }
     if(!inside(px,py)){ tip.style.display='none'; cur=null; return; }
     const x=Math.max(0,Math.min(canvas.width-1,Math.round(px))), y=Math.max(0,Math.min(canvas.height-1,Math.round(py)));
-    const d=ctx.getImageData(x,y,1,1).data; cur=hex([d[0],d[1],d[2]]);
+    const d=pixel(x,y)||ctx.getImageData(x,y,1,1).data; cur=hex([d[0],d[1],d[2]]);
     tip.innerHTML=`<i style="background:${cur}"></i>current color ${cur}${performance.now()<copiedUntil?' copied':''}`;
     const b=canvas.getBoundingClientRect();
     tip.style.left=(px*b.width/canvas.width)+'px'; tip.style.top=(py*b.height/canvas.height)+'px';
@@ -34,4 +34,4 @@ function colorTip(canvas, tip, inside){
   return refresh;
 }
 refreshGlobeTip=colorTip(globe, document.getElementById('gtip'), (x,y)=>{ const r=Math.hypot(x-globe.width/2,y-globe.height/2); return r<globe.width*0.30*1.5; });
-refreshDomeTip=colorTip(dome, document.getElementById('dtip'), (x,y)=>{ const r=Math.hypot(x-dome.width/2,y-dome.height/2); return r<dome.width*0.46; });
+refreshDomeTip=colorTip(dome, document.getElementById('dtip'), (x,y)=>{ const r=Math.hypot(x-dome.width/2,y-dome.height/2); return r<dome.width*0.46; }, domePixel);

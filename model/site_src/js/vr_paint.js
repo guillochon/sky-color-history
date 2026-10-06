@@ -325,6 +325,10 @@ function paintVR(){
       gl.useProgram(vrGL.prog);
     }
   }
+  // The aurora, in its own pass, for the sky pass to add.
+  const aurSt=skyNow.aur, aurOn=!!(aurSt&&aurSt.on&&vrGL.aurProg&&vrPitch+vrFov*0.5>-2);
+  if(aurOn) drawAuroraVR(gl, aurSt, c);
+  gl.uniform1f(u.aurOn, aurOn?1:0);
   gl.activeTexture(gl.TEXTURE10); gl.bindTexture(gl.TEXTURE_2D, vrGL.hitInfo||vrGL.noHitInfo); gl.activeTexture(gl.TEXTURE11); gl.bindTexture(gl.TEXTURE_2D, vrGL.hitInfo?vrGL.hitNrm:vrGL.noHitNrm); gl.activeTexture(gl.TEXTURE0);
   // ensureHitTarget binds new hit textures on the active unit, which can be the sky's.
   gl.bindTexture(gl.TEXTURE_2D, tex);
@@ -422,4 +426,39 @@ function paintVR(){
   syncVRLink(false);
   // Water and magma move in real time, so keep painting at about 30 fps while one is in view.
   if(!vrGL.poolTimer && movingPoolInView()) vrGL.poolTimer=setTimeout(()=>{ vrGL.poolTimer=0; requestVR(); }, 33);
+  // So does the aurora.
+  if(!vrGL.aurTimer && aurOn) vrGL.aurTimer=setTimeout(()=>{ vrGL.aurTimer=0; requestVR(); }, 33);
+}
+// The aurora pass: a half-size float target (three quarters on low-density screens), since the
+// march is costly and the aurora has little detail at the pixel scale. Leaves the sky program in
+// use with the result on unit 9.
+function drawAuroraVR(gl, st, c){
+  const dpr=Math.min(window.devicePixelRatio||1, 2), s=dpr>=1.5?0.5:0.75;
+  const w=Math.max(2, Math.round(c.width*s)), h=Math.max(2, Math.round(c.height*s));
+  gl.activeTexture(gl.TEXTURE9);
+  if(vrGL.aurW!==w||vrGL.aurH!==h){
+    if(vrGL.aurTex) gl.deleteTexture(vrGL.aurTex);
+    const t=vrGL.aurTex=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.HALF_FLOAT, null);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.aurFbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+    vrGL.aurW=w; vrGL.aurH=h;
+  }
+  gl.bindTexture(gl.TEXTURE_2D, null);
+  const f=auroraFrame(st), au=vrGL.au;
+  gl.useProgram(vrGL.aurProg);
+  gl.activeTexture(gl.TEXTURE14); auroraTextures(gl, vrGL.aurStore, f.arcs, f.v);
+  gl.activeTexture(gl.TEXTURE15); gl.bindTexture(gl.TEXTURE_2D, vrGL.aurStore.aurRays);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.aurFbo); gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
+  gl.viewport(0, 0, w, h);
+  gl.uniform2f(au.res, w, h); gl.uniform1f(au.fov, vrFov*Math.PI/180);
+  gl.uniform1f(au.yaw, vrYaw*Math.PI/180); gl.uniform1f(au.pitch, vrPitch*Math.PI/180);
+  auroraSetUniforms(gl, au, st, f.t, new Float32Array(horizDir(skyNow.sunAz, 90-skyNow.sza)));
+  gl.drawArrays(gl.TRIANGLES, 0, 6);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.drawBuffers([gl.BACK]); gl.viewport(0, 0, c.width, c.height);
+  gl.useProgram(vrGL.prog);
+  gl.activeTexture(gl.TEXTURE9); gl.bindTexture(gl.TEXTURE_2D, vrGL.aurTex);
+  gl.activeTexture(gl.TEXTURE0);
 }

@@ -14,6 +14,8 @@ uniform sampler2D mwTex;
 uniform vec4 toneU; // display curve: k, p, cap, cd/m² per unit r (color.js toneT)
 uniform float rCd,mwOn,mwScale,mwK,mwDB;
 uniform vec3 galX,galY,galZ;
+// The aurora, from its own pass (aurora.js) at reduced size, in cd/m² times 1000.
+uniform sampler2D aurTex; uniform float aurOn;
 float lin2s(float v){ return v<=0.0031308?12.92*v:1.055*pow(v, 1.0/2.4)-0.055; }
 float s2lin(float v){ return v<=0.04045?v/12.92:pow((v+0.055)/1.055, 2.4); }
 vec3 s2lin3(vec3 c){ return vec3(s2lin(c.r), s2lin(c.g), s2lin(c.b)); }
@@ -25,6 +27,7 @@ float toneT(float r){
   float m=max(su, sl), s=m+${TOE_W2}*log(1.0+exp(-abs(su-sl)/${TOE_W2}));
   return s2lin(clamp(s, 0.0, 1.0));
 }
+${AUR_MIX_GLSL}
 // Naked-eye limiting magnitude against a sky of L cd/m² (color.js nakedEyeLimit).
 float nakedEyeLimit(float L){
   float msky=-2.5*log(max(L, 1e-12)/10.8e4)/2.302585;
@@ -488,6 +491,7 @@ void main(){
         }
       }
     }
+    if(aurOn>0.5 && !onBody && te>-0.5) skyC=auroraMix(skyC, rBg, texture(aurTex, gl_FragCoord.xy/res)*0.001);
     if(corona>0.001 && !onBody && te>-1.0){
       // The corona around the hidden Sun: a bright inner glow falling off steeply, and fainter
       // streamers, strongest toward the solar equator, out to about six solar radii. A thin pink
