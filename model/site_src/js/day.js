@@ -187,6 +187,11 @@ function renderDay(fast){
   if(sunUpPix){
     dctx.save(); dctx.beginPath(); dctx.arc(cx,cy,R,0,Math.PI*2); dctx.clip();
     const col=hex(sunRGB);
+    // The Moon covers the photosphere; drawMoonOnDome then draws it over the sky like the rest of its disk.
+    if(moon.el>-moon.radDeg){
+      const mrr=R*(90-moon.el)/90, ma=moon.az*Math.PI/180;
+      dctx.beginPath(); dctx.rect(0,0,W,H); dctx.arc(cx+mrr*Math.sin(ma), cy-mrr*Math.cos(ma), moon.radDeg*(DOME_DISK/SUN_RADIUS_DEG), 0, Math.PI*2, true); dctx.clip('evenodd');
+    }
     dctx.globalAlpha=1; dctx.fillStyle=col; dctx.beginPath(); dctx.arc(sx,sy,SUNR,0,Math.PI*2); dctx.fill(); dctx.restore();
   }
   // Corona, pink chromosphere, and the diamond ring: the corona shows once less than about 3% of
@@ -207,7 +212,7 @@ function renderDay(fast){
     }
     dctx.restore();
   }
-  if(!fast) drawMoonOnDome(moon, sunAz, 90-sza, sunUpPix?{x:sx,y:sy,r:SUNR}:null);
+  if(!fast) drawMoonOnDome(moon, sunAz, 90-sza);
   if(!fast && sunUpPix && beadW>0){
     // The dome is too coarse for separate beads; the brightest stands for them.
     const bAz=Math.atan2(beadDir[0], beadDir[1]), bZ=90-Math.asin(beadDir[2])*180/Math.PI, br=R*bZ/90, bx=cx+br*Math.sin(bAz), by=cy-br*Math.cos(bAz);

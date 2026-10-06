@@ -199,7 +199,7 @@ function paintMoonSprite(moon, sunAz, sunEl){
   }
   sctx.putImageData(img,0,0);
 }
-function drawMoonOnDome(moon, sunAz, sunEl, sunDisk){
+function drawMoonOnDome(moon, sunAz, sunEl){
   if(!moonReady||moon.el<-moon.radDeg) return;
   const W=dome.width, H=dome.height, cx=W/2, cy=H/2, R=W*0.46;
   const rr=R*(90-moon.el)/90, a=moon.az*Math.PI/180, mx=cx+rr*Math.sin(a), my=cy-rr*Math.cos(a);
@@ -231,7 +231,6 @@ function drawMoonOnDome(moon, sunAz, sunEl, sunDisk){
     const el=90*(1-Math.hypot(dx,dy)/R), mu=Math.max(Math.sin(Math.max(el,0)*Math.PI/180), 0.04);
     const Tr=Math.exp(-0.12/mu), Tg=Math.exp(-0.22/mu), Tb=Math.exp(-0.48/mu);
     const o=((y-y0)*bw+(x-x0))*4;
-    if(sunDisk){ const bx=x-sunDisk.x, by=y-sunDisk.y; if(bx*bx+by*by<=sunDisk.r*sunDisk.r){ px[o]=0; px[o+1]=0; px[o+2]=0; continue; } }
     const skyY=(0.2126*px[o]+0.7152*px[o+1]+0.0722*px[o+2])/255;
     const t=Math.max(0,Math.min(1,skyY/1.15)), veil=1-t*t*(3-2*t);
     px[o]=Math.min(255, px[o]+s[0]/255*wlit*Tr*veil*255);

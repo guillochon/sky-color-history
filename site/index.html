@@ -492,6 +492,11 @@ function renderDay(fast){
   if(sunUpPix){
     dctx.save(); dctx.beginPath(); dctx.arc(cx,cy,R,0,Math.PI*2); dctx.clip();
     const col=hex(sunRGB);
+    // The Moon covers the photosphere; drawMoonOnDome then draws it over the sky like the rest of its disk.
+    if(moon.el>-moon.radDeg){
+      const mrr=R*(90-moon.el)/90, ma=moon.az*Math.PI/180;
+      dctx.beginPath(); dctx.rect(0,0,W,H); dctx.arc(cx+mrr*Math.sin(ma), cy-mrr*Math.cos(ma), moon.radDeg*(DOME_DISK/SUN_RADIUS_DEG), 0, Math.PI*2, true); dctx.clip('evenodd');
+    }
     dctx.globalAlpha=1; dctx.fillStyle=col; dctx.beginPath(); dctx.arc(sx,sy,SUNR,0,Math.PI*2); dctx.fill(); dctx.restore();
   }
   // Corona, pink chromosphere, and the diamond ring: the corona shows once less than about 3% of
@@ -512,7 +517,7 @@ function renderDay(fast){
     }
     dctx.restore();
   }
-  if(!fast) drawMoonOnDome(moon, sunAz, 90-sza, sunUpPix?{x:sx,y:sy,r:SUNR}:null);
+  if(!fast) drawMoonOnDome(moon, sunAz, 90-sza);
   if(!fast && sunUpPix && beadW>0){
     // The dome is too coarse for separate beads; the brightest stands for them.
     const bAz=Math.atan2(beadDir[0], beadDir[1]), bZ=90-Math.asin(beadDir[2])*180/Math.PI, br=R*bZ/90, bx=cx+br*Math.sin(bAz), by=cy-br*Math.cos(bAz);
@@ -4244,7 +4249,7 @@ function paintMoonSprite(moon, sunAz, sunEl){
   }
   sctx.putImageData(img,0,0);
 }
-function drawMoonOnDome(moon, sunAz, sunEl, sunDisk){
+function drawMoonOnDome(moon, sunAz, sunEl){
   if(!moonReady||moon.el<-moon.radDeg) return;
   const W=dome.width, H=dome.height, cx=W/2, cy=H/2, R=W*0.46;
   const rr=R*(90-moon.el)/90, a=moon.az*Math.PI/180, mx=cx+rr*Math.sin(a), my=cy-rr*Math.cos(a);
@@ -4276,7 +4281,6 @@ function drawMoonOnDome(moon, sunAz, sunEl, sunDisk){
     const el=90*(1-Math.hypot(dx,dy)/R), mu=Math.max(Math.sin(Math.max(el,0)*Math.PI/180), 0.04);
     const Tr=Math.exp(-0.12/mu), Tg=Math.exp(-0.22/mu), Tb=Math.exp(-0.48/mu);
     const o=((y-y0)*bw+(x-x0))*4;
-    if(sunDisk){ const bx=x-sunDisk.x, by=y-sunDisk.y; if(bx*bx+by*by<=sunDisk.r*sunDisk.r){ px[o]=0; px[o+1]=0; px[o+2]=0; continue; } }
     const skyY=(0.2126*px[o]+0.7152*px[o+1]+0.0722*px[o+2])/255;
     const t=Math.max(0,Math.min(1,skyY/1.15)), veil=1-t*t*(3-2*t);
     px[o]=Math.min(255, px[o]+s[0]/255*wlit*Tr*veil*255);
@@ -5313,6 +5317,7 @@ void main(){
     vec3 src=vec3(sin(comp)*cth, cos(comp)*cth, sin(teR));
     bool inSun=sunOn>0.5&&te>-1.0&&dot(src,sd)>cos(sunRad);
     bool onBody=inSun;
+    vec3 skyBase=skyC;
     if(inSun) skyC=sunCol;
     if(moonOn>0.5&&te>-1.2){
       float mA=moonAz*0.01745329252, mZ=(90.0-moonEl)*0.01745329252;
@@ -5327,8 +5332,10 @@ void main(){
       bool inMoon=cm>cos(moonRad*1.01)&&acos(clamp(cm, -1.0, 1.0))<moonRad*(1.0+limbH(atan(dot(src,east), dot(src,north))));
       if(inMoon){
         onBody=true;
-        if(inSun) skyC=vec3(0.0);
-        else {
+        {
+        // In front of the Sun the Moon is drawn like the rest of its disk: the sky in front of it
+        // plus its own dim light.
+        skyC=skyBase;
         float s=sin(moonRad);
         float x=dot(src,east)/s, y=dot(src,north)/s, rr=sqrt(x*x+y*y);
         if(rr>1.0){ x/=rr; y/=rr; rr=1.0; }

@@ -409,6 +409,7 @@ void main(){
     vec3 src=vec3(sin(comp)*cth, cos(comp)*cth, sin(teR));
     bool inSun=sunOn>0.5&&te>-1.0&&dot(src,sd)>cos(sunRad);
     bool onBody=inSun;
+    vec3 skyBase=skyC;
     if(inSun) skyC=sunCol;
     if(moonOn>0.5&&te>-1.2){
       float mA=moonAz*0.01745329252, mZ=(90.0-moonEl)*0.01745329252;
@@ -423,8 +424,10 @@ void main(){
       bool inMoon=cm>cos(moonRad*1.01)&&acos(clamp(cm, -1.0, 1.0))<moonRad*(1.0+limbH(atan(dot(src,east), dot(src,north))));
       if(inMoon){
         onBody=true;
-        if(inSun) skyC=vec3(0.0);
-        else {
+        {
+        // In front of the Sun the Moon is drawn like the rest of its disk: the sky in front of it
+        // plus its own dim light.
+        skyC=skyBase;
         float s=sin(moonRad);
         float x=dot(src,east)/s, y=dot(src,north)/s, rr=sqrt(x*x+y*y);
         if(rr>1.0){ x/=rr; y/=rr; rr=1.0; }
