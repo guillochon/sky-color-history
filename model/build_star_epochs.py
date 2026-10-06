@@ -173,7 +173,12 @@ for key, years in EPOCHS.items():
 # galactic latitude and colour but at a random longitude. The sky's real stars then cannot be
 # known.
 import numpy as np
-ORBIT_EPOCHS = {'kpg66': 66e6}
+# Before the impact winter no catalogue star can be traced near the Sun, so those skies are all
+# stand-ins (see below). The three 2.7 Ga epochs share one sky.
+ORBIT_EPOCHS = {'kpg66': 66e6, 'carbon30': 300e6, 'snowball07': 700e6, 'proterozoic22': 2.2e9,
+                'archean27thin': 2.7e9, 'archean27': 2.7e9, 'archean27vthick': 2.7e9,
+                'archean38': 3.8e9, 'hadean40': 4.0e9, 'hadean44': 4.4e9}
+TRACE_MAX = 1e8                       # trace catalogue stars only this far back
 PC_MYR = 1.0227                       # pc per Myr at 1 km/s
 R0, Z0, V0 = 8200.0, 20.8, 233.0
 NU = 2 * math.pi / 84.0               # vertical frequency, 1/Myr
@@ -216,9 +221,11 @@ def accel(p):
 
 
 def trace_back(years):
-    """Galactocentric positions of the Sun (row 0) and every star, `years` ago (leapfrog)."""
+    """Galactocentric positions of the Sun (row 0) and every star, `years` ago (leapfrog). Past
+    TRACE_MAX only the Sun is traced. Beyond a Gyr or so the Sun's place on its orbit is only
+    nominal: small errors in the Galaxy's rotation, and the Sun's own radial migration, add up."""
     pos, vel = [np.array([-R0, 0.0, Z0])], [np.array(SUN_UVW) * PC_MYR]
-    for s in stars:
+    for s in (stars if years <= TRACE_MAX else []):
         u, ea, ed = unit(s['ra'], s['dec'])
         vt = 4.74047 * s['dist']
         v_eq = np.array([s['rv'] * u[i] + vt * (s['pma'] * ea[i] + s['pmd'] * ed[i]) for i in range(3)])
@@ -233,8 +240,13 @@ def trace_back(years):
     return p
 
 
-epoch_meta = {}
+epoch_meta, alias, done = {}, {}, {}
 for key, years in ORBIT_EPOCHS.items():
+    if years in done:
+        alias[key] = done[years]
+        epoch_meta[key] = epoch_meta[done[years]]
+        continue
+    done[years] = key
     p = trace_back(years)
     sun, rel = p[0], p[1:] - p[0]
     # The direction of the Galactic centre from the Sun then, as a galactic longitude now: where
@@ -245,18 +257,18 @@ for key, years in ORBIT_EPOCHS.items():
     eq = rel @ GAL                      # galactic → J2000 equatorial
     d = np.maximum(np.linalg.norm(eq, axis=1), 1.0)
     traced = []
-    for s, e, dd in zip(stars, eq, d):
+    for s, e, dd in zip(stars if years <= TRACE_MAX else [], eq, d):
         if not shining_then(s, years):
             continue
         ra = math.degrees(math.atan2(e[1], e[0])) % 360
         dec = math.degrees(math.asin(max(-1.0, min(1.0, e[2] / dd))))
         traced.append((s['v'] + 5 * math.log10(dd / s['dist']), ra, dec, s['bv'], s['k'], s['name'], dd))
     traced.sort(key=lambda m: m[0])
-    print(f"{key}: {len(traced)} of {len(stars)} were shining then; brightest " +
+    if traced: print(f"{key}: {len(traced)} of {len(stars)} were shining then; brightest " +
           ", ".join(f"{m[5]} {m[0]:.2f} ({m[6]:.0f} pc)" for m in traced[:6]))
     today = sorted(stars, key=lambda s: s['v'])[:1000]
     limit = today[-1]['v']
-    rng = np.random.default_rng(66)
+    rng = np.random.default_rng(int(years / 1e6))
     bins, have = {}, {}
     for s in today:
         bins.setdefault(math.floor(s['v'] * 4), []).append(s)
@@ -276,9 +288,9 @@ for key, years in ORBIT_EPOCHS.items():
 
 out = ["// The Bright Star Catalogue moved to the supernova epochs (straight-line motion relative to",
        "// the Sun) and to 66 Ma (orbits in the Galaxy, with stand-ins for the stars that cannot be",
-       "// traced) by build_star_epochs.py, from XHIP (Hipparcos) astrometry. Rows are as in",
-       "// stars_catalog.js; proper motions are zeroed because the positions are already moved. An",
-       "// empty name marks a stand-in.",
+       "// traced) by build_star_epochs.py, from XHIP (Hipparcos) astrometry; older epochs are all",
+       "// stand-ins. Rows are as in stars_catalog.js; proper motions are zeroed because the",
+       "// positions are already moved. An empty name marks a stand-in.",
        "const STARS_EPOCH={"]
 for key, rows in lists.items():
     out.append(f"{key}:[")
@@ -286,6 +298,8 @@ for key, rows in lists.items():
         out.append(f'[{ra:.4f},{dec:.4f},{v:.2f},{bv:.2f},0,0,{k},{json.dumps(name, ensure_ascii=False)}],')
     out.append("],")
 out.append("};")
+for key, src in alias.items():
+    out.append(f"STARS_EPOCH.{key}=STARS_EPOCH.{src};")
 out.append("// For each traced epoch: the galactic longitude (in today's coordinates) of the Galactic centre")
 out.append("// as seen from the Sun then, where the Milky Way was brightest, and the Sun's height above the plane (pc).")
 out.append("const STAR_EPOCH_GAL=" + json.dumps(epoch_meta) + ";")
