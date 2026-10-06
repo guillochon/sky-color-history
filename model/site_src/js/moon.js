@@ -58,12 +58,17 @@ function instantUT(){
     ut:local.getUTCHours()+local.getUTCMinutes()/60+local.getUTCSeconds()/3600,
     lon:-local.getTimezoneOffset()/60*15 };
 }
-// Low-precision lunar theory, Schlyter / van Flandern & Pulkkinen, about 0.05°. The Moon's own
-// angles run on dm (moonDay), the Sun's on d.
-function moonEquatorial(d, dm=d){
+// Low-precision lunar theory, Schlyter / van Flandern & Pulkkinen, about 0.05°. The Sun's angles
+// run on d. For a closer Moon (rate, its angular speed relative to today's) the mean longitude
+// runs rate times faster, but the node and perigee turn more slowly: the Sun drives them, as
+// (Sun's speed)²/(Moon's speed), so they run 1/rate as fast. The Sun's perturbations of the
+// orbit (evection, variation and the rest) shrink with the same ratio, taken to first order.
+function moonEquatorial(d, rate=1){
   const ecl=23.4393-3.563e-7*d;
   const ws=282.9404+4.70935e-5*d, Ms=rev(356.0470+0.9856002585*d);
-  const Nm=rev(125.1228-0.0529538083*dm), wm=rev(318.0634+0.1643573223*dm), Mm=rev(115.3654+13.0649929509*dm);
+  const dm=DN_NEW0+(d-DN_NEW0)*rate, dp=DN_NEW0+(d-DN_NEW0)/rate, kp=1/rate;
+  const Nm=rev(125.1228-0.0529538083*dp), wm=rev(318.0634+0.1643573223*dp);
+  const Mm=rev(115.3654+125.1228+318.0634+(13.0649929509-0.0529538083+0.1643573223)*dm-Nm-wm);
   const e=0.054900, a=60.2666, i=5.1454;
   let E=Mm+e*(180/Math.PI)*sind(Mm)*(1+e*cosd(Mm));
   E=E-(E-e*(180/Math.PI)*sind(E)-Mm)/(1-e*cosd(E));
@@ -74,9 +79,9 @@ function moonEquatorial(d, dm=d){
   const zh=r0*(sind(v+wm)*sind(i));
   let lonecl=Math.atan2(yh,xh)*180/Math.PI, latecl=Math.atan2(zh,Math.hypot(xh,yh))*180/Math.PI;
   const Ls=rev(Ms+ws), Lm=rev(Mm+wm+Nm), Dm=Lm-Ls, F=Lm-Nm;
-  lonecl+=-1.274*sind(Mm-2*Dm)+0.658*sind(2*Dm)-0.186*sind(Ms)-0.059*sind(2*Mm-2*Dm)-0.057*sind(Mm-2*Dm+Ms)+0.053*sind(Mm+2*Dm)+0.046*sind(2*Dm-Ms)+0.041*sind(Mm-Ms)-0.035*sind(Dm)-0.031*sind(Mm+Ms)-0.015*sind(2*F-2*Dm)+0.011*sind(Mm-4*Dm);
-  latecl+=-0.173*sind(F-2*Dm)-0.055*sind(Mm-F-2*Dm)-0.046*sind(Mm+F-2*Dm)+0.033*sind(F+2*Dm)+0.017*sind(2*Mm+F);
-  const r=r0-0.58*cosd(Mm-2*Dm)-0.46*cosd(2*Dm);
+  lonecl+=kp*(-1.274*sind(Mm-2*Dm)+0.658*sind(2*Dm)-0.186*sind(Ms)-0.059*sind(2*Mm-2*Dm)-0.057*sind(Mm-2*Dm+Ms)+0.053*sind(Mm+2*Dm)+0.046*sind(2*Dm-Ms)+0.041*sind(Mm-Ms)-0.035*sind(Dm)-0.031*sind(Mm+Ms)-0.015*sind(2*F-2*Dm)+0.011*sind(Mm-4*Dm));
+  latecl+=kp*(-0.173*sind(F-2*Dm)-0.055*sind(Mm-F-2*Dm)-0.046*sind(Mm+F-2*Dm)+0.033*sind(F+2*Dm)+0.017*sind(2*Mm+F));
+  const r=r0-kp*(0.58*cosd(Mm-2*Dm)+0.46*cosd(2*Dm));
   const xg=r*cosd(lonecl)*cosd(latecl), yg=r*sind(lonecl)*cosd(latecl), zg=r*sind(latecl);
   const ye=yg*cosd(ecl)-zg*sind(ecl), ze=yg*sind(ecl)+zg*cosd(ecl);
   return {RA:Math.atan2(ye,xg)*180/Math.PI, Dec:Math.atan2(ze,Math.hypot(xg,ye))*180/Math.PI, Ls, Ms, r};
@@ -89,11 +94,10 @@ const DN_UNIX=dayNumber(1970,1,1,0), DN_NEW0=dayNumber(2000,1,6,18.23);
 // 27.6 days of today's at 700 Ma, 22.6 at 2.2 Ga, 20.3 at 2.7 Ga and 14.7 at 4.4 Ga: 28 to 31
 // of each epoch's own shorter days, and 18 months a year at 2.7 Ga, as tidal rhythmites suggest.
 function moonRate(){ return Math.pow(MOON_RE_NOW/(MOON_RE[EP[dIdx].key]||MOON_RE_NOW), 1.5); }
-function moonDay(d){ return DN_NEW0+(d-DN_NEW0)*moonRate(); }
 function synodic(){ return 360/(13.17639648*moonRate()-0.98564736); }
 function dayOfMs(ms){ return DN_UNIX+ms/86400000; }
 function eqVec(ra, dec){ return [cosd(dec)*cosd(ra), cosd(dec)*sind(ra), sind(dec)]; }
-function geoPair(d){ const eq=moonEquatorial(d, moonDay(d)), sun=sunEquatorial(d); return {eq, m:eqVec(eq.RA, eq.Dec), s:eqVec(sun.RA, sun.Dec)}; }
+function geoPair(d){ const eq=moonEquatorial(d, moonRate()), sun=sunEquatorial(d); return {eq, m:eqVec(eq.RA, eq.Dec), s:eqVec(sun.RA, sun.Dec)}; }
 // Closest geocentric approach of the Moon to that Sun in lunation k (golden-section search
 // within 2.5 days of the mean new Moon), cached per Moon speed.
 const lunations=new Map();
