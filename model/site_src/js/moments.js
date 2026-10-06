@@ -6,7 +6,7 @@
 // (c brings them back).
 const MOMENTS=[
   {epoch:'hadean44', date:'2026-03-20', t:1050, title:'A Hadean evening, 4.4 Ga', sub:'Thirty bars of CO₂ under a young, faint Sun', art:'day'},
-  {epoch:'archean38', date:'2026-01-08', t:1410, look:[0, 22], title:'Aurora over the young Earth, 3.8 Ga', sub:'Violet and pink: nitrogen glowing in air with no oxygen', art:'aurora'},
+  {epoch:'archean38', date:'2026-01-30', t:1410, look:[0, 22], title:'Aurora over the young Earth, 3.8 Ga', sub:'Violet and pink: nitrogen glowing in air with no oxygen', art:'aurora'},
   {epoch:'archean27', date:'2026-03-20', t:930, title:'Archean afternoon, 2.7 Ga', sub:'A pale orange organic haze, like Titan’s', art:'day'},
   {epoch:'carbon30', date:'2026-07-08', t:1380, look:[180, 32], title:'The Milky Way, 300 Ma', sub:'No city lights, and stars no one has catalogued', art:'galaxy'},
   {epoch:'kpg66', date:'2026-03-20', t:720, title:'Noon after the asteroid', sub:'Soot from Chicxulub turns the sky dim amber', art:'day'},

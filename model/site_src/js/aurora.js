@@ -81,13 +81,23 @@ function aurNoise(x, y, P, s){
 function aurStrHash(s){ let h=2166136261; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h, 16777619); } return h>>>0; }
 // Hours from b to a round the clock, -12 to 12.
 function aurCirc(a, b){ return ((a-b)%24+36)%24-12; }
-// Substorms: two a night, one in the evening and one after midnight, at times set by the date.
-// Each brightens the arcs near midnight within minutes and fades over about half an hour.
-function aurSubstorm(clockMin, seed){
+// The page's day as a whole number of the epoch's days, the same all through the date in every
+// calendar. Everything random about a night hangs on it and on the clock, never on the date
+// string, so nothing jumps when the clock passes midnight.
+function aurDayIndex(){ return Math.round(astroDay()*24/dayHours()-minutes/DAYMIN); }
+// Substorms: two a night, one in the evening (21:36–23:24) and one after midnight (1:00–3:00),
+// at times set by the night. Each brightens the arcs near midnight within minutes and fades over
+// about half an hour. t is minutes since the start of day n; the onsets of the two nights before
+// are counted too, so one carries on across midnight. rise is the e-folding time of the onset
+// (minutes): 6 for the brightening, longer for the arcs' poleward spread.
+function aurSubstorm(n, t, kh, rise=6){
   let s=0;
-  for(const t0 of [(21.6+1.8*aurHashI(seed, 1, 7))*60, (1.0+2.0*aurHashI(seed, 2, 7))*60]){
-    const dt=clockMin-t0;
-    if(dt>0) s+=(1-Math.exp(-dt/6))*Math.exp(-dt/35);
+  for(let m=n-2;m<=n;m++){
+    const day=(m-n)*1440;
+    for(const t0 of [day+(21.6+1.8*aurHashI(m, 1, kh))*60, day+1440+(1.0+2.0*aurHashI(m, 2, kh))*60]){
+      const dt=t-t0;
+      if(dt>0) s+=(1-Math.exp(-dt/rise))*Math.exp(-dt/35);
+    }
   }
   return Math.min(1.2, s*1.6);
 }
@@ -99,8 +109,10 @@ function aurSubstorm(clockMin, seed){
 let aurStorm=false;
 function auroraState(key, latDeg, clockMin, zenithCd){
   const [rmp, kp0, drive0, fO, fN]=AURORA_EPOCH[key]||AURORA_TODAY;
-  const seed=aurStrHash((document.getElementById('moonDate').value||'')+key);
-  let kp=Math.max(0, kp0+(aurHashI(seed, 3, 1)-0.5)*2), drive=drive0*(0.7+0.6*aurHashI(seed, 4, 1));
+  // Each night has its own activity, blended into the next across the middle of the day.
+  const seed=aurStrHash(key), n=aurDayIndex(), x=clockMin/DAYMIN, w=smooth01(0.35, 0.65, x);
+  const night=j=>aurHashI(n-1, j, seed)*(1-w)+aurHashI(n, j, seed)*w;
+  let kp=Math.max(0, kp0+(night(3)-0.5)*2), drive=drive0*(0.7+0.6*night(4));
   if(aurStorm){ kp=Math.min(11, kp+7); drive*=3; }
   const [cm, cn, wm, wn]=aurOvalToday(kp), e=[cm-wm, cm+wm, cn-wn, cn+wn].map(l=>aurScaleLat(l, rmp));
   const mid=(e[0]+e[1])/2, noon=(e[2]+e[3])/2, hwm=(e[1]-e[0])/2, hwn=(e[3]-e[2])/2;
@@ -116,8 +128,8 @@ function auroraState(key, latDeg, clockMin, zenithCd){
   if(nearest>18){ st.why='far'; return st; }
   if(zenithCd>2){ st.why='bright'; return st; }
   st.on=true;
-  st.sub=aurSubstorm(clockMin/DAYMIN*1440, seed);
-  if(aurStorm) st.sub=Math.max(st.sub, 0.6+0.3*Math.sin(clockMin/DAYMIN*1440/23));
+  st.sub=aurSubstorm(n, x*1440, seed); st.spread=aurSubstorm(n, x*1440, seed, 20);
+  if(aurStorm){ const b=0.6+0.3*Math.sin((n+x)*1440/23); st.sub=Math.max(st.sub, b); st.spread=Math.max(st.spread, b); }
   st.red=aurStorm?5:1;
   st.iv=AUR_IV*drive; st.diff=AUR_DIFF*drive*(1+st.sub);
   st.spec=[fO*AUR_RATIO[0], fO*AUR_RATIO[1], fN*AUR_RATIO[2], fN*(1+0.3*(1-Math.min(fO, 1)))*AUR_RATIO[3]];
@@ -153,7 +165,7 @@ function auroraArcs(st, t){
     for(let j=0;j<N;j++){
       const lon=(j+0.5)*dl-st.span/2, mlt=st.mlt0+lon/15, f=((mlt/24)%1+1)%1;
       const wMid=Math.exp(-0.5*Math.pow(aurCirc(mlt, 23.5)/2.8, 2)), sub=st.sub*wMid;
-      let o=sub*(25+30*i);
+      let o=(st.spread||0)*wMid*(25+30*i);
       o+=60*(aurNoise(f*P1-dir*1.5*t*P1/C, t/120+i*17, P1, sd)-0.5)*2;
       o+=25*(aurNoise(f*P2+dir*2.5*t*P2/C, t/30+i*7, P2, sd+1)-0.5)*2;
       o+=7*(aurNoise(f*P3-dir*4*t*P3/C, t/8+i*3, P3, sd+2)-0.5)*2;
@@ -211,12 +223,12 @@ function auroraTextures(gl, store, arcs, v){
 // arcs are rebuilt ten times a second; the rays move in the shader every frame (t).
 let aurFrame={t:-1, st:null, arcs:null, v:0};
 function auroraFrame(st){
-  const t=(performance.now()/1000)%3600;
+  const t=(performance.now()/1000)%21600;
   if(aurFrame.st!==st || Math.abs(aurFrame.t-t)>0.1){ aurFrame={t, st, arcs:auroraArcs(st, t), v:aurFrame.v+1}; }
   return {t, arcs:aurFrame.arcs, v:aurFrame.v};
 }
 // Uniform locations for a program that includes AUR_GLSL.
-const AUR_UNIFORMS=['aurW0','aurW1','aurRed','aurLat','aurMlt0','aurA','aurB','aurSpan','aurIv','aurDiff','aurT','aurRefLat','aurSub','aurVr','aurSpec','aurK','aurSun'];
+const AUR_UNIFORMS=['aurRayK','aurW0','aurW1','aurRed','aurLat','aurMlt0','aurA','aurB','aurSpan','aurIv','aurDiff','aurT','aurRefLat','aurSub','aurVr','aurSpec','aurK','aurSun'];
 function auroraUniforms(gl, prog, arcsUnit, raysUnit){
   const u={}; for(const n of AUR_UNIFORMS) u[n]=gl.getUniformLocation(prog, n);
   gl.useProgram(prog);
@@ -224,6 +236,9 @@ function auroraUniforms(gl, prog, arcsUnit, raysUnit){
   return u;
 }
 function auroraSetUniforms(gl, u, st, t, sunDir){
+  // The rays' place along the arc, in turns of the ray texture (4,096 km) per hour of magnetic local
+  // time, a whole number of turns round the oval.
+  gl.uniform1f(u.aurRayK, Math.max(1, Math.round(360*KM_DEG*Math.cos(st.refLat*Math.PI/180)/4096))/24);
   gl.uniform1f(u.aurW0, st.W0); gl.uniform1f(u.aurW1, st.W1); gl.uniform1f(u.aurRed, st.red); gl.uniform1f(u.aurLat, st.lat*Math.PI/180); gl.uniform1f(u.aurMlt0, st.mlt0);
   gl.uniform1f(u.aurA, st.A); gl.uniform1f(u.aurB, st.B); gl.uniform1f(u.aurSpan, st.span);
   gl.uniform1f(u.aurIv, st.iv); gl.uniform1f(u.aurDiff, st.diff); gl.uniform1f(u.aurT, t);
@@ -247,7 +262,7 @@ const glv=v=>v.map(x=>x.toExponential(4)).join(', ');
 // aurora.
 const AUR_GLSL=`
 uniform sampler2D aurArcs; uniform sampler2D aurRays;
-uniform float aurRed, aurLat, aurMlt0, aurA, aurB, aurW0, aurW1, aurSpan, aurIv, aurDiff, aurT, aurRefLat, aurSub, aurVr;
+uniform float aurRayK, aurRed, aurLat, aurMlt0, aurA, aurB, aurW0, aurW1, aurSpan, aurIv, aurDiff, aurT, aurRefLat, aurSub, aurVr;
 uniform vec4 aurSpec, aurK;
 uniform vec3 aurSun;
 const float AUR_RE=6371.0, AUR_KMD=${KM_DEG.toFixed(1)};
@@ -277,7 +292,7 @@ float aurArcD(int i, vec3 P, vec3 ax, vec3 m0, float cosRef, out float s, out ve
   float latF=latR*57.2957795+(h-110.0)/(2.0*tan(max(latR, 0.05))*AUR_KMD);
   a=abs(lonD)<0.5*aurSpan?textureLod(aurArcs, vec2(lonD/aurSpan+0.5, (float(i)+0.5)*0.25), 0.0):vec4(0.0);
   float slope=(-(aurB+AUR_FR[i]*aurW1)*sin(th)*0.0174532925*AUR_KMD+a.g)/(AUR_KMD*max(cos(latR), 0.02));
-  s=mlt*15.0*AUR_KMD*cosRef;
+  s=mlt*aurRayK;
   return ((latF-aurA-aurB*cos(th)-AUR_FR[i]*(aurW0+aurW1*cos(th)))*AUR_KMD-a.r)*inversesqrt(1.0+slope*slope);
 }
 vec4 auroraLight(vec3 rd, float pxAng){
@@ -319,7 +334,7 @@ vec4 auroraLight(vec3 rd, float pxAng){
     float cusp=exp(-0.5*pow(aurCirc(mlt, 12.0)/2.2, 2.0));
     float u=lonD/aurSpan+0.5;
     bool inWin=abs(lonD)<0.5*aurSpan;
-    float sKm=mlt*15.0*AUR_KMD*cosRef;
+    float sKm=mlt*aurRayK;
     // A pixel's footprint along the arc, longer where the view runs along it, sets the rays' blur.
     float lodR=log2(max(t*pxAng/(0.5*max(length(cross(rd, normalize(cross(ax, n)))), 0.03)), 1.0));
     float sunUp=dot(P, aurSun)>0.0?1.0:smoothstep(-20.0, 20.0, length(cross(P, aurSun))-AUR_RE-40.0);
@@ -344,8 +359,8 @@ vec4 auroraLight(vec3 rd, float pxAng){
           else { float g=df/(df-d); tc=mix(tf, t, g); sx=mix(sf, sKm, g); }
           hx=length(vec3(rd.xy*tc, AUR_RE+rd.z*tc))-AUR_RE;
         }
-        float r1=textureLod(aurRays, vec2((sx-aurVr*aurT)/4096.0+float(i)*0.137, 0.5), lodR).r;
-        float r2=textureLod(aurRays, vec2((sx*0.47+aurVr*0.6*aurT)/4096.0+float(i)*0.71, 0.5), lodR).r;
+        float r1=textureLod(aurRays, vec2(sx-aurVr*aurT/4096.0+float(i)*0.137, 0.5), lodR).r;
+        float r2=textureLod(aurRays, vec2(2.0*sx+aurVr*0.6*aurT/4096.0+float(i)*0.71, 0.5), lodR).r;
         float rr=r1*0.7+r2*0.3, ray=(0.15+2.2*smoothstep(0.05, 0.75, rr))*${(1/AUR_RAY_MEAN).toFixed(3)};
         float hg=(22.0+14.0*a.a)*(0.7+0.6*rr), z=max(hx-hb, 0.0);
         float e=smoothstep(hb-3.0, hb+2.0, hx);
