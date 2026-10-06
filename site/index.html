@@ -168,6 +168,16 @@ h2.epoch-title{margin:.1rem 0 .2rem;font-size:1.9rem;font-weight:400;line-height
 .sky .stage{border-radius:10px}
 .sec-h{margin:0 0 .2rem}
 .day-controls .cb-row:first-child{margin-top:.6rem}
+/* In the narrower column beside the dome, label every other hour (and the current one). */
+.day-controls .tick.row1 .lb{visibility:hidden}
+.day-controls .tick.row1.on .lb{visibility:visible}
+.day-controls .tick .lb{font-size:.7rem}
+.day-controls .tick.row1{top:0}.day-controls .tick.row1 i{height:8px;margin-top:0}
+.day-controls #htrack{height:2.4rem}
+.day-controls .tick.on{z-index:3}
+.day-controls .tick.on .lb{display:inline-block;margin-top:1.05rem}
+.day-controls .tick.on i{height:22px}
+.day-controls #htrack{height:2.9rem}
 </style></head><body>
 <header class="hero">
  <div class="hero-in">
@@ -827,7 +837,9 @@ function renderDay(fast){
   dctx.strokeStyle='rgba(255,255,255,.35)'; dctx.lineWidth=1.5; dctx.beginPath(); dctx.arc(cx,cy,R,0,7); dctx.stroke();
   dctx.fillStyle='rgba(255,255,255,.8)'; dctx.font='16px Newsreader, Georgia, serif'; dctx.textAlign='center';
   dctx.fillText('N',cx,cy-R-6); dctx.fillText('S',cx,cy+R+18); dctx.fillText('E',cx+R+12,cy+6); dctx.fillText('W',cx-R-12,cy+6); dctx.textAlign='left';
-  dctx.font='italic 20px Newsreader, Georgia, serif'; dctx.fillText(`${ep.name} · ${dLat==='Polar'?'75° latitude':dLat==='Mid-latitude'?'45° latitude':'equator'}`, 12, H-6);
+  // Two short lines in the corner, clear of the sky circle and the S mark.
+  dctx.font='italic 20px Newsreader, Georgia, serif'; dctx.fillText(ep.short, 12, H-27);
+  dctx.font='15px Newsreader, Georgia, serif'; dctx.fillText(`${ep.age} · ${dLat==='Polar'?'75° latitude':dLat==='Mid-latitude'?'45° latitude':'equator'}`, 12, H-8);
   // readouts
   document.getElementById('hclock').textContent=clockLabel(minutes);
   document.getElementById('relev').textContent=(90-sza).toFixed(1)+'°';
