@@ -107,8 +107,8 @@ button.tick.on{background:none;color:var(--ink)}
 .toplinks a{color:#aeb4c0;text-decoration:none;display:inline-flex;align-items:center;gap:.4rem}
 .toplinks a:hover{color:#fff}
 .toplinks svg{width:1.05em;height:1.05em;fill:currentColor}
-.hero-grid{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:2.8rem;align-items:center;margin-top:2.2rem}
-.hero h1{font-size:clamp(2.3rem,5.2vw,4rem);line-height:1.02;margin:0 0 1rem}
+.hero-grid{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:2.8rem;align-items:start;margin-top:1.4rem}
+.hero h1{font-size:clamp(2.3rem,5.2vw,4rem);line-height:1.02;margin:1.6rem 0 1rem}
 .hero .lede{color:#c3c8d2;font-size:1.18rem;max-width:34em}
 .cta{margin:1.4rem 0 .7rem;font-size:1.45rem;font-weight:600;color:#1c1400;background:#ffc400;border:0;border-radius:10px;padding:.8rem 1.6rem;box-shadow:0 0 0 5px rgba(255,196,0,.22),0 12px 30px rgba(0,0,0,.45);transition:transform .15s,background .15s}
 .cta:hover{background:#ffd84a;transform:translateY(-1px)}
@@ -15424,20 +15424,20 @@ document.querySelectorAll('.vrpad button, .vrplay').forEach(b=>{
   });
 });
 syncVRPad();
-// Moments: cards on the landing page that open the VR view at a chosen sky. Each sets the epoch,
+// Moments: cards on the landing page, oldest first, that open the VR view at a chosen sky. Each sets the epoch,
 // latitude, date and clock time, then where to look: toward the Sun (the default), a direction
 // (look: [azimuth, elevation]), or the supernova (look: 'sn'). The eclipse card finds the total
 // eclipse after its date as the t key does. Moments about the sky itself open with clouds off
 // (c brings them back).
 const MOMENTS=[
-  {epoch:'modern', date:'2029-09-01', eclipse:true, title:'Totality, September 2029', sub:'The corona, Baily’s beads, and a sunset all round the horizon', art:'eclipse'},
-  {epoch:'geminga', date:'2026-01-15', t:1320, look:'sn', title:'The Geminga supernova', sub:'342,000 years ago, a star in Orion as bright as the quarter Moon', art:'nova'},
-  {epoch:'carbon30', date:'2026-07-08', t:1380, look:[180, 32], title:'The Milky Way, 300 Ma', sub:'No city lights, and stars no one has catalogued', art:'galaxy'},
-  {epoch:'modern', date:'2026-07-08', t:1380, look:[180, 32], title:'A city night, today', sub:'Sodium and LED glow hides all but the brightest stars', art:'city'},
-  {epoch:'volcanic', date:'2026-07-08', t:1380, look:[180, 32], title:'The same night in 1815', sub:'Oil lamps barely touch the sky', art:'stars'},
-  {epoch:'archean27', date:'2026-03-20', t:930, title:'Archean afternoon, 2.7 Ga', sub:'A pale orange organic haze, like Titan’s', art:'day'},
-  {epoch:'kpg66', date:'2026-03-20', t:720, title:'Noon after the asteroid', sub:'Soot from Chicxulub turns the sky dim amber', art:'day'},
   {epoch:'hadean44', date:'2026-03-20', t:1050, title:'A Hadean evening, 4.4 Ga', sub:'Thirty bars of CO₂ under a young, faint Sun', art:'day'},
+  {epoch:'archean27', date:'2026-03-20', t:930, title:'Archean afternoon, 2.7 Ga', sub:'A pale orange organic haze, like Titan’s', art:'day'},
+  {epoch:'carbon30', date:'2026-07-08', t:1380, look:[180, 32], title:'The Milky Way, 300 Ma', sub:'No city lights, and stars no one has catalogued', art:'galaxy'},
+  {epoch:'kpg66', date:'2026-03-20', t:720, title:'Noon after the asteroid', sub:'Soot from Chicxulub turns the sky dim amber', art:'day'},
+  {epoch:'geminga', date:'2026-01-15', t:1320, look:'sn', title:'The Geminga supernova', sub:'342,000 years ago, a star in Orion as bright as the quarter Moon', art:'nova'},
+  {epoch:'volcanic', date:'2026-07-08', t:1380, look:[180, 32], title:'The same night in 1815', sub:'Oil lamps barely touch the sky', art:'stars'},
+  {epoch:'modern', date:'2026-07-08', t:1380, look:[180, 32], title:'A city night, today', sub:'Sodium and LED glow hides all but the brightest stars', art:'city'},
+  {epoch:'modern', date:'2029-09-01', eclipse:true, title:'Totality, September 2029', sub:'The corona, Baily’s beads, and a sunset all round the horizon', art:'eclipse'},
 ];
 const MOMENT_ART={
   eclipse:'<defs><radialGradient id="mglow"><stop offset=".5" stop-color="#f4ecd8" stop-opacity=".6"/><stop offset="1" stop-color="#f4ecd8" stop-opacity="0"/></radialGradient></defs><circle cx="60" cy="38" r="26" fill="url(#mglow)"/><circle cx="60" cy="38" r="14.5" fill="none" stroke="#fbf3e0" stroke-width="1.6"/><circle cx="60" cy="38" r="13.6" fill="#05070c"/>',

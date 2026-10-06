@@ -100,8 +100,8 @@ button.tick.on{background:none;color:var(--ink)}
 .toplinks a{color:#aeb4c0;text-decoration:none;display:inline-flex;align-items:center;gap:.4rem}
 .toplinks a:hover{color:#fff}
 .toplinks svg{width:1.05em;height:1.05em;fill:currentColor}
-.hero-grid{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:2.8rem;align-items:center;margin-top:2.2rem}
-.hero h1{font-size:clamp(2.3rem,5.2vw,4rem);line-height:1.02;margin:0 0 1rem}
+.hero-grid{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:2.8rem;align-items:start;margin-top:1.4rem}
+.hero h1{font-size:clamp(2.3rem,5.2vw,4rem);line-height:1.02;margin:1.6rem 0 1rem}
 .hero .lede{color:#c3c8d2;font-size:1.18rem;max-width:34em}
 .cta{margin:1.4rem 0 .7rem;font-size:1.45rem;font-weight:600;color:#1c1400;background:#ffc400;border:0;border-radius:10px;padding:.8rem 1.6rem;box-shadow:0 0 0 5px rgba(255,196,0,.22),0 12px 30px rgba(0,0,0,.45);transition:transform .15s,background .15s}
 .cta:hover{background:#ffd84a;transform:translateY(-1px)}
