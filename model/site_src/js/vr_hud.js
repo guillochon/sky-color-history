@@ -101,7 +101,7 @@ function stepMinutes(d){
   hslider.value=minutes; renderDay();
 }
 function stepEpoch(d){
-  dIdx=(dIdx+d%EP.length+EP.length)%EP.length; sel.value=String(dIdx); renderDay(); warm();
+  setEpoch((dIdx+d%EP.length+EP.length)%EP.length);
 }
 function pageMs(){
   const raw=(document.getElementById('moonDate').value)||localISODate(new Date());
@@ -135,6 +135,7 @@ function vrQuery(){
   q.set('epoch', EP[dIdx].key);
   q.set('lat', dLat==='Equator'?'equator':dLat==='Polar'?'75':'45');
   q.set('t', String(Math.floor(minutes)));
+  q.set('date', document.getElementById('moonDate').value||localISODate(new Date()));
   return q;
 }
 function vrLinkURL(){ return location.pathname+'?'+vrQuery().toString()+location.hash; }
@@ -176,6 +177,8 @@ function applyLink(){
     dLat=latName;
     document.querySelectorAll('[data-lat]').forEach(x=>x.setAttribute('aria-pressed', x.dataset.lat===latName?'true':'false'));
   }
+  const date=q.get('date');
+  if(date && /^\d{4}-\d{2}-\d{2}$/.test(date)) document.getElementById('moonDate').value=date;
   const raw=q.get('t');
   if(raw){
     let m=NaN;

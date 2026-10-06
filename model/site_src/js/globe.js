@@ -59,23 +59,38 @@ const WIKI={
   ozonehole:['Ozone depletion','https://en.wikipedia.org/wiki/Ozone_depletion'],
   y2100:['Satellite constellation','https://en.wikipedia.org/wiki/Satellite_constellation']
 };
+// One epoch for the whole page: the globe follows the timeline continuously, and the dome and
+// VR follow it whenever it reaches another epoch.
 function showEpoch(pos){
   tPos=pos; drawGlobeAt(pos);
-  const i=Math.round(pos); if(i===tIdx && document.getElementById('tname').textContent) return; tIdx=i;
+  const i=Math.round(pos);
+  if(i!==dIdx){ dIdx=i; sel.value=String(i); renderDay(); warm(); }
+  if(i===tIdx && document.getElementById('tname').textContent) return; tIdx=i;
   const ep=EP[i];
   document.getElementById('tname').textContent=ep.name;
+  document.getElementById('tage').textContent=ep.age;
   document.getElementById('tsub').textContent=ep.sub;
   const wiki=WIKI[ep.key], wa=document.getElementById('twiki');
   wa.href=wiki[1]; wa.textContent=wiki[0]+' on Wikipedia';
   document.getElementById('tprose').textContent=ep.prose;
+  // Long descriptions open on demand.
+  const box=document.getElementById('tprosebox'), more=document.getElementById('tmore');
+  box.classList.remove('open'); more.setAttribute('aria-expanded','false'); more.textContent='Read more';
+  const fits=box.scrollHeight<=box.clientHeight+4;
+  more.hidden=fits; box.classList.toggle('fits', fits);
   const domes=document.getElementById('tdomes'); domes.innerHTML='';
   for(const L of ['Equator','Mid-latitude','Polar summer']){ const v=ep.lat[L]; const zc=hex(tone(xyY2XYZ(v.z),YREF)), hc=hex(tone(xyY2XYZ(v.h),YREF));
     domes.insertAdjacentHTML('beforeend',`<figure><div class="sky" style="background:linear-gradient(${zc},${hc})"></div><figcaption>${L}<small>zenith ${v.zc.toLocaleString()} K · horizon ${v.hc.toLocaleString()} K</small></figcaption></figure>`); }
   document.querySelectorAll('#ttrack .tick').forEach((t,j)=>{ const on=j===i; t.classList.toggle('on',on); if(on) t.setAttribute('aria-current','true'); else t.removeAttribute('aria-current'); });
 }
+document.getElementById('tmore').addEventListener('click', e=>{
+  const box=document.getElementById('tprosebox'), open=box.classList.toggle('open');
+  e.currentTarget.setAttribute('aria-expanded', String(open)); e.currentTarget.textContent=open?'Show less':'Read more';
+});
 const track=document.getElementById('ttrack');
-EP.forEach((ep,i)=>{ const t=document.createElement('button'); t.type='button'; t.className='tick row'+(i%2); t.style.left=(100*i/(EP.length-1))+'%'; t.setAttribute('aria-label',ep.name); t.innerHTML='<i></i><span class="lb"></span><span class="name"></span>'; t.querySelector('.lb').textContent=ep.age; t.querySelector('.name').textContent=ep.name; t.addEventListener('click',()=>{ tslider.value=i; showEpoch(i); }); track.appendChild(t); });
+EP.forEach((ep,i)=>{ const t=document.createElement('button'); t.type='button'; t.className='tick row'+(i%2); t.style.left=(100*i/(EP.length-1))+'%'; t.setAttribute('aria-label',ep.name); t.innerHTML='<i></i><span class="lb"></span><span class="name"></span>'; t.querySelector('.lb').textContent=ep.age; t.querySelector('.name').textContent=ep.name; t.addEventListener('click',()=>setEpoch(i)); track.appendChild(t); });
 const tslider=document.getElementById('tslider');
+function setEpoch(i){ i=Math.max(0, Math.min(EP.length-1, i)); tslider.value=String(i); showEpoch(i); }
 tslider.addEventListener('input',()=>{ showEpoch(+tslider.value); });
 let tRAF=null; const tplay=document.getElementById('tplay');
 tplay.addEventListener('click',()=>{ if(tRAF){cancelAnimationFrame(tRAF);tRAF=null;tplay.textContent='Play';tplay.setAttribute('aria-pressed','false');return;}

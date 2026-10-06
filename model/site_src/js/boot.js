@@ -1,11 +1,12 @@
-const openVR=applyLink();
-tslider.value=dIdx;
+// Today and now, unless a link sets the epoch, place, date, or time.
 (function(){
   const t=new Date();
   document.getElementById('moonDate').value=localISODate(t);
   minutes=t.getHours()*60+t.getMinutes()+t.getSeconds()/60;
   hslider.value=String(minutes);
 })();
+const openVR=applyLink();
+tslider.value=dIdx;
 moonImg.src='moon.jpg';
 // The Milky Way map takes a moment, so it is built once the page is up.
 (window.requestIdleCallback||setTimeout)(()=>{ buildMilkyWay(); renderDay(); });

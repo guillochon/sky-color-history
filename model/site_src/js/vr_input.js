@@ -122,7 +122,7 @@ function exitVR(){
   adoptPlayRate();
   renderDay(false);
 }
-document.getElementById('vrbtn').addEventListener('click', ()=>enterVR(false));
+document.querySelectorAll('#vrbtn, #vrbtn2').forEach(b=>b.addEventListener('click', ()=>enterVR(false)));
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden){ if(vrOn) syncVRLink(true); return; }
   if(vrOn&&dayPlaying) adoptPlayRate();
@@ -185,8 +185,8 @@ document.addEventListener('keydown',e=>{
     return;
   }
   if(document.activeElement.tagName==='INPUT'||document.activeElement.tagName==='SELECT') return;
-  if(e.key==='ArrowRight'&&tIdx<EP.length-1){tslider.value=tIdx+1;showEpoch(tIdx+1);}
-  if(e.key==='ArrowLeft'&&tIdx>0){tslider.value=tIdx-1;showEpoch(tIdx-1);}
+  if(e.key==='ArrowRight'&&tIdx<EP.length-1) setEpoch(tIdx+1);
+  if(e.key==='ArrowLeft'&&tIdx>0) setEpoch(tIdx-1);
 });
 function syncVRPad(){
   const set=(id,on)=>{ const b=document.getElementById(id); if(b) b.setAttribute('aria-pressed', on?'true':'false'); };
