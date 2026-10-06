@@ -9,7 +9,7 @@ const MOMENTS=[
   {epoch:'carbon30', date:'2026-07-08', t:1380, look:[180, 32], title:'The Milky Way, 300 Ma', sub:'No city lights, and stars no one has catalogued', art:'galaxy'},
   {epoch:'kpg66', date:'2026-03-20', t:720, title:'Noon after the asteroid', sub:'Soot from Chicxulub turns the sky dim amber', art:'day'},
   {epoch:'geminga', date:'2026-01-15', t:1320, look:'sn', title:'The Geminga supernova', sub:'342,000 years ago, a star in Orion as bright as the quarter Moon', art:'nova'},
-  {epoch:'volcanic', date:'2026-07-08', t:1380, look:[180, 32], title:'A town night in 1815', sub:'Before street lighting, oil lamps barely touch the sky', art:'stars'},
+  {epoch:'volcanic', date:'2026-07-08', t:1380, look:[180, 32], title:'A town night in 1815', sub:'Oil lamps light the streets but barely touch the sky', art:'stars'},
   {epoch:'modern', date:'2026-07-08', t:1380, look:[180, 32], title:'A city night, today', sub:'Sodium and LED glow hides all but the brightest stars', art:'city'},
   {epoch:'modern', date:'2029-09-01', eclipse:true, title:'Totality, September 2029', sub:'The corona, Baily’s beads, and a sunset all round the horizon', art:'eclipse'},
 ];
