@@ -37,7 +37,7 @@ function drawGlobeAt(pos){ // blend between neighboring epochs
   const i=Math.floor(pos), t=pos-i; const a=renderGlobe(EP[i]);
   gctx.globalAlpha=1; gctx.drawImage(a,0,0);
   if(t>0.001 && i<EP.length-1){ const b=renderGlobe(EP[i+1]); gctx.globalAlpha=t; gctx.drawImage(b,0,0); gctx.globalAlpha=1; }
-  gctx.font='italic 22px Newsreader, Georgia, serif'; tag(gctx, EP[Math.round(pos)].name, 18, globe.height-18);
+  gctx.font='italic 22px Newsreader, Georgia, serif'; tag(gctx, EP[Math.round(pos)].name, 14, globe.height-9);
   refreshGlobeTip();
 }
 const WIKI={
