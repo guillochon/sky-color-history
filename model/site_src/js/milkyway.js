@@ -5,11 +5,11 @@
 // noise; a bulge; the Sagittarius and Scutum star clouds; dust in a thin layer that splits the
 // band from Cygnus to Sagittarius (the Great Rift), plus the Coalsack and the Ophiuchus and
 // Taurus clouds; and the Magellanic Clouds and M31. The brightest field, the Sagittarius star
-// cloud, is set to 6e-4 cd/m² (about 20.6 mag/arcsec² on its own, 20.3 with the natural sky),
-// and the band elsewhere runs from about 40% of that in Cygnus to a tenth toward the
+// cloud, is set to 8.5e-4 cd/m² (about 20.2 mag/arcsec² on its own, 20.0 with the natural sky,
+// at the bright end of what is measured), and the band elsewhere runs from about 40% of that in Cygnus to a tenth toward the
 // anticentre, in line with the integrated starlight of Leinert et al. 1998 (A&AS 127, 1). Its
 // colour is that of integrated starlight, about 4800 K.
-const MW_W=1024, MW_H=288, MW_BMAX=50, MW_PEAK=6e-4, MW_XY=[0.350, 0.360];
+const MW_W=1024, MW_H=288, MW_BMAX=50, MW_PEAK=8.5e-4, MW_XY=[0.350, 0.360];
 let mwMap=null;
 function mwHash(ix, iy, seed){
   let h=Math.imul(ix, 374761393)^Math.imul(iy, 668265263)^Math.imul(seed, 1442695041);
@@ -73,13 +73,24 @@ function galacticBasis(lat){
     let H=rev(LST-rev(place.ra)); if(H>180) H-=360;
     const p=altaz(lat, place.dec, H); return horizDir(p.az, p.alt);
   };
-  // Rows of GAL_AXES are the galactic axes in J2000 equatorial coordinates.
-  return GAL_AXES.map(toHoriz);
+  // Rows of GAL_AXES are the galactic axes in J2000 equatorial coordinates. At a traced epoch
+  // (STAR_EPOCH_GAL, from build_star_epochs.py) the plane is where it is now, but the Sun was
+  // elsewhere on its orbit, so the Galactic centre, and the bright part of the band, lay at
+  // another longitude: the first two axes turn about the pole to put it there.
+  const [x, y, z]=GAL_AXES.map(toHoriz), L=((STAR_EPOCH_GAL[epochKey]||{}).mwL||0)*Math.PI/180;
+  const c=Math.cos(L), s=Math.sin(L);
+  const basis=[[c*x[0]+s*y[0], c*x[1]+s*y[1], c*x[2]+s*y[2]], [c*y[0]-s*x[0], c*y[1]-s*x[1], c*y[2]-s*x[2]], z];
+  basis.db=mwLatShift(epochKey);
+  return basis;
 }
+// How far the band sits from the galactic equator (degrees): seen from above the plane it
+// shifts the other way, by the Sun's extra height over the 1.5 kpc or so that most of the
+// band's light comes from. Today's 20.8 pc is already in the map.
+function mwLatShift(key){ const g=STAR_EPOCH_GAL[key]; return g?-Math.atan((g.sunZ-20.8)/1500)*180/Math.PI:0; }
 // Brightness (cd/m²) of the Milky Way seen in horizon direction d, before the air.
 function mwAt(basis, d){
   const x=vdot(d, basis[0]), y=vdot(d, basis[1]), z=vdot(d, basis[2]);
-  return mwSample(Math.atan2(y, x)*180/Math.PI, Math.asin(Math.max(-1, Math.min(1, z)))*180/Math.PI);
+  return mwSample(Math.atan2(y, x)*180/Math.PI, Math.asin(Math.max(-1, Math.min(1, z)))*180/Math.PI-basis.db);
 }
 // Atmospheric extinction toward true altitude el (degrees), k magnitudes per airmass
 // (Kasten & Young 1989 airmass).

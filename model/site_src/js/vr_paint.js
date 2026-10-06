@@ -236,7 +236,7 @@ function paintVR(){
   gl.uniform1f(u.corona, skyNow.corona||0);
   // The night sky: the display curve, the Milky Way (uploaded once it is built), and limits.
   gl.uniform4f(u.toneU, skyNow.toneK, skyNow.toneP, 0.95, TOE_CD);
-  gl.uniform1f(u.rCd, skyNow.rCd);
+  gl.uniform1f(u.rCd, skyNow.rCd); gl.uniform1f(u.mwK, skyNow.extK);
   if(mwMap && !vrGL.mwTex){
     const t=gl.createTexture(), half=new Float32Array(mwMap.length);
     for(let i=0;i<half.length;i++) half[i]=mwMap[i]*1e4;
@@ -248,7 +248,7 @@ function paintVR(){
   }
   gl.uniform1f(u.mwOn, vrGL.mwTex&&skyNow.gal?1:0);
   if(vrGL.mwTex&&skyNow.gal){
-    gl.uniform1f(u.mwScale, 1e-4/skyNow.rCd); gl.uniform1f(u.mwK, skyNow.extK);
+    gl.uniform1f(u.mwScale, 1e-4*extZenith(EP[dIdx].key)/skyNow.rCd); gl.uniform1f(u.mwDB, skyNow.gal.db||0);
     gl.uniform3fv(u.galX, skyNow.gal[0]); gl.uniform3fv(u.galY, skyNow.gal[1]); gl.uniform3fv(u.galZ, skyNow.gal[2]);
   }
   gl.uniform4fv(u.beads, skyNow.beads||new Float32Array(24));

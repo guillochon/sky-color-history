@@ -33,13 +33,15 @@ function skyRAt(rgrid, el, az){
 // A star shows in full when 0.8 mag brighter than the naked-eye limit for the sky around it,
 // fading out to 0.2 mag fainter than the limit.
 function starVisible(mag, L){ const lim=nakedEyeLimit(L); return 1-smooth01(lim-0.8, lim+0.2, mag); }
-function drawStarsOnDome(marks, rgrid, rCd){
+function drawStarsOnDome(marks, rgrid, rCd, key){
   const W=dome.width, H=dome.height, cx=W/2, cy=H/2, R=W*0.46;
   dctx.save();
   dctx.beginPath(); dctx.arc(cx,cy,R,0,Math.PI*2); dctx.clip();
   dctx.globalCompositeOperation='lighter';
   for(const s of marks){
-    const night=starVisible(s.mag==null?0:s.mag, skyRAt(rgrid, s.el, s.az)*rCd);
+    // Through the air a star is fainter, so less of it shows, and smaller and dimmer when it does.
+    const m0=s.mag==null?0:s.mag, m=starThroughAir(m0, s.el, key), dim=Math.pow(10, -0.2*(m-m0));
+    const night=starVisible(m, skyRAt(rgrid, s.el, s.az)*rCd)*dim;
     if(night<0.03) continue;
     const rr=R*(90-s.el)/90, a=s.az*Math.PI/180, x=cx+rr*Math.sin(a), y=cy-rr*Math.cos(a);
     const col=s.rgb.map(c=>Math.round(Math.min(255, c*night*255)));

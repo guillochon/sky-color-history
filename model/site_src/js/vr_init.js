@@ -39,7 +39,7 @@ function vrRestoreGL(gl){
 // Uniform locations, texture units, and fixed values for a sky program (boot or full).
 function setupSkyProg(gl, prog){
   gl.useProgram(prog);
-  const u={}; for(const n of ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','eye','nr','na','sunMu','showScn','mtnSnow','moonAz','moonEl','moonRad','moonOn','latRad','starPx','cloudCov','cloudScale','cloudDrift','cloudOn','clockH','pondN','snowCover','waterT','snOn','snDir','snCol','snLight','mlDir','mlLight','corona','toneU','rCd','mwOn','mwScale','mwK','galX','galY','galZ']) u[n]=gl.getUniformLocation(prog, n);
+  const u={}; for(const n of ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','eye','nr','na','sunMu','showScn','mtnSnow','moonAz','moonEl','moonRad','moonOn','latRad','starPx','cloudCov','cloudScale','cloudDrift','cloudOn','clockH','pondN','snowCover','waterT','snOn','snDir','snCol','snLight','mlDir','mlLight','corona','toneU','rCd','mwOn','mwScale','mwK','mwDB','galX','galY','galZ']) u[n]=gl.getUniformLocation(prog, n);
   u.beads=gl.getUniformLocation(prog,'beads[0]');
   u.pond=gl.getUniformLocation(prog,'pond[0]');
   u.obj=gl.getUniformLocation(prog,'obj[0]'); u.kind=gl.getUniformLocation(prog,'kind[0]');

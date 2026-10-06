@@ -132,14 +132,25 @@ function cdPerUnit(){
 // Within the city the glow rises about threefold toward the horizon.
 const NIGHT_NATURAL=1.71e-4, NIGHT_XY=[0.310, 0.330];
 const SKYGLOW={modern:[3.09e-3, 0.44, 0.40], modernpoll:[4.94e-3, 0.45, 0.40], ozonehole:[1.03e-3, 0.50, 0.41], y2100:[3.09e-3, 0.38, 0.38], volcanic:[3e-7, 0.52, 0.41]};
-// Extinction, magnitudes per airmass in V: clean air, and the hazier epochs.
-const EXT_K={modernpoll:0.5, volcanic:0.35};
+// Extinction of starlight, magnitudes per airmass in V: about 0.15 from the gas (Rayleigh and
+// ozone) plus 1.086 times each epoch's aerosol or haze optical depth at 550 nm. Clean air is
+// 0.25. The Early Hadean's 30 bar of CO2 scatters so much (optical depth about 7) that no star
+// shows through it. Starlight, the Milky Way, and the airglow all come from above the air, so
+// all three are dimmed at the zenith by the excess over clean air, and more toward the horizon.
+// The soot of the impact winter absorbs what it removes; elsewhere the haze mostly scatters it
+// back into the diffuse sky, so only the soot also darkens the airglow's diffuse glow.
+const EXT_K={hadean44:7.6, hadean40:0.35, archean27:0.8, archean27vthick:1.8, kpg66:2.3, volcanic:0.7, modernpoll:0.8};
 function extK(key){ return EXT_K[key]||0.25; }
+// Transmission at the zenith relative to clean air, and the part of it lost to absorption.
+function extZenith(key){ return Math.pow(10, -0.4*(extK(key)-0.25)); }
+function absZenith(key){ return key==='kpg66' ? Math.pow(10, -0.4*1.086*1.5) : 1; }
+// A star's magnitude through the air at true altitude el, relative to clean air at the zenith.
+function starThroughAir(mag, el, key){ const k=extK(key); return mag-2.5*Math.log10(Math.max(extinction(el, k), 1e-9))+(k-0.25); }
 function nightRows(key, NR){
   const cdu=cdPerUnit(), glow=SKYGLOW[key], q=6371/6471, rows=[];
   for(let ir=0;ir<=NR;ir++){
     const vz=Math.min(90*ir/NR, 89.5), el=90-vz, sz=Math.sin(vz*Math.PI/180);
-    const X=xyY2XYZ([NIGHT_XY[0], NIGHT_XY[1], NIGHT_NATURAL*(0.4+0.6*extinction(el, extK(key)))/Math.sqrt(1-q*q*sz*sz)/cdu]);
+    const X=xyY2XYZ([NIGHT_XY[0], NIGHT_XY[1], NIGHT_NATURAL*absZenith(key)*(0.4+0.6*extinction(el, extK(key)))/Math.sqrt(1-q*q*sz*sz)/cdu]);
     if(glow){ const G=xyY2XYZ([glow[1], glow[2], glow[0]*(1+2.2*Math.exp(-el/12))/cdu]); X[0]+=G[0]; X[1]+=G[1]; X[2]+=G[2]; }
     rows.push(X);
   }
@@ -242,7 +253,7 @@ function renderDay(fast){
     const dx=2*i+1-cx, dy=2*j+1-cy, rr=Math.hypot(dx, dy);
     if(rr>R) continue;
     let ang=Math.atan2(dx,-dy)*180/Math.PI; if(ang<0) ang+=360;
-    const el=90-90*rr/R, rMw=mwAt(galB, horizDir(ang, el))*extinction(el, ek)/(cdu*Yref);
+    const el=90-90*rr/R, rMw=mwAt(galB, horizDir(ang, el))*extinction(el, ek)*extZenith(ep.key)/(cdu*Yref);
     if(!(rMw>0)) continue;
     const fr=(rr/R)*NR, ir=Math.min(NR-1,Math.floor(fr)), tr=fr-ir, fa=ang/360*NA, ia=Math.min(NA-1,Math.floor(fa)), ta=fa-ia;
     const la=lgrid[ir][ia]*(1-ta)+lgrid[ir][ia+1]*ta, lb=lgrid[ir+1][ia]*(1-ta)+lgrid[ir+1][ia+1]*ta, rBg=Math.exp(la*(1-tr)+lb*tr);
@@ -280,7 +291,7 @@ function renderDay(fast){
   const SUNR=DOME_DISK*moon.sunRadDeg/SUN_RADIUS_DEG, rr=R*sza/90, a=sunAz*Math.PI/180, sx=cx+rr*Math.sin(a), sy=cy-rr*Math.cos(a);
   const sunRGB=tone(sXd, sXd[1], 0.95,0.4,0.98);
   const stars=placeStars(LATDEG[dLat]);
-  if(!fast) drawStarsOnDome(stars.marks, rgrid, Yref*cdu);
+  if(!fast) drawStarsOnDome(stars.marks, rgrid, Yref*cdu, ep.key);
   const sunUpPix=!fast && rr-SUNR<R && sunRelD>3e-4;
   if(sunUpPix){
     dctx.save(); dctx.beginPath(); dctx.arc(cx,cy,R,0,Math.PI*2); dctx.clip();

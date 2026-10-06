@@ -12,7 +12,7 @@ uniform vec3 sunCol,ground,eye;
 uniform float corona;
 uniform sampler2D mwTex;
 uniform vec4 toneU; // display curve: k, p, cap, cd/m² per unit r (color.js toneT)
-uniform float rCd,mwOn,mwScale,mwK;
+uniform float rCd,mwOn,mwScale,mwK,mwDB;
 uniform vec3 galX,galY,galZ;
 float lin2s(float v){ return v<=0.0031308?12.92*v:1.055*pow(v, 1.0/2.4)-0.055; }
 float s2lin(float v){ return v<=0.04045?v/12.92:pow((v+0.055)/1.055, 2.4); }
@@ -476,7 +476,7 @@ void main(){
       // The Milky Way, behind the air: its light dimmed by extinction and added to the sky's
       // under the same display curve, coloured by its share.
       vec3 gq=vec3(dot(src, galX), dot(src, galY), dot(src, galZ));
-      float gb=asin(clamp(gq.z, -1.0, 1.0))*57.2957795;
+      float gb=asin(clamp(gq.z, -1.0, 1.0))*57.2957795-mwDB;
       if(abs(gb)<${MW_BMAX.toFixed(1)}){
         float gl=atan(gq.y, gq.x)*57.2957795;
         float rMw=texture(mwTex, vec2((gl+180.0)/360.0, (gb+${MW_BMAX.toFixed(1)})/${(2*MW_BMAX).toFixed(1)})).r*mwScale*extinctionAt(te, mwK);
@@ -545,7 +545,10 @@ void main(){
           if(c<1.0-8.0*sig*sig) continue;
           float wgt=exp(-0.5*max(0.0, 2.0*(1.0-c))/(sig*sig));
           vec4 sc=texelFetch(starMap, ivec2(si, 1), 0);
-          skyC+=sc.rgb*wgt*(1.0-smoothstep(lim-0.8, lim+0.2, sc.a));
+          // Through the air (mwK magnitudes per airmass) the star is fainter: less of it shows,
+          // and what shows is dimmer (day.js starThroughAir).
+          float m=sc.a-2.5*log(max(extinctionAt(te, mwK), 1e-9))/2.302585+(mwK-0.25);
+          skyC+=sc.rgb*wgt*(1.0-smoothstep(lim-0.8, lim+0.2, m))*pow(10.0, -0.2*(m-sc.a));
         }
       }
     }
