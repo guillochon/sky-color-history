@@ -213,6 +213,8 @@ function paintVR(){
   if(!vrOn||!vrGL||!skyNow) return;
   // This paint answers any one already asked for.
   if(vrRAF){ cancelAnimationFrame(vrRAF); vrRAF=0; }
+  // A sky drawn for the page has no star cells for VR: draw it again for VR, which paints.
+  if(!skyNow.starBins){ renderDay(true); return; }
   const {gl,u,tex}=vrGL, c=gl.canvas;
   gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.disable(gl.BLEND); gl.drawBuffers([gl.BACK]);
   gl.viewport(0,0,c.width,c.height);
