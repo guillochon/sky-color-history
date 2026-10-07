@@ -1,7 +1,7 @@
 // Star places use this year for proper motion and precession, instead of the date picker's.
 const STAR_YEAR={volcanic:1815};
 function placeStars(lat){
-  const epochKey=EP[dIdx].key, list=STARS_EPOCH[epochKey]||STARS;
+  const epochKey=EP[dIdx].key, list=starsFor(epochKey);
   const year=STAR_YEAR[epochKey]||pageDate()[0];
   const LST=localSidereal();
   const tex=new Float32Array(STAR_MAP_W*8), marks=[], up=[];

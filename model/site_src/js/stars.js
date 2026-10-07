@@ -90,6 +90,35 @@ function pointDisplay(mag){
   const tint=starTint(5772);
   return {px, rgb:tint.map(c=>Math.min(2.4, c)*amp)};
 }
+// The star list for an epoch, as rows of STARS. A moved epoch's rows come from stars_epochs.js.
+// An epoch traced through the Galaxy keeps its traced stars and fills each quarter magnitude up
+// to today's count with stand-ins: today's stars of that magnitude, keeping their galactic
+// latitude and colour but at a random galactic longitude (seeded per epoch), since the real
+// stars of that sky cannot be known.
+const STAR_LISTS={};
+function starsFor(key){
+  if(STAR_LISTS[key]) return STAR_LISTS[key];
+  const full=r=>[r[0], r[1], r[2], r[3], 0, 0, r[4], r[5]];
+  if(STARS_EPOCH[key]) return STAR_LISTS[key]=STARS_EPOCH[key].map(full);
+  const seed=STAR_STANDIN_SEED[key];
+  if(seed==null) return STARS;
+  const traced=(STAR_TRACED[key]||[]).map(full), have={}, bins=new Map();
+  for(const s of traced){ const b=Math.floor(s[2]*4); have[b]=(have[b]||0)+1; }
+  for(const s of STARS){ const b=Math.floor(s[2]*4); if(!bins.has(b)) bins.set(b, []); bins.get(b).push(s); }
+  let st=seed>>>0;
+  const rand=()=>{ st=(st+0x6D2B79F5)>>>0; let t=st; t=Math.imul(t^(t>>>15), t|1); t^=t+Math.imul(t^(t>>>7), t|61); return ((t^(t>>>14))>>>0)/4294967296; };
+  const d2r=Math.PI/180, [G0, G1, G2]=GAL_AXES, fill=[];
+  for(const [b, group] of bins){
+    for(const s of group.slice(0, Math.max(0, group.length-(have[b]||0)))){
+      const ra=s[0]*d2r, dec=s[1]*d2r, cd=Math.cos(dec);
+      const sb=Math.max(-1, Math.min(1, G2[0]*cd*Math.cos(ra)+G2[1]*cd*Math.sin(ra)+G2[2]*Math.sin(dec)));
+      const cb=Math.sqrt(1-sb*sb), l=rand()*2*Math.PI, u=cb*Math.cos(l), v=cb*Math.sin(l);
+      const e=[0, 1, 2].map(i=>u*G0[i]+v*G1[i]+sb*G2[i]);
+      fill.push([((Math.atan2(e[1], e[0])/d2r)%360+360)%360, Math.asin(Math.max(-1, Math.min(1, e[2])))/d2r, s[2], s[3], 0, 0, s[6], '']);
+    }
+  }
+  return STAR_LISTS[key]=traced.concat(fill).sort((a, b)=>a[2]-b[2]).slice(0, 1000);
+}
 function starBinsFor(up){
   const pxMax=STAR_PX_ANCHOR*Math.pow(42, 0.22);
   const sig=pxMax*(VR_FOV_MAX*Math.PI/180)/Math.max(window.innerHeight, 1);

@@ -188,7 +188,7 @@ def trace_back(years):
     return p
 
 
-epoch_meta, alias, done = {}, {}, {}
+epoch_meta, alias, done, traced_lists, seeds = {}, {}, {}, {}, {}
 for key, years in ORBIT_EPOCHS.items():
     if years in done:
         alias[key] = done[years]
@@ -214,40 +214,41 @@ for key, years in ORBIT_EPOCHS.items():
     traced.sort(key=lambda m: m[0])
     if traced: print(f"{key}: {len(traced)} of {len(stars)} were shining then; brightest " +
           ", ".join(f"{m[5]} {m[0]:.2f} ({m[6]:.0f} pc)" for m in traced[:6]))
-    today = sorted(stars, key=lambda s: s['v'])[:1000]
-    limit = today[-1]['v']
-    rng = np.random.default_rng(int(years / 1e6))
-    bins, have = {}, {}
-    for s in today:
-        bins.setdefault(math.floor(s['v'] * 4), []).append(s)
-    kept = [m for m in traced if m[0] <= limit]
-    for m in kept:
-        have[math.floor(m[0] * 4)] = have.get(math.floor(m[0] * 4), 0) + 1
-    fill = []
-    for b, group in bins.items():
-        for s in group[:max(0, len(group) - have.get(b, 0))]:
-            l, bb = rng.uniform(0, 2 * math.pi), math.radians(s['glat'])
-            e = np.array([math.cos(bb) * math.cos(l), math.cos(bb) * math.sin(l), math.sin(bb)]) @ GAL
-            fill.append((s['v'], math.degrees(math.atan2(e[1], e[0])) % 360,
-                         math.degrees(math.asin(max(-1.0, min(1.0, e[2])))), s['bv'], s['k'], ''))
-    rows = sorted([m[:6] for m in kept] + fill, key=lambda m: m[0])[:1000]
-    print(f"{key}: {len(kept)} traced and {len(fill)} stand-ins down to V = {limit:.2f}")
-    lists[key] = rows
+    # The page fills each quarter magnitude up to today's count with stand-ins (stars.js,
+    # starsFor): today's stars of that magnitude at a random galactic longitude. Only the traced
+    # stars as bright as today's thousandth are kept here.
+    limit = sorted(stars, key=lambda s: s['v'])[999]['v']
+    kept = [m[:6] for m in traced if m[0] <= limit]
+    print(f"{key}: {len(kept)} traced down to V = {limit:.2f}")
+    traced_lists[key] = kept
+    seeds[key] = int(years / 1e6)
+
+
+def rows_js(rows):
+    return "\n".join(f'[{ra:.4f},{dec:.4f},{v:.2f},{bv:.2f},{k},{json.dumps(name, ensure_ascii=False)}],'
+                     for v, ra, dec, bv, k, name in rows)
+
 
 out = ["// The Bright Star Catalogue moved to the supernova epochs (straight-line motion relative to",
-       "// the Sun) and to 66 Ma (orbits in the Galaxy, with stand-ins for the stars that cannot be",
-       "// traced) by build_star_epochs.py, from XHIP (Hipparcos) astrometry; older epochs are all",
-       "// stand-ins. Rows are as in stars_catalog.js; proper motions are zeroed because the",
-       "// positions are already moved. An empty name marks a stand-in.",
+       "// the Sun) and to 66 Ma (orbits in the Galaxy) by build_star_epochs.py, from XHIP (Hipparcos)",
+       "// astrometry. Rows are right ascension, declination, V, B-V, colour temperature and name;",
+       "// stars.js adds the zero proper motions, as the positions are already moved.",
        "const STARS_EPOCH={"]
 for key, rows in lists.items():
-    out.append(f"{key}:[")
-    for v, ra, dec, bv, k, name in rows:
-        out.append(f'[{ra:.4f},{dec:.4f},{v:.2f},{bv:.2f},0,0,{k},{json.dumps(name, ensure_ascii=False)}],')
-    out.append("],")
+    out += [f"{key}:[", rows_js(rows), "],"]
 out.append("};")
+out.append("// The epochs traced through the Galaxy: the catalogue stars that can be traced, and the seed")
+out.append("// for the stand-ins that fill the rest of the sky (stars.js, starsFor). Before the impact")
+out.append("// winter no catalogue star can be traced near the Sun, so those skies are all stand-ins.")
+out.append("const STAR_TRACED={")
+for key, rows in traced_lists.items():
+    if rows:
+        out += [f"{key}:[", rows_js(rows), "],"]
+out.append("};")
+out.append("const STAR_STANDIN_SEED=" + json.dumps({**seeds, **{k: seeds[src] for k, src in alias.items()}}) + ";")
 for key, src in alias.items():
-    out.append(f"STARS_EPOCH.{key}=STARS_EPOCH.{src};")
+    if traced_lists.get(src):
+        out.append(f"STAR_TRACED.{key}=STAR_TRACED.{src};")
 out.append("// For each traced epoch: the galactic longitude (in today's coordinates) of the Galactic centre")
 out.append("// as seen from the Sun then, where the Milky Way was brightest, and the Sun's height above the plane (pc).")
 out.append("const STAR_EPOCH_GAL=" + json.dumps(epoch_meta) + ";")
