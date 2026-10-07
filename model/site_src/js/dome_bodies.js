@@ -223,17 +223,21 @@ function drawMoonOnDome(moon, sunAz, sunEl){
   const x1=Math.min(W-1,Math.ceil(mx+rad+1)), y1=Math.min(H-1,Math.ceil(my+rad+1));
   if(x1<x0||y1<y0) return;
   const bw=x1-x0+1, bh=y1-y0+1, img=dctx.getImageData(x0,y0,bw,bh), px=img.data;
+  // The sprite, bilinear, into s (zero outside it).
+  const s=new Float64Array(4), at=(i,j,k)=>(i<0||j<0||i>95||j>95)?0:spr[(j*96+i)*4+k];
   const samp=(u,v)=>{
     const x=(u*0.5+0.5)*96-0.5, y=((1-v)*0.5)*96-0.5, i0=Math.floor(x), j0=Math.floor(y), tx=x-i0, ty=y-j0;
-    const at=(i,j)=>{ if(i<0||j<0||i>95||j>95) return [0,0,0,0]; const o=(j*96+i)*4; return [spr[o],spr[o+1],spr[o+2],spr[o+3]]; };
-    const A=at(i0,j0), B=at(i0+1,j0), C=at(i0,j0+1), D=at(i0+1,j0+1), m=(p,q,t)=>p*(1-t)+q*t;
-    return [0,1,2,3].map(k=>m(m(A[k],B[k],tx),m(C[k],D[k],tx),ty));
+    for(let k=0;k<4;k++){
+      const a=at(i0,j0,k)*(1-tx)+at(i0+1,j0,k)*tx, b=at(i0,j0+1,k)*(1-tx)+at(i0+1,j0+1,k)*tx;
+      s[k]=a*(1-ty)+b*ty;
+    }
+    return s;
   };
   for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++){
     const dx=x-cx, dy=y-cy; if(dx*dx+dy*dy>R*R) continue;
     const qx=x-mx, qy=y-my, lx=qx*ca+qy*sa, ly=-qx*sa+qy*ca, u=lx/rad, v=-ly/rad;
     if(u*u+v*v>1) continue;
-    const s=samp(u,v), lit=s[3]/255, wlit=0.06+0.94*lit;
+    samp(u,v); const lit=s[3]/255, wlit=0.06+0.94*lit;
     const el=90*(1-Math.hypot(dx,dy)/R), mu=Math.max(Math.sin(Math.max(el,0)*Math.PI/180), 0.04);
     const Tr=Math.exp(-0.12/mu), Tg=Math.exp(-0.22/mu), Tb=Math.exp(-0.48/mu);
     const o=((y-y0)*bw+(x-x0))*4;

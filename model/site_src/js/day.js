@@ -1,5 +1,6 @@
 /* ---------- Section 2: a day under that sky ---------- */
-const dome=document.getElementById('dome'), dctx=dome.getContext('2d');
+// The Moon pass and the colour tip read the dome back every render, so it is kept in memory.
+const dome=document.getElementById('dome'), dctx=dome.getContext('2d', {willReadFrequently:true});
 const sel=document.getElementById('depoch'); EP.forEach((ep,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=`${ep.age} — ${ep.name}`; sel.appendChild(o); });
 let dIdx=MODERN_IDX, dLat='Mid-latitude', minutes=720, autoExpo=false;
 const DAYMIN=1440; // midnight to midnight
