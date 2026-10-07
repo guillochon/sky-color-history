@@ -61,9 +61,15 @@ function placeSatellites(latDeg, tex, marks, up){
   const nx=-upz*ey, ny=upz*ex, nz=upx*ey-upy*ex, RE2=SAT_RE*SAT_RE, hit=[];
   const scan=(n, pref, scatter, A, CI, SI, CO, SO, M0, RATE, DV)=>{
     for(let i=0;i<n;i++){
-      const u=M0[i]+RATE[i]*minutes, cu=Math.cos(u), su=Math.sin(u);
       const ci=CI[i], si=SI[i], co=CO[i], so=SO[i], r=A[i];
+      // The height above the observer's horizon plane goes as r(P cos u + Q sin u). An orbit
+      // whose highest point stays below the plane never rises here, so skip it unplaced.
+      const P=co*upx+so*upy, Q=(co*upy-so*upx)*ci+si*upz;
+      if(r*r*(P*P+Q*Q)<RE2*0.999999) continue;
+      const u=M0[i]+RATE[i]*minutes, cu=Math.cos(u), su=Math.sin(u);
       const x=r*(co*cu-so*su*ci), y=r*(so*cu+co*su*ci), z=r*(su*si);
+      // Below the horizon plane: dark to this observer whatever else holds.
+      if(x*upx+y*upy+z*upz<=SAT_RE) continue;
       if(x>=0 && y*y+z*z<=RE2) continue;
       const sx=x-ox, sy=y-oy, sz=z-oz, dist=Math.hypot(sx,sy,sz);
       const shx=sx/dist, shy=sy/dist, shz=sz/dist, sel=shx*upx+shy*upy+shz*upz;

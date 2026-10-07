@@ -34,24 +34,34 @@ function herm(xs, ys, x){ // PCHIP: ys is an array of [X,Y,Z]; stays between adj
   }
   return out;
 }
-const dense={}; // per (epoch,lat,sza-slice): 91 x 91 table of XYZ, 1 deg in vz, 2 deg in az
+const dense={}; // per (epoch,lat): by sza index, a 91 x 91 table of XYZ, 1 deg in vz, 2 deg in az
+function denseSlices(key, lat){ const id=key+'|'+lat; return dense[id]||(dense[id]=[]); }
 function denseSlice(key, lat, s){
-  const id=key+'|'+lat+'|'+s; if(dense[id]) return dense[id];
+  const slices=denseSlices(key, lat); if(slices[s]) return slices[s];
   const G=DAY.epochs[key][lat].dome[s].map(row=>row.map(xyY2XYZ));
   const T=new Float32Array(91*91*3);
   const cols=[]; for(let a=0;a<=90;a++){ cols.push(G.map(row=>herm(AZ,row,a*2))); }
   for(let v=0;v<=90;v++){ for(let a=0;a<=90;a++){ const X=herm(VZ,cols[a],Math.min(v,88)); const o=(v*91+a)*3; T[o]=X[0];T[o+1]=X[1];T[o+2]=X[2]; } }
-  dense[id]=T; return T;
+  slices[s]=T; return T;
 }
-function domeXYZ(key, lat, si, st, vz, azr){
-  const out=[0,0,0];
+// XYZ of the dome grid at solar zenith index si+st, view zenith vz and azimuth from the Sun azr,
+// written into out. slices is denseSlices(key, lat).
+function domeSample(slices, key, lat, si, st, vz, azr, out){
+  out[0]=0; out[1]=0; out[2]=0;
   const fv=Math.min(90,vz), iv=Math.min(89,Math.floor(fv)), tv=fv-iv; const fa=azr/2, ia=Math.min(89,Math.floor(fa)), ta=fa-ia;
-  for(const [s,ws] of [[si,1-st],[si+1,st]]) if(ws>0){
-    const T=denseSlice(key,lat,s);
-    for(let q=0;q<3;q++){ const o00=(iv*91+ia)*3+q, o01=(iv*91+ia+1)*3+q, o10=((iv+1)*91+ia)*3+q, o11=((iv+1)*91+ia+1)*3+q;
-      const a=T[o00]*(1-ta)+T[o01]*ta, b=T[o10]*(1-ta)+T[o11]*ta; out[q]+=ws*(a*(1-tv)+b*tv); }
+  const o00=(iv*91+ia)*3, o01=o00+3, o10=o00+273, o11=o10+3;
+  for(let n=0;n<2;n++){
+    const s=si+n, ws=n?st:1-st;
+    if(!(ws>0)) continue;
+    const T=slices[s]||denseSlice(key,lat,s);
+    for(let q=0;q<3;q++){ const a=T[o00+q]*(1-ta)+T[o01+q]*ta, b=T[o10+q]*(1-ta)+T[o11+q]*ta; out[q]+=ws*(a*(1-tv)+b*tv); }
   }
   return out;
+}
+const DOME_TMP=new Float64Array(3);
+function domeXYZ(key, lat, si, st, vz, azr){
+  const o=domeSample(denseSlices(key, lat), key, lat, si, st, vz, azr, DOME_TMP);
+  return [o[0], o[1], o[2]];
 }
 function skySource(sza, az){
   // Samples run through 20° below the horizon. From there to 30°, fade that last sky to black.
@@ -194,16 +204,71 @@ const SRGB_LIN=Array.from({length:256}, (_, i)=>ginv(i/255));
 // Returns the factor on the sky's linear colour and the weight of the Milky Way's.
 // toneT tabulated in log10 r (steps of 0.002 decade) for the per-pixel dome work.
 const toneLUTs={};
-function toneFast(r, k, p){
+function toneLUT(k, p){
   const key=k+'|'+p; let T=toneLUTs[key];
   if(!T){ T=toneLUTs[key]=new Float32Array(6501); for(let i=0;i<=6500;i++) T[i]=toneT(Math.pow(10, -12+i*0.002), k, p, 0.95); }
+  return T;
+}
+function toneAt(T, r){
   const x=(Math.log10(Math.max(r, 1e-12))+12)/0.002, i=Math.min(6499, Math.floor(x)), f=Math.min(1, x-i);
   return T[i]+(T[i+1]-T[i])*f;
 }
-function mwMix(rBg, rMw, k, p){
-  if(!MW_LIN) MW_LIN=xyzLin(xyY2XYZ([MW_XY[0], MW_XY[1], 1]));
-  const rNew=rBg+rMw, tBg=toneFast(rBg, k, p), tNew=toneFast(rNew, k, p);
-  return [tBg>0?(tNew/tBg)*(rBg/rNew):0, tNew*rMw/rNew];
+function toneFast(r, k, p){ return toneAt(toneLUT(k, p), r); }
+// tone(), for the XYZ at X[o..o+2], written to out[o..o+2].
+function toneTo(X, o, Yref, k, p, cap, out){
+  const x0=X[o], x1=X[o+1], x2=X[o+2];
+  if(!(x1>0)){ out[o]=0; out[o+1]=0; out[o+2]=0; return; }
+  const e=Math.max(toneT(x1/Yref, k, p, cap), 0)/x1;
+  let r=M[0][0]*x0+M[0][1]*x1+M[0][2]*x2, gg=M[1][0]*x0+M[1][1]*x1+M[1][2]*x2, b=M[2][0]*x0+M[2][1]*x1+M[2][2]*x2;
+  r=Math.max(0,r*e); gg=Math.max(0,gg*e); b=Math.max(0,b*e);
+  const mx=Math.max(r,gg,b); if(mx>1){r/=mx;gg/=mx;b/=mx;}
+  out[o]=Math.round(255*g(r)); out[o+1]=Math.round(255*g(gg)); out[o+2]=Math.round(255*g(b));
+}
+// The dome's sky grid: DOME_NR+1 rings from the zenith to the horizon, DOME_NA+1 azimuths.
+const DOME_NR=72, DOME_NA=144;
+// The dome canvas's fixed geometry, worked out once: for each pixel the grid cell under it
+// (0xFFFF outside the sky circle) and where in the cell it falls; the same for each 2×2 block
+// of the Milky Way pass, with its direction and elevation.
+let domeGeo=null;
+function domeGeometry(W, H){
+  if(domeGeo && domeGeo.W===W && domeGeo.H===H) return domeGeo;
+  const cx=W/2, cy=H/2, R=W*0.46, NR=DOME_NR, NA=DOME_NA, NC=NA+1;
+  const cellOf=(dx, dy, rr, out, j)=>{
+    const fr=(rr/R)*NR, ir=Math.min(NR-1,Math.floor(fr));
+    let ang=Math.atan2(dx,-dy)*180/Math.PI; if(ang<0) ang+=360;
+    const fa=ang/360*NA, ia=Math.min(NA-1,Math.floor(fa));
+    out.cell[j]=ir*NC+ia; out.tr[j]=fr-ir; out.ta[j]=fa-ia; return ang;
+  };
+  const n=W*H, px={cell:new Uint16Array(n), tr:new Float64Array(n), ta:new Float64Array(n)};
+  for(let y=0, j=0;y<H;y++) for(let x=0;x<W;x++,j++){
+    const dx=x-cx, dy=y-cy, r=Math.hypot(dx,dy);
+    if(r>R){ px.cell[j]=0xFFFF; continue; }
+    cellOf(dx, dy, r, px, j);
+  }
+  const W2=W>>1, H2=H>>1, nb=W2*H2, bl={cell:new Uint16Array(nb), tr:new Float64Array(nb), ta:new Float64Array(nb)};
+  const dir=new Float64Array(nb*3), el=new Float64Array(nb);
+  for(let j=0, b=0;j<H2;j++) for(let i=0;i<W2;i++,b++){
+    const dx=2*i+1-cx, dy=2*j+1-cy, rr=Math.hypot(dx, dy);
+    if(rr>R){ bl.cell[b]=0xFFFF; continue; }
+    const ang=cellOf(dx, dy, rr, bl, b);
+    el[b]=90-90*rr/R;
+    const d=horizDir(ang, el[b]); dir[b*3]=d[0]; dir[b*3+1]=d[1]; dir[b*3+2]=d[2];
+  }
+  return domeGeo={W, H, px, bl, dir, el, W2, nb, extK:null, ext:null, img:null};
+}
+// Extinction toward each Milky Way block for k magnitudes per airmass, kept for the last k.
+function domeExtinction(geo, k){
+  if(geo.extK!==k){ geo.ext=new Float64Array(geo.nb); for(let b=0;b<geo.nb;b++) if(geo.bl.cell[b]!==0xFFFF) geo.ext[b]=extinction(geo.el[b], k); geo.extK=k; }
+  return geo.ext;
+}
+// The packed sky texture for VR and the dome's aurora (RGB and log luminance), made once per sky.
+function skyTexData(sky){
+  if(!sky.rgba){
+    const n=sky.rgrid.length, cg=sky.colgrid, d=new Uint8Array(n*4);
+    for(let c=0;c<n;c++){ d[c*4]=cg[c*3]; d[c*4+1]=cg[c*3+1]; d[c*4+2]=cg[c*3+2]; d[c*4+3]=encodeLogR(sky.rgrid[c]); }
+    sky.rgba=d;
+  }
+  return sky.rgba;
 }
 // Linear light to an sRGB byte, through a 4096-step table.
 const LIN_BYTE=Array.from({length:4097}, (_, i)=>Math.round(255*g(i/4096)));
@@ -232,7 +297,7 @@ function renderDay(fast){
   const moonSrc=skySource(90-moon.el, moon.az);
   const mScale=moonSkyScale(moon, sunAz, 90-sza)*sunFlux;
   const si=sunSrc.si, st=sunSrc.st, past=sunSrc.past;
-  const NR=72, NA=144; const grid=[];
+  const NR=DOME_NR, NA=DOME_NA, NC=NA+1, NG=(NR+1)*NC;
   const addField=(X, src, scale, vz, comp)=>{
     if(!src || src.fade<=0) return null;
     let azr=Math.abs(comp-src.az); if(azr>180) azr=360-azr;
@@ -264,49 +329,73 @@ function renderDay(fast){
   }
   const addRing=(X, vz)=>{ if(!ring) return; const r=ring[Math.min(NR, Math.round(vz/90*NR))]; X[0]+=r[0]*ringK; X[1]+=r[1]*ringK; X[2]+=r[2]*ringK; };
   const night=nightRows(ep.key, NR);
+  // The sky on the grid, in XYZ: the night sky, then the Sun's field, the Moon's, and the ring.
+  const grid=new Float64Array(NG*3), S=DOME_TMP, slices=denseSlices(ep.key, dLat), sunF=sunVis*sunFlux;
   let Ymax=1e-30, Yhold=1e-30, Ysun=1e-30;
-  for(let ir=0;ir<=NR;ir++){ const row=[]; const vz=90*ir/NR; for(let ia=0;ia<=NA;ia++){ const comp=360*ia/NA;
-      const X=night[ir].slice();
-      const Xsun=addField(X, sunSrc, sunVis*sunFlux, vz, comp);
-      if(Xsun){ const y=Xsun[1]*sunSrc.fade; if(y>Ysun) Ysun=y; if(Xsun[1]>Yhold) Yhold=Xsun[1]; }
-      addField(X, moonSrc, mScale, vz, comp);
-      addRing(X, vz);
-      if(X[1]>Ymax) Ymax=X[1]; row.push(X);} grid.push(row); }
-  const Ybase=past>0?Yhold:Math.max(Ysun,Ymax);
-  const Yref = autoExpo ? Math.max(Ybase, 1e-6*YREF) : YREF; const k = autoExpo?0.85:0.85, p = autoExpo?0.5:0.4;
-  const colgrid=grid.map(row=>row.map(X=>tone(X,Yref,k,p,0.95)));
-  const rgrid=grid.map(row=>row.map(X=>Math.max(X[1], 1e-30)/Yref));
-  // The Milky Way on the dome, per pixel, once the sky is dark enough for it to matter.
-  const cdu=cdPerUnit(), mwOn=!!mwMap && rgrid[0][0]<2e-6, galB=mwOn?galacticBasis(LATDEG[dLat]):null;
-  const lgrid=mwOn?rgrid.map(row=>row.map(v=>Math.log(v))):null, ek=extK(ep.key);
-  // The Milky Way and the sky under it vary slowly, so the mix is worked out once per 2×2 pixel
-  // block: each pixel's linear colour is scaled by mwA and gains mwB of the Milky Way's colour.
-  const W2=W>>1, mwA=mwOn&&!fast?new Float32Array(W2*(H>>1)):null, mwB=mwA?new Float32Array(mwA.length):null;
-  if(mwA) for(let j=0;j<(H>>1);j++) for(let i=0;i<W2;i++){
-    const dx=2*i+1-cx, dy=2*j+1-cy, rr=Math.hypot(dx, dy);
-    if(rr>R) continue;
-    let ang=Math.atan2(dx,-dy)*180/Math.PI; if(ang<0) ang+=360;
-    const el=90-90*rr/R, rMw=mwAt(galB, horizDir(ang, el))*extinction(el, ek)*extZenith(ep.key)/(cdu*Yref);
-    if(!(rMw>0)) continue;
-    const fr=(rr/R)*NR, ir=Math.min(NR-1,Math.floor(fr)), tr=fr-ir, fa=ang/360*NA, ia=Math.min(NA-1,Math.floor(fa)), ta=fa-ia;
-    const la=lgrid[ir][ia]*(1-ta)+lgrid[ir][ia+1]*ta, lb=lgrid[ir+1][ia]*(1-ta)+lgrid[ir+1][ia+1]*ta, rBg=Math.exp(la*(1-tr)+lb*tr);
-    if(rMw<rBg*0.003) continue;
-    const m=mwMix(rBg, rMw, k, p); mwA[j*W2+i]=m[0]; mwB[j*W2+i]=m[1];
-  }
-  if(!fast){ const img=dctx.createImageData(W,H), px=img.data;
-  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
-    const dx=x-cx, dy=y-cy, r=Math.hypot(dx,dy); const o=(y*W+x)*4;
-    if(r>R){ px[o]=10;px[o+1]=12;px[o+2]=18;px[o+3]=255; continue; }
-    const fr=(r/R)*NR, ir=Math.min(NR-1,Math.floor(fr)), tr=fr-ir;
-    let ang=Math.atan2(dx,-dy)*180/Math.PI; if(ang<0) ang+=360; const fa=ang/360*NA, ia=Math.min(NA-1,Math.floor(fa)), ta=fa-ia;
-    for(let q=0;q<3;q++){ const a=colgrid[ir][ia][q]*(1-ta)+colgrid[ir][ia+1][q]*ta, b=colgrid[ir+1][ia][q]*(1-ta)+colgrid[ir+1][ia+1][q]*ta; px[o+q]=a*(1-tr)+b*tr; }
-    px[o+3]=255;
-    if(mwA){
-      const bi=(y>>1)*W2+(x>>1), b=mwB[bi];
-      if(b>0){ const a=mwA[bi]; for(let q=0;q<3;q++) px[o+q]=linToByte(SRGB_LIN[Math.round(px[o+q])]*a+MW_LIN[q]*b); }
+  for(let ir=0;ir<=NR;ir++){ const vz=90*ir/NR, vzc=Math.min(vz,88), nr=night[ir], rg=ring?ring[Math.min(NR, Math.round(vz/90*NR))]:null;
+    for(let ia=0;ia<=NA;ia++){ const comp=360*ia/NA;
+      let X0=nr[0], X1=nr[1], X2=nr[2];
+      if(!(sunSrc.fade<=0)){
+        let azr=Math.abs(comp-sunSrc.az); if(azr>180) azr=360-azr;
+        domeSample(slices, ep.key, dLat, sunSrc.si, sunSrc.st, vzc, azr, S);
+        if(sunF>0){ const f=sunSrc.fade*sunF; X0+=S[0]*f; X1+=S[1]*f; X2+=S[2]*f; }
+        const y=S[1]*sunSrc.fade; if(y>Ysun) Ysun=y; if(S[1]>Yhold) Yhold=S[1];
+      }
+      if(!(moonSrc.fade<=0)){
+        let azr=Math.abs(comp-moonSrc.az); if(azr>180) azr=360-azr;
+        domeSample(slices, ep.key, dLat, moonSrc.si, moonSrc.st, vzc, azr, S);
+        if(mScale>0){ const f=moonSrc.fade*mScale; X0+=S[0]*f; X1+=S[1]*f; X2+=S[2]*f; }
+      }
+      if(rg){ X0+=rg[0]*ringK; X1+=rg[1]*ringK; X2+=rg[2]*ringK; }
+      if(X1>Ymax) Ymax=X1;
+      const o=(ir*NC+ia)*3; grid[o]=X0; grid[o+1]=X1; grid[o+2]=X2;
     }
   }
-  dctx.putImageData(img,0,0); }
+  const Ybase=past>0?Yhold:Math.max(Ysun,Ymax);
+  const Yref = autoExpo ? Math.max(Ybase, 1e-6*YREF) : YREF; const k=0.85, p = autoExpo?0.5:0.4;
+  // Display colours (sRGB bytes) and luminance over the reference, flat in grid order.
+  const colgrid=new Uint8Array(NG*3), rgrid=new Float64Array(NG);
+  for(let c=0;c<NG;c++){ toneTo(grid, c*3, Yref, k, p, 0.95, colgrid); rgrid[c]=Math.max(grid[c*3+1], 1e-30)/Yref; }
+  // The Milky Way on the dome, per pixel, once the sky is dark enough for it to matter.
+  const cdu=cdPerUnit(), mwOn=!!mwMap && rgrid[0]<2e-6, galB=mwOn?galacticBasis(LATDEG[dLat]):null, ek=extK(ep.key);
+  const geo=domeGeometry(W, H), W2=geo.W2;
+  // The Milky Way and the sky under it vary slowly, so the mix is worked out once per 2×2 pixel
+  // block: each pixel's linear colour is scaled by mwA and gains mwB of the Milky Way's colour.
+  const mwA=mwOn&&!fast?new Float32Array(geo.nb):null, mwB=mwA?new Float32Array(geo.nb):null;
+  if(mwA){
+    if(!MW_LIN) MW_LIN=xyzLin(xyY2XYZ([MW_XY[0], MW_XY[1], 1]));
+    const lgrid=new Float64Array(NG); for(let c=0;c<NG;c++) lgrid[c]=Math.log(rgrid[c]);
+    const ext=domeExtinction(geo, ek), extZ=extZenith(ep.key), scale=cdu*Yref, T=toneLUT(k, p), bl=geo.bl, dir=geo.dir;
+    const [b0, b1, b2]=galB, db=galB.db;
+    for(let bi=0;bi<geo.nb;bi++){
+      const c=bl.cell[bi]; if(c===0xFFFF) continue;
+      const d0=dir[bi*3], d1=dir[bi*3+1], d2=dir[bi*3+2];
+      const x=d0*b0[0]+d1*b0[1]+d2*b0[2], y=d0*b1[0]+d1*b1[1]+d2*b1[2], z=d0*b2[0]+d1*b2[1]+d2*b2[2];
+      const rMw=mwSample(Math.atan2(y, x)*180/Math.PI, Math.asin(Math.max(-1, Math.min(1, z)))*180/Math.PI-db)*ext[bi]*extZ/scale;
+      if(!(rMw>0)) continue;
+      const tr=bl.tr[bi], ta=bl.ta[bi];
+      const la=lgrid[c]*(1-ta)+lgrid[c+1]*ta, lb=lgrid[c+NC]*(1-ta)+lgrid[c+NC+1]*ta, rBg=Math.exp(la*(1-tr)+lb*tr);
+      if(rMw<rBg*0.003) continue;
+      const rNew=rBg+rMw, tBg=toneAt(T, rBg), tNew=toneAt(T, rNew);
+      mwA[bi]=tBg>0?(tNew/tBg)*(rBg/rNew):0; mwB[bi]=tNew*rMw/rNew;
+    }
+  }
+  if(!fast){
+    if(!geo.img) geo.img=dctx.createImageData(W,H);
+    const img=geo.img, px=img.data, cell=geo.px.cell, ptr=geo.px.tr, pta=geo.px.ta, C2=NC*3;
+    for(let y=0, j=0;y<H;y++) for(let x=0;x<W;x++,j++){
+      const o=j*4, c=cell[j];
+      if(c===0xFFFF){ px[o]=10;px[o+1]=12;px[o+2]=18;px[o+3]=255; continue; }
+      const tr=ptr[j], ta=pta[j], c0=c*3;
+      for(let q=0;q<3;q++){ const a=colgrid[c0+q]*(1-ta)+colgrid[c0+3+q]*ta, b=colgrid[c0+C2+q]*(1-ta)+colgrid[c0+C2+3+q]*ta; px[o+q]=a*(1-tr)+b*tr; }
+      px[o+3]=255;
+      if(mwA){
+        const bi=(y>>1)*W2+(x>>1), b=mwB[bi];
+        if(b>0){ const a=mwA[bi]; for(let q=0;q<3;q++) px[o+q]=linToByte(SRGB_LIN[Math.round(px[o+q])]*a+MW_LIN[q]*b); }
+      }
+    }
+    dctx.putImageData(img,0,0);
+  }
   // sun
   const sunc=rec.sun[Math.min(si+ (st>0.5?1:0), rec.sun.length-1)];
   const sX=xyY2XYZ(sunc); const sunRel = sX[1]/DAY.epochs['modern']['Equator'].sun[0][2];
@@ -373,7 +462,7 @@ function renderDay(fast){
   }
   const sn=supernovaPlace(LATDEG[dLat]);
   if(!fast) drawSupernovaOnDome(sn);
-  skyNow={colgrid, sza, sunAz, sunRGB, sunVis, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE+35/60, moon, corona, beads, eclipse, central, rgrid, cityUp:cityUplight(ep.key, Yref, k, p), Yref, toneK:k, toneP:p, rCd:Yref*cdu, gal:mwMap?galacticBasis(LATDEG[dLat]):null, extK:ek, stars:stars.tex, starBins:stars.bins, starIdx:stars.idx, starIdxCount:stars.idxCount, sn, moonRel:mScale/MOON_SUN_FULL, mScale, sunFlux, aur:auroraState(ep.key, LATDEG[dLat], minutes, rgrid[0][0]*Yref*cdu), gen:++skyGen};
+  skyNow={colgrid, nr:NR, na:NA, sza, sunAz, sunRGB, sunVis, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE+35/60, moon, corona, beads, eclipse, central, rgrid, cityUp:cityUplight(ep.key, Yref, k, p), Yref, toneK:k, toneP:p, rCd:Yref*cdu, gal:mwMap?galacticBasis(LATDEG[dLat]):null, extK:ek, stars:stars.tex, starBins:stars.bins, starIdx:stars.idx, starIdxCount:stars.idxCount, sn, moonRel:mScale/MOON_SUN_FULL, mScale, sunFlux, aur:auroraState(ep.key, LATDEG[dLat], minutes, rgrid[0]*Yref*cdu), gen:++skyGen};
   document.getElementById('raur').textContent=auroraReadout(skyNow.aur);
   document.getElementById('rmoon').textContent = (moon.el<-moon.radDeg ? 'below horizon' : moon.el.toFixed(1)+'°')+' · '+Math.round(moonLit(moon, sunAz, 90-sza)*100)+'% lit · '+(mScale/MOON_SUN_FULL).toPrecision(2)+'× full';
   if(vrOn) paintVR();
@@ -402,7 +491,7 @@ function renderDay(fast){
   paintDomeAurora();
   refreshDomeTip();
 }
-function warm(){ const ep=EP[dIdx], key=ep.key, lat=dLat; let s=0; if(!DAY.epochs[key]){ loadDay(key).then(()=>{ if(EP[dIdx].key===key && dLat===lat && DAY.epochs[key]) warm(); }); return; } const step=()=>{ if(EP[dIdx].key!==key||dLat!==lat) return; while(s<SZ.length && dense[key+'|'+lat+'|'+s]) s++; if(s>=SZ.length) return; denseSlice(key,lat,s); s++; (window.requestIdleCallback||setTimeout)(step); }; (window.requestIdleCallback||setTimeout)(step); }
+function warm(){ const ep=EP[dIdx], key=ep.key, lat=dLat; let s=0; if(!DAY.epochs[key]){ loadDay(key).then(()=>{ if(EP[dIdx].key===key && dLat===lat && DAY.epochs[key]) warm(); }); return; } const step=()=>{ if(EP[dIdx].key!==key||dLat!==lat) return; while(s<SZ.length && denseSlices(key,lat)[s]) s++; if(s>=SZ.length) return; denseSlice(key,lat,s); s++; (window.requestIdleCallback||setTimeout)(step); }; (window.requestIdleCallback||setTimeout)(step); }
 sel.addEventListener('change',()=>setEpoch(+sel.value));
 document.querySelectorAll('[data-lat]').forEach(b=>b.addEventListener('click',()=>{ dLat=b.dataset.lat; document.querySelectorAll('[data-lat]').forEach(x=>x.setAttribute('aria-pressed',x===b)); renderDay(); warm(); }));
 const hslider=document.getElementById('hslider'); hslider.addEventListener('input',()=>{ minutes=+hslider.value; renderDay(); });

@@ -1,14 +1,24 @@
 // Star places use this year for proper motion and precession, instead of the date picker's.
 const STAR_YEAR={volcanic:1815};
+// Each epoch's star places for the year last shown, and how each star is drawn: these change
+// only with the epoch and the year, so a render redoes only the hour angle.
+const STAR_PLACES={};
+function starPlaces(epochKey, year){
+  const list=starsFor(epochKey), P=STAR_PLACES[epochKey];
+  if(P && P.year===year && P.list===list) return P;
+  const n=Math.min(list.length, STAR_N), ra=new Float64Array(n), dec=new Float64Array(n), show=[];
+  for(let i=0;i<n;i++){ const place=starMeanPlace(list[i], epochKey, year); ra[i]=place.ra; dec[i]=place.dec; show.push(starDisplay(list[i])); }
+  return STAR_PLACES[epochKey]={year, list, n, ra, dec, show};
+}
 function placeStars(lat){
-  const epochKey=EP[dIdx].key, list=starsFor(epochKey);
+  const epochKey=EP[dIdx].key;
   const year=STAR_YEAR[epochKey]||pageDate()[0];
-  const LST=localSidereal();
+  const LST=localSidereal(), P=starPlaces(epochKey, year), list=P.list;
   const tex=new Float32Array(STAR_MAP_W*8), marks=[], up=[];
-  for(let i=0;i<list.length && i<STAR_N;i++){
-    const star=list[i], place=starMeanPlace(star, epochKey, year);
-    let H=rev(LST-rev(place.ra)); if(H>180) H-=360;
-    const p=altaz(lat, place.dec, H), show=starDisplay(star), o=i*4;
+  for(let i=0;i<P.n;i++){
+    const star=list[i];
+    let H=rev(LST-rev(P.ra[i])); if(H>180) H-=360;
+    const p=altaz(lat, P.dec[i], H), show=P.show[i], o=i*4;
     if(!(p.alt>0)) continue;
     const dir=horizDir(p.az, p.alt);
     tex[o]=dir[0]; tex[o+1]=dir[1]; tex[o+2]=dir[2]; tex[o+3]=show.px;
@@ -18,15 +28,17 @@ function placeStars(lat){
   }
   placePlanets(lat, tex, marks, up, epochKey, year, LST);
   if(epochKey==='y2100') placeSatellites(lat, tex, marks, up);
-  const bins=starBinsFor(up);
+  // The cube cells are for the VR sky shader only.
+  const bins=vrOn?starBinsFor(up):{info:null, idx:null, count:0};
   return {tex, marks, bins:bins.info, idx:bins.idx, idxCount:bins.count};
 }
-// Sky luminance ratio at (el, az), interpolated in log from the dome grid.
+// Sky luminance ratio at (el, az), interpolated in log from the dome grid (skyNow.rgrid, rows
+// of DOME_NA+1 from the zenith down).
 function skyRAt(rgrid, el, az){
-  const NR=rgrid.length-1, NA=rgrid[0].length-1, vz=Math.max(0,Math.min(90,90-el));
+  const NR=DOME_NR, NA=DOME_NA, NC=NA+1, vz=Math.max(0,Math.min(90,90-el));
   let ang=az%360; if(ang<0) ang+=360;
-  const fr=vz/90*NR, ir=Math.min(NR-1,Math.floor(fr)), tr=fr-ir, fa=ang/360*NA, ia=Math.min(NA-1,Math.floor(fa)), ta=fa-ia, L=v=>Math.log(v);
-  const a=L(rgrid[ir][ia])*(1-ta)+L(rgrid[ir][ia+1])*ta, b=L(rgrid[ir+1][ia])*(1-ta)+L(rgrid[ir+1][ia+1])*ta;
+  const fr=vz/90*NR, ir=Math.min(NR-1,Math.floor(fr)), tr=fr-ir, fa=ang/360*NA, ia=Math.min(NA-1,Math.floor(fa)), ta=fa-ia, c=ir*NC+ia, L=Math.log;
+  const a=L(rgrid[c])*(1-ta)+L(rgrid[c+1])*ta, b=L(rgrid[c+NC])*(1-ta)+L(rgrid[c+NC+1])*ta;
   return Math.exp(a*(1-tr)+b*tr);
 }
 // A star shows in full when 0.8 mag brighter than the naked-eye limit for the sky around it,

@@ -160,10 +160,10 @@ function townSolid(sc, x, y, pad){
 }
 function eyeZ(){ return vrScenery?2+landHeight(vrX, vrY):2; }
 function groundRGB(){
-  const alb=LAND[EP[dIdx].key]||[.2,.18,.14], cg=skyNow.colgrid, NR=cg.length-1, NA=cg[0].length-1;
+  const alb=LAND[EP[dIdx].key]||[.2,.18,.14], cg=skyNow.colgrid, NR=skyNow.nr, NA=skyNow.na;
   let ar=0,ag=0,ab=0,n=0; const ir=Math.round(NR*0.45);
-  for(let ia=0; ia<=NA; ia+=8){ const c=cg[ir][ia]; ar+=c[0]; ag+=c[1]; ab+=c[2]; n++; }
-  const z=cg[0][0]; ar=ar/n*0.65+z[0]*0.35; ag=ag/n*0.65+z[1]*0.35; ab=ab/n*0.65+z[2]*0.35;
+  for(let ia=0; ia<=NA; ia+=8){ const c=(ir*(NA+1)+ia)*3; ar+=cg[c]; ag+=cg[c+1]; ab+=cg[c+2]; n++; }
+  ar=ar/n*0.65+cg[0]*0.35; ag=ag/n*0.65+cg[1]*0.35; ab=ab/n*0.65+cg[2]*0.35;
   const mu=Math.max(0, Math.sin(apparentEl(90-skyNow.sza)*Math.PI/180))*(skyNow.sunVis==null?1:skyNow.sunVis), s=skyNow.sunRGB, amb=[ar,ag,ab];
   return new Float32Array(alb.map((a,i)=>Math.min(255, a*(0.42*amb[i]+1.25*mu*s[i]+16))/255));
 }
@@ -212,12 +212,10 @@ function paintVR(){
   gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.disable(gl.BLEND); gl.drawBuffers([gl.BACK]);
   gl.viewport(0,0,c.width,c.height);
   gl.useProgram(vrGL.prog);
-  const cg=skyNow.colgrid, h=cg.length, w=cg[0].length;
+  const h=skyNow.nr+1, w=skyNow.na+1;
   if(skyUploaded!==skyNow.gen){
-    const data=new Uint8Array(w*h*4);
-    for(let y=0;y<h;y++) for(let x=0;x<w;x++){ const p=cg[y][x], o=(y*w+x)*4; data[o]=p[0]; data[o+1]=p[1]; data[o+2]=p[2]; data[o+3]=encodeLogR(skyNow.rgrid[y][x]); }
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, skyTexData(skyNow));
     skyUploaded=skyNow.gen;
   }
   gl.uniform1f(u.nr, h-1); gl.uniform1f(u.na, w-1);
@@ -355,8 +353,7 @@ function paintVR(){
     gl.uniform1f(cu.sunMu, Math.max(0, Math.sin(apparentEl(90-skyNow.sza)*Math.PI/180))*(skyNow.sunVis==null?1:skyNow.sunVis));
     gl.uniform3fv(cu.sunCol, new Float32Array(skyNow.sunRGB.map(v=>v/255)));
     gl.uniform3fv(cu.groundCol, groundRGB());
-    const cg=skyNow.colgrid;
-    gl.uniform1f(cu.nr, cg.length-1); gl.uniform1f(cu.na, cg[0].length-1);
+    gl.uniform1f(cu.nr, skyNow.nr); gl.uniform1f(cu.na, skyNow.na);
     gl.uniform1f(cu.showScn, vrScenery?1:0);
     gl.uniform1f(cu.cloudCov, field.cov); gl.uniform1f(cu.cloudScale, field.scale); gl.uniform1f(cu.cloudDrift, cloudScroll);
     gl.uniform1f(cu.cloudTime, vrGL.cloudTime||0); gl.uniform1f(cu.cloudFrame, vrGL.cloudFrame||0);

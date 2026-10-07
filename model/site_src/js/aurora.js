@@ -566,10 +566,9 @@ function paintDomeAurora(){
   gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
   gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, domeAur.domeTex);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, dome);
-  const cg=skyNow.colgrid, h=cg.length, w=cg[0].length, data=new Uint8Array(w*h*4);
-  for(let y=0;y<h;y++) for(let x=0;x<w;x++) data[(y*w+x)*4+3]=encodeLogR(skyNow.rgrid[y][x]);
+  const h=skyNow.nr+1, w=skyNow.na+1;
   gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, domeAur.skyTex);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, skyTexData(skyNow));
   domeAur.nr=h-1; domeAur.na=w-1;
   drawDomeAurora();
   if(!domeAur.shown){ c.style.display='block'; domeAur.shown=true; }
