@@ -480,7 +480,7 @@ function renderDay(fast){
   dctx.fillText('N',cx,cy-R-6); dctx.fillText('S',cx,cy+R+18); dctx.fillText('E',cx+R+12,cy+6); dctx.fillText('W',cx-R-12,cy+6); dctx.textAlign='left';
   // Two short lines in the corner, clear of the sky circle and the S mark.
   dctx.font='italic 20px Newsreader, Georgia, serif'; dctx.fillText(ep.short, 12, H-27);
-  if(z>1.005){ dctx.font='15px Newsreader, Georgia, serif'; dctx.fillText(`${z<9.95?z.toFixed(1):'10'}× · double-click to reset`, 12, 22); }
+  if(z>1.005){ dctx.font='15px Newsreader, Georgia, serif'; dctx.fillText(`${z<9.95?z.toFixed(1):'10'}× · middle-drag to pan, double-click to reset`, 12, 22); }
   dctx.font='15px Newsreader, Georgia, serif'; dctx.fillText(`${ep.age} · ${dLat==='Polar'?'75° latitude':dLat==='Mid-latitude'?'45° latitude':'equator'}`, 12, H-8);
   // readouts
   document.getElementById('hclock').textContent=clockLabel(minutes)+(dayHours()<24?` · ${dayHours()}-hour day · ${Math.round(yearDays())}-day year`:'');
@@ -506,13 +506,15 @@ function requestRender(){ if(!renderQueued) renderQueued=requestAnimationFrame((
 // The scroll wheel zooms the dome about the pointer, by the same factor per notch. The centre
 // may move only as far as keeps the sky around the middle of the canvas, as wide as the unzoomed
 // dome, inside the sky circle. Zoomed all the way out, the page scrolls as usual.
-function zoomDome(z, px, py){
-  const W=dome.width, H=dome.height, R0=W*0.46, v=domeView();
-  z=Math.max(1, Math.min(DOME_ZOOM_MAX, z));
-  let ox=px-(px-v.cx)*z/v.z-W/2, oy=py-(py-v.cy)*z/v.z-H/2;
-  const m=Math.hypot(ox, oy), lim=R0*(z-1); if(m>lim){ ox*=lim/m; oy*=lim/m; }
+function setDomeView(z, ox, oy){
+  const m=Math.hypot(ox, oy), lim=dome.width*0.46*(z-1); if(m>lim){ ox*=lim/m; oy*=lim/m; }
   if(z===domeZoom.z && ox===domeZoom.ox && oy===domeZoom.oy) return;
   Object.assign(domeZoom, {z, ox, oy}); requestRender();
+}
+function zoomDome(z, px, py){
+  const v=domeView();
+  z=Math.max(1, Math.min(DOME_ZOOM_MAX, z));
+  setDomeView(z, px-(px-v.cx)*z/v.z-dome.width/2, py-(py-v.cy)*z/v.z-dome.height/2);
 }
 dome.addEventListener('wheel', e=>{
   const d=e.deltaMode===1?e.deltaY*33:e.deltaMode===2?e.deltaY*400:e.deltaY;
@@ -522,6 +524,21 @@ dome.addEventListener('wheel', e=>{
   zoomDome(domeZoom.z*Math.exp(-d*0.0015), (e.clientX-b.left)*dome.width/b.width, (e.clientY-b.top)*dome.height/b.height);
 }, {passive:false});
 dome.addEventListener('dblclick', ()=>zoomDome(1, dome.width/2, dome.height/2));
+// Dragging with the middle button moves a zoomed view; the sky follows the pointer.
+let domeDrag=null;
+dome.addEventListener('mousedown', e=>{
+  if(e.button!==1 || domeZoom.z<=1) return;
+  e.preventDefault(); domeDrag={x:e.clientX, y:e.clientY}; dome.style.cursor='grabbing';
+});
+window.addEventListener('mousemove', e=>{
+  if(!domeDrag) return;
+  const b=dome.getBoundingClientRect(), k=dome.width/b.width;
+  setDomeView(domeZoom.z, domeZoom.ox+(e.clientX-domeDrag.x)*k, domeZoom.oy+(e.clientY-domeDrag.y)*k);
+  domeDrag={x:e.clientX, y:e.clientY};
+});
+window.addEventListener('mouseup', e=>{ if(e.button===1 && domeDrag){ domeDrag=null; dome.style.cursor=''; } });
+// The middle button would otherwise start the browser's autoscroll or open a link.
+dome.addEventListener('auxclick', e=>{ if(e.button===1) e.preventDefault(); });
 // Whether the dome is on screen: Play holds still while it is scrolled away.
 let domeOnScreen=true;
 if(window.IntersectionObserver) new IntersectionObserver(es=>{ domeOnScreen=es[es.length-1].isIntersecting; }).observe(dome);
