@@ -1,4 +1,4 @@
-import gzip, hashlib, json, shutil, subprocess, sys
+import gzip, hashlib, json, shutil, subprocess, sys, urllib.parse
 from pathlib import Path
 
 import numpy as np
@@ -122,6 +122,10 @@ def page_source():
 # Fill the code tokens before the data goes in, so no prose or number can match one.
 html = (page_source().replace('__YREF__', repr(YREF)).replace('__DAY_MODERN__', DAY_FILES['modern']).replace('EPOCH_MAX', str(len(order)-1))
         .replace('MODERN_IDX', str(order.index('modern'))))
+# The favicon goes in as a data URI, so the page stays one file.
+# Its quotes become single ones, as it sits inside a double-quoted attribute.
+favicon = ' '.join((HERE / 'site_src' / 'document' / 'favicon.svg').read_text(encoding='utf-8').split()).replace('"', "'")
+html = html.replace('__FAVICON__', 'data:image/svg+xml,' + urllib.parse.quote(favicon, safe=" =:/,.-'"))
 html = html.replace('__EP__', json.dumps(EP, separators=(',',':'))).replace('__DAY__', json.dumps(DAY_META, separators=(',',':')))
 
 
