@@ -117,6 +117,7 @@ button.tick.on{background:none;color:var(--ink)}
 .hero-grid{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:2.8rem;align-items:start;margin-top:1.4rem}
 .hero h1{font-size:clamp(2.3rem,5.2vw,4rem);line-height:1.02;margin:1.6rem 0 1rem}
 .hero .lede{color:#c3c8d2;font-size:1.18rem;max-width:34em}
+.lede-tech{color:#9ea5b3;font-size:.95rem;max-width:40em}
 .cta{margin:1.4rem 0 .7rem;font-size:1.45rem;font-weight:600;color:#1c1400;background:#ffc400;border:0;border-radius:10px;padding:.8rem 1.6rem;box-shadow:0 0 0 5px rgba(255,196,0,.22),0 12px 30px rgba(0,0,0,.45);transition:transform .15s,background .15s}
 .cta:hover{background:#ffd84a;transform:translateY(-1px)}
 .cta span{display:inline-block;transition:transform .15s}.cta:hover span{transform:translateX(4px)}
@@ -198,6 +199,7 @@ h2.epoch-title{margin:.1rem 0 .2rem;font-size:1.9rem;font-weight:400;line-height
    <div class="hero-text">
     <h1>Stand under the sky of <em>any</em> age of Earth</h1>
     <p class="lede">Four and a half billion years of skies, from the Hadean's steam and CO₂ to tonight's city glow, computed with the same spectral radiative-transfer model as the report. Walk around under them, day and night.</p>
+    <p class="lede-tech">For each epoch's air (its gas mix, ozone, dust, haze and soot) the model follows sunlight through a spherical atmosphere from 380 to 780 nm in 10 nm steps: single scattering along each line of sight, plus a delta-Eddington layer for multiple scattering and the ground. The spectra become CIE colours, tabulated by Sun height and direction. Your browser interpolates those tables, adds the Moon, stars, airglow, city light and aurora, and draws the dome and, in WebGL, the walk-around view.</p>
     <button type="button" id="vrbtn" class="cta">Step into the sky <span aria-hidden="true">→</span></button>
     <p class="cta-note"><span class="keys-hint">Full screen, first person. Mouse to look, <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> to walk, scroll to zoom, <kbd>Q</kbd> to inspect a colour and its spectrum, <kbd>E</kbd> or <kbd>T</kbd> for the next eclipse, <kbd>Esc</kbd> to leave.</span><span class="touch-hint">Full screen, first person. Drag to look; the buttons along the bottom step time, change era, and find eclipses.</span></p>
    </div>
