@@ -1,4 +1,4 @@
-import hashlib, json
+import gzip, hashlib, json, shutil, subprocess, sys
 from pathlib import Path
 
 import numpy as np
@@ -12,13 +12,12 @@ PROSE = gr.PROSE
 order = ['hadean44','hadean40','archean38','archean27thin','archean27','archean27vthick','proterozoic22','snowball07','carbon30','kpg66','zetaoph','geminga','volcanic','ozonehole','modern','modernpoll','y2100']
 ages = {'hadean44':'4.4 Ga','hadean40':'4.0 Ga','archean38':'3.8 Ga','archean27thin':'2.7 Ga','archean27':'2.7 Ga','archean27vthick':'2.7 Ga','proterozoic22':'2.2 Ga','snowball07':'700 Ma','carbon30':'300 Ma','kpg66':'66 Ma','zetaoph':'1.78 Ma','geminga':'342 ka','volcanic':'1815 CE','modern':'Today','modernpoll':'Today','ozonehole':'1980–2000','y2100':'2100'}
 short = {'hadean44':'Early Hadean','hadean40':'Late Hadean','archean38':'Early Archean','archean27thin':'Thin haze','archean27':'Thick haze','archean27vthick':'Very thick haze','proterozoic22':'Post-oxidation','snowball07':'Snowball Earth','carbon30':'Carboniferous','kpg66':'Impact winter','zetaoph':'ζ Oph supernova','geminga':'Geminga supernova','volcanic':'Volcanic year','modern':'Clean air','modernpoll':'Polluted city','ozonehole':'Ozone hole','y2100':'Year 2100'}
-# gen_report adds the epochs that keep today's air (Year 2100 and the supernovae).
+# gen_report adds the epochs that keep today's air (Year 2100 and the supernovae). Their globes
+# are today's, so the page is given the key of the modern limb instead of a copy (color.js).
 byk = gr.byk
-for key, name, _ in gr.SUPERNOVA_EPOCHS:
-    if key not in LIMB:
-        LIMB[key] = dict(LIMB['modern'], name=name.split(',')[0])
-if 'y2100' not in LIMB:
-    LIMB['y2100'] = dict(LIMB['modern'], name='Year 2100')
+SAME_AIR = {'y2100'} | {key for key, _, _ in gr.SUPERNOVA_EPOCHS}
+for key in SAME_AIR:
+    LIMB.setdefault(key, 'modern')
 EP = []
 for k in order:
     r = byk[k]
@@ -124,5 +123,28 @@ def page_source():
 html = (page_source().replace('__YREF__', repr(YREF)).replace('__DAY_MODERN__', DAY_FILES['modern']).replace('EPOCH_MAX', str(len(order)-1))
         .replace('MODERN_IDX', str(order.index('modern'))))
 html = html.replace('__EP__', json.dumps(EP, separators=(',',':'))).replace('__DAY__', json.dumps(DAY_META, separators=(',',':')))
+
+
+def minify(html):
+    """The page's script through terser (npx), if Node is installed; otherwise as it is."""
+    npx = shutil.which('npx.cmd') or shutil.which('npx')
+    a = html.rindex('<script>') + len('<script>')
+    b = html.index('</script>', a)
+    if not npx:
+        print('npx not found: the script is not minified', file=sys.stderr)
+        return html
+    out = subprocess.run([npx, '--yes', 'terser@5', '--compress', '--mangle', '--ecma', '2020'],
+                         input=html[a:b], capture_output=True, text=True, encoding='utf-8')
+    if out.returncode != 0:
+        print('terser failed, the script is not minified:\n' + out.stderr, file=sys.stderr)
+        return html
+    return html[:a] + out.stdout + html[b:]
+
+
+html = minify(html)
 (SITE / 'index.html').write_text(html, encoding='utf-8')
 print(len(html)/1e6, 'MB')
+# Compressed copies for nginx's gzip_static, so the server need not compress them on the fly.
+for path in [SITE / 'index.html', SITE / 'spectra.bin', *sorted(day_dir.glob('*.bin'))]:
+    if path.exists():
+        path.with_name(path.name + '.gz').write_bytes(gzip.compress(path.read_bytes(), 9, mtime=0))

@@ -40,6 +40,12 @@ cd ../latex && latexmk -pdf main.tex
 
 `make_figs.py` writes to `latex/figures`, or to a folder given as its argument.
 
+`gen_site.py` writes `site/index.html`, one day-cycle file per epoch in `site/day`, and gzip
+copies of the page and the data for nginx's `gzip_static`. With Node installed it minifies the
+page's script with terser (fetched by `npx`); without it the script is left as it is.
+`spectra.py` (the spectrum tooltip's `site/spectra.bin`) reuses the spectra `daycycle.py` and
+`limb_grid.py` keep in `spectra_cache.npz` and `limb_spectra.npz`.
+
 ## Method in one paragraph
 
 Each epoch's atmosphere is built from components with their own vertical profile and spectral

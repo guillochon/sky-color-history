@@ -11,3 +11,5 @@ __pycache__/
 site/_ffdebug.html
 model/spectra_cache.npz
 model/limb_spectra.npz
+site/*.gz
+site/day/*.gz
