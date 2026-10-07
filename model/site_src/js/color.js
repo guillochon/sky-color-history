@@ -64,6 +64,20 @@ const ginv = s => s<=0.04045 ? s/12.92 : Math.pow((s+0.055)/1.055, 2.4);
 // TOE_W2 wide, leaving the day curve unchanged above about 1 cd/m². TOE_CD converts r to cd/m²
 // with day.js's calibration of 969.5 cd/m² per model unit. Mirrored in the sky shader as toneT.
 const TOE_A=0.1674, TOE_B=0.002276, TOE_W=0.957, TOE_W2=0.012, TOE_CD=YREF*969.5;
+// The same curve in GLSL, for shaders that declare uniform vec4 toneU (k, p, cap, TOE_CD), with
+// sRGB encoding and decoding.
+const TONE_GLSL=`
+float lin2s(float v){ return v<=0.0031308?12.92*v:1.055*pow(v, 1.0/2.4)-0.055; }
+float s2lin(float v){ return v<=0.04045?v/12.92:pow((v+0.055)/1.055, 2.4); }
+vec3 s2lin3(vec3 c){ return vec3(s2lin(c.r), s2lin(c.g), s2lin(c.b)); }
+vec3 lin2s3(vec3 c){ return vec3(lin2s(c.r), lin2s(c.g), lin2s(c.b)); }
+// Display linear light for luminance ratio r (color.js toneT).
+float toneT(float r){
+  if(r<=0.0) return 0.0;
+  float su=lin2s(min(toneU.z, toneU.x*pow(r, toneU.y))), sl=${TOE_A}-${TOE_B}*exp(-log(r*toneU.w)/(2.302585*${TOE_W}));
+  float m=max(su, sl), s=m+${TOE_W2}*log(1.0+exp(-abs(su-sl)/${TOE_W2}));
+  return s2lin(clamp(s, 0.0, 1.0));
+}`;
 function toneT(r, k=0.85, p=0.4, cap=0.92){
   if(!(r>0)) return 0;
   const su=g(Math.min(cap, k*Math.pow(r, p))), sl=TOE_A-TOE_B*Math.exp(-Math.log10(r*TOE_CD)/TOE_W);
@@ -86,4 +100,24 @@ function skyMagArcsec(L){ return -2.5*Math.log10(Math.max(L, 1e-12)/10.8e4); }
 function nakedEyeLimit(L){ return 7.93-5*Math.log10(Math.pow(10, 4.316-skyMagArcsec(L)/5)+1); }
 function cct(x,y){ const n=(x-0.3320)/(0.1858-y); return Math.round(449*n**3+3525*n**2+6823.3*n+5520.33); }
 const hex = a => '#'+a.map(v=>v.toString(16).padStart(2,'0')).join('');
+// Where x falls in the ascending samples xs: [i, t] with x at xs[i]+t·(xs[i+1]-xs[i]), held to the ends.
+function bracket(xs,x){ if(x<=xs[0]) return [0,0]; for(let i=0;i<xs.length-1;i++) if(x<xs[i+1]) return [i,(x-xs[i])/(xs[i+1]-xs[i])]; return [xs.length-2,1]; }
+// The VR passes' view ray through pixel frag, for a camera at yaw and pitch with vertical field fov.
+const VIEW_RAY_GLSL=`
+vec3 viewRay(vec2 frag, vec2 res, float fov, float yaw, float pitch){
+  float fy=tan(fov*0.5), fx=fy*(res.x/max(res.y,1.0));
+  float u=((frag.x/res.x)*2.0-1.0)*fx, v=((frag.y/res.y)*2.0-1.0)*fy;
+  float cp=cos(pitch), sp=sin(pitch), cy=cos(yaw), sy=sin(yaw);
+  return normalize(vec3(sy*cp, cy*cp, sp)+u*vec3(cy,-sy,0.0)+v*vec3(-sy*sp,-cy*sp,cp));
+}`;
+// WebGL: filtering and wrapping for the texture bound to target (default TEXTURE_2D; wrapR for 3D).
+function texParams(gl, min, mag, wrapS, wrapT, target=gl.TEXTURE_2D, wrapR=null){
+  gl.texParameteri(target, gl.TEXTURE_MIN_FILTER, min); gl.texParameteri(target, gl.TEXTURE_MAG_FILTER, mag);
+  gl.texParameteri(target, gl.TEXTURE_WRAP_S, wrapS); gl.texParameteri(target, gl.TEXTURE_WRAP_T, wrapT);
+  if(wrapR!=null) gl.texParameteri(target, gl.TEXTURE_WRAP_R, wrapR);
+}
+// Uniform locations of program p by name, added to into; an array's first element 'x[0]' is kept as x.
+function uniformLocs(gl, p, names, into={}){ for(const n of names) into[n.replace('[0]', '')]=gl.getUniformLocation(p, n); return into; }
+// Point p's samplers at texture units: pairs of [name, unit]. p must be in use.
+function bindSamplers(gl, p, pairs){ for(const [n, unit] of pairs) gl.uniform1i(gl.getUniformLocation(p, n), unit); }
 

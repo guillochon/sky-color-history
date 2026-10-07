@@ -101,12 +101,9 @@ vec3 nightScatter(vec3 p, vec3 rd, vec3 dir, vec3 light){
   float tau=(s1*280.0+s2*620.0)*0.05, c=dot(rd, dir);
   return toLin(light)*0.6*(exp(-tau)*phase(c)+0.4*exp(-tau*0.3)*phase(c*0.55));
 }
+${VIEW_RAY_GLSL}
 void main(){
-  float aspect=res.x/max(res.y,1.0); float fy=tan(fov*0.5); float fx=fy*aspect;
-  float u=((gl_FragCoord.x/res.x)*2.0-1.0)*fx;
-  float v=((gl_FragCoord.y/res.y)*2.0-1.0)*fy;
-  float cp=cos(pitch), sp=sin(pitch), cy=cos(yaw), sy=sin(yaw);
-  vec3 rd=normalize(vec3(sy*cp, cy*cp, sp)+u*vec3(cy,-sy,0.0)+v*vec3(-sy*sp,-cy*sp,cp));
+  vec3 rd=viewRay(gl_FragCoord.xy, res, fov, yaw, pitch);
   vec3 ro=eye;
   float sunA=sunAz*0.01745329252, sunZen=(90.0-sunEl)*0.01745329252;
   vec3 sd=normalize(vec3(sin(sunA)*sin(sunZen), cos(sunA)*sin(sunZen), cos(sunZen)));

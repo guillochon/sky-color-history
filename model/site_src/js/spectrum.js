@@ -88,8 +88,7 @@ function spRaw(e, lat, si, slot){
 // the Sun azr, interpolated in log between the stored samples, on the 1 nm grid, unit luminance.
 function spSky(key, lat, sza, vz, azr){
   const D=spData, e=spEpoch(key), li=D.lats.indexOf(lat);
-  const br=(xs, x)=>{ x=Math.min(Math.max(x, xs[0]), xs[xs.length-1]); let i=0; while(i<xs.length-2&&x>xs[i+1]) i++; return [i, (x-xs[i])/(xs[i+1]-xs[i])]; };
-  const [si, st]=br(D.szas, sza), [vi, vt]=br(D.vz, vz), [ai, at]=br(D.az, azr), na=D.az.length;
+  const [si, st]=bracket(D.szas, sza), [vi, vt]=bracket(D.vz, vz), [ai, at]=bracket(D.az, azr), na=D.az.length;
   const acc=new Float32Array(D.nl);
   for(const [s, ws] of [[si, 1-st], [si+1, st]]) for(const [v, wv] of [[vi, 1-vt], [vi+1, vt]]) for(const [a, wa] of [[ai, 1-at], [ai+1, at]]){
     const w=ws*wv*wa; if(!(w>0)) continue;
@@ -107,7 +106,7 @@ function spTo1nm(lg){
   for(let i=0;i<SP_N;i++){ const x=(SP_LAM[i]-D.lam[0])/(D.lam[1]-D.lam[0]), k=Math.min(D.nl-2, Math.floor(x)), f=x-k; out[i]=Math.pow(10, lg[k]*(1-f)+lg[k+1]*f); }
   return out;
 }
-function spAirmass(el){ const h=Math.max(el, 0); return 1/(Math.sin(h*Math.PI/180)+0.50572*Math.pow(h+6.07995, -1.6364)); }
+function spAirmass(el){ return airmass(Math.max(el, 0)); }
 // The light toward true altitude el, azimuth az. disk is 'sun', 'moon' or null; aurora the
 // four emissions there (kR) or null; litHere, on the Moon, how sunlit that point of it is (0–1). Returns {S (1 nm, cd/m² per nm-ish units), Y (cd/m²),
 // parts: [[name, Y]], marks: annotations}.
@@ -172,9 +171,8 @@ function skySpectrum(el, az, disk, aurora, litHere=1){
 // The plot: the spectrum filled with the colour of each wavelength, linear, normalized to the
 // continuum so a bright line runs off the top (marked with a caret) rather than flattening the rest.
 // Past 690 nm the fit's tails turn the hue back toward green, so the deep red holds from there.
-const SP_RGB=SP_CMF.map((c, i)=>SP_CMF[Math.min(i, 310)]).map(([x, y, z])=>{ const r=3.2406*x-1.5372*y-0.4986*z, g=-0.9689*x+1.8758*y+0.0415*z, b=0.0557*x-0.2040*y+1.0570*z, m=Math.max(r, g, b, 1e-6);
-  return [r, g, b].map(v=>Math.round(255*g_(Math.max(0, v/m)*0.75+0.08))); });
-function g_(v){ return v<=0.0031308?12.92*v:1.055*Math.pow(v, 1/2.4)-0.055; }
+const SP_RGB=SP_CMF.map((c, i)=>SP_CMF[Math.min(i, 310)]).map(([x, y, z])=>{ const r=3.2406*x-1.5372*y-0.4986*z, gr=-0.9689*x+1.8758*y+0.0415*z, b=0.0557*x-0.2040*y+1.0570*z, m=Math.max(r, gr, b, 1e-6);
+  return [r, gr, b].map(v=>Math.round(255*g(Math.max(0, v/m)*0.75+0.08))); });
 function drawSpectrum(cv, sp){
   const dpr=Math.min(window.devicePixelRatio||1, 2), W=264, H=118;
   if(cv.width!==W*dpr){ cv.width=W*dpr; cv.height=H*dpr; cv.style.width=W+'px'; cv.style.height=H+'px'; }
@@ -255,9 +253,8 @@ function globeSpectrum(key, lat, h){
   const G=spData.limb, D=spData, e=G.epochs.indexOf(G.epochs.includes(key)?key:'modern'), na=G.alts.length+1;
   const off=D.epochs.length*D.lats.length*D.szas.length*D.slots*D.nl;
   const raw=(i, j)=>{ const o=off+((e*G.lats.length+i)*na+j)*D.nl, out=new Float32Array(D.nl); for(let k=0;k<D.nl;k++) out[k]=D.lo*(1-D.bytes[o+k]/255); return out; };
-  const br=(xs, x)=>{ x=Math.min(Math.max(x, xs[0]), xs[xs.length-1]); let i=0; while(i<xs.length-2&&x>xs[i+1]) i++; return [i, (x-xs[i])/(xs[i+1]-xs[i])]; };
-  const [li, lt]=br(G.lats, lat), acc=new Float32Array(D.nl);
-  const cells=h==null?[[na-1, 1]]:(([j, u])=>[[j, 1-u], [j+1, u]])(br(G.alts, h));
+  const [li, lt]=bracket(G.lats, lat), acc=new Float32Array(D.nl);
+  const cells=h==null?[[na-1, 1]]:(([j, u])=>[[j, 1-u], [j+1, u]])(bracket(G.alts, h));
   for(const [i, wi] of [[li, 1-lt], [li+1, lt]]) for(const [j, wj] of cells){ const r=raw(i, j); for(let k=0;k<D.nl;k++) acc[k]+=wi*wj*r[k]; }
   const S=spTo1nm(acc), mu=Math.max(Math.cos(lat*Math.PI/180), 0.05);
   // A tangent path holds about 38 vertical columns of the air above its lowest point (8 km

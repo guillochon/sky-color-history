@@ -230,9 +230,9 @@ function auroraFrame(st){
 // Uniform locations for a program that includes AUR_GLSL.
 const AUR_UNIFORMS=['aurRayK','aurW0','aurW1','aurRed','aurLat','aurMlt0','aurA','aurB','aurSpan','aurIv','aurDiff','aurT','aurRefLat','aurSub','aurVr','aurSpec','aurK','aurSun'];
 function auroraUniforms(gl, prog, arcsUnit, raysUnit){
-  const u={}; for(const n of AUR_UNIFORMS) u[n]=gl.getUniformLocation(prog, n);
+  const u=uniformLocs(gl, prog, AUR_UNIFORMS);
   gl.useProgram(prog);
-  gl.uniform1i(gl.getUniformLocation(prog, 'aurArcs'), arcsUnit); gl.uniform1i(gl.getUniformLocation(prog, 'aurRays'), raysUnit);
+  bindSamplers(gl, prog, [['aurArcs', arcsUnit], ['aurRays', raysUnit]]);
   return u;
 }
 function auroraSetUniforms(gl, u, st, t, sunDir){
@@ -261,6 +261,7 @@ const glv=v=>v.map(x=>x.toExponential(4)).join(', ');
 // to fourfold. The day-side cusp is mostly red. Pulsating patches flicker in the morning diffuse
 // aurora.
 const AUR_GLSL=`
+${AIRMASS_GLSL}
 uniform sampler2D aurArcs; uniform sampler2D aurRays;
 uniform float aurRayK, aurRed, aurLat, aurMlt0, aurA, aurB, aurW0, aurW1, aurSpan, aurIv, aurDiff, aurT, aurRefLat, aurSub, aurVr;
 uniform vec4 aurSpec, aurK;
@@ -401,9 +402,7 @@ vec4 auroraSpecies(vec3 rd, float pxAng){
     tPrev=t; hPrev=h; sPrev=sKm;
   }
   I*=aurSpec;
-  float el=asin(rd.z)*57.2957795;
-  float X=1.0/(sin(el*0.0174532925)+0.50572*pow(el+6.07995, -1.6364));
-  return I*pow(vec4(10.0), -0.4*aurK*X);
+  return I*pow(vec4(10.0), -0.4*aurK*airmass(asin(rd.z)*57.2957795));
 }
 vec4 auroraLight(vec3 rd, float pxAng){
   vec4 I=auroraSpecies(rd, pxAng);
@@ -416,13 +415,11 @@ const AURFS=`#version 300 es
 precision highp float;
 uniform vec2 res; uniform float yaw, pitch, fov;
 ${AUR_GLSL}
+${VIEW_RAY_GLSL}
 out vec4 fragColor;
 void main(){
-  float aspect=res.x/max(res.y, 1.0), fy=tan(fov*0.5), fx=fy*aspect;
-  float u=((gl_FragCoord.x/res.x)*2.0-1.0)*fx, v=((gl_FragCoord.y/res.y)*2.0-1.0)*fy;
-  float cp=cos(pitch), sp=sin(pitch), cy=cos(yaw), sy=sin(yaw);
-  vec3 rd=normalize(vec3(sy*cp, cy*cp, sp)+u*vec3(cy, -sy, 0.0)+v*vec3(-sy*sp, -cy*sp, cp));
-  fragColor=auroraLight(rd, 2.0*fy/res.y)*1000.0;
+  vec3 rd=viewRay(gl_FragCoord.xy, res, fov, yaw, pitch);
+  fragColor=auroraLight(rd, 2.0*tan(fov*0.5)/res.y)*1000.0;
 }`;
 // The aurora's light (auroraLight) added to a sky of luminance ratio rBg shown as sRGB skyC,
 // under the display curve, as the Milky Way is added in the sky shader. Its colour is the
@@ -448,16 +445,7 @@ precision highp float;
 uniform sampler2D domeTex; uniform sampler2D skyLog;
 uniform vec2 res; uniform float nr, na;
 uniform vec4 toneU; uniform float rCd;
-float lin2s(float v){ return v<=0.0031308?12.92*v:1.055*pow(v, 1.0/2.4)-0.055; }
-float s2lin(float v){ return v<=0.04045?v/12.92:pow((v+0.055)/1.055, 2.4); }
-vec3 s2lin3(vec3 c){ return vec3(s2lin(c.r), s2lin(c.g), s2lin(c.b)); }
-vec3 lin2s3(vec3 c){ return vec3(lin2s(c.r), lin2s(c.g), lin2s(c.b)); }
-float toneT(float r){
-  if(r<=0.0) return 0.0;
-  float su=lin2s(min(toneU.z, toneU.x*pow(r, toneU.y))), sl=${TOE_A}-${TOE_B}*exp(-log(r*toneU.w)/(2.302585*${TOE_W}));
-  float m=max(su, sl), s=m+${TOE_W2}*log(1.0+exp(-abs(su-sl)/${TOE_W2}));
-  return s2lin(clamp(s, 0.0, 1.0));
-}
+${TONE_GLSL}
 ${AUR_GLSL}
 ${AUR_MIX_GLSL}
 out vec4 fragColor;
@@ -546,11 +534,10 @@ function domeAurInit(){
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
   gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
   const u=auroraUniforms(gl, p, 2, 3);
-  for(const n of ['res','nr','na','toneU','rCd']) u[n]=gl.getUniformLocation(p, n);
-  gl.uniform1i(gl.getUniformLocation(p, 'domeTex'), 0); gl.uniform1i(gl.getUniformLocation(p, 'skyLog'), 1);
+  uniformLocs(gl, p, ['res','nr','na','toneU','rCd'], u);
+  bindSamplers(gl, p, [['domeTex', 0], ['skyLog', 1]]);
   const tex=()=>{ const t=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE); return t; };
+    texParams(gl, gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE); return t; };
   domeAur.domeTex=tex(); domeAur.skyTex=tex();
   Object.assign(domeAur, {gl, canvas:c, prog:p, u});
   if(window.IntersectionObserver) new IntersectionObserver(es=>{ domeAur.visible=es[0].isIntersecting; if(domeAur.visible) domeAurKick(); }).observe(c);

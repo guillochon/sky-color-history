@@ -91,11 +91,14 @@ function mwAt(basis, d){
   const x=vdot(d, basis[0]), y=vdot(d, basis[1]), z=vdot(d, basis[2]);
   return mwSample(Math.atan2(y, x)*180/Math.PI, Math.asin(Math.max(-1, Math.min(1, z)))*180/Math.PI-basis.db);
 }
-// Atmospheric extinction toward true altitude el (degrees), k magnitudes per airmass
-// (Kasten & Young 1989 airmass).
+// Airmass toward true altitude el (degrees, from 0 up), Kasten & Young 1989; AIRMASS_GLSL in shaders.
+function airmass(el){ return 1/(Math.sin(el*Math.PI/180)+0.50572*Math.pow(el+6.07995, -1.6364)); }
+const AIRMASS_GLSL=`
+float airmass(float el){ return 1.0/(sin(el*0.01745329252)+0.50572*pow(el+6.07995, -1.6364)); }`;
+// Atmospheric extinction toward true altitude el (degrees), k magnitudes per airmass.
 function extinction(el, k){
   if(el<=-1) return 0;
-  const h=Math.max(el, 0), X=1/(Math.sin(h*Math.PI/180)+0.50572*Math.pow(h+6.07995, -1.6364));
+  const X=airmass(Math.max(el, 0));
   return Math.pow(10, -0.4*k*(X-1));
 }
 // The Milky Way's colour at unit luminance, in linear sRGB, for the sky shader.

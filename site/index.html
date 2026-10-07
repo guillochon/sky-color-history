@@ -439,6 +439,20 @@ const ginv = s => s<=0.04045 ? s/12.92 : Math.pow((s+0.055)/1.055, 2.4);
 // TOE_W2 wide, leaving the day curve unchanged above about 1 cd/m². TOE_CD converts r to cd/m²
 // with day.js's calibration of 969.5 cd/m² per model unit. Mirrored in the sky shader as toneT.
 const TOE_A=0.1674, TOE_B=0.002276, TOE_W=0.957, TOE_W2=0.012, TOE_CD=YREF*969.5;
+// The same curve in GLSL, for shaders that declare uniform vec4 toneU (k, p, cap, TOE_CD), with
+// sRGB encoding and decoding.
+const TONE_GLSL=`
+float lin2s(float v){ return v<=0.0031308?12.92*v:1.055*pow(v, 1.0/2.4)-0.055; }
+float s2lin(float v){ return v<=0.04045?v/12.92:pow((v+0.055)/1.055, 2.4); }
+vec3 s2lin3(vec3 c){ return vec3(s2lin(c.r), s2lin(c.g), s2lin(c.b)); }
+vec3 lin2s3(vec3 c){ return vec3(lin2s(c.r), lin2s(c.g), lin2s(c.b)); }
+// Display linear light for luminance ratio r (color.js toneT).
+float toneT(float r){
+  if(r<=0.0) return 0.0;
+  float su=lin2s(min(toneU.z, toneU.x*pow(r, toneU.y))), sl=${TOE_A}-${TOE_B}*exp(-log(r*toneU.w)/(2.302585*${TOE_W}));
+  float m=max(su, sl), s=m+${TOE_W2}*log(1.0+exp(-abs(su-sl)/${TOE_W2}));
+  return s2lin(clamp(s, 0.0, 1.0));
+}`;
 function toneT(r, k=0.85, p=0.4, cap=0.92){
   if(!(r>0)) return 0;
   const su=g(Math.min(cap, k*Math.pow(r, p))), sl=TOE_A-TOE_B*Math.exp(-Math.log10(r*TOE_CD)/TOE_W);
@@ -461,6 +475,26 @@ function skyMagArcsec(L){ return -2.5*Math.log10(Math.max(L, 1e-12)/10.8e4); }
 function nakedEyeLimit(L){ return 7.93-5*Math.log10(Math.pow(10, 4.316-skyMagArcsec(L)/5)+1); }
 function cct(x,y){ const n=(x-0.3320)/(0.1858-y); return Math.round(449*n**3+3525*n**2+6823.3*n+5520.33); }
 const hex = a => '#'+a.map(v=>v.toString(16).padStart(2,'0')).join('');
+// Where x falls in the ascending samples xs: [i, t] with x at xs[i]+t·(xs[i+1]-xs[i]), held to the ends.
+function bracket(xs,x){ if(x<=xs[0]) return [0,0]; for(let i=0;i<xs.length-1;i++) if(x<xs[i+1]) return [i,(x-xs[i])/(xs[i+1]-xs[i])]; return [xs.length-2,1]; }
+// The VR passes' view ray through pixel frag, for a camera at yaw and pitch with vertical field fov.
+const VIEW_RAY_GLSL=`
+vec3 viewRay(vec2 frag, vec2 res, float fov, float yaw, float pitch){
+  float fy=tan(fov*0.5), fx=fy*(res.x/max(res.y,1.0));
+  float u=((frag.x/res.x)*2.0-1.0)*fx, v=((frag.y/res.y)*2.0-1.0)*fy;
+  float cp=cos(pitch), sp=sin(pitch), cy=cos(yaw), sy=sin(yaw);
+  return normalize(vec3(sy*cp, cy*cp, sp)+u*vec3(cy,-sy,0.0)+v*vec3(-sy*sp,-cy*sp,cp));
+}`;
+// WebGL: filtering and wrapping for the texture bound to target (default TEXTURE_2D; wrapR for 3D).
+function texParams(gl, min, mag, wrapS, wrapT, target=gl.TEXTURE_2D, wrapR=null){
+  gl.texParameteri(target, gl.TEXTURE_MIN_FILTER, min); gl.texParameteri(target, gl.TEXTURE_MAG_FILTER, mag);
+  gl.texParameteri(target, gl.TEXTURE_WRAP_S, wrapS); gl.texParameteri(target, gl.TEXTURE_WRAP_T, wrapT);
+  if(wrapR!=null) gl.texParameteri(target, gl.TEXTURE_WRAP_R, wrapR);
+}
+// Uniform locations of program p by name, added to into; an array's first element 'x[0]' is kept as x.
+function uniformLocs(gl, p, names, into={}){ for(const n of names) into[n.replace('[0]', '')]=gl.getUniformLocation(p, n); return into; }
+// Point p's samplers at texture units: pairs of [name, unit]. p must be in use.
+function bindSamplers(gl, p, pairs){ for(const [n, unit] of pairs) gl.uniform1i(gl.getUniformLocation(p, n), unit); }
 
 /* ---------- Section 1: globe through time ---------- */
 const globe=document.getElementById('globe'), gctx=globe.getContext('2d');
@@ -479,11 +513,10 @@ function renderGlobe(ep){
   const W=globe.width,H=globe.height; const off=document.createElement('canvas'); off.width=W; off.height=H; const ctx=off.getContext('2d');
   const img=ctx.createImageData(W,H), px=img.data; const d=ep.limb; const lats=d.lats, alts=d.alts, hmax=alts[alts.length-1];
   const cx=W/2, cy=H/2, R=W*0.30, EX=0.5;
-  const samp=(xs,x)=>{ if(x<=xs[0]) return [0,0]; for(let i=0;i<xs.length-1;i++) if(x<xs[i+1]) return [i,(x-xs[i])/(xs[i+1]-xs[i])]; return [xs.length-2,1]; };
   for(let y=0;y<H;y++)for(let x=0;x<W;x++){
     const dx=x-cx, dy=y-cy, r=Math.hypot(dx,dy); let c=[0.02,0.024,0.04];
-    if(r<R){ const lat=Math.min(82.5,Math.abs(Math.asin(dy/R))*180/Math.PI); const [i,t]=samp(lats,lat); const a=d.disk[i],b=d.disk[i+1]; const mu=Math.pow(Math.max(0,1-(r/R)**2),0.18); c=[0,1,2].map(q=>(a[q]+(b[q]-a[q])*t)*mu); }
-    else if(r<R*(1+EX)){ const h=(r/R-1)/EX*hmax; const lat=Math.min(82.5,Math.abs(Math.asin(dy/r))*180/Math.PI); const [i,t]=samp(lats,lat),[j,u]=samp(alts,h); const G=d.limb;
+    if(r<R){ const lat=Math.min(82.5,Math.abs(Math.asin(dy/R))*180/Math.PI); const [i,t]=bracket(lats,lat); const a=d.disk[i],b=d.disk[i+1]; const mu=Math.pow(Math.max(0,1-(r/R)**2),0.18); c=[0,1,2].map(q=>(a[q]+(b[q]-a[q])*t)*mu); }
+    else if(r<R*(1+EX)){ const h=(r/R-1)/EX*hmax; const lat=Math.min(82.5,Math.abs(Math.asin(dy/r))*180/Math.PI); const [i,t]=bracket(lats,lat),[j,u]=bracket(alts,h); const G=d.limb;
       c=[0,1,2].map(q=>{const a=G[i][j][q]+(G[i][j+1][q]-G[i][j][q])*u, b=G[i+1][j][q]+(G[i+1][j+1][q]-G[i+1][j][q])*u; return a+(b-a)*t;});
       const f=Math.min(1,(R*(1+EX)-r)/(R*EX*0.08)); c=c.map((v,q)=>[0.02,0.024,0.04][q]+(v-[0.02,0.024,0.04][q])*f); }
     const o=(y*W+x)*4; px[o]=c[0]*255; px[o+1]=c[1]*255; px[o+2]=c[2]*255; px[o+3]=255;
@@ -576,7 +609,6 @@ const LATDEG={'Equator':0,'Mid-latitude':45,'Polar':75};
 const SZ=DAY.szas, VZ=DAY.vz, AZ=DAY.az;
 // The Sun at clock time min (sundial time) and declination dec, by default the page date's.
 function sunGeom(lat, min, dec=sunEquatorial(astroDay()).Dec){ const p=altaz(lat, dec, (min/60-12)*15); return {sza:90-p.alt, az:p.az}; }
-function idx(xs,x){ if(x<=xs[0]) return [0,0]; for(let i=0;i<xs.length-1;i++) if(x<xs[i+1]) return [i,(x-xs[i])/(xs[i+1]-xs[i])]; return [xs.length-2,1]; }
 // interpolate XYZ of the dome grid at (sza, vz, azrel): linear in sza, monotone cubic in vz and az
 function herm(xs, ys, x){ // PCHIP: ys is an array of [X,Y,Z]; stays between adjacent samples
   const n=xs.length; if(x<=xs[0]) return ys[0]; if(x>=xs[n-1]) return ys[n-1];
@@ -638,7 +670,7 @@ function skySource(sza, az){
   // the model's dim by a quarter of that. The extra 0.75 mag per degree closes the gap.
   const last=SZ[SZ.length-1], past=Math.max(0, sza-last);
   const fade=(past<=0 ? 1 : Math.max(0, 1-past/10))*Math.pow(10, -0.3*Math.max(0, sza-99));
-  const [si,st]=idx(SZ, Math.min(Math.max(sza, SZ[0]), last));
+  const [si,st]=bracket(SZ, Math.min(Math.max(sza, SZ[0]), last));
   return {si, st, fade, az, past};
 }
 // Baily's beads: walk round the Moon's limb (with its relief, limbH) in the plane of the sky and
@@ -4728,11 +4760,14 @@ function mwAt(basis, d){
   const x=vdot(d, basis[0]), y=vdot(d, basis[1]), z=vdot(d, basis[2]);
   return mwSample(Math.atan2(y, x)*180/Math.PI, Math.asin(Math.max(-1, Math.min(1, z)))*180/Math.PI-basis.db);
 }
-// Atmospheric extinction toward true altitude el (degrees), k magnitudes per airmass
-// (Kasten & Young 1989 airmass).
+// Airmass toward true altitude el (degrees, from 0 up), Kasten & Young 1989; AIRMASS_GLSL in shaders.
+function airmass(el){ return 1/(Math.sin(el*Math.PI/180)+0.50572*Math.pow(el+6.07995, -1.6364)); }
+const AIRMASS_GLSL=`
+float airmass(float el){ return 1.0/(sin(el*0.01745329252)+0.50572*pow(el+6.07995, -1.6364)); }`;
+// Atmospheric extinction toward true altitude el (degrees), k magnitudes per airmass.
 function extinction(el, k){
   if(el<=-1) return 0;
-  const h=Math.max(el, 0), X=1/(Math.sin(h*Math.PI/180)+0.50572*Math.pow(h+6.07995, -1.6364));
+  const X=airmass(Math.max(el, 0));
   return Math.pow(10, -0.4*k*(X-1));
 }
 // The Milky Way's colour at unit luminance, in linear sRGB, for the sky shader.
@@ -4969,9 +5004,9 @@ function auroraFrame(st){
 // Uniform locations for a program that includes AUR_GLSL.
 const AUR_UNIFORMS=['aurRayK','aurW0','aurW1','aurRed','aurLat','aurMlt0','aurA','aurB','aurSpan','aurIv','aurDiff','aurT','aurRefLat','aurSub','aurVr','aurSpec','aurK','aurSun'];
 function auroraUniforms(gl, prog, arcsUnit, raysUnit){
-  const u={}; for(const n of AUR_UNIFORMS) u[n]=gl.getUniformLocation(prog, n);
+  const u=uniformLocs(gl, prog, AUR_UNIFORMS);
   gl.useProgram(prog);
-  gl.uniform1i(gl.getUniformLocation(prog, 'aurArcs'), arcsUnit); gl.uniform1i(gl.getUniformLocation(prog, 'aurRays'), raysUnit);
+  bindSamplers(gl, prog, [['aurArcs', arcsUnit], ['aurRays', raysUnit]]);
   return u;
 }
 function auroraSetUniforms(gl, u, st, t, sunDir){
@@ -5000,6 +5035,7 @@ const glv=v=>v.map(x=>x.toExponential(4)).join(', ');
 // to fourfold. The day-side cusp is mostly red. Pulsating patches flicker in the morning diffuse
 // aurora.
 const AUR_GLSL=`
+${AIRMASS_GLSL}
 uniform sampler2D aurArcs; uniform sampler2D aurRays;
 uniform float aurRayK, aurRed, aurLat, aurMlt0, aurA, aurB, aurW0, aurW1, aurSpan, aurIv, aurDiff, aurT, aurRefLat, aurSub, aurVr;
 uniform vec4 aurSpec, aurK;
@@ -5140,9 +5176,7 @@ vec4 auroraSpecies(vec3 rd, float pxAng){
     tPrev=t; hPrev=h; sPrev=sKm;
   }
   I*=aurSpec;
-  float el=asin(rd.z)*57.2957795;
-  float X=1.0/(sin(el*0.0174532925)+0.50572*pow(el+6.07995, -1.6364));
-  return I*pow(vec4(10.0), -0.4*aurK*X);
+  return I*pow(vec4(10.0), -0.4*aurK*airmass(asin(rd.z)*57.2957795));
 }
 vec4 auroraLight(vec3 rd, float pxAng){
   vec4 I=auroraSpecies(rd, pxAng);
@@ -5155,13 +5189,11 @@ const AURFS=`#version 300 es
 precision highp float;
 uniform vec2 res; uniform float yaw, pitch, fov;
 ${AUR_GLSL}
+${VIEW_RAY_GLSL}
 out vec4 fragColor;
 void main(){
-  float aspect=res.x/max(res.y, 1.0), fy=tan(fov*0.5), fx=fy*aspect;
-  float u=((gl_FragCoord.x/res.x)*2.0-1.0)*fx, v=((gl_FragCoord.y/res.y)*2.0-1.0)*fy;
-  float cp=cos(pitch), sp=sin(pitch), cy=cos(yaw), sy=sin(yaw);
-  vec3 rd=normalize(vec3(sy*cp, cy*cp, sp)+u*vec3(cy, -sy, 0.0)+v*vec3(-sy*sp, -cy*sp, cp));
-  fragColor=auroraLight(rd, 2.0*fy/res.y)*1000.0;
+  vec3 rd=viewRay(gl_FragCoord.xy, res, fov, yaw, pitch);
+  fragColor=auroraLight(rd, 2.0*tan(fov*0.5)/res.y)*1000.0;
 }`;
 // The aurora's light (auroraLight) added to a sky of luminance ratio rBg shown as sRGB skyC,
 // under the display curve, as the Milky Way is added in the sky shader. Its colour is the
@@ -5187,16 +5219,7 @@ precision highp float;
 uniform sampler2D domeTex; uniform sampler2D skyLog;
 uniform vec2 res; uniform float nr, na;
 uniform vec4 toneU; uniform float rCd;
-float lin2s(float v){ return v<=0.0031308?12.92*v:1.055*pow(v, 1.0/2.4)-0.055; }
-float s2lin(float v){ return v<=0.04045?v/12.92:pow((v+0.055)/1.055, 2.4); }
-vec3 s2lin3(vec3 c){ return vec3(s2lin(c.r), s2lin(c.g), s2lin(c.b)); }
-vec3 lin2s3(vec3 c){ return vec3(lin2s(c.r), lin2s(c.g), lin2s(c.b)); }
-float toneT(float r){
-  if(r<=0.0) return 0.0;
-  float su=lin2s(min(toneU.z, toneU.x*pow(r, toneU.y))), sl=${TOE_A}-${TOE_B}*exp(-log(r*toneU.w)/(2.302585*${TOE_W}));
-  float m=max(su, sl), s=m+${TOE_W2}*log(1.0+exp(-abs(su-sl)/${TOE_W2}));
-  return s2lin(clamp(s, 0.0, 1.0));
-}
+${TONE_GLSL}
 ${AUR_GLSL}
 ${AUR_MIX_GLSL}
 out vec4 fragColor;
@@ -5285,11 +5308,10 @@ function domeAurInit(){
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
   gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
   const u=auroraUniforms(gl, p, 2, 3);
-  for(const n of ['res','nr','na','toneU','rCd']) u[n]=gl.getUniformLocation(p, n);
-  gl.uniform1i(gl.getUniformLocation(p, 'domeTex'), 0); gl.uniform1i(gl.getUniformLocation(p, 'skyLog'), 1);
+  uniformLocs(gl, p, ['res','nr','na','toneU','rCd'], u);
+  bindSamplers(gl, p, [['domeTex', 0], ['skyLog', 1]]);
   const tex=()=>{ const t=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE); return t; };
+    texParams(gl, gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE); return t; };
   domeAur.domeTex=tex(); domeAur.skyTex=tex();
   Object.assign(domeAur, {gl, canvas:c, prog:p, u});
   if(window.IntersectionObserver) new IntersectionObserver(es=>{ domeAur.visible=es[0].isIntersecting; if(domeAur.visible) domeAurKick(); }).observe(c);
@@ -5434,8 +5456,7 @@ function spRaw(e, lat, si, slot){
 // the Sun azr, interpolated in log between the stored samples, on the 1 nm grid, unit luminance.
 function spSky(key, lat, sza, vz, azr){
   const D=spData, e=spEpoch(key), li=D.lats.indexOf(lat);
-  const br=(xs, x)=>{ x=Math.min(Math.max(x, xs[0]), xs[xs.length-1]); let i=0; while(i<xs.length-2&&x>xs[i+1]) i++; return [i, (x-xs[i])/(xs[i+1]-xs[i])]; };
-  const [si, st]=br(D.szas, sza), [vi, vt]=br(D.vz, vz), [ai, at]=br(D.az, azr), na=D.az.length;
+  const [si, st]=bracket(D.szas, sza), [vi, vt]=bracket(D.vz, vz), [ai, at]=bracket(D.az, azr), na=D.az.length;
   const acc=new Float32Array(D.nl);
   for(const [s, ws] of [[si, 1-st], [si+1, st]]) for(const [v, wv] of [[vi, 1-vt], [vi+1, vt]]) for(const [a, wa] of [[ai, 1-at], [ai+1, at]]){
     const w=ws*wv*wa; if(!(w>0)) continue;
@@ -5453,7 +5474,7 @@ function spTo1nm(lg){
   for(let i=0;i<SP_N;i++){ const x=(SP_LAM[i]-D.lam[0])/(D.lam[1]-D.lam[0]), k=Math.min(D.nl-2, Math.floor(x)), f=x-k; out[i]=Math.pow(10, lg[k]*(1-f)+lg[k+1]*f); }
   return out;
 }
-function spAirmass(el){ const h=Math.max(el, 0); return 1/(Math.sin(h*Math.PI/180)+0.50572*Math.pow(h+6.07995, -1.6364)); }
+function spAirmass(el){ return airmass(Math.max(el, 0)); }
 // The light toward true altitude el, azimuth az. disk is 'sun', 'moon' or null; aurora the
 // four emissions there (kR) or null; litHere, on the Moon, how sunlit that point of it is (0–1). Returns {S (1 nm, cd/m² per nm-ish units), Y (cd/m²),
 // parts: [[name, Y]], marks: annotations}.
@@ -5518,9 +5539,8 @@ function skySpectrum(el, az, disk, aurora, litHere=1){
 // The plot: the spectrum filled with the colour of each wavelength, linear, normalized to the
 // continuum so a bright line runs off the top (marked with a caret) rather than flattening the rest.
 // Past 690 nm the fit's tails turn the hue back toward green, so the deep red holds from there.
-const SP_RGB=SP_CMF.map((c, i)=>SP_CMF[Math.min(i, 310)]).map(([x, y, z])=>{ const r=3.2406*x-1.5372*y-0.4986*z, g=-0.9689*x+1.8758*y+0.0415*z, b=0.0557*x-0.2040*y+1.0570*z, m=Math.max(r, g, b, 1e-6);
-  return [r, g, b].map(v=>Math.round(255*g_(Math.max(0, v/m)*0.75+0.08))); });
-function g_(v){ return v<=0.0031308?12.92*v:1.055*Math.pow(v, 1/2.4)-0.055; }
+const SP_RGB=SP_CMF.map((c, i)=>SP_CMF[Math.min(i, 310)]).map(([x, y, z])=>{ const r=3.2406*x-1.5372*y-0.4986*z, gr=-0.9689*x+1.8758*y+0.0415*z, b=0.0557*x-0.2040*y+1.0570*z, m=Math.max(r, gr, b, 1e-6);
+  return [r, gr, b].map(v=>Math.round(255*g(Math.max(0, v/m)*0.75+0.08))); });
 function drawSpectrum(cv, sp){
   const dpr=Math.min(window.devicePixelRatio||1, 2), W=264, H=118;
   if(cv.width!==W*dpr){ cv.width=W*dpr; cv.height=H*dpr; cv.style.width=W+'px'; cv.style.height=H+'px'; }
@@ -5601,9 +5621,8 @@ function globeSpectrum(key, lat, h){
   const G=spData.limb, D=spData, e=G.epochs.indexOf(G.epochs.includes(key)?key:'modern'), na=G.alts.length+1;
   const off=D.epochs.length*D.lats.length*D.szas.length*D.slots*D.nl;
   const raw=(i, j)=>{ const o=off+((e*G.lats.length+i)*na+j)*D.nl, out=new Float32Array(D.nl); for(let k=0;k<D.nl;k++) out[k]=D.lo*(1-D.bytes[o+k]/255); return out; };
-  const br=(xs, x)=>{ x=Math.min(Math.max(x, xs[0]), xs[xs.length-1]); let i=0; while(i<xs.length-2&&x>xs[i+1]) i++; return [i, (x-xs[i])/(xs[i+1]-xs[i])]; };
-  const [li, lt]=br(G.lats, lat), acc=new Float32Array(D.nl);
-  const cells=h==null?[[na-1, 1]]:(([j, u])=>[[j, 1-u], [j+1, u]])(br(G.alts, h));
+  const [li, lt]=bracket(G.lats, lat), acc=new Float32Array(D.nl);
+  const cells=h==null?[[na-1, 1]]:(([j, u])=>[[j, 1-u], [j+1, u]])(bracket(G.alts, h));
   for(const [i, wi] of [[li, 1-lt], [li+1, lt]]) for(const [j, wj] of cells){ const r=raw(i, j); for(let k=0;k<D.nl;k++) acc[k]+=wi*wj*r[k]; }
   const S=spTo1nm(acc), mu=Math.max(Math.cos(lat*Math.PI/180), 0.05);
   // A tangent path holds about 38 vertical columns of the air above its lowest point (8 km
@@ -5710,7 +5729,7 @@ function placeSatellites(latDeg, tex, marks, up){
       const phase=(Math.PI-phi)*Math.cos(phi)+Math.sin(phi);
       if(phase<=1e-8) continue;
       const el=Math.asin(sel)*180/Math.PI;
-      const air=1/(Math.sin(el*Math.PI/180)+0.50572*Math.pow(el+6.07995,-1.6364));
+      const air=airmass(el);
       const mag=SAT_MSUN-2.5*Math.log10(pref*phase)+5*Math.log10(dist/SAT_AU)+(scatter?DV[i]:0)+0.15*(air-1);
       if(mag>6.5) continue;
       const az=Math.atan2(shx*ex+shy*ey, shx*nx+shy*ny+shz*nz)*180/Math.PI;
@@ -6519,12 +6538,9 @@ float ellT(vec3 ro,vec3 rd,vec2 c,float R,float H){
   return t;
 }
 vec3 ellN(vec3 p,vec2 c,float R,float H){ return normalize(vec3((p.x-c.x)/(R*R),(p.y-c.y)/(R*R),p.z/(H*H))); }
+${VIEW_RAY_GLSL}
 void main(){
-  float aspect=res.x/max(res.y,1.0); float fy=tan(fov*0.5); float fx=fy*aspect;
-  float u=((gl_FragCoord.x/res.x)*2.0-1.0)*fx;
-  float v=((gl_FragCoord.y/res.y)*2.0-1.0)*fy;
-  float cp=cos(pitch), sp=sin(pitch), cy=cos(yaw), sy=sin(yaw);
-  vec3 rd=normalize(vec3(sy*cp, cy*cp, sp)+u*vec3(cy,-sy,0.0)+v*vec3(-sy*sp,-cy*sp,cp));
+  vec3 rd=viewRay(gl_FragCoord.xy, res, fov, yaw, pitch);
   vec3 ro=eye;
   float sunA=sunAz*0.01745329252, sunZen=(90.0-sunEl)*0.01745329252;
   vec3 sd=normalize(vec3(sin(sunA)*sin(sunZen), cos(sunA)*sin(sunZen), cos(sunZen)));
@@ -6617,17 +6633,7 @@ uniform float rCd,mwOn,mwScale,mwK,mwDB;
 uniform vec3 galX,galY,galZ;
 // The aurora, from its own pass (aurora.js) at reduced size, in cd/m² times 1000.
 uniform sampler2D aurTex; uniform float aurOn;
-float lin2s(float v){ return v<=0.0031308?12.92*v:1.055*pow(v, 1.0/2.4)-0.055; }
-float s2lin(float v){ return v<=0.04045?v/12.92:pow((v+0.055)/1.055, 2.4); }
-vec3 s2lin3(vec3 c){ return vec3(s2lin(c.r), s2lin(c.g), s2lin(c.b)); }
-vec3 lin2s3(vec3 c){ return vec3(lin2s(c.r), lin2s(c.g), lin2s(c.b)); }
-// Display linear light for luminance ratio r (color.js toneT).
-float toneT(float r){
-  if(r<=0.0) return 0.0;
-  float su=lin2s(min(toneU.z, toneU.x*pow(r, toneU.y))), sl=${TOE_A}-${TOE_B}*exp(-log(r*toneU.w)/(2.302585*${TOE_W}));
-  float m=max(su, sl), s=m+${TOE_W2}*log(1.0+exp(-abs(su-sl)/${TOE_W2}));
-  return s2lin(clamp(s, 0.0, 1.0));
-}
+${TONE_GLSL}
 ${AUR_MIX_GLSL}
 // Naked-eye limiting magnitude against a sky of L cd/m² (color.js nakedEyeLimit).
 float nakedEyeLimit(float L){
@@ -6635,9 +6641,9 @@ float nakedEyeLimit(float L){
   return 7.93-5.0*log(pow(10.0, 4.316-msky/5.0)+1.0)/2.302585;
 }
 // Extinction toward true altitude el (degrees), k magnitudes per airmass (milkyway.js).
+${AIRMASS_GLSL}
 float extinctionAt(float el, float k){
-  float h=max(el, 0.0), X=1.0/(sin(h*0.01745329252)+0.50572*pow(h+6.07995, -1.6364));
-  return pow(10.0, -0.4*k*(X-1.0));
+  return pow(10.0, -0.4*k*(airmass(max(el, 0.0))-1.0));
 }
 uniform vec4 beads[6];
 float limbH(float pa){ return 0.002*sin(7.0*pa+1.3)+0.00167*sin(12.0*pa+4.1)+0.00133*sin(19.0*pa+2.2)+0.001*sin(29.0*pa+5.0)+0.00083*sin(41.0*pa+0.7)+0.00067*sin(57.0*pa+3.3)+0.0005*sin(83.0*pa+1.9); } // moon.js limbH
@@ -7266,12 +7272,9 @@ vec3 nightScatter(vec3 p, vec3 rd, vec3 dir, vec3 light){
   float tau=(s1*280.0+s2*620.0)*0.05, c=dot(rd, dir);
   return toLin(light)*0.6*(exp(-tau)*phase(c)+0.4*exp(-tau*0.3)*phase(c*0.55));
 }
+${VIEW_RAY_GLSL}
 void main(){
-  float aspect=res.x/max(res.y,1.0); float fy=tan(fov*0.5); float fx=fy*aspect;
-  float u=((gl_FragCoord.x/res.x)*2.0-1.0)*fx;
-  float v=((gl_FragCoord.y/res.y)*2.0-1.0)*fy;
-  float cp=cos(pitch), sp=sin(pitch), cy=cos(yaw), sy=sin(yaw);
-  vec3 rd=normalize(vec3(sy*cp, cy*cp, sp)+u*vec3(cy,-sy,0.0)+v*vec3(-sy*sp,-cy*sp,cp));
+  vec3 rd=viewRay(gl_FragCoord.xy, res, fov, yaw, pitch);
   vec3 ro=eye;
   float sunA=sunAz*0.01745329252, sunZen=(90.0-sunEl)*0.01745329252;
   vec3 sd=normalize(vec3(sin(sunA)*sin(sunZen), cos(sunA)*sin(sunZen), cos(sunZen)));
@@ -7413,15 +7416,12 @@ vec4 toneCloud(vec4 c){
   if(m>1.0) x*=1.0/(1.0+0.35*(m-1.0));
   return vec4(x*c.a, c.a);
 }
+${VIEW_RAY_GLSL}
 void main(){
   vec4 c=texture(cloudTex, gl_FragCoord.xy/res);
   if(c.a<0.004){ fragColor=c; return; }
   if(showScn>0.5){
-    float aspect=res.x/max(res.y,1.0); float fy=tan(fov*0.5); float fx=fy*aspect;
-    float u=((gl_FragCoord.x/res.x)*2.0-1.0)*fx;
-    float v=((gl_FragCoord.y/res.y)*2.0-1.0)*fy;
-    float cp=cos(pitch), sp=sin(pitch), cy=cos(yaw), sy=sin(yaw);
-    vec3 rd=normalize(vec3(sy*cp, cy*cp, sp)+u*vec3(cy,-sy,0.0)+v*vec3(-sy*sp,-cy*sp,cp));
+    vec3 rd=viewRay(gl_FragCoord.xy, res, fov, yaw, pitch);
     vec3 ro=eye;
     float tIn=shellT(ro, rd, 1200.0);
     if(tIn>=0.0){
@@ -7554,11 +7554,7 @@ function makeCloudVolumes(gl, prog){
   const fbo=gl.createFramebuffer();
   const fill=(tex, side, kind)=>{
     gl.bindTexture(gl.TEXTURE_3D, tex);
-    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_R, gl.REPEAT);
+    texParams(gl, gl.LINEAR, gl.LINEAR, gl.REPEAT, gl.REPEAT, gl.TEXTURE_3D, gl.REPEAT);
     gl.texImage3D(gl.TEXTURE_3D, 0, gl.RGBA8, side, side, side, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
     gl.useProgram(prog); gl.uniform1f(uKind, kind); gl.uniform1f(uSide, side);
     gl.bindFramebuffer(gl.FRAMEBUFFER, fbo); gl.viewport(0, 0, side, side);
@@ -7628,10 +7624,7 @@ function vrCaption(){
 function allocCloudTex(gl, w, h, hdr){
   const tex=gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, tex);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  texParams(gl, gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE);
   if(hdr) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.HALF_FLOAT, null);
   else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
   return tex;
@@ -7647,10 +7640,7 @@ function ensureCloudTarget(w, h){
   vrGL.histTex=allocCloudTex(gl, w, h, hdr);
   vrGL.metaTex=gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, vrGL.metaTex);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  texParams(gl, gl.NEAREST, gl.NEAREST, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE);
   if(hdr) gl.texImage2D(gl.TEXTURE_2D, 0, gl.R16F, w, h, 0, gl.RED, gl.HALF_FLOAT, null);
   else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
   gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.cloudFbo);
@@ -7689,10 +7679,7 @@ function ensureWeather(gl){
   if(vrGL.weather) return vrGL.weather;
   const weather=gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, weather);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+  texParams(gl, gl.LINEAR, gl.LINEAR, gl.REPEAT, gl.REPEAT);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 256, 256, 0, gl.RGBA, gl.UNSIGNED_BYTE, makeWeather(256));
   return vrGL.weather=weather;
 }
@@ -7705,11 +7692,8 @@ function vrRestoreGL(gl){
 // Uniform locations, texture units, and fixed values for a sky program (boot or full).
 function setupSkyProg(gl, prog){
   gl.useProgram(prog);
-  const u={}; for(const n of ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','eye','nr','na','sunMu','showScn','mtnSnow','moonAz','moonEl','moonRad','moonOn','latRad','starPx','cloudCov','cloudScale','cloudDrift','cloudOn','clockH','pondN','snowCover','waterT','snOn','snDir','snCol','snLight','mlDir','mlLight','corona','toneU','rCd','mwOn','mwScale','mwK','mwDB','galX','galY','galZ','aurOn']) u[n]=gl.getUniformLocation(prog, n);
-  u.beads=gl.getUniformLocation(prog,'beads[0]');
-  u.pond=gl.getUniformLocation(prog,'pond[0]');
-  u.obj=gl.getUniformLocation(prog,'obj[0]'); u.kind=gl.getUniformLocation(prog,'kind[0]');
-  for(const [n, unit] of [['sky',0],['moonMap',1],['starMap',3],['starBin',4],['starIdx',5],['weather',7],['hitInfo',10],['hitNrm',11],['noiseTex',12],['mwTex',13],['aurTex',9]]) gl.uniform1i(gl.getUniformLocation(prog, n), unit);
+  const u=uniformLocs(gl, prog, ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','eye','nr','na','sunMu','showScn','mtnSnow','moonAz','moonEl','moonRad','moonOn','latRad','starPx','cloudCov','cloudScale','cloudDrift','cloudOn','clockH','pondN','snowCover','waterT','snOn','snDir','snCol','snLight','mlDir','mlLight','corona','toneU','rCd','mwOn','mwScale','mwK','mwDB','galX','galY','galZ','aurOn','beads[0]','pond[0]','obj[0]','kind[0]']);
+  bindSamplers(gl, prog, [['sky',0],['moonMap',1],['starMap',3],['starBin',4],['starIdx',5],['weather',7],['hitInfo',10],['hitNrm',11],['noiseTex',12],['mwTex',13],['aurTex',9]]);
   gl.uniform1f(u.fov, vrFov*Math.PI/180);
   gl.uniform1f(u.sunRad, SUN_RADIUS_DEG*DISK_SCALE*Math.PI/180);
   return u;
@@ -7734,49 +7718,31 @@ function initVR(){
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
   const locA=gl.getAttribLocation(prog,'a'); gl.enableVertexAttribArray(locA); gl.vertexAttribPointer(locA,2,gl.FLOAT,false,0,0);
   const tex=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  texParams(gl, gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE);
   gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
   const u=setupSkyProg(gl, prog);
   // Random values for vN in the sky shader, on unit 12, which nothing else uses.
   const noiseTex=gl.createTexture(), nd=new Uint8Array(128*128);
   let seed=12345; for(let i=0;i<nd.length;i++){ seed=(Math.imul(seed, 1103515245)+12345)>>>0; nd[i]=seed>>>24; }
   gl.activeTexture(gl.TEXTURE12); gl.bindTexture(gl.TEXTURE_2D, noiseTex);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+  texParams(gl, gl.LINEAR, gl.LINEAR, gl.REPEAT, gl.REPEAT);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, 128, 128, 0, gl.RED, gl.UNSIGNED_BYTE, nd);
   gl.activeTexture(gl.TEXTURE0);
   const moonTex=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, moonTex);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  texParams(gl, gl.LINEAR_MIPMAP_LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([180,180,180,255]));
   gl.generateMipmap(gl.TEXTURE_2D);
   const starTex=gl.createTexture();
   gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, starTex);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  texParams(gl, gl.NEAREST, gl.NEAREST, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, STAR_MAP_W, 2, 0, gl.RGBA, gl.FLOAT, new Float32Array(STAR_MAP_W*8));
   const starBinTex=gl.createTexture();
   gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, starBinTex);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  texParams(gl, gl.NEAREST, gl.NEAREST, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 64, 6, 0, gl.RGBA, gl.FLOAT, new Float32Array(64*6*4));
   const starIdxTex=gl.createTexture();
   gl.activeTexture(gl.TEXTURE5); gl.bindTexture(gl.TEXTURE_2D, starIdxTex);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  texParams(gl, gl.NEAREST, gl.NEAREST, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 1024, 32, 0, gl.RGBA, gl.FLOAT, new Float32Array(1024*32*4));
   gl.activeTexture(gl.TEXTURE0);
   vrGL={gl,u,tex,prog,buf,moonTex,starTex,starBinTex,starIdxTex,noiseTex,starUploaded:-1,
@@ -7799,7 +7765,7 @@ function initVR(){
   if(vrGL.hitFloat) whenLinked(gl, [glProgramAsync(gl, vs, AURFS)], ap=>{
     if(!ap||!vrGL) return;
     vrGL.aurProg=ap; vrGL.au=auroraUniforms(gl, ap, 14, 15);
-    for(const n of ['res','yaw','pitch','fov']) vrGL.au[n]=gl.getUniformLocation(ap, n);
+    uniformLocs(gl, ap, ['res','yaw','pitch','fov'], vrGL.au);
     vrGL.aurFbo=gl.createFramebuffer(); vrGL.aurStore={};
     vrRestoreGL(gl); requestVR();
   });
@@ -7839,12 +7805,10 @@ function pickHit(gl){
   if(v && v.prog){ vrGL.hitProg=v.prog; vrGL.hu=v.hu; }
 }
 function setupHitProg(gl, hp){
-  const hu={}; for(const n of ['res','yaw','pitch','fov','eye','showScn','sunAz','sunEl']) hu[n]=gl.getUniformLocation(hp, n);
-  hu.obj=gl.getUniformLocation(hp,'obj[0]'); hu.kind=gl.getUniformLocation(hp,'kind[0]');
-  hu.town=gl.getUniformLocation(hp,'town[0]'); hu.townN=gl.getUniformLocation(hp,'townN');
+  const hu=uniformLocs(gl, hp, ['res','yaw','pitch','fov','eye','showScn','sunAz','sunEl','obj[0]','kind[0]','town[0]','townN']);
   ensureWeather(gl);
   gl.useProgram(hp);
-  gl.uniform1i(gl.getUniformLocation(hp,'weather'), 7);
+  bindSamplers(gl, hp, [['weather',7]]);
   gl.uniform1f(hu.fov, vrFov*Math.PI/180);
   gl.uniform1f(gl.getUniformLocation(hp,'scnCount'), 12);
   gl.uniform1f(gl.getUniformLocation(hp,'hillN'), 8);
@@ -7855,29 +7819,20 @@ function setupCloudProgs(gl, cp, pp, tp, np){
   const vols=makeCloudVolumes(gl, np);
   if(!vols){ console.warn('cloud noise build failed'); return; }
   const names=['res','yaw','pitch','fov','eye','sunAz','sunEl','sunCol','sunMu','showScn','cloudCov','cloudScale','cloudDrift','cloudTime','cloudFrame','nr','na','cloudType','cloudBase','cloudTop','cloudCirrus','useHDR','groundCol','sunVis','cityUp','cloudDeck','snDir','snLight','mlDir','mlLight'];
-  const cu={}; for(const n of names) cu[n]=gl.getUniformLocation(cp, n);
-  cu.obj=gl.getUniformLocation(cp,'obj[0]'); cu.kind=gl.getUniformLocation(cp,'kind[0]');
+  const cu=uniformLocs(gl, cp, [...names, 'obj[0]', 'kind[0]']);
   const weather=ensureWeather(gl);
   const hdr=!!gl.getExtension('EXT_color_buffer_float');
   gl.useProgram(cp);
-  gl.uniform1i(gl.getUniformLocation(cp,'noiseBase'), 1);
-  gl.uniform1i(gl.getUniformLocation(cp,'noiseDetail'), 6);
-  gl.uniform1i(gl.getUniformLocation(cp,'weather'), 7);
-  gl.uniform1i(gl.getUniformLocation(cp,'sky'), 0);
-  gl.uniform1i(gl.getUniformLocation(cp,'hitInfo'), 10);
+  bindSamplers(gl, cp, [['noiseBase',1],['noiseDetail',6],['weather',7],['sky',0],['hitInfo',10]]);
   gl.uniform1f(cu.fov, vrFov*Math.PI/180);
   gl.uniform1f(cu.useHDR, hdr?1:0);
-  const compU={}; for(const n of ['res','yaw','pitch','fov','showScn']) compU[n]=gl.getUniformLocation(pp, n);
-  compU.eye=gl.getUniformLocation(pp,'eye'); compU.obj=gl.getUniformLocation(pp,'obj[0]'); compU.kind=gl.getUniformLocation(pp,'kind[0]');
-  gl.useProgram(pp); gl.uniform1i(gl.getUniformLocation(pp,'cloudTex'), 2); gl.uniform1i(gl.getUniformLocation(pp,'hitInfo'), 10); gl.uniform1f(compU.fov, vrFov*Math.PI/180);
+  const compU=uniformLocs(gl, pp, ['res','yaw','pitch','fov','showScn','eye','obj[0]','kind[0]']);
+  gl.useProgram(pp); bindSamplers(gl, pp, [['cloudTex',2],['hitInfo',10]]); gl.uniform1f(compU.fov, vrFov*Math.PI/180);
   let tu=null;
   if(tp){
-    tu={}; for(const n of ['res','yaw','pitch','prevYaw','prevPitch','fov','histValid','histW']) tu[n]=gl.getUniformLocation(tp, n);
-    tu.eye=gl.getUniformLocation(tp,'eye'); tu.prevEye=gl.getUniformLocation(tp,'prevEye');
+    tu=uniformLocs(gl, tp, ['res','yaw','pitch','prevYaw','prevPitch','fov','histValid','histW','eye','prevEye']);
     gl.useProgram(tp);
-    gl.uniform1i(gl.getUniformLocation(tp,'currTex'), 2);
-    gl.uniform1i(gl.getUniformLocation(tp,'histTex'), 9);
-    gl.uniform1i(gl.getUniformLocation(tp,'metaTex'), 8);
+    bindSamplers(gl, tp, [['currTex',2],['histTex',9],['metaTex',8]]);
     gl.uniform1f(tu.fov, vrFov*Math.PI/180);
   }
   vrGL.cloudProg=cp; vrGL.compProg=pp; vrGL.tempProg=tp; vrGL.cu=cu; vrGL.compU=compU; vrGL.tu=tu;
@@ -8061,10 +8016,7 @@ function ensureHitTarget(w, h){
   const alloc=()=>{
     const t=gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, t);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    texParams(gl, gl.NEAREST, gl.NEAREST, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE);
     gl.texImage2D(gl.TEXTURE_2D, 0, vrGL.hitFloat?gl.RGBA32F:gl.RGBA16F, w, h, 0, gl.RGBA, vrGL.hitFloat?gl.FLOAT:gl.HALF_FLOAT, null);
     return t;
   };
@@ -8135,8 +8087,7 @@ function paintVR(){
     const t=gl.createTexture(), half=new Float32Array(mwMap.length);
     for(let i=0;i<half.length;i++) half[i]=mwMap[i]*1e4;
     gl.activeTexture(gl.TEXTURE13); gl.bindTexture(gl.TEXTURE_2D, t);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    texParams(gl, gl.LINEAR, gl.LINEAR, gl.REPEAT, gl.CLAMP_TO_EDGE);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.R16F, MW_W, MW_H, 0, gl.RED, gl.FLOAT, half);
     gl.activeTexture(gl.TEXTURE0); vrGL.mwTex=t;
   }
@@ -8335,8 +8286,7 @@ function drawAuroraVR(gl, st, c){
   if(vrGL.aurW!==w||vrGL.aurH!==h){
     if(vrGL.aurTex) gl.deleteTexture(vrGL.aurTex);
     const t=vrGL.aurTex=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    texParams(gl, gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.HALF_FLOAT, null);
     gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.aurFbo);
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);

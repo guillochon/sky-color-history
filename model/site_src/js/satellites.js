@@ -78,7 +78,7 @@ function placeSatellites(latDeg, tex, marks, up){
       const phase=(Math.PI-phi)*Math.cos(phi)+Math.sin(phi);
       if(phase<=1e-8) continue;
       const el=Math.asin(sel)*180/Math.PI;
-      const air=1/(Math.sin(el*Math.PI/180)+0.50572*Math.pow(el+6.07995,-1.6364));
+      const air=airmass(el);
       const mag=SAT_MSUN-2.5*Math.log10(pref*phase)+5*Math.log10(dist/SAT_AU)+(scatter?DV[i]:0)+0.15*(air-1);
       if(mag>6.5) continue;
       const az=Math.atan2(shx*ex+shy*ey, shx*nx+shy*ny+shz*nz)*180/Math.PI;

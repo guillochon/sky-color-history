@@ -16,17 +16,7 @@ uniform float rCd,mwOn,mwScale,mwK,mwDB;
 uniform vec3 galX,galY,galZ;
 // The aurora, from its own pass (aurora.js) at reduced size, in cd/m² times 1000.
 uniform sampler2D aurTex; uniform float aurOn;
-float lin2s(float v){ return v<=0.0031308?12.92*v:1.055*pow(v, 1.0/2.4)-0.055; }
-float s2lin(float v){ return v<=0.04045?v/12.92:pow((v+0.055)/1.055, 2.4); }
-vec3 s2lin3(vec3 c){ return vec3(s2lin(c.r), s2lin(c.g), s2lin(c.b)); }
-vec3 lin2s3(vec3 c){ return vec3(lin2s(c.r), lin2s(c.g), lin2s(c.b)); }
-// Display linear light for luminance ratio r (color.js toneT).
-float toneT(float r){
-  if(r<=0.0) return 0.0;
-  float su=lin2s(min(toneU.z, toneU.x*pow(r, toneU.y))), sl=${TOE_A}-${TOE_B}*exp(-log(r*toneU.w)/(2.302585*${TOE_W}));
-  float m=max(su, sl), s=m+${TOE_W2}*log(1.0+exp(-abs(su-sl)/${TOE_W2}));
-  return s2lin(clamp(s, 0.0, 1.0));
-}
+${TONE_GLSL}
 ${AUR_MIX_GLSL}
 // Naked-eye limiting magnitude against a sky of L cd/m² (color.js nakedEyeLimit).
 float nakedEyeLimit(float L){
@@ -34,9 +24,9 @@ float nakedEyeLimit(float L){
   return 7.93-5.0*log(pow(10.0, 4.316-msky/5.0)+1.0)/2.302585;
 }
 // Extinction toward true altitude el (degrees), k magnitudes per airmass (milkyway.js).
+${AIRMASS_GLSL}
 float extinctionAt(float el, float k){
-  float h=max(el, 0.0), X=1.0/(sin(h*0.01745329252)+0.50572*pow(h+6.07995, -1.6364));
-  return pow(10.0, -0.4*k*(X-1.0));
+  return pow(10.0, -0.4*k*(airmass(max(el, 0.0))-1.0));
 }
 uniform vec4 beads[6];
 float limbH(float pa){ return 0.002*sin(7.0*pa+1.3)+0.00167*sin(12.0*pa+4.1)+0.00133*sin(19.0*pa+2.2)+0.001*sin(29.0*pa+5.0)+0.00083*sin(41.0*pa+0.7)+0.00067*sin(57.0*pa+3.3)+0.0005*sin(83.0*pa+1.9); } // moon.js limbH

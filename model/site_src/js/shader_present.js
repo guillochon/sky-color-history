@@ -20,15 +20,12 @@ vec4 toneCloud(vec4 c){
   if(m>1.0) x*=1.0/(1.0+0.35*(m-1.0));
   return vec4(x*c.a, c.a);
 }
+${VIEW_RAY_GLSL}
 void main(){
   vec4 c=texture(cloudTex, gl_FragCoord.xy/res);
   if(c.a<0.004){ fragColor=c; return; }
   if(showScn>0.5){
-    float aspect=res.x/max(res.y,1.0); float fy=tan(fov*0.5); float fx=fy*aspect;
-    float u=((gl_FragCoord.x/res.x)*2.0-1.0)*fx;
-    float v=((gl_FragCoord.y/res.y)*2.0-1.0)*fy;
-    float cp=cos(pitch), sp=sin(pitch), cy=cos(yaw), sy=sin(yaw);
-    vec3 rd=normalize(vec3(sy*cp, cy*cp, sp)+u*vec3(cy,-sy,0.0)+v*vec3(-sy*sp,-cy*sp,cp));
+    vec3 rd=viewRay(gl_FragCoord.xy, res, fov, yaw, pitch);
     vec3 ro=eye;
     float tIn=shellT(ro, rd, 1200.0);
     if(tIn>=0.0){

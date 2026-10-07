@@ -9,7 +9,6 @@ const LATDEG={'Equator':0,'Mid-latitude':45,'Polar':75};
 const SZ=DAY.szas, VZ=DAY.vz, AZ=DAY.az;
 // The Sun at clock time min (sundial time) and declination dec, by default the page date's.
 function sunGeom(lat, min, dec=sunEquatorial(astroDay()).Dec){ const p=altaz(lat, dec, (min/60-12)*15); return {sza:90-p.alt, az:p.az}; }
-function idx(xs,x){ if(x<=xs[0]) return [0,0]; for(let i=0;i<xs.length-1;i++) if(x<xs[i+1]) return [i,(x-xs[i])/(xs[i+1]-xs[i])]; return [xs.length-2,1]; }
 // interpolate XYZ of the dome grid at (sza, vz, azrel): linear in sza, monotone cubic in vz and az
 function herm(xs, ys, x){ // PCHIP: ys is an array of [X,Y,Z]; stays between adjacent samples
   const n=xs.length; if(x<=xs[0]) return ys[0]; if(x>=xs[n-1]) return ys[n-1];
@@ -71,7 +70,7 @@ function skySource(sza, az){
   // the model's dim by a quarter of that. The extra 0.75 mag per degree closes the gap.
   const last=SZ[SZ.length-1], past=Math.max(0, sza-last);
   const fade=(past<=0 ? 1 : Math.max(0, 1-past/10))*Math.pow(10, -0.3*Math.max(0, sza-99));
-  const [si,st]=idx(SZ, Math.min(Math.max(sza, SZ[0]), last));
+  const [si,st]=bracket(SZ, Math.min(Math.max(sza, SZ[0]), last));
   return {si, st, fade, az, past};
 }
 // Baily's beads: walk round the Moon's limb (with its relief, limbH) in the plane of the sky and

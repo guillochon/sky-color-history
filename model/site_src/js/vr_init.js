@@ -23,10 +23,7 @@ function ensureWeather(gl){
   if(vrGL.weather) return vrGL.weather;
   const weather=gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, weather);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+  texParams(gl, gl.LINEAR, gl.LINEAR, gl.REPEAT, gl.REPEAT);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 256, 256, 0, gl.RGBA, gl.UNSIGNED_BYTE, makeWeather(256));
   return vrGL.weather=weather;
 }
@@ -39,11 +36,8 @@ function vrRestoreGL(gl){
 // Uniform locations, texture units, and fixed values for a sky program (boot or full).
 function setupSkyProg(gl, prog){
   gl.useProgram(prog);
-  const u={}; for(const n of ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','eye','nr','na','sunMu','showScn','mtnSnow','moonAz','moonEl','moonRad','moonOn','latRad','starPx','cloudCov','cloudScale','cloudDrift','cloudOn','clockH','pondN','snowCover','waterT','snOn','snDir','snCol','snLight','mlDir','mlLight','corona','toneU','rCd','mwOn','mwScale','mwK','mwDB','galX','galY','galZ','aurOn']) u[n]=gl.getUniformLocation(prog, n);
-  u.beads=gl.getUniformLocation(prog,'beads[0]');
-  u.pond=gl.getUniformLocation(prog,'pond[0]');
-  u.obj=gl.getUniformLocation(prog,'obj[0]'); u.kind=gl.getUniformLocation(prog,'kind[0]');
-  for(const [n, unit] of [['sky',0],['moonMap',1],['starMap',3],['starBin',4],['starIdx',5],['weather',7],['hitInfo',10],['hitNrm',11],['noiseTex',12],['mwTex',13],['aurTex',9]]) gl.uniform1i(gl.getUniformLocation(prog, n), unit);
+  const u=uniformLocs(gl, prog, ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','eye','nr','na','sunMu','showScn','mtnSnow','moonAz','moonEl','moonRad','moonOn','latRad','starPx','cloudCov','cloudScale','cloudDrift','cloudOn','clockH','pondN','snowCover','waterT','snOn','snDir','snCol','snLight','mlDir','mlLight','corona','toneU','rCd','mwOn','mwScale','mwK','mwDB','galX','galY','galZ','aurOn','beads[0]','pond[0]','obj[0]','kind[0]']);
+  bindSamplers(gl, prog, [['sky',0],['moonMap',1],['starMap',3],['starBin',4],['starIdx',5],['weather',7],['hitInfo',10],['hitNrm',11],['noiseTex',12],['mwTex',13],['aurTex',9]]);
   gl.uniform1f(u.fov, vrFov*Math.PI/180);
   gl.uniform1f(u.sunRad, SUN_RADIUS_DEG*DISK_SCALE*Math.PI/180);
   return u;
@@ -68,49 +62,31 @@ function initVR(){
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
   const locA=gl.getAttribLocation(prog,'a'); gl.enableVertexAttribArray(locA); gl.vertexAttribPointer(locA,2,gl.FLOAT,false,0,0);
   const tex=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  texParams(gl, gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE);
   gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
   const u=setupSkyProg(gl, prog);
   // Random values for vN in the sky shader, on unit 12, which nothing else uses.
   const noiseTex=gl.createTexture(), nd=new Uint8Array(128*128);
   let seed=12345; for(let i=0;i<nd.length;i++){ seed=(Math.imul(seed, 1103515245)+12345)>>>0; nd[i]=seed>>>24; }
   gl.activeTexture(gl.TEXTURE12); gl.bindTexture(gl.TEXTURE_2D, noiseTex);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+  texParams(gl, gl.LINEAR, gl.LINEAR, gl.REPEAT, gl.REPEAT);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, 128, 128, 0, gl.RED, gl.UNSIGNED_BYTE, nd);
   gl.activeTexture(gl.TEXTURE0);
   const moonTex=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, moonTex);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  texParams(gl, gl.LINEAR_MIPMAP_LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([180,180,180,255]));
   gl.generateMipmap(gl.TEXTURE_2D);
   const starTex=gl.createTexture();
   gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, starTex);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  texParams(gl, gl.NEAREST, gl.NEAREST, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, STAR_MAP_W, 2, 0, gl.RGBA, gl.FLOAT, new Float32Array(STAR_MAP_W*8));
   const starBinTex=gl.createTexture();
   gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, starBinTex);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  texParams(gl, gl.NEAREST, gl.NEAREST, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 64, 6, 0, gl.RGBA, gl.FLOAT, new Float32Array(64*6*4));
   const starIdxTex=gl.createTexture();
   gl.activeTexture(gl.TEXTURE5); gl.bindTexture(gl.TEXTURE_2D, starIdxTex);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  texParams(gl, gl.NEAREST, gl.NEAREST, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 1024, 32, 0, gl.RGBA, gl.FLOAT, new Float32Array(1024*32*4));
   gl.activeTexture(gl.TEXTURE0);
   vrGL={gl,u,tex,prog,buf,moonTex,starTex,starBinTex,starIdxTex,noiseTex,starUploaded:-1,
@@ -133,7 +109,7 @@ function initVR(){
   if(vrGL.hitFloat) whenLinked(gl, [glProgramAsync(gl, vs, AURFS)], ap=>{
     if(!ap||!vrGL) return;
     vrGL.aurProg=ap; vrGL.au=auroraUniforms(gl, ap, 14, 15);
-    for(const n of ['res','yaw','pitch','fov']) vrGL.au[n]=gl.getUniformLocation(ap, n);
+    uniformLocs(gl, ap, ['res','yaw','pitch','fov'], vrGL.au);
     vrGL.aurFbo=gl.createFramebuffer(); vrGL.aurStore={};
     vrRestoreGL(gl); requestVR();
   });
@@ -173,12 +149,10 @@ function pickHit(gl){
   if(v && v.prog){ vrGL.hitProg=v.prog; vrGL.hu=v.hu; }
 }
 function setupHitProg(gl, hp){
-  const hu={}; for(const n of ['res','yaw','pitch','fov','eye','showScn','sunAz','sunEl']) hu[n]=gl.getUniformLocation(hp, n);
-  hu.obj=gl.getUniformLocation(hp,'obj[0]'); hu.kind=gl.getUniformLocation(hp,'kind[0]');
-  hu.town=gl.getUniformLocation(hp,'town[0]'); hu.townN=gl.getUniformLocation(hp,'townN');
+  const hu=uniformLocs(gl, hp, ['res','yaw','pitch','fov','eye','showScn','sunAz','sunEl','obj[0]','kind[0]','town[0]','townN']);
   ensureWeather(gl);
   gl.useProgram(hp);
-  gl.uniform1i(gl.getUniformLocation(hp,'weather'), 7);
+  bindSamplers(gl, hp, [['weather',7]]);
   gl.uniform1f(hu.fov, vrFov*Math.PI/180);
   gl.uniform1f(gl.getUniformLocation(hp,'scnCount'), 12);
   gl.uniform1f(gl.getUniformLocation(hp,'hillN'), 8);
@@ -189,29 +163,20 @@ function setupCloudProgs(gl, cp, pp, tp, np){
   const vols=makeCloudVolumes(gl, np);
   if(!vols){ console.warn('cloud noise build failed'); return; }
   const names=['res','yaw','pitch','fov','eye','sunAz','sunEl','sunCol','sunMu','showScn','cloudCov','cloudScale','cloudDrift','cloudTime','cloudFrame','nr','na','cloudType','cloudBase','cloudTop','cloudCirrus','useHDR','groundCol','sunVis','cityUp','cloudDeck','snDir','snLight','mlDir','mlLight'];
-  const cu={}; for(const n of names) cu[n]=gl.getUniformLocation(cp, n);
-  cu.obj=gl.getUniformLocation(cp,'obj[0]'); cu.kind=gl.getUniformLocation(cp,'kind[0]');
+  const cu=uniformLocs(gl, cp, [...names, 'obj[0]', 'kind[0]']);
   const weather=ensureWeather(gl);
   const hdr=!!gl.getExtension('EXT_color_buffer_float');
   gl.useProgram(cp);
-  gl.uniform1i(gl.getUniformLocation(cp,'noiseBase'), 1);
-  gl.uniform1i(gl.getUniformLocation(cp,'noiseDetail'), 6);
-  gl.uniform1i(gl.getUniformLocation(cp,'weather'), 7);
-  gl.uniform1i(gl.getUniformLocation(cp,'sky'), 0);
-  gl.uniform1i(gl.getUniformLocation(cp,'hitInfo'), 10);
+  bindSamplers(gl, cp, [['noiseBase',1],['noiseDetail',6],['weather',7],['sky',0],['hitInfo',10]]);
   gl.uniform1f(cu.fov, vrFov*Math.PI/180);
   gl.uniform1f(cu.useHDR, hdr?1:0);
-  const compU={}; for(const n of ['res','yaw','pitch','fov','showScn']) compU[n]=gl.getUniformLocation(pp, n);
-  compU.eye=gl.getUniformLocation(pp,'eye'); compU.obj=gl.getUniformLocation(pp,'obj[0]'); compU.kind=gl.getUniformLocation(pp,'kind[0]');
-  gl.useProgram(pp); gl.uniform1i(gl.getUniformLocation(pp,'cloudTex'), 2); gl.uniform1i(gl.getUniformLocation(pp,'hitInfo'), 10); gl.uniform1f(compU.fov, vrFov*Math.PI/180);
+  const compU=uniformLocs(gl, pp, ['res','yaw','pitch','fov','showScn','eye','obj[0]','kind[0]']);
+  gl.useProgram(pp); bindSamplers(gl, pp, [['cloudTex',2],['hitInfo',10]]); gl.uniform1f(compU.fov, vrFov*Math.PI/180);
   let tu=null;
   if(tp){
-    tu={}; for(const n of ['res','yaw','pitch','prevYaw','prevPitch','fov','histValid','histW']) tu[n]=gl.getUniformLocation(tp, n);
-    tu.eye=gl.getUniformLocation(tp,'eye'); tu.prevEye=gl.getUniformLocation(tp,'prevEye');
+    tu=uniformLocs(gl, tp, ['res','yaw','pitch','prevYaw','prevPitch','fov','histValid','histW','eye','prevEye']);
     gl.useProgram(tp);
-    gl.uniform1i(gl.getUniformLocation(tp,'currTex'), 2);
-    gl.uniform1i(gl.getUniformLocation(tp,'histTex'), 9);
-    gl.uniform1i(gl.getUniformLocation(tp,'metaTex'), 8);
+    bindSamplers(gl, tp, [['currTex',2],['histTex',9],['metaTex',8]]);
     gl.uniform1f(tu.fov, vrFov*Math.PI/180);
   }
   vrGL.cloudProg=cp; vrGL.compProg=pp; vrGL.tempProg=tp; vrGL.cu=cu; vrGL.compU=compU; vrGL.tu=tu;
