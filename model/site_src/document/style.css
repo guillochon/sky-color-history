@@ -54,10 +54,15 @@ button.tick.on{background:none;color:var(--ink)}
 .tick.on .lb{background:var(--bg);padding:0 .3rem;border-radius:2px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 .tip{position:absolute;pointer-events:none;background:rgba(20,22,30,.92);color:#fff;font-size:.85rem;padding:.3rem .5rem .3rem .35rem;border-radius:3px;display:none;white-space:nowrap;z-index:5;transform:translate(14px,-50%)}
+.tip .spbox canvas{display:block;margin:.3rem 0 .1rem}
+.tip .spsrc{font-size:.72rem;opacity:.85;white-space:normal;max-width:264px;line-height:1.3}
 .tip i{display:inline-block;width:1.1em;height:1.1em;border-radius:2px;vertical-align:-3px;margin-right:.4em;border:1px solid rgba(255,255,255,.5)}
 .stage canvas{cursor:crosshair}
 #vr{display:none;position:fixed;inset:0;z-index:40;background:#000;overflow:hidden;cursor:none}
 #vr.on{display:block}
+#vr.inspect,#vr.inspect canvas{cursor:crosshair}
+#vrtip{z-index:9;position:absolute}
+#vr #vrtip canvas{position:static;inset:auto}
 #vr canvas{position:absolute;inset:0;width:100%;height:100%;cursor:none}
 .aim{position:absolute;width:36px;height:36px;margin:-18px 0 0 -18px;pointer-events:none;color:#fff}
 .aim .chev{display:block;width:100%;height:100%;overflow:visible}

@@ -113,7 +113,7 @@ function lockLook(){
   const p=document.getElementById('vrc').requestPointerLock(); if(p&&p.catch) p.catch(()=>{});
 }
 function exitVR(){
-  if(!vrOn) return; vrOn=false; stopVRMusic(); vrRelock=false; vrLinkKey=''; vrHeld.clear(); document.getElementById('sunmark').hidden=true; document.getElementById('moonmark').hidden=true; if(vrWalk){ cancelAnimationFrame(vrWalk); vrWalk=0; }
+  if(!vrOn) return; if(vrInspect) setInspect(false, true); vrOn=false; stopVRMusic(); vrRelock=false; vrLinkKey=''; vrHeld.clear(); document.getElementById('sunmark').hidden=true; document.getElementById('moonmark').hidden=true; if(vrWalk){ cancelAnimationFrame(vrWalk); vrWalk=0; }
   if(!vrNav) clearVRLink();
   const root=document.getElementById('vr'); root.classList.remove('on','locked'); root.setAttribute('aria-hidden','true');
   document.body.style.overflow='';
@@ -143,8 +143,8 @@ window.addEventListener('wheel', e=>{
   vrFov=Math.max(VR_FOV_MIN, Math.min(VR_FOV_MAX, vrFov*Math.exp(px*0.0015)));
   requestVR();
 }, {passive:false});
-window.addEventListener('mousemove', e=>{ if(!vrOn) return; if(!e.movementX&&!e.movementY) return; lookVR(e.movementX, e.movementY); });
-window.addEventListener('pointerdown', ()=>{ if(!vrOn) return; pokeVRMusic(); if(document.pointerLockElement===vrc) return; vrRelock=true; lockLook(); setTimeout(()=>{ vrRelock=false; }, 400); });
+window.addEventListener('mousemove', e=>{ if(!vrOn) return; if(vrInspect){ vrInspectAt=[e.clientX, e.clientY]; refreshVRTip(); return; } if(!e.movementX&&!e.movementY) return; lookVR(e.movementX, e.movementY); });
+window.addEventListener('pointerdown', ()=>{ if(!vrOn) return; pokeVRMusic(); if(vrInspect||document.pointerLockElement===vrc) return; vrRelock=true; lockLook(); setTimeout(()=>{ vrRelock=false; }, 400); });
 let vrTX=0, vrTY=0;
 vrc.addEventListener('touchstart', e=>{ const t=e.touches[0]; vrTX=t.clientX; vrTY=t.clientY; }, {passive:true});
 vrc.addEventListener('touchmove', e=>{ if(!vrOn) return; const t=e.touches[0]; lookVR(t.clientX-vrTX, t.clientY-vrTY); vrTX=t.clientX; vrTY=t.clientY; e.preventDefault(); }, {passive:false});
@@ -159,7 +159,7 @@ document.addEventListener('pointerlockchange', ()=>{
   const locked=document.pointerLockElement===vrc;
   document.getElementById('vr').classList.toggle('locked', locked);
   if(locked){ vrLockedOnce=true; return; }
-  if(!vrOn||!vrLockedOnce) return;
+  if(!vrOn||!vrLockedOnce||vrInspect) return;
   if(vrRelock){ lockLook(); return; }
   exitVR();
 });
@@ -174,6 +174,7 @@ document.addEventListener('keydown',e=>{
     if(e.key==='Shift'){ vrHeld.add('shift'); return; }
     if(k==='h'&&!e.repeat){ e.preventDefault(); vrScenery=!vrScenery; paintVR(); syncVRPad(); return; }
     if(k==='c'&&!e.repeat){ e.preventDefault(); vrClouds=!vrClouds; paintVR(); syncVRPad(); return; }
+    if(k==='q'&&!e.repeat&&!vrTouch){ e.preventDefault(); setInspect(!vrInspect); return; }
     if(e.key==='Escape'){ exitVR(); return; }
     if(e.key===' ' && !e.repeat){ e.preventDefault(); hplay.click(); return; }
     if(e.key==='ArrowRight'){ e.preventDefault(); stepMinutes(5); return; }
@@ -215,3 +216,62 @@ document.querySelectorAll('.vrpad button, .vrplay').forEach(b=>{
   });
 });
 syncVRPad();
+// Inspect (q): the camera holds still, the pointer comes back, and a tooltip under it gives the
+// pixel's colour and the spectrum of the sky in that direction.
+let vrInspect=false, vrInspectAt=null, vrInspectTimer=0;
+function setInspect(on, leaving){
+  vrInspect=on; vrInspectAt=null;
+  document.getElementById('vr').classList.toggle('inspect', on);
+  document.getElementById('vrtip').style.display='none';
+  clearInterval(vrInspectTimer); vrInspectTimer=0;
+  if(on){
+    if(document.pointerLockElement) document.exitPointerLock();
+    vrInspectTimer=setInterval(refreshVRTip, 250);
+  }else if(!leaving){ vrRelock=true; lockLook(); setTimeout(()=>{ vrRelock=false; }, 400); }
+}
+// One pixel of a framebuffer as numbers, or null.
+function vrReadPixel(fb, x, y, float){
+  const gl=vrGL.gl;
+  gl.bindFramebuffer(gl.READ_FRAMEBUFFER, fb);
+  if(fb) gl.readBuffer(gl.COLOR_ATTACHMENT0);
+  const px=float?new Float32Array(4):new Uint8Array(4);
+  gl.readPixels(x, y, 1, 1, gl.RGBA, float?gl.FLOAT:gl.UNSIGNED_BYTE, px);
+  gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
+  return gl.getError()?null:px;
+}
+function refreshVRTip(){
+  const tip=document.getElementById('vrtip');
+  if(!vrOn||!vrInspect||!vrInspectAt||!vrGL||!skyNow){ tip.style.display='none'; return; }
+  const gl=vrGL.gl, c=gl.canvas, [cx, cy]=vrInspectAt, W=window.innerWidth, H=window.innerHeight;
+  const x=Math.min(c.width-1, Math.max(0, Math.floor(cx*c.width/W))), y=Math.min(c.height-1, Math.max(0, c.height-1-Math.floor(cy*c.height/H)));
+  // The view ray under the pointer, as the sky shader builds it.
+  const fy=Math.tan(vrFov*Math.PI/360), fx=fy*c.width/c.height, u=((cx/W)*2-1)*fx, v=(1-(cy/H)*2)*fy;
+  const yaw=vrYaw*Math.PI/180, pitch=vrPitch*Math.PI/180, cp=Math.cos(pitch), sp=Math.sin(pitch), cyw=Math.cos(yaw), syw=Math.sin(yaw);
+  const d=vnorm([syw*cp+u*cyw-v*syw*sp, cyw*cp-u*syw-v*cyw*sp, sp+v*cp]);
+  const app=Math.asin(Math.max(-1, Math.min(1, d[2])))*180/Math.PI, el=trueAltDeg(app);
+  let az=Math.atan2(d[0], d[1])*180/Math.PI; if(az<0) az+=360;
+  const col=vrReadPixel(null, x, y, false);
+  if(!col) return;
+  const cur=hex([col[0], col[1], col[2]]);
+  if(!tip.querySelector('.tline')) tip.innerHTML='<span class="tline"></span><div class="spbox"></div>';
+  tip.querySelector('.tline').innerHTML=`<i style="background:${cur}"></i>${cur} · ${app.toFixed(1)}° up, ${Math.round(az)}°`;
+  const box=tip.querySelector('.spbox');
+  const hit=vrScenery&&vrGL.hitInfo&&vrGL.hitMRT?vrReadPixel(vrGL.hitFbo, x, y, true):null;
+  if(app<0||(hit&&hit[0]>0)) spectrumHTML(box, el, az, {note:'Ground and scenery are not part of the model, so they have no spectrum.'});
+  else {
+    let cloud=false;
+    if(vrClouds&&vrGL.accumFbo&&vrGL.cw){ const a=vrReadPixel(vrGL.accumFbo, Math.floor(x*vrGL.cw/c.width), Math.floor(y*vrGL.ch/c.height), !!vrGL.cloudHDR); cloud=!!a&&(vrGL.cloudHDR?a[3]:a[3]/255)>0.35; }
+    const sep=(bAz, bEl)=>Math.acos(Math.max(-1, Math.min(1, vdot(d, horizDir(bAz, apparentEl(bEl))))))*180/Math.PI, mo=skyNow.moon;
+    const disk=cloud?null:(mo.on&&sep(mo.az, mo.el)<mo.radDeg*DISK_SCALE?'moon':(skyNow.sunOn&&skyNow.sunVis>0.01&&sep(skyNow.sunAz, 90-skyNow.sza)<mo.sunRadDeg*DISK_SCALE?'sun':null));
+    let aurora=null;
+    if(!disk&&skyNow.aur&&skyNow.aur.on){ aurora=auroraProbe(gl, vrGL.aurStore||(vrGL.aurStore={}), skyNow.aur, horizDir(az, el)); vrRestoreGL(gl); }
+    spectrumHTML(box, el, az, {disk, aurora, cloud});
+  }
+  tip.style.display='block';
+  const w=tip.offsetWidth, h=tip.offsetHeight;
+  tip.style.left=Math.min(cx+16, W-w-8)+(cx+16+w>W-8?-(w+32):0)+'px';
+  tip.style.top=Math.max(8, Math.min(H-h-8, cy-h/2))+'px';
+  tip.style.transform='none';
+}
+// Apparent altitude (degrees) to true (Bennett 1982), as the sky shader's trueAlt.
+function trueAltDeg(a){ return a>80?a:a-1/Math.tan((a+7.31/(a+4.4))*Math.PI/180)/60; }

@@ -7,7 +7,7 @@
     <h1>Stand under the sky of <em>any</em> age of Earth</h1>
     <p class="lede">Four and a half billion years of skies, from the Hadean's steam and CO₂ to tonight's city glow, computed with the same spectral radiative-transfer model as the report. Walk around under them, day and night.</p>
     <button type="button" id="vrbtn" class="cta">Step into the sky <span aria-hidden="true">→</span></button>
-    <p class="cta-note"><span class="keys-hint">Full screen, first person. Mouse to look, <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> to walk, scroll to zoom, <kbd>E</kbd> or <kbd>T</kbd> for the next eclipse, <kbd>Esc</kbd> to leave.</span><span class="touch-hint">Full screen, first person. Drag to look; the buttons along the bottom step time, change era, and find eclipses.</span></p>
+    <p class="cta-note"><span class="keys-hint">Full screen, first person. Mouse to look, <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> to walk, scroll to zoom, <kbd>Q</kbd> to inspect a colour and its spectrum, <kbd>E</kbd> or <kbd>T</kbd> for the next eclipse, <kbd>Esc</kbd> to leave.</span><span class="touch-hint">Full screen, first person. Drag to look; the buttons along the bottom step time, change era, and find eclipses.</span></p>
    </div>
    <div class="hero-moments">
     <h2 class="moments-h">Jump to a moment</h2>
@@ -138,6 +138,11 @@
  </details>
 
  <details>
+  <summary>Spectra</summary>
+  <p>Hover over the dome, or press <b>Q</b> in VR and point, to see the spectrum of that piece of sky from 380 to 780 nm. The light is split into its sources, each with the brightness the sky drawing gives it: sunlight and moonlight scattered by the air are the model's own spectra at its 10 nm resolution, computed for every epoch, surface and Sun height on a coarse grid of directions and interpolated. The night's sources have their own spectra: zodiacal light and stars (sunlight), airglow (the oxygen lines at 557.7 and 630 nm, the sodium D lines and OH bands, with O₂ bands and a faint continuum set to the airglow colour used here, or the violet O₂ band of an oxygen-free air), city light (sodium lamps and white LEDs mixed to each epoch's glow, or oil flames in 1815), the Milky Way, and the aurora's lines at their strength in that direction. The Sun's Fraunhofer lines and the air's O₂ A and B bands and the 720 nm water band are added from standard depths, scaled by each epoch's oxygen and water, since the model does not resolve them; they are too narrow to change the colour. Plots are normalized: a line brighter than the scale runs off the top. Ground, scenery and clouds have no spectrum.</p>
+ </details>
+
+ <details>
   <summary>Color and brightness</summary>
   <p>The sky model is spherical-shell single scattering with a delta-Eddington multiple-scattering correction, from 380 to 780 nm, with CIE 1931 color matching and sRGB output without chromatic adaptation: colors are what a daylight-balanced camera would record, not what an adapted eye would perceive. Clouds are omitted from the model (the VR clouds are scenery), and the compositions of the ancient atmospheres carry order-of-magnitude uncertainty.</p>
   <p>The clock runs over one solar day of the epoch. Days were shorter when the Moon was closer: the Earth–Moon angular momentum is held fixed, giving 23.8 hours at 66 Ma, 21.9 at 700 Ma, 17.4 at 2.2 Ga, 15.6 at 2.7 Ga and about 12½ in the Hadean, matching Farhat et al. 2022. Play runs at the same pace in hours, so short days pass faster.</p>
@@ -149,12 +154,13 @@
 </main>
 <div id="vr" aria-hidden="true">
 <canvas id="vrc"></canvas>
+<div class="tip" id="vrtip"></div>
 <div id="sunmark" class="aim" hidden><svg class="chev" viewBox="0 0 36 36" aria-hidden="true"><path d="M7 24 L18 8 L29 24" fill="none" stroke="#000" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 24 L18 8 L29 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="badge" viewBox="0 0 24 24" aria-hidden="true"><g stroke="#000" stroke-width="3.2" stroke-linecap="round"><path d="M12 1.6v3M12 19.4v3M1.6 12h3M19.4 12h3M4.5 4.5l2.1 2.1M17.4 17.4l2.1 2.1M19.5 4.5l-2.1 2.1M6.6 17.4l-2.1 2.1"/></g><g stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 1.6v3M12 19.4v3M1.6 12h3M19.4 12h3M4.5 4.5l2.1 2.1M17.4 17.4l2.1 2.1M19.5 4.5l-2.1 2.1M6.6 17.4l-2.1 2.1"/></g><circle cx="12" cy="12" r="4.3" fill="#000"/><circle cx="12" cy="12" r="3.2" fill="currentColor"/></svg></div>
 <div id="moonmark" class="aim" hidden><svg class="chev" viewBox="0 0 36 36" aria-hidden="true"><path d="M7 24 L18 8 L29 24" fill="none" stroke="#000" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 24 L18 8 L29 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg><canvas class="badge" id="moonphase" width="64" height="64" aria-hidden="true"></canvas></div>
 <div class="vrhud">
   <div class="vrtop"><div id="vrplace"></div><div class="vrtop-right"><div id="vrclock"></div><button type="button" id="vrpad-play" class="vrplay" data-act="play" aria-pressed="true" aria-label="Pause"><svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg><svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l12 7-12 7z"/></svg></button></div></div>
   <div class="vrbot">
-    <div class="vrkeys"><span>mouse looks</span><span>scroll zooms</span><span><kbd>w</kbd><kbd>a</kbd><kbd>s</kbd><kbd>d</kbd> move</span><span><kbd>shift</kbd> faster</span><span><kbd>h</kbd> scenery</span><span><kbd>c</kbd> clouds</span><span><kbd>m</kbd> <span id="vrmusiclabel">music</span></span><span><kbd>esc</kbd> leave</span><span><kbd>space</kbd> play / pause</span><span><kbd>←</kbd><kbd>→</kbd> step time</span><span><kbd>↑</kbd><kbd>↓</kbd> change era</span><span><kbd>e</kbd> next eclipse</span><span><kbd>t</kbd> next total / annular</span></div>
+    <div class="vrkeys"><span>mouse looks</span><span>scroll zooms</span><span><kbd>w</kbd><kbd>a</kbd><kbd>s</kbd><kbd>d</kbd> move</span><span><kbd>shift</kbd> faster</span><span><kbd>h</kbd> scenery</span><span><kbd>c</kbd> clouds</span><span><kbd>q</kbd> inspect</span><span><kbd>m</kbd> <span id="vrmusiclabel">music</span></span><span><kbd>esc</kbd> leave</span><span><kbd>space</kbd> play / pause</span><span><kbd>←</kbd><kbd>→</kbd> step time</span><span><kbd>↑</kbd><kbd>↓</kbd> change era</span><span><kbd>e</kbd> next eclipse</span><span><kbd>t</kbd> next total / annular</span></div>
     <div class="vrnote">The plain, the shapes, and the clouds are scenery. The sky is the model.</div>
     <div class="vrpad" role="toolbar" aria-label="View controls">
       <div class="vrpad-row">

@@ -12,18 +12,23 @@ moonImg.src='moon.jpg';
 (window.requestIdleCallback||setTimeout)(()=>{ buildMilkyWay(); renderDay(); });
 showEpoch(dIdx); renderDay(); warm();
 if(openVR) enterVR(true);
-function colorTip(canvas, tip, inside, pixel=()=>null){
+// extra(x, y, box), when given, fills a box under the colour line (the dome's spectrum).
+function colorTip(canvas, tip, inside, pixel=()=>null, extra=null){
   const ctx=canvas.getContext('2d'); let cur=null, copiedUntil=0, hovering=false, px=0, py=0;
   const refresh=()=>{
     if(!hovering){ tip.style.display='none'; return; }
     if(!inside(px,py)){ tip.style.display='none'; cur=null; return; }
     const x=Math.max(0,Math.min(canvas.width-1,Math.round(px))), y=Math.max(0,Math.min(canvas.height-1,Math.round(py)));
     const d=pixel(x,y)||ctx.getImageData(x,y,1,1).data; cur=hex([d[0],d[1],d[2]]);
-    tip.innerHTML=`<i style="background:${cur}"></i>current color ${cur}${performance.now()<copiedUntil?' copied':''}`;
+    if(!tip.firstChild||!tip.querySelector('.tline')) tip.innerHTML='<span class="tline"></span>'+(extra?'<div class="spbox"></div>':'');
+    tip.querySelector('.tline').innerHTML=`<i style="background:${cur}"></i>current color ${cur}${performance.now()<copiedUntil?' copied':''}`;
+    if(extra) extra(x, y, tip.querySelector('.spbox'));
     const b=canvas.getBoundingClientRect();
-    tip.style.left=(px*b.width/canvas.width)+'px'; tip.style.top=(py*b.height/canvas.height)+'px';
-    tip.style.transform=px>canvas.width/2?'translate(calc(-100% - 14px), -50%)':'translate(14px, -50%)';
     tip.style.display='block';
+    // Keep the whole tip inside the stage, which clips it.
+    const h=tip.offsetHeight, top=Math.max(h/2+4, Math.min(b.height-h/2-4, py*b.height/canvas.height));
+    tip.style.left=(px*b.width/canvas.width)+'px'; tip.style.top=top+'px';
+    tip.style.transform=px>canvas.width/2?'translate(calc(-100% - 14px), -50%)':'translate(14px, -50%)';
   };
   const show=(e)=>{ const b=canvas.getBoundingClientRect(); px=(e.clientX-b.left)*canvas.width/b.width; py=(e.clientY-b.top)*canvas.height/b.height; hovering=true; refresh(); };
   canvas.addEventListener('mousemove',show);
@@ -34,4 +39,4 @@ function colorTip(canvas, tip, inside, pixel=()=>null){
   return refresh;
 }
 refreshGlobeTip=colorTip(globe, document.getElementById('gtip'), (x,y)=>{ const r=Math.hypot(x-globe.width/2,y-globe.height/2); return r<globe.width*0.30*1.5; });
-refreshDomeTip=colorTip(dome, document.getElementById('dtip'), (x,y)=>{ const r=Math.hypot(x-dome.width/2,y-dome.height/2); return r<dome.width*0.46; }, domePixel);
+refreshDomeTip=colorTip(dome, document.getElementById('dtip'), (x,y)=>{ const r=Math.hypot(x-dome.width/2,y-dome.height/2); return r<dome.width*0.46; }, domePixel, domeSpectrum);

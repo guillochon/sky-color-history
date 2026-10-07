@@ -295,7 +295,9 @@ float aurArcD(int i, vec3 P, vec3 ax, vec3 m0, float cosRef, out float s, out ve
   s=mlt*aurRayK;
   return ((latF-aurA-aurB*cos(th)-AUR_FR[i]*(aurW0+aurW1*cos(th)))*AUR_KMD-a.r)*inversesqrt(1.0+slope*slope);
 }
-vec4 auroraLight(vec3 rd, float pxAng){
+// The four emissions (557.7 nm, 630 nm, N2+ per kR of 427.8 nm, N2 first positive) in kR
+// reaching the ground from direction rd.
+vec4 auroraSpecies(vec3 rd, float pxAng){
   if(rd.z<=0.0) return vec4(0.0);
   float sl=sin(aurLat), cl=cos(aurLat);
   vec3 ax=vec3(0.0, cl, sl), m0=vec3(0.0, -sl, cl);
@@ -401,7 +403,10 @@ vec4 auroraLight(vec3 rd, float pxAng){
   I*=aurSpec;
   float el=asin(rd.z)*57.2957795;
   float X=1.0/(sin(el*0.0174532925)+0.50572*pow(el+6.07995, -1.6364));
-  I*=pow(vec4(10.0), -0.4*aurK*X);
+  return I*pow(vec4(10.0), -0.4*aurK*X);
+}
+vec4 auroraLight(vec3 rd, float pxAng){
+  vec4 I=auroraSpecies(rd, pxAng);
   return vec4(I.x*vec3(${glv(AUR_RGB[0])})+I.y*vec3(${glv(AUR_RGB[1])})+I.z*vec3(${glv(AUR_RGB[2])})+I.w*vec3(${glv(AUR_RGB[3])}),
     dot(I, vec4(${glv(AUR_SCOT)})));
 }
@@ -471,6 +476,49 @@ void main(){
   }
   fragColor=vec4(base, 1.0);
 }`;
+const AUR_VS=`#version 300 es
+in vec2 a;void main(){gl_Position=vec4(a,0.0,1.0);}`;
+// One direction's emissions, for the spectrum tooltip: drawn into a 1×1 float target.
+const AURPROBEFS=`#version 300 es
+precision highp float;
+uniform vec3 probeDir;
+${AUR_GLSL}
+out vec4 fragColor;
+void main(){ fragColor=auroraSpecies(probeDir, 0.002); }`;
+// The aurora's four emissions (kR at the ground) toward direction dir, using WebGL2 context gl
+// and its aurora textures in store. Leaves the default framebuffer bound; the caller restores
+// its own program and units 14 and 15.
+function auroraProbe(gl, store, st, dir){
+  if(!st||!st.on) return null;
+  if(!store.probe){
+    if(!gl.getExtension('EXT_color_buffer_float')) return null;
+    const vs=glShader(gl, gl.VERTEX_SHADER, AUR_VS), fs=glShader(gl, gl.FRAGMENT_SHADER, AURPROBEFS);
+    if(!vs||!fs) return null;
+    const p=gl.createProgram(); gl.attachShader(p, vs); gl.attachShader(p, fs); gl.bindAttribLocation(p, 0, 'a'); gl.linkProgram(p);
+    if(!gl.getProgramParameter(p, gl.LINK_STATUS)) return null;
+    const t=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 1, 1, 0, gl.RGBA, gl.FLOAT, null);
+    const fb=gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    store.probe={p, fb, u:auroraUniforms(gl, p, 14, 15), dir:gl.getUniformLocation(p, 'probeDir')};
+  }
+  const pr=store.probe, f=auroraFrame(st);
+  gl.useProgram(pr.p);
+  gl.activeTexture(gl.TEXTURE14); auroraTextures(gl, store, f.arcs, f.v);
+  gl.activeTexture(gl.TEXTURE15); gl.bindTexture(gl.TEXTURE_2D, store.aurRays);
+  auroraSetUniforms(gl, pr.u, st, f.t, new Float32Array(horizDir(skyNow.sunAz, 90-skyNow.sza)));
+  gl.uniform3fv(pr.dir, new Float32Array(dir));
+  gl.bindFramebuffer(gl.FRAMEBUFFER, pr.fb); gl.viewport(0, 0, 1, 1);
+  if(gl.drawBuffers) gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
+  gl.drawArrays(gl.TRIANGLES, 0, 6);
+  const px=new Float32Array(4); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.FLOAT, px);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  if(gl.drawBuffers) gl.drawBuffers([gl.BACK]);
+  gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+  gl.activeTexture(gl.TEXTURE0);
+  return Array.from(px, v=>Math.max(0, v));
+}
 // What the readout says.
 function auroraReadout(st){
   if(!st) return '';
