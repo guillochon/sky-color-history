@@ -20,47 +20,14 @@ import math
 import re
 from pathlib import Path
 
+import numpy as np
+
+from bsc import TEMP, load_bsc, num, common_name, bayer, parse_ra, parse_dec
+from galaxy import PC_MYR, R0, Z0, SUN_UVW, GAL, accel
+
 EPOCHS = {'zetaoph': 1.78e6, 'geminga': 3.42e5}   # years before J2000
 KMS_YR_TO_PC = 1.0227e-6                           # pc travelled per year at 1 km/s
-TEMP = Path.home() / 'AppData' / 'Local' / 'Temp'
-
-
-# The same parsing as build_stars.py, which runs on import, so it is not imported.
-def num(value, default=0.0):
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return default
-
-
-def common_name(star):
-    for note in star.get("Notes") or []:
-        if note.get("Category") == "Star names":
-            name = re.sub(r"\s+", " ", note["Remark"].split(";")[0].strip())
-            name = name.strip().strip('"').strip("'").rstrip(".").strip()
-            if name.isupper():
-                name = name.title()
-            return name.replace("'", "")
-    return ""
-
-
-def bayer(star):
-    raw = re.sub(r"^\d+", "", (star.get("Name") or "").strip())
-    return re.sub(r"\s+", " ", raw).strip()
-
-
-def parse_ra(text):
-    hours, minutes, seconds = map(float, re.match(r"(\d+)h\s*(\d+)m\s*([\d.]+)s", text).groups())
-    return (hours + minutes / 60 + seconds / 3600) * 15
-
-
-def parse_dec(text):
-    sign, degrees, minutes, seconds = re.match(r"([+-])(\d+).\s*(\d+).\s*([\d.]+)", text).groups()
-    value = float(degrees) + float(minutes) / 60 + float(seconds) / 3600
-    return value if sign == "+" else -value
-
-
-rows = json.loads((TEMP / 'bsc5.json').read_text(encoding="utf-8"))
+rows = load_bsc()
 xhip = {}
 for line in (TEMP / 'xhip.tsv').read_text(encoding="utf-8").splitlines():
     f = line.split('\t')
@@ -172,22 +139,12 @@ for key, years in EPOCHS.items():
 # filled up to today's count with stand-ins: today's stars of that magnitude, keeping their
 # galactic latitude and colour but at a random longitude. The sky's real stars then cannot be
 # known.
-import numpy as np
 # Before the impact winter no catalogue star can be traced near the Sun, so those skies are all
 # stand-ins (see below). The three 2.7 Ga epochs share one sky.
 ORBIT_EPOCHS = {'kpg66': 66e6, 'carbon30': 300e6, 'snowball07': 700e6, 'proterozoic22': 2.2e9,
                 'archean27thin': 2.7e9, 'archean27': 2.7e9, 'archean27vthick': 2.7e9,
                 'archean38': 3.8e9, 'hadean40': 4.0e9, 'hadean44': 4.4e9}
 TRACE_MAX = 1e8                       # trace catalogue stars only this far back
-PC_MYR = 1.0227                       # pc per Myr at 1 km/s
-R0, Z0, V0 = 8200.0, 20.8, 233.0
-NU = 2 * math.pi / 84.0               # vertical frequency, 1/Myr
-SUN_UVW = (11.1, 12.24 + V0, 7.25)
-# Rows: the galactic axes (toward the centre, toward l = 90°, toward the north pole) in J2000
-# equatorial coordinates (Hipparcos).
-GAL = np.array([[-0.0548755604, -0.8734370902, -0.4838350155],
-                [0.4941094279, -0.4448296300, 0.7469822445],
-                [-0.8676661490, -0.1980763734, 0.4559837762]])
 # Main-sequence mass at subclass 0 and at the end of each class (solar masses).
 MASS = {'O': (40, 20), 'B': (17, 3.0), 'A': (2.6, 1.7), 'F': (1.6, 1.1), 'G': (1.1, 0.85), 'K': (0.85, 0.6), 'M': (0.5, 0.2)}
 
@@ -209,15 +166,6 @@ def shining_then(s, years):
     if lum.startswith('I') and not lum.startswith('III') and not lum.startswith('IV'):
         return False            # supergiants (I, Ia, Iab, Ib) and bright giants (II)
     return ms_lifetime_myr(s['spec']) > 2 * years / 1e6
-
-
-def accel(p):
-    R2 = p[:, 0] ** 2 + p[:, 1] ** 2
-    a = np.empty_like(p)
-    a[:, 0] = -(V0 * PC_MYR) ** 2 * p[:, 0] / R2
-    a[:, 1] = -(V0 * PC_MYR) ** 2 * p[:, 1] / R2
-    a[:, 2] = -NU ** 2 * p[:, 2]
-    return a
 
 
 def trace_back(years):

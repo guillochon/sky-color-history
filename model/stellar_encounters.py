@@ -25,18 +25,15 @@ from pathlib import Path
 import sys
 import numpy as np
 
+from bsc import TEMP
+from galaxy import PC_MYR, R0, Z0, SUN_UVW, GAL, accel
+
 sys.stdout.reconfigure(encoding='utf-8')
 
-TEMP = Path.home() / 'AppData' / 'Local' / 'Temp'
 SIRIUS = -1.46
 TMAX, DT, N = 10.0, 0.005, 2000      # Myr, Myr, Monte Carlo draws
-K = 1.0227                           # pc per Myr at 1 km/s
-R0, Z0, V0 = 8200.0, 20.8, 233.0
-NU = 2 * math.pi / 84.0
-SUNV = np.array([11.1, 12.24 + V0, 7.25]) * K
-GAL = np.array([[-0.0548755604, -0.8734370902, -0.4838350155],
-                [0.4941094279, -0.4448296300, 0.7469822445],
-                [-0.8676661490, -0.1980763734, 0.4559837762]])
+K = PC_MYR
+SUNV = np.array(SUN_UVW) * K
 NAMES = {29034: 'θ Columbae', 33579: 'ε Canis Majoris (Adara)', 30324: 'β Canis Majoris (Mirzam)',
          27288: 'ζ Leporis', 31685: 'ν Puppis', 93506: 'ζ Sagittarii (Ascella)', 30438: 'Canopus',
          21421: 'Aldebaran', 24331: 'ρ Orionis', 14576: 'Algol', 103738: 'γ Microscopii',
@@ -65,11 +62,6 @@ def kinematics(i, plx_, pma_, pmd_, rv_):
     dist = 1000 / plx_
     vt = 4.74047 * dist / 1000
     return dist[:, None] * u, rv_[:, None] * u + vt[:, None] * (pma_[:, None] * ea + pmd_[:, None] * ed)
-
-
-def accel(p):
-    R2 = p[:, 0] ** 2 + p[:, 1] ** 2
-    return np.stack([-(V0 * K) ** 2 * p[:, 0] / R2, -(V0 * K) ** 2 * p[:, 1] / R2, -NU ** 2 * p[:, 2]], 1)
 
 
 def closest(p, v):

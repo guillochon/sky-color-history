@@ -1,13 +1,11 @@
-import json, re, html, os, io, contextlib, copy
+import json, re, html, os, copy
 from pathlib import Path
 ROOT = Path(__file__).resolve().parent
-ns = {'__file__': str(ROOT / 'gen_report.py')}
-with contextlib.redirect_stdout(io.StringIO()):
-    exec((ROOT / 'gen_report.py').read_text(encoding='utf-8'), ns)
-PROSE, LIMB_CAP, order, ages = ns['PROSE'], ns['LIMB_CAP'], ns['order'], ns['ages']
+import gen_report as gr
+PROSE, LIMB_CAP, order, ages = gr.PROSE, gr.LIMB_CAP, gr.order, gr.ages
 # gen_report adds the epochs that reuse today's air (Year 2100 and the supernovae) to its records.
-byk = ns['byk']
-SAME_AIR = {'y2100'} | {key for key, _, _ in ns['SUPERNOVA_EPOCHS']}
+byk = gr.byk
+SAME_AIR = {'y2100'} | {key for key, _, _ in gr.SUPERNOVA_EPOCHS}
 def sky_fig(k): return 'modern' if k in SAME_AIR else k
 L = str(ROOT.parent / 'latex')
 
@@ -32,15 +30,15 @@ def tex(s):
     return s
 
 # pull the section prose out of the generated HTML
-H = ns['html']
+H = gr.html
 def sec(title):
     m = re.search(r'<h3>'+re.escape(title)+r'</h3>\s*<p>(.*?)</p>', H, re.S); return tex(m.group(1))
 
 # Stars that outshone today's Sirius (gen_report's ENC, from stellar_encounters.py).
 enc_rows = '\n'.join(
     f"{tex(e['name'])} & {e['sptype']} & ${e['v_now']:.2f}$, {e['d_now']:.0f} & ${e['peak'][1]:.2f}$ (${e['peak'][0]:.2f}$ to ${e['peak'][2]:.2f}$) & "
-    f"{e['dmin'][1]:.1f} & {e['myr'][1]:.2f} & {e['p_sirius']*100:.0f}\\% \\\\" for e in ns['ENC'])
-encounter_tex = tex(ns['ENC_PROSE'][0]).replace('Tomkin (1998)', r'\citet{tomkin1998}').replace('(table below)', r'(Table~\ref{tab:encounters})') + r"""
+    f"{e['dmin'][1]:.1f} & {e['myr'][1]:.2f} & {e['p_sirius']*100:.0f}\\% \\\\" for e in gr.ENC)
+encounter_tex = tex(gr.ENC_PROSE[0]).replace('Tomkin (1998)', r'\citet{tomkin1998}').replace('(table below)', r'(Table~\ref{tab:encounters})') + r"""
 
 \begin{table*}[t]\centering\footnotesize
 \caption{Stars that outshone today's Sirius ($V=-1.46$) in the last 10 million years, traced back through the Galaxy from Hipparcos astrometry (XHIP) with 2,000 draws over the measurement errors. Peak magnitudes are medians with the 68\% range; the last column is the fraction of draws brighter than Sirius today. Brightness changes with distance only.}
@@ -52,7 +50,7 @@ Star & Type & Today: $V$, pc & Peak $V$ (68\% range) & Closest (pc) & Myr ago & 
 \bottomrule\end{tabularx}
 \end{table*}
 
-""" + tex(ns['ENC_PROSE'][1])
+""" + tex(gr.ENC_PROSE[1])
 
 epoch_blocks = ''
 for k in order:

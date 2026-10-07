@@ -15,6 +15,9 @@ order epoch, surface, solar zenith angle, slot, wavelength, where slots are the 
 directions (zenith angle major, azimuth from the Sun minor) and then the Sun; then the
 globe's, in the order epoch, latitude, slot, wavelength, where slots are the tangent
 heights and then the disk.
+
+The spectra come from daycycle.py's and limb_grid.py's caches (spectra_cache.npz,
+limb_spectra.npz). Anything missing there is integrated here and added to them.
 """
 import json, struct, sys, time
 from concurrent.futures import ProcessPoolExecutor
@@ -25,10 +28,11 @@ import numpy as np
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import daycycle as dc
-from skymodel import LAM, limb_radiance, disk_radiance
+import limb_grid as lg
+import speccache
+from skymodel import LAM
 
-VZ = [0, 30, 60, 78, 88]
-AZ = [0, 60, 120, 180]
+VZ, AZ = dc.SPEC_VZ, dc.SPEC_AZ
 LO = -4.0
 OUT = HERE.parent / 'site' / 'spectra.bin'
 
@@ -43,37 +47,37 @@ def encode(S):
 
 
 def job(args):
-    e, lname, alb = args
+    """Spectra for the solar zenith angles szs of one epoch and surface."""
+    e, lname, alb, szs = args
     atm = dc.build(e, alb, lname)
-    out = bytearray()
-    for sz in dc.SZAS:
-        for vz in VZ:
-            for az in AZ:
-                out += encode(atm.radiance(vz, az, sz))
-        out += encode(atm.direct_sun(min(sz, 89.7)) if sz < 90 else np.zeros_like(LAM))
-    return e['key'], lname, bytes(out)
-
-
-def limb_job(k):
-    """The globe's spectra for epoch key k, with limb_grid.py's atmosphere and grid."""
-    import limb_grid as lg
-    atm = lg.build(lg.EPOCHS[k], 0.06)
-    out = bytearray()
-    for lat in lg.LATS:
-        for h in lg.ALTS:
-            out += encode(limb_radiance(atm, h, lat))
-        out += encode(disk_radiance(atm, lat))
-    return k, bytes(out)
+    return {dc.spec_key(e['key'], lname, sz):
+            np.array([atm.radiance(vz, az, sz) for vz in VZ for az in AZ] + [dc.sun_spectrum(atm, sz)])
+            for sz in szs}
 
 
 def main():
     epochs = [e for e in dc.EPOCHS if e['key'] != 'y2100']
     lats = list(dc.ALB)
     t0 = time.time()
-    with ProcessPoolExecutor(max_workers=6) as pool:
-        got = {(k, l): b for k, l, b in pool.map(job, [(e, l, dc.ALB[l]) for e in epochs for l in lats])}
-        import limb_grid as lg
-        limb = dict(pool.map(limb_job, lg.PICK))
+    sky = speccache.load(dc.SPEC_CACHE, dc.OZONE_STAMP)
+    limb = speccache.load(lg.SPEC_CACHE, lg.SPEC_STAMP)
+    jobs = []
+    for e in epochs:
+        for l in lats:
+            szs = [sz for sz in dc.SZAS if dc.spec_key(e['key'], l, sz) not in sky]
+            if szs:
+                jobs.append((e, l, dc.ALB[l], szs))
+    limb_missing = [k for k in lg.PICK if k not in limb]
+    print(len(jobs), 'sky jobs and', len(limb_missing), 'limb epochs not cached', flush=True)
+    if jobs or limb_missing:
+        with ProcessPoolExecutor(max_workers=6) as pool:
+            for got in pool.map(job, jobs):
+                sky.update(got)
+            limb.update(zip(limb_missing, pool.map(lg.epoch_spectra, limb_missing)))
+        if jobs:
+            speccache.save(dc.SPEC_CACHE, sky, dc.OZONE_STAMP)
+        if limb_missing:
+            speccache.save(lg.SPEC_CACHE, limb, lg.SPEC_STAMP)
     header = json.dumps({'lam': [float(x) for x in LAM], 'szas': dc.SZAS, 'vz': VZ, 'az': AZ, 'lo': LO,
                          'epochs': [e['key'] for e in epochs], 'lats': lats,
                          'limb': {'epochs': lg.PICK, 'lats': [float(x) for x in lg.LATS], 'alts': [float(x) for x in lg.ALTS]}},
@@ -83,9 +87,13 @@ def main():
         f.write(header)
         for e in epochs:
             for l in lats:
-                f.write(got[(e['key'], l)])
+                for sz in dc.SZAS:
+                    for S in sky[dc.spec_key(e['key'], l, sz)]:
+                        f.write(encode(S))
         for k in lg.PICK:
-            f.write(limb[k])
+            for row in limb[k]:
+                for S in row:
+                    f.write(encode(S))
     print(OUT, OUT.stat().st_size, 'bytes', f'{time.time() - t0:.0f}s')
 
 

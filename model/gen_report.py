@@ -2,10 +2,7 @@ import copy, json, numpy as np
 from pathlib import Path
 from skymodel import XYZ_to_srgb, hexcol
 
-try:
-    ROOT = Path(__file__).resolve().parent
-except NameError:
-    ROOT = Path('.').resolve()
+ROOT = Path(__file__).resolve().parent
 D = json.load(open(ROOT / 'skycolors.json', encoding='utf-8'))
 byk = {r['key']: r for r in D}
 # Year 2100 keeps today's air. The new lights are satellites, drawn in the site.
@@ -318,5 +315,8 @@ th{{color:var(--ink2);font-weight:300}}
 <p>Boley A.C., Lawler S.M., Rein H. (2026). Rings in the sky: orbital data centres and potential impacts to astronomy and the sky. arXiv:2608.02757.</p>
 </div>
 </main></body></html>'''
-open(ROOT.parent / 'report' / 'sky-color-history.html', 'w', encoding='utf-8').write(html)
-print(len(html))
+
+
+if __name__ == '__main__':
+    (ROOT.parent / 'report' / 'sky-color-history.html').write_text(html, encoding='utf-8')
+    print(len(html))

@@ -7,3 +7,7 @@ latex/*.fls
 latex/*.fdb_latexmk
 __pycache__/
 .DS_Store
+.claude/
+site/_ffdebug.html
+model/spectra_cache.npz
+model/limb_spectra.npz

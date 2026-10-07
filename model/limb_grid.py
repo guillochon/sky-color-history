@@ -1,37 +1,45 @@
-import json, numpy as np
+import json
 from pathlib import Path
-from skymodel import *
+
+import numpy as np
+
+from skymodel import LAM, spec_to_XYZ, XYZ_to_srgb, limb_radiance, disk_radiance
+import epochs
+import speccache
 
 HERE = Path(__file__).resolve().parent
-# reuse epoch definitions without re-running: parse EPOCHS by exec of the header only
-src = (HERE / 'run_epochs.py').read_text(encoding='utf-8').split('LATS =')[0]
-ns = {}; exec(src, ns); EPOCHS = {e['key']: e for e in ns['EPOCHS']}
+EPOCHS = epochs.BY_KEY
 
 PICK = ['hadean44','hadean40','archean38','archean27thin','archean27','archean27vthick','proterozoic22','snowball07','carbon30','kpg66','volcanic','ozonehole','modern','modernpoll']
 LATS = np.arange(0, 86, 7.5)
 ALTS = np.concatenate([np.arange(0, 20, 2), np.arange(20, 60, 4), np.arange(60, 101, 8)])
+# The limb and disk spectra, per epoch: latitude, then the tangent heights and the disk.
+SPEC_CACHE = HERE / 'limb_spectra.npz'
+SPEC_STAMP = 'lats%d-alts%d' % (len(LATS), len(ALTS))
+
+
+def epoch_spectra(k):
+    atm = build(EPOCHS[k], 0.06)
+    out = np.zeros((len(LATS), len(ALTS) + 1, len(LAM)))
+    for i, lat in enumerate(LATS):
+        for j, h in enumerate(ALTS):
+            out[i, j] = limb_radiance(atm, h, lat)
+        out[i, -1] = disk_radiance(atm, lat)
+    return out
 
 def build(e, albedo):
-    T, L = e['sun']
     # One profile per epoch. The globe's latitude axis is viewing geometry,
     # not a second ozone column. A pinned ozone_lat (the ozone hole) is kept.
-    return make_atm(e['gas'], ozone_DU=column_ozone(e, 'Mid-latitude'), trop_aer=e['aer'], strat_sulf=e.get('sulf',0),
-                    haze550=e.get('haze',0), soot=e.get('soot',0), dust=e.get('dust',0),
-                    albedo=e.get('albedo', albedo), sun_T=T, sun_L=L,
-                    ozone_lat=ozone_latitude(e, 'Mid-latitude'), ozone_trop=e.get('trop_o3', 0.0))
+    return epochs.build(e, albedo, 'Mid-latitude')
 
 def main():
     out = {}
     raw = {}
+    spectra = {}
     for k in PICK:
-        e = EPOCHS[k]
-        atm = build(e, 0.06)
-        limb = np.zeros((len(LATS), len(ALTS), 3))
-        disk = np.zeros((len(LATS), 3))
-        for i, lat in enumerate(LATS):
-            for j, h in enumerate(ALTS):
-                limb[i, j] = spec_to_XYZ(limb_radiance(atm, h, lat))
-            disk[i] = spec_to_XYZ(disk_radiance(atm, lat))
+        spectra[k] = sp = epoch_spectra(k)
+        xyz = np.array([[spec_to_XYZ(S) for S in row] for row in sp])
+        limb, disk = xyz[:, :-1], xyz[:, -1]
         raw[k] = (limb, disk)
         print(k, 'limb Ymax %.2e disk Y0 %.2e' % (limb[..., 1].max(), disk[0, 1]))
 
@@ -48,7 +56,8 @@ def main():
         out[k] = dict(name=EPOCHS[k]['name'], lats=LATS.tolist(), alts=ALTS.tolist(),
                       limb=[[tone(limb[i, j], Yref_limb) for j in range(len(ALTS))] for i in range(len(LATS))],
                       disk=[tone(disk[i], Yref_disk, p=0.6, cap=0.70, k0=0.66) for i in range(len(LATS))])
-    json.dump(out, open(HERE / 'limb_all.json', 'w'))
+    (HERE / 'limb_all.json').write_text(json.dumps(out))
+    speccache.save(SPEC_CACHE, spectra, SPEC_STAMP)
     print('done')
 
 

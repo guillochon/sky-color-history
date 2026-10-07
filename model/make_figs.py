@@ -1,18 +1,26 @@
-import json, numpy as np, os
+import json, sys
+from pathlib import Path
+
+import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle, Circle
+from matplotlib.patches import Rectangle
 from scipy.interpolate import RegularGridInterpolator
-from PIL import Image
-import sys; sys.path.insert(0, '/home/claude')
-from skymodel import XYZ_to_srgb, hexcol
 
-OUT = '/home/claude/latex/figures'; os.makedirs(OUT, exist_ok=True)
-D = json.load(open('/home/claude/skycolors.json')); byk = {r['key']: r for r in D}
-LIMB = json.load(open('/home/claude/limb.json'))
-order = ['hadean44','hadean40','archean38','archean27thin','archean27','archean27vthick','proterozoic22','snowball07','carbon30','kpg66','volcanic','modern','modernpoll']
-ages = {'hadean44':'4.4 Ga','hadean40':'4.0 Ga','archean38':'3.8 Ga','archean27thin':'2.7 Ga\nthin haze','archean27':'2.7 Ga\nthick haze','archean27vthick':'2.7 Ga\nv. thick','proterozoic22':'2.2 Ga','snowball07':'700 Ma','carbon30':'300 Ma','kpg66':'66 Ma','volcanic':'1815','modern':'today','modernpoll':'today\npolluted'}
+from skymodel import XYZ_to_srgb
+import gen_report as gr
+
+HERE = Path(__file__).resolve().parent
+# Figures go to latex/figures, or to the folder given on the command line.
+OUT = Path(sys.argv[1]) if len(sys.argv) > 1 else HERE.parent / 'latex' / 'figures'
+OUT.mkdir(parents=True, exist_ok=True)
+byk = gr.byk
+LIMB = json.loads((HERE / 'limb_all.json').read_text(encoding='utf-8'))
+# The epochs that keep today's air (Year 2100, the supernovae) reuse the modern figures.
+SAME_AIR = {'y2100'} | {key for key, _, _ in gr.SUPERNOVA_EPOCHS}
+order = [k for k in gr.order if k not in SAME_AIR]
+ages = {'hadean44':'4.4 Ga','hadean40':'4.0 Ga','archean38':'3.8 Ga','archean27thin':'2.7 Ga\nthin haze','archean27':'2.7 Ga\nthick haze','archean27vthick':'2.7 Ga\nv. thick','proterozoic22':'2.2 Ga','snowball07':'700 Ma','carbon30':'300 Ma','kpg66':'66 Ma','volcanic':'1815','ozonehole':'1980–2000','modern':'today','modernpoll':'today\npolluted'}
 MOD = byk['modern']
 Yz = MOD['lat']['Equator']['zenith']['Y']; Yss = MOD['sunset']['solar_horizon']['Y']; Ytw = MOD['twilight']['above_sun']['Y']
 
@@ -94,5 +102,5 @@ def globe(k, W=1000):
     ax.text(cx-R*0.98+8, cy-10, 'equator', color='white', alpha=.8, fontsize=6)
     ax.text(cx-28, cy-R-14, 'pole', color='white', alpha=.8, fontsize=6)
     fig.savefig(f'{OUT}/globe_{k}.png', facecolor='#05060a', bbox_inches='tight', pad_inches=0.05); plt.close()
-for k in LIMB: globe(k)
-print(sorted(os.listdir(OUT)))
+for k in gr.LIMB_ORDER: globe(k)
+print(sorted(p.name for p in OUT.iterdir()))

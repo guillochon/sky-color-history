@@ -19,7 +19,8 @@ at thirteen moments in its history, from the 30-bar CO2 Hadean to a modern megac
   two-stream multiple-scattering correction; Rayleigh gas mix, ozone Chappuis band, tropospheric
   aerosol, stratospheric sulfate, tholin-like organic haze, soot, dust; limb and planetary-disk
   radiance; CIE 1931 color conversion. Needs only numpy and scipy.
-- `run_epochs.py` - defines the thirteen epoch atmospheres and computes noon, sunset and twilight
+- `epochs.py` - the epoch atmospheres, shared by the scripts below
+- `run_epochs.py` - computes noon, sunset and twilight
   colors -> `skycolors.json`
 - `limb_grid.py` - limb and disk color grids for the globe renderings -> `limb_all.json`
 - `daycycle.py` - whole-sky dome at 34 solar zenith angles (1° from the horizon through 20° below it), three surface types, all epochs
@@ -37,8 +38,7 @@ python gen_report.py && python gen_site.py && python make_figs.py && python make
 cd ../latex && latexmk -pdf main.tex
 ```
 
-The generator scripts still carry the sandbox paths they were written with
-(`/home/claude`, `/mnt/user-data/outputs`); point them at this checkout before running.
+`make_figs.py` writes to `latex/figures`, or to a folder given as its argument.
 
 ## Method in one paragraph
 

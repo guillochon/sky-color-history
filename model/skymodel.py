@@ -66,11 +66,9 @@ def planck(lam_nm, T):
     return 2*h*c**2/lam**5/(np.exp(h*c/(lam*k*T))-1)
 
 def solar_spectrum(T=5772.0, L=1.0):
-    # relative spectral irradiance at top of atmosphere; L scales total luminosity
-    S = planck(LAM, T)
-    S = S / planck(LAM, 5772.0).max()
-    # crude Fraunhofer-free; normalize so modern Sun peaks at 1
-    return S * L * (5772.0/T)**4 * (planck(LAM,T).max()/planck(LAM,5772).max()) / (planck(LAM,T).max()/planck(LAM,5772).max())
+    """Relative spectral irradiance at the top of the atmosphere, without Fraunhofer lines,
+    normalized so the modern Sun peaks at 1. L scales the total luminosity."""
+    return planck(LAM, T) / planck(LAM, 5772.0).max() * L * (5772.0/T)**4
 
 # ---------------- Optical components ----------------
 class Comp:
@@ -185,11 +183,10 @@ def ray_points(h0, zen_view, smax=None, n=400):
     h = r - R_E
     return s, h, x, z
 
-def path_column(profile, h_start_r, dir_cos_local, hmax=120.0, n=200):
-    """Column (integral of profile along path) from a point at radius r
-    with local zenith angle cosine mu toward space. Vectorised over arrays."""
-    # step along ray until h > hmax
-    out = np.zeros_like(h_start_r)
+def path_columns(profiles, h_start_r, dir_cos_local, hmax=120.0, n=200):
+    """Columns (integral of each profile along the path) from points at radius r
+    with local zenith angle cosine mu toward space, one row per profile. The ray
+    geometry is shared by all the profiles. Vectorised over arrays."""
     r0 = h_start_r
     mu = dir_cos_local
     # parametric: r(s) = sqrt(r0^2 + s^2 + 2 r0 s mu)
@@ -204,17 +201,26 @@ def path_column(profile, h_start_r, dir_cos_local, hmax=120.0, n=200):
     S = smax[:, None]*t[None, :]
     R = np.sqrt(r0[:, None]**2 + S**2 + 2*r0[:, None]*S*mu[:, None])
     H = R - R_E
-    dens = profile(np.clip(H, 0, None))
-    dens = np.where(H > hmax, 0, dens)
-    col = np.trapezoid(dens, S, axis=1)
-    col = np.where(hits_ground, np.inf, col)
-    return col
+    Hc = np.clip(H, 0, None)
+    above = H > hmax
+    cols = np.empty((len(profiles), len(r0)))
+    for i, profile in enumerate(profiles):
+        dens = np.where(above, 0, profile(Hc))
+        cols[i] = np.where(hits_ground, np.inf, np.trapezoid(dens, S, axis=1))
+    return cols
+
+
+def path_column(profile, h_start_r, dir_cos_local, hmax=120.0, n=200):
+    """Column of one profile; see path_columns."""
+    return path_columns([profile], h_start_r, dir_cos_local, hmax, n)[0]
 
 # ---------------- Two-stream (delta-Eddington) for diffuse flux ----------------
-def delta_eddington(tau, w, g, mu0, albedo):
-    """Returns downward diffuse flux at surface (incl. surface reflection contribution
-    handled via albedo) normalized to unit TOA irradiance on a horizontal surface? No:
-    normalized to TOA direct beam flux F0 (perpendicular)."""
+def _two_stream(tau, w, g, mu0, albedo):
+    """Delta-Eddington two-stream layer over a reflecting surface (Toon et al. 1989),
+    for a unit direct beam (F0 = 1, perpendicular). With
+      Fup(t) = k1 e^{kt} + Gam k2 e^{-kt} + Cup(t),  Fdn(t) = Gam k1 e^{kt} + k2 e^{-kt} + Cdn(t),
+    Cup/Cdn(t) = Cup0/Cdn0 e^{-t/mu0}, the boundaries are Fdn_dif(0) = 0 at the top and
+    Fup(tau) = A (Fdn_dif(tau) + mu0 e^{-tau/mu0}) at the surface."""
     tau = np.asarray(tau, float); w = np.asarray(w, float); g = np.asarray(g, float)
     f = g**2
     tau_p = (1-w*f)*tau; w_p = (1-f)*w/(1-w*f); g_p = (g-f)/(1-f)
@@ -222,37 +228,31 @@ def delta_eddington(tau, w, g, mu0, albedo):
     g1 = (7-w_p*(4+3*g_p))/4; g2 = -(1-w_p*(4-3*g_p))/4
     g3 = (2-3*g_p*mu0)/4; g4 = 1-g3
     k = np.sqrt(np.maximum(g1**2-g2**2, 1e-12))
-    # particular solution coefficients (Toon et al. 1989)
     denom = k**2 - 1/mu0**2
     denom = np.where(np.abs(denom) < 1e-9, 1e-9, denom)
-    Cup0 = w_p*np.pi*1.0*((g1-1/mu0)*g3 + g4*g2)/denom   # F0 = pi? we use F0=1 => remove pi
-    Cdn0 = w_p*1.0*((g1+1/mu0)*g4 + g2*g3)/denom
-    Cup0 = Cup0/np.pi
-    def Cup(t): return Cup0*np.exp(-t/mu0)
-    def Cdn(t): return Cdn0*np.exp(-t/mu0)
-    lam_ = k
+    Cup0 = w_p*((g1-1/mu0)*g3 + g4*g2)/denom
+    Cdn0 = w_p*((g1+1/mu0)*g4 + g2*g3)/denom
     Gam = g2/(g1+k)
-    e1 = 1+Gam*np.exp(-lam_*tau_p); e2 = 1-Gam*np.exp(-lam_*tau_p)
-    e3 = Gam+np.exp(-lam_*tau_p);   e4 = Gam-np.exp(-lam_*tau_p)
-    # Boundary: top: Fdn_dif(0)=0 ; bottom: Fup(tau)=A*(Fdn_dif(tau)+mu0*exp(-tau/mu0))
-    # Fup(t) = Y1*(e^{k t}... use standard 2x2 solve with the Toon formulation:
-    # Fup = k1*exp(k t) + Gam*k2*exp(-k t) + Cup ; Fdn = Gam*k1*exp(k t)+k2*exp(-k t)+Cdn
     A = albedo
-    Sdir = mu0*np.exp(-tau_p/mu0)
-    # equations:
-    # top: Gam*k1 + k2 = -Cdn(0)
-    # bottom: k1 e^{kτ} + Gam k2 e^{-kτ} + Cup(τ) = A*(Gam k1 e^{kτ} + k2 e^{-kτ} + Cdn(τ) + Sdir)
-    ekt = np.exp(lam_*tau_p); emkt = np.exp(-lam_*tau_p)
-    a11, a12, b1 = Gam, 1.0, -Cdn(0)
+    beam = np.exp(-tau_p/mu0)
+    Sdir = mu0*beam
+    ekt = np.exp(k*tau_p); emkt = np.exp(-k*tau_p)
+    a11, a12, b1 = Gam, 1.0, -Cdn0
     a21 = ekt - A*Gam*ekt
     a22 = Gam*emkt - A*emkt
-    b2 = A*(Cdn(tau_p)+Sdir) - Cup(tau_p)
+    b2 = A*(Cdn0*beam+Sdir) - Cup0*beam
     det = a11*a22 - a12*a21
     k1 = (b1*a22 - a12*b2)/det
     k2 = (a11*b2 - a21*b1)/det
-    Fdn_dif = Gam*k1*ekt + k2*emkt + Cdn(tau_p)
-    Fdir = Sdir
-    return np.clip(Fdn_dif, 0, None), Fdir
+    return k1, k2, Gam, ekt, emkt, Cup0, Cdn0, beam, Sdir
+
+
+def delta_eddington(tau, w, g, mu0, albedo):
+    """Downward diffuse flux at the surface (with surface reflection through albedo) and the
+    direct flux on a horizontal surface, for a unit direct beam."""
+    k1, k2, Gam, ekt, emkt, Cup0, Cdn0, beam, Sdir = _two_stream(tau, w, g, mu0, albedo)
+    Fdn_dif = Gam*k1*ekt + k2*emkt + Cdn0*beam
+    return np.clip(Fdn_dif, 0, None), Sdir
 
 # ---------------- Scene ----------------
 class Atmosphere:
@@ -274,9 +274,9 @@ class Atmosphere:
 
     def direct_sun(self, sun_zen_deg, h0=0.0):
         r0 = np.array([R_E+h0]); mu = np.array([np.cos(np.radians(sun_zen_deg))])
+        cols = path_columns([c.profile for c in self.comps], r0, mu)[:, 0]
         T = np.ones_like(LAM)
-        for c in self.comps:
-            col = path_column(c.profile, r0, mu)[0]
+        for c, col in zip(self.comps, cols):
             T = T*np.exp(-c.tau*col)
         return self.S0*T
 
@@ -296,25 +296,22 @@ class Atmosphere:
         sun = np.array([np.sin(zs)*np.cos(as_-av), np.sin(zs)*np.sin(as_-av), np.cos(zs)])
         vert = np.stack([x/r, np.zeros_like(x), z/r], axis=1)
         mu_sun_local = vert @ sun
-        # view direction local cosine for extinction back to observer handled by cumulative
-        I = np.zeros_like(LAM)
-        # optical depth from observer to each point along the view ray, per comp
+        # Per component: optical depth from the observer to each point along the view ray,
+        # the column toward the Sun from each point, and the local scattering coefficient
+        # times the phase function.
         tau_view = np.zeros((len(s), len(LAM)))
-        for c in self.comps:
-            dens = c.profile(h)
-            cum = np.concatenate([[0], np.cumsum(0.5*(dens[1:]+dens[:-1])*np.diff(s))])
-            tau_view += cum[:, None]*c.tau[None, :]
-        # sun path column per comp per point
         tau_sun = np.zeros((len(s), len(LAM)))
-        for c in self.comps:
-            col = path_column(c.profile, r, mu_sun_local)
-            tau_sun += np.where(np.isinf(col)[:, None], 1e6, col[:, None]*c.tau[None, :])
-        atten = np.exp(-tau_view - tau_sun)
-        # local scattering coefficient x phase function
         beta = np.zeros((len(s), len(LAM)))
-        for c in self.comps:
+        ds = np.diff(s)
+        cols = path_columns([c.profile for c in self.comps], r, mu_sun_local)
+        for c, col in zip(self.comps, cols):
+            dens = c.profile(h)
+            cum = np.concatenate([[0], np.cumsum(0.5*(dens[1:]+dens[:-1])*ds)])
+            tau_view += cum[:, None]*c.tau[None, :]
+            tau_sun += np.where(np.isinf(col)[:, None], 1e6, col[:, None]*c.tau[None, :])
             P = rayleigh_phase(cosT) if c.rayleigh else hg(c.g, cosT)
-            beta += c.profile(h)[:, None]*(c.tau*c.ssa*P)[None, :]
+            beta += dens[:, None]*(c.tau*c.ssa*P)[None, :]
+        atten = np.exp(-tau_view - tau_sun)
         integrand = beta*atten
         I_ss = np.trapezoid(integrand, s, axis=0)*self.S0
         if not ms:
@@ -322,9 +319,9 @@ class Atmosphere:
         # multiple scattering: two-stream diffuse flux minus the single-scatter hemispheric flux
         mu0 = max(np.cos(zs), 0.02)
         w, g = self.eff_ssa_g()
-        Fdif, Fdir = delta_eddington(self.total_tau(), w, g, mu0, self.albedo)
-        # hemispheric flux of single scattering (plane-parallel estimate)
         tt = self.total_tau(); ts = self.scat_tau()
+        Fdif, _ = delta_eddington(tt, w, g, mu0, self.albedo)
+        # hemispheric flux of single scattering (plane-parallel estimate)
         # F_ss ≈ S0 * ts/ (4) * mu0/(mu0+mubar) * (1-exp(-tt*(1/mu0+1/mubar))) / tt * (2) crude isotropic-eq
         mu = np.linspace(0.005, 0.995, 100)[:, None]
         with np.errstate(divide='ignore', invalid='ignore'):
@@ -344,10 +341,8 @@ class Atmosphere:
         # horizon brightening for diffuse (mild)
         return I_ss + I_ms
 
-    def sky_color(self, view_zen, view_az, sun_zen, sun_az=0.0, exposure=None):
-        S = self.radiance(view_zen, view_az, sun_zen, sun_az)
-        XYZ = spec_to_XYZ(S)
-        return XYZ
+    def sky_color(self, view_zen, view_az, sun_zen, sun_az=0.0):
+        return spec_to_XYZ(self.radiance(view_zen, view_az, sun_zen, sun_az))
 
 # ---------------- Epoch definitions ----------------
 def make_atm(gas, ozone_DU=0, trop_aer=(0.0, 1.3, 0.9, 0.7), strat_sulf=0.0, haze550=0.0,
@@ -374,31 +369,9 @@ def make_atm(gas, ozone_DU=0, trop_aer=(0.0, 1.3, 0.9, 0.7), strat_sulf=0.0, haz
 
 # ---------------- Limb / disk rendering support ----------------
 def two_stream_up(tau, w, g, mu0, albedo):
-    """Upward flux at TOA (planetary reflectance x mu0) via delta-Eddington; mirrors delta_eddington."""
-    tau = np.asarray(tau, float); w = np.asarray(w, float); g = np.asarray(g, float)
-    f = g**2
-    tau_p = (1-w*f)*tau; w_p = (1-f)*w/(1-w*f); g_p = (g-f)/(1-f)
-    w_p = np.clip(w_p, 1e-6, 0.999999)
-    g1 = (7-w_p*(4+3*g_p))/4; g2 = -(1-w_p*(4-3*g_p))/4
-    g3 = (2-3*g_p*mu0)/4; g4 = 1-g3
-    k = np.sqrt(np.maximum(g1**2-g2**2, 1e-12))
-    denom = k**2 - 1/mu0**2
-    denom = np.where(np.abs(denom) < 1e-9, 1e-9, denom)
-    Cup0 = w_p*((g1-1/mu0)*g3 + g4*g2)/denom
-    Cdn0 = w_p*((g1+1/mu0)*g4 + g2*g3)/denom
-    Gam = g2/(g1+k)
-    A = albedo
-    Sdir = mu0*np.exp(-tau_p/mu0)
-    ekt = np.exp(k*tau_p); emkt = np.exp(-k*tau_p)
-    a11, a12, b1 = Gam, 1.0, -Cdn0
-    a21 = ekt - A*Gam*ekt
-    a22 = Gam*emkt - A*emkt
-    b2 = A*(Cdn0*np.exp(-tau_p/mu0)+Sdir) - Cup0*np.exp(-tau_p/mu0)
-    det = a11*a22 - a12*a21
-    k1 = (b1*a22 - a12*b2)/det
-    k2 = (a11*b2 - a21*b1)/det
-    Fup0 = k1 + Gam*k2 + Cup0
-    return np.clip(Fup0, 0, None)
+    """Upward flux at TOA (planetary reflectance x mu0) via delta-Eddington."""
+    k1, k2, Gam, _, _, Cup0, _, _, _ = _two_stream(tau, w, g, mu0, albedo)
+    return np.clip(k1 + Gam*k2 + Cup0, 0, None)
 
 def limb_radiance(atm, h_tan, sza_deg, hmax=110.0):
     """Single-scatter radiance along a tangent ray (tangent altitude h_tan) seen from space,
@@ -411,12 +384,12 @@ def limb_radiance(atm, h_tan, sza_deg, hmax=110.0):
     mu_sun = Rt*np.cos(sza)/r
     cosT = 0.0
     tau_obs = np.zeros((len(s), len(LAM))); tau_sun = np.zeros_like(tau_obs); beta = np.zeros_like(tau_obs)
-    for c in atm.comps:
+    cols = path_columns([c.profile for c in atm.comps], r, mu_sun)
+    for c, col in zip(atm.comps, cols):
         dens = c.profile(h)
         seg = 0.5*(dens[1:]+dens[:-1])*np.diff(s)
         cum_to_end = np.concatenate([np.cumsum(seg[::-1])[::-1], [0]])  # from point to +smax (observer side)
         tau_obs += cum_to_end[:, None]*c.tau[None, :]
-        col = path_column(c.profile, r, mu_sun)
         tau_sun += np.where(np.isinf(col)[:, None], 1e6, col[:, None]*c.tau[None, :])
         P = rayleigh_phase(cosT) if c.rayleigh else hg(c.g, cosT)
         beta += dens[:, None]*(c.tau*c.ssa*P)[None, :]

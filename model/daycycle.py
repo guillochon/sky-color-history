@@ -3,6 +3,10 @@
 Samples already stored in daycycle.json are kept. Only solar zenith angles
 missing from that file are integrated, then spliced in so the file's szas
 list matches SZAS.
+
+The spectra behind the samples spectra.py stores (SPEC_VZ x SPEC_AZ and the
+Sun) are kept in spectra_cache.npz, so the tooltip spectra come from the same
+integration as the colors.
 """
 import json, sys, time
 from concurrent.futures import ProcessPoolExecutor
@@ -12,16 +16,13 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from skymodel import spec_to_XYZ, make_atm, column_ozone, ozone_latitude
+from skymodel import LAM, spec_to_XYZ, column_ozone
+from epochs import EPOCHS, build
+import speccache
 
 # Bump when the ozone spectrum, profile, or columns change, so cached
 # day-cycle colors for oxygenated epochs are recomputed.
 OZONE_STAMP = 'serdyuchenko-223k-v1'
-
-src = (HERE / 'run_epochs.py').read_text(encoding='utf-8').split('LATS =')[0]
-ns = {}
-exec(src, ns)
-EPOCHS = ns['EPOCHS']
 
 # Daytime spacing is unchanged. From the horizon (90) through 20 degrees
 # below it (110), sample every degree.
@@ -30,14 +31,18 @@ VZ = [0, 15, 30, 45, 60, 70, 78, 84, 88]
 AZ = [0, 20, 40, 60, 80, 100, 120, 140, 160, 180]
 ALB = {'Equator': 0.08, 'Mid-latitude': 0.18, 'Polar': 0.70}
 OUT = HERE / 'daycycle.json'
+# The view directions whose spectra the site's tooltip uses (subsets of VZ, AZ).
+SPEC_VZ = [0, 30, 60, 78, 88]
+SPEC_AZ = [0, 60, 120, 180]
+SPEC_CACHE = HERE / 'spectra_cache.npz'
 
 
-def build(e, albedo, place='Mid-latitude'):
-    T, L = e['sun']
-    return make_atm(e['gas'], ozone_DU=column_ozone(e, place), trop_aer=e['aer'], strat_sulf=e.get('sulf', 0),
-                    haze550=e.get('haze', 0), soot=e.get('soot', 0), dust=e.get('dust', 0),
-                    albedo=e.get('albedo', albedo), sun_T=T, sun_L=L,
-                    ozone_lat=ozone_latitude(e, place), ozone_trop=e.get('trop_o3', 0.0))
+def spec_key(epoch_key, lname, sz):
+    return f'{epoch_key}|{lname}|{sz}'
+
+
+def sun_spectrum(atm, sz):
+    return atm.direct_sun(min(sz, 89.7)) if sz < 90 else np.zeros_like(LAM)
 
 
 def pack(X):
@@ -47,21 +52,24 @@ def pack(X):
             float('%.3g' % float(X[1]))]
 
 
-def sample_dome(atm, sz, key=None):
+def sample_dome(atm, sz):
+    """The dome's packed colors, the Sun's, and the spectra of the SPEC_VZ x SPEC_AZ
+    directions followed by the Sun's."""
     # Keep the model's multiple-scattering fade below the horizon. Single
     # scattering alone goes exactly to zero over more of the dome each degree,
     # and those holes read as bands.
-    grid = []
+    grid, spec = [], {}
     for vz in VZ:
         row = []
         for az in AZ:
-            row.append(pack(spec_to_XYZ(atm.radiance(vz, az, sz))))
+            S = atm.radiance(vz, az, sz)
+            if vz in SPEC_VZ and az in SPEC_AZ:
+                spec[vz, az] = S
+            row.append(pack(spec_to_XYZ(S)))
         grid.append(row)
-    if sz < 90:
-        sun = pack(spec_to_XYZ(atm.direct_sun(min(sz, 89.7))))
-    else:
-        sun = [0.33, 0.33, 0.0]
-    return grid, sun
+    S_sun = sun_spectrum(atm, sz)
+    sun = pack(spec_to_XYZ(S_sun)) if sz < 90 else [0.33, 0.33, 0.0]
+    return grid, sun, np.array([spec[vz, az] for vz in SPEC_VZ for az in SPEC_AZ] + [S_sun])
 
 
 def compute_job(job):
@@ -69,11 +77,11 @@ def compute_job(job):
     epoch, lname, alb, missing = job
     atm = build(epoch, alb, lname)
     t0 = time.perf_counter()
-    got = {}
+    got, spec = {}, {}
     for sz in missing:
-        grid, sun = sample_dome(atm, sz, epoch['key'])
+        grid, sun, spec[spec_key(epoch['key'], lname, sz)] = sample_dome(atm, sz)
         got[str(sz)] = {'dome': grid, 'sun': sun}
-    return epoch['key'], lname, got, time.perf_counter() - t0
+    return epoch['key'], lname, got, spec, time.perf_counter() - t0
 
 
 def main():
@@ -104,12 +112,15 @@ def main():
         print('already complete')
         return
     extra = {}
+    cache = speccache.load(SPEC_CACHE, OZONE_STAMP)
     # A handful of processes: each atmosphere is independent, and a single
     # twilight dome is the slow part.
     with ProcessPoolExecutor(max_workers=6) as pool:
-        for key, lname, got, dt in pool.map(compute_job, jobs):
+        for key, lname, got, spec, dt in pool.map(compute_job, jobs):
             extra.setdefault(key, {})[lname] = got
+            cache.update(spec)
             print(f'{key} {lname} {dt:.1f}s', flush=True)
+    speccache.save(SPEC_CACHE, cache, OZONE_STAMP)
     for e in EPOCHS:
         rec = out['epochs'][e['key']]
         for lname in ALB:
