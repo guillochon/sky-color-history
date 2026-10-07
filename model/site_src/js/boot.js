@@ -39,4 +39,4 @@ function colorTip(canvas, tip, inside, pixel=()=>null, extra=null){
   return refresh;
 }
 refreshGlobeTip=colorTip(globe, document.getElementById('gtip'), (x,y)=>{ const r=Math.hypot(x-globe.width/2,y-globe.height/2); return r<globe.width*0.30*1.5; }, ()=>null, globeSpectrumTip);
-refreshDomeTip=colorTip(dome, document.getElementById('dtip'), (x,y)=>{ const r=Math.hypot(x-dome.width/2,y-dome.height/2); return r<dome.width*0.46; }, domePixel, domeSpectrum);
+refreshDomeTip=colorTip(dome, document.getElementById('dtip'), (x,y)=>{ const v=domeView(); return Math.hypot(x-v.cx, y-v.cy)<v.R; }, domePixel, domeSpectrum);

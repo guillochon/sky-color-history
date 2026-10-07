@@ -7,6 +7,10 @@ const DAYMIN=1440; // midnight to midnight
 sel.value=dIdx;
 const LATDEG={'Equator':0,'Mid-latitude':45,'Polar':75};
 const SZ=DAY.szas, VZ=DAY.vz, AZ=DAY.az;
+// The dome's zoom: the scroll wheel magnifies it up to DOME_ZOOM_MAX times about the pointer.
+// z scales the fisheye's radius and (ox, oy) moves its centre, in canvas pixels.
+const DOME_ZOOM_MAX=10, domeZoom={z:1, ox:0, oy:0};
+function domeView(){ const W=dome.width, z=domeZoom.z; return {cx:W/2+domeZoom.ox, cy:dome.height/2+domeZoom.oy, R:W*0.46*z, z}; }
 // The Sun at clock time min (sundial time) and declination dec, by default the page date's.
 function sunGeom(lat, min, dec=sunEquatorial(astroDay()).Dec){ const p=altaz(lat, dec, (min/60-12)*15); return {sza:90-p.alt, az:p.az}; }
 // interpolate XYZ of the dome grid at (sza, vz, azrel): linear in sza, monotone cubic in vz and az
@@ -231,8 +235,9 @@ const DOME_NR=72, DOME_NA=144;
 // of the Milky Way pass, with its direction and elevation.
 let domeGeo=null;
 function domeGeometry(W, H){
-  if(domeGeo && domeGeo.W===W && domeGeo.H===H) return domeGeo;
-  const cx=W/2, cy=H/2, R=W*0.46, NR=DOME_NR, NA=DOME_NA, NC=NA+1;
+  const {cx, cy, R}=domeView();
+  if(domeGeo && domeGeo.W===W && domeGeo.H===H && domeGeo.cx===cx && domeGeo.cy===cy && domeGeo.R===R) return domeGeo;
+  const NR=DOME_NR, NA=DOME_NA, NC=NA+1;
   const cellOf=(dx, dy, rr, out, j)=>{
     const fr=(rr/R)*NR, ir=Math.min(NR-1,Math.floor(fr));
     let ang=Math.atan2(dx,-dy)*180/Math.PI; if(ang<0) ang+=360;
@@ -254,7 +259,7 @@ function domeGeometry(W, H){
     el[b]=90-90*rr/R;
     const d=horizDir(ang, el[b]); dir[b*3]=d[0]; dir[b*3+1]=d[1]; dir[b*3+2]=d[2];
   }
-  return domeGeo={W, H, px, bl, dir, el, W2, nb, extK:null, ext:null, img:null};
+  return domeGeo={W, H, cx, cy, R, px, bl, dir, el, W2, nb, extK:null, ext:null, img:null};
 }
 // Extinction toward each Milky Way block for k magnitudes per airmass, kept for the last k.
 function domeExtinction(geo, k){
@@ -289,7 +294,7 @@ function renderDay(fast){
   // Sunlight, and the moonlight it makes, go as the inverse square of the distance from the Sun:
   // 3.4% brighter at perihelion in January than on average, 3.3% dimmer at aphelion in July.
   const sunFlux=1/(sunNow.au*sunNow.au);
-  const W=dome.width,H=dome.height, cx=W/2, cy=H/2, R=W*0.46;
+  const W=dome.width,H=dome.height, {cx, cy, R, z}=domeView();
   // Moonlight is the Sun's sky field, evaluated at the Moon and added. Hold the
   // Sun's pre-fade luminance so auto-exposure does not undo the twilight fade.
   const sunSrc=skySource(sza, sunAz);
@@ -410,7 +415,7 @@ function renderDay(fast){
   const sXd=xyY2XYZ([c0[0]*(1-u)+c1[0]*u, c0[1]*(1-u)+c1[1]*u, 1]);
   let visI=si; while(visI>0 && rec.sun[visI][2]/noonY<=3e-4) visI--;
   const sunRelD=rec.sun[visI][2]/noonY;
-  const SUNR=DOME_DISK*moon.sunRadDeg/SUN_RADIUS_DEG, rr=R*sza/90, a=sunAz*Math.PI/180, sx=cx+rr*Math.sin(a), sy=cy-rr*Math.cos(a);
+  const SUNR=DOME_DISK*z*moon.sunRadDeg/SUN_RADIUS_DEG, rr=R*sza/90, a=sunAz*Math.PI/180, sx=cx+rr*Math.sin(a), sy=cy-rr*Math.cos(a);
   const sunRGB=tone(sXd, sXd[1], 0.95,0.4,0.98);
   const stars=placeStars(LATDEG[dLat]);
   if(!fast) drawStarsOnDome(stars.marks, rgrid, Yref*cdu, ep.key);
@@ -421,7 +426,7 @@ function renderDay(fast){
     // The Moon covers the photosphere; drawMoonOnDome then draws it over the sky like the rest of its disk.
     if(moon.el>-moon.radDeg){
       const mrr=R*(90-moon.el)/90, ma=moon.az*Math.PI/180;
-      dctx.beginPath(); dctx.rect(0,0,W,H); dctx.arc(cx+mrr*Math.sin(ma), cy-mrr*Math.cos(ma), moon.radDeg*(DOME_DISK/SUN_RADIUS_DEG), 0, Math.PI*2, true); dctx.clip('evenodd');
+      dctx.beginPath(); dctx.rect(0,0,W,H); dctx.arc(cx+mrr*Math.sin(ma), cy-mrr*Math.cos(ma), moon.radDeg*(DOME_DISK*z/SUN_RADIUS_DEG), 0, Math.PI*2, true); dctx.clip('evenodd');
     }
     dctx.globalAlpha=1; dctx.fillStyle=col; dctx.beginPath(); dctx.arc(sx,sy,SUNR,0,Math.PI*2); dctx.fill(); dctx.restore();
   }
@@ -432,7 +437,7 @@ function renderDay(fast){
   const corona=sunUp?1-smooth01(0.003, 0.03, sunVis):0;
   const {beads, beadW, beadDir}=findBeads(moon, sunAz, sza, rSun, rMoon, sunUp);
   if(!fast && sunUpPix && (corona>0 || beadW>0)){
-    const mrr=R*(90-moon.el)/90, ma=moon.az*Math.PI/180, mx=cx+mrr*Math.sin(ma), my=cy-mrr*Math.cos(ma), mr=moon.radDeg*(DOME_DISK/SUN_RADIUS_DEG);
+    const mrr=R*(90-moon.el)/90, ma=moon.az*Math.PI/180, mx=cx+mrr*Math.sin(ma), my=cy-mrr*Math.cos(ma), mr=moon.radDeg*(DOME_DISK*z/SUN_RADIUS_DEG);
     dctx.save(); dctx.beginPath(); dctx.arc(cx,cy,R,0,Math.PI*2); dctx.clip();
     dctx.beginPath(); dctx.rect(0,0,W,H); dctx.arc(mx,my,mr,0,Math.PI*2,true); dctx.clip('evenodd');
     if(corona>0){
@@ -475,6 +480,7 @@ function renderDay(fast){
   dctx.fillText('N',cx,cy-R-6); dctx.fillText('S',cx,cy+R+18); dctx.fillText('E',cx+R+12,cy+6); dctx.fillText('W',cx-R-12,cy+6); dctx.textAlign='left';
   // Two short lines in the corner, clear of the sky circle and the S mark.
   dctx.font='italic 20px Newsreader, Georgia, serif'; dctx.fillText(ep.short, 12, H-27);
+  if(z>1.005){ dctx.font='15px Newsreader, Georgia, serif'; dctx.fillText(`${z<9.95?z.toFixed(1):'10'}× · double-click to reset`, 12, 22); }
   dctx.font='15px Newsreader, Georgia, serif'; dctx.fillText(`${ep.age} · ${dLat==='Polar'?'75° latitude':dLat==='Mid-latitude'?'45° latitude':'equator'}`, 12, H-8);
   // readouts
   document.getElementById('hclock').textContent=clockLabel(minutes)+(dayHours()<24?` · ${dayHours()}-hour day · ${Math.round(yearDays())}-day year`:'');
@@ -497,6 +503,25 @@ function warm(){ const ep=EP[dIdx], key=ep.key, lat=dLat; let s=0; if(!DAY.epoch
 // The controls ask for a render on the next frame, so a burst of input draws once.
 let renderQueued=0;
 function requestRender(){ if(!renderQueued) renderQueued=requestAnimationFrame(()=>{ renderQueued=0; renderDay(); }); }
+// The scroll wheel zooms the dome about the pointer, by the same factor per notch. The centre
+// may move only as far as keeps the sky around the middle of the canvas, as wide as the unzoomed
+// dome, inside the sky circle. Zoomed all the way out, the page scrolls as usual.
+function zoomDome(z, px, py){
+  const W=dome.width, H=dome.height, R0=W*0.46, v=domeView();
+  z=Math.max(1, Math.min(DOME_ZOOM_MAX, z));
+  let ox=px-(px-v.cx)*z/v.z-W/2, oy=py-(py-v.cy)*z/v.z-H/2;
+  const m=Math.hypot(ox, oy), lim=R0*(z-1); if(m>lim){ ox*=lim/m; oy*=lim/m; }
+  if(z===domeZoom.z && ox===domeZoom.ox && oy===domeZoom.oy) return;
+  Object.assign(domeZoom, {z, ox, oy}); requestRender();
+}
+dome.addEventListener('wheel', e=>{
+  const d=e.deltaMode===1?e.deltaY*33:e.deltaMode===2?e.deltaY*400:e.deltaY;
+  if(d>0 && domeZoom.z<=1) return;
+  e.preventDefault();
+  const b=dome.getBoundingClientRect();
+  zoomDome(domeZoom.z*Math.exp(-d*0.0015), (e.clientX-b.left)*dome.width/b.width, (e.clientY-b.top)*dome.height/b.height);
+}, {passive:false});
+dome.addEventListener('dblclick', ()=>zoomDome(1, dome.width/2, dome.height/2));
 // Whether the dome is on screen: Play holds still while it is scrolled away.
 let domeOnScreen=true;
 if(window.IntersectionObserver) new IntersectionObserver(es=>{ domeOnScreen=es[es.length-1].isIntersecting; }).observe(dome);

@@ -232,11 +232,11 @@ function spectrumHTML(box, el, az, opts={}){
 // The dome's tooltip: the direction under canvas pixel (x, y), and whether it is on the Sun or Moon.
 function domeSpectrum(x, y, box){
   if(!skyNow) return;
-  const W=dome.width, R=W*0.46, dx=x-W/2, dy=y-dome.height/2, r=Math.hypot(dx, dy);
+  const {cx, cy, R, z}=domeView(), dx=x-cx, dy=y-cy, r=Math.hypot(dx, dy);
   let az=Math.atan2(dx, -dy)*180/Math.PI; if(az<0) az+=360;
-  const el=90-90*r/R, at=(bAz, bEl)=>{ const rr=R*(90-bEl)/90, a=bAz*Math.PI/180; return Math.hypot(x-(W/2+rr*Math.sin(a)), y-(dome.height/2-rr*Math.cos(a))); };
-  const mo=skyNow.moon, sunR=DOME_DISK*mo.sunRadDeg/SUN_RADIUS_DEG;
-  const lit=mo.on&&mo.el>-mo.radDeg?moonLitAt(horizDir(az, el), DOME_DISK*mo.radDeg/SUN_RADIUS_DEG*90/R):null;
+  const el=90-90*r/R, at=(bAz, bEl)=>{ const rr=R*(90-bEl)/90, a=bAz*Math.PI/180; return Math.hypot(x-(cx+rr*Math.sin(a)), y-(cy-rr*Math.cos(a))); };
+  const mo=skyNow.moon, sunR=DOME_DISK*z*mo.sunRadDeg/SUN_RADIUS_DEG;
+  const lit=mo.on&&mo.el>-mo.radDeg?moonLitAt(horizDir(az, el), DOME_DISK*z*mo.radDeg/SUN_RADIUS_DEG*90/R):null;
   const disk=lit!=null?'moon':(skyNow.sunOn&&skyNow.sunVis>0.01&&at(skyNow.sunAz, 90-skyNow.sza)<sunR?'sun':null);
   const star=disk?null:starNear(horizDir(az, el), 7*90/R);
   if(star){ spectrumHTML(box, star.el, star.az, {star}); return; }

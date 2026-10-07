@@ -45,7 +45,7 @@ function skyRAt(rgrid, el, az){
 // fading out to 0.2 mag fainter than the limit.
 function starVisible(mag, L){ const lim=nakedEyeLimit(L); return 1-smooth01(lim-0.8, lim+0.2, mag); }
 function drawStarsOnDome(marks, rgrid, rCd, key){
-  const W=dome.width, H=dome.height, cx=W/2, cy=H/2, R=W*0.46;
+  const {cx, cy, R}=domeView();
   dctx.save();
   dctx.beginPath(); dctx.arc(cx,cy,R,0,Math.PI*2); dctx.clip();
   dctx.globalCompositeOperation='lighter';
@@ -99,7 +99,7 @@ function supernovaPlace(lat){
 // A point too bright to resolve: a white core and a glare halo, bright enough to show by day.
 function drawSupernovaOnDome(sn){
   if(!sn||sn.el<0) return;
-  const W=dome.width, H=dome.height, cx=W/2, cy=H/2, R=W*0.46;
+  const {cx, cy, R}=domeView();
   const rr=R*(90-sn.el)/90, a=sn.az*Math.PI/180, x=cx+rr*Math.sin(a), y=cy-rr*Math.cos(a);
   const fade=smooth01(0, 4, sn.el), c=sn.rgb.map(v=>Math.round(v*255)).join(',');
   dctx.save(); dctx.beginPath(); dctx.arc(cx,cy,R,0,Math.PI*2); dctx.clip();
@@ -207,9 +207,9 @@ function paintMoonSprite(moon, sunAz, sunEl){
 }
 function drawMoonOnDome(moon, sunAz, sunEl){
   if(!moonReady||moon.el<-moon.radDeg) return;
-  const W=dome.width, H=dome.height, cx=W/2, cy=H/2, R=W*0.46;
+  const W=dome.width, H=dome.height, {cx, cy, R, z}=domeView();
   const rr=R*(90-moon.el)/90, a=moon.az*Math.PI/180, mx=cx+rr*Math.sin(a), my=cy-rr*Math.cos(a);
-  const rad=moon.radDeg*(DOME_DISK/SUN_RADIUS_DEG);
+  const rad=moon.radDeg*(DOME_DISK*z/SUN_RADIUS_DEG);
   const b=moonBasis(moon), step=vnorm(vadd(b.md, vscale(b.north,0.02), [0,0,0]));
   const el2=Math.asin(Math.max(-1,Math.min(1,step[2])))*180/Math.PI;
   let az2=Math.atan2(step[0], step[1])*180/Math.PI; if(az2<0) az2+=360;

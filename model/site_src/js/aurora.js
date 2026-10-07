@@ -443,7 +443,7 @@ vec3 auroraMix(vec3 skyC, float rBg, vec4 aur){
 const DOMEAURFS=`#version 300 es
 precision highp float;
 uniform sampler2D domeTex; uniform sampler2D skyLog;
-uniform vec2 res; uniform float nr, na;
+uniform vec2 res; uniform vec3 view; uniform float nr, na;
 uniform vec4 toneU; uniform float rCd;
 ${TONE_GLSL}
 ${AUR_GLSL}
@@ -452,8 +452,8 @@ out vec4 fragColor;
 void main(){
   vec2 uv=vec2(gl_FragCoord.x/res.x, 1.0-gl_FragCoord.y/res.y);
   vec3 base=texture(domeTex, uv).rgb;
-  vec2 d=gl_FragCoord.xy-0.5*res; // east right, north up
-  float R=res.x*0.46, r=length(d);
+  vec2 d=gl_FragCoord.xy-view.xy; // east right, north up; view is the fisheye's centre and radius
+  float R=view.z, r=length(d);
   if(r<R){
     float zen=90.0*r/R, az=atan(d.x, d.y), el=(90.0-zen)*0.0174532925;
     vec3 rd=vec3(sin(az)*cos(el), cos(az)*cos(el), sin(el));
@@ -534,7 +534,7 @@ function domeAurInit(){
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
   gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
   const u=auroraUniforms(gl, p, 2, 3);
-  uniformLocs(gl, p, ['res','nr','na','toneU','rCd'], u);
+  uniformLocs(gl, p, ['res','view','nr','na','toneU','rCd'], u);
   bindSamplers(gl, p, [['domeTex', 0], ['skyLog', 1]]);
   const tex=()=>{ const t=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
     texParams(gl, gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE); return t; };
@@ -570,7 +570,7 @@ function drawDomeAurora(){
   gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, domeAur.store.aurArcs);
   gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, domeAur.domeTex);
   gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, domeAur.skyTex);
-  gl.uniform2f(u.res, c.width, c.height); gl.uniform1f(u.nr, domeAur.nr); gl.uniform1f(u.na, domeAur.na);
+  gl.uniform2f(u.res, c.width, c.height); const v=domeView(); gl.uniform3f(u.view, v.cx, c.height-v.cy, v.R); gl.uniform1f(u.nr, domeAur.nr); gl.uniform1f(u.na, domeAur.na);
   gl.uniform4f(u.toneU, skyNow.toneK, skyNow.toneP, 0.95, TOE_CD); gl.uniform1f(u.rCd, skyNow.rCd);
   auroraSetUniforms(gl, u, st, f.t, new Float32Array(horizDir(skyNow.sunAz, 90-skyNow.sza)));
   gl.drawArrays(gl.TRIANGLES, 0, 6);
