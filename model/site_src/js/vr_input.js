@@ -148,7 +148,7 @@ window.addEventListener('pointerdown', ()=>{ if(!vrOn) return; pokeVRMusic(); if
 let vrTX=0, vrTY=0;
 vrc.addEventListener('touchstart', e=>{ const t=e.touches[0]; vrTX=t.clientX; vrTY=t.clientY; }, {passive:true});
 vrc.addEventListener('touchmove', e=>{ if(!vrOn) return; const t=e.touches[0]; lookVR(t.clientX-vrTX, t.clientY-vrTY); vrTX=t.clientX; vrTY=t.clientY; e.preventDefault(); }, {passive:false});
-window.addEventListener('resize', ()=>{ if(vrOn){ sizeVR(); paintVR(); } });
+window.addEventListener('resize', ()=>{ if(vrOn){ sizeVR(); requestVR(); } });
 document.addEventListener('fullscreenchange', ()=>{
   if(!vrOn) return;
   if(!document.fullscreenElement){ exitVR(); return; }
@@ -172,8 +172,8 @@ document.addEventListener('keydown',e=>{
     if(k==='m'&&!e.repeat){ e.preventDefault(); toggleVRMusic(); return; }
     if(k==='w'||k==='a'||k==='s'||k==='d'){ e.preventDefault(); vrHeld.add(k); if(e.shiftKey) vrHeld.add('shift'); if(!dayPlaying) pumpWalk(); return; }
     if(e.key==='Shift'){ vrHeld.add('shift'); return; }
-    if(k==='h'&&!e.repeat){ e.preventDefault(); vrScenery=!vrScenery; paintVR(); syncVRPad(); return; }
-    if(k==='c'&&!e.repeat){ e.preventDefault(); vrClouds=!vrClouds; paintVR(); syncVRPad(); return; }
+    if(k==='h'&&!e.repeat){ e.preventDefault(); vrScenery=!vrScenery; requestVR(); syncVRPad(); return; }
+    if(k==='c'&&!e.repeat){ e.preventDefault(); vrClouds=!vrClouds; requestVR(); syncVRPad(); return; }
     if(k==='q'&&!e.repeat&&!vrTouch){ e.preventDefault(); setInspect(!vrInspect); return; }
     if(e.key==='Escape'){ exitVR(); return; }
     if(e.key===' ' && !e.repeat){ e.preventDefault(); hplay.click(); return; }
@@ -212,8 +212,8 @@ document.querySelectorAll('.vrpad button, .vrplay').forEach(b=>{
   b.addEventListener('click', e=>{
     e.preventDefault(); e.stopPropagation();
     const act=b.dataset.act;
-    if(act==='scenery'){ vrScenery=!vrScenery; paintVR(); }
-    else if(act==='clouds'){ vrClouds=!vrClouds; paintVR(); }
+    if(act==='scenery'){ vrScenery=!vrScenery; requestVR(); }
+    else if(act==='clouds'){ vrClouds=!vrClouds; requestVR(); }
     else if(act==='music'){ toggleVRMusic(); return; }
     else if(act==='play') hplay.click();
     else if(act==='time') stepMinutes(+b.dataset.dir);

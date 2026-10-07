@@ -34,8 +34,9 @@ function placeMark(mark, proj, show){
   const {px, py, ux, uy}=at, off=26;
   mark.hidden=false;
   mark.style.left=px+'px'; mark.style.top=py+'px';
-  mark.querySelector('.chev').style.transform=`rotate(${Math.atan2(ux, uy)}rad)`;
-  mark.querySelector('.badge').style.transform=`translate(calc(-50% + ${(-ux*off).toFixed(1)}px), calc(-50% + ${(uy*off).toFixed(1)}px))`;
+  if(!mark._chev){ mark._chev=mark.querySelector('.chev'); mark._badge=mark.querySelector('.badge'); }
+  mark._chev.style.transform=`rotate(${Math.atan2(ux, uy)}rad)`;
+  mark._badge.style.transform=`translate(calc(-50% + ${(-ux*off).toFixed(1)}px), calc(-50% + ${(uy*off).toFixed(1)}px))`;
   return at;
 }
 function drawMoonPhase(lit, toward){
@@ -54,16 +55,21 @@ function drawMoonPhase(lit, toward){
   ctx.strokeStyle='#000'; ctx.lineWidth=s*0.06; ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.stroke();
   ctx.restore();
 }
+let bodyMarks=null, moonPhaseDrawn=null;
 function placeBodyMarks(){
   const sunEl=90-skyNow.sza, moon=skyNow.moon;
   const sun=projectBody(sunEl, skyNow.sunAz, skyNow.moon.sunRadDeg*DISK_SCALE);
   const moonProj=projectBody(moon.el, moon.az, moon.radDeg*DISK_SCALE);
-  const sunMark=document.getElementById('sunmark');
-  const sunAt=placeMark(sunMark, sun, !(skyNow.sunOn && sun.inView));
-  if(!sunMark.hidden){ const rgb=skyNow.sunRGB; sunMark.style.color=`rgb(${rgb[0]},${rgb[1]},${rgb[2]})`; }
-  const moonAt=placeMark(document.getElementById('moonmark'), moonProj, !(moon.on && moonProj.inView));
-  if(!document.getElementById('moonmark').hidden){
-    drawMoonPhase(moonLit(moon, skyNow.sunAz, sunEl), Math.atan2(sunAt.py-moonAt.py, sunAt.px-moonAt.px));
+  const m=bodyMarks||(bodyMarks={sun:document.getElementById('sunmark'), moon:document.getElementById('moonmark')});
+  const sunAt=placeMark(m.sun, sun, !(skyNow.sunOn && sun.inView));
+  if(!m.sun.hidden){ const rgb=skyNow.sunRGB; m.sun.style.color=`rgb(${rgb[0]},${rgb[1]},${rgb[2]})`; }
+  const moonAt=placeMark(m.moon, moonProj, !(moon.on && moonProj.inView));
+  if(!m.moon.hidden){
+    // Redrawn only when the phase or its tilt has visibly moved.
+    const lit=moonLit(moon, skyNow.sunAz, sunEl), toward=Math.atan2(sunAt.py-moonAt.py, sunAt.px-moonAt.px), d=moonPhaseDrawn;
+    if(!d || Math.abs(d.lit-lit)>0.002 || Math.abs(Math.atan2(Math.sin(d.toward-toward), Math.cos(d.toward-toward)))>0.01){
+      drawMoonPhase(lit, toward); moonPhaseDrawn={lit, toward};
+    }
   }
 }
 function requestVR(){ if(!vrOn||vrRAF) return; vrRAF=requestAnimationFrame(()=>{ vrRAF=0; paintVR(); }); }
@@ -138,16 +144,16 @@ function vrLinkURL(){ return location.pathname+'?'+vrQuery().toString()+location
 let vrLinkAt=0;
 function syncVRLink(force){
   if(!vrOn||vrNav) return;
+  const now=performance.now();
+  if(!force && now-vrLinkAt<500) return;
   const url=vrLinkURL();
   if(location.pathname+location.search+location.hash===url) return;
-  const now=performance.now();
   // Safari throws after about 100 replaceState calls per 30 seconds, and that error was stopping the clock.
   // iOS also repaints the page on each query change. On a phone, leave the clock out of the address bar until playback pauses.
   const q=new URLSearchParams(location.search);
   const latCode=dLat==='Equator'?'equator':dLat==='Polar'?'75':'45';
   const samePlace=q.get('epoch')===EP[dIdx].key && q.get('lat')===latCode;
   if(!force && vrTouch && samePlace) return;
-  if(!force && now-vrLinkAt<500) return;
   vrLinkAt=now;
   try{ history.replaceState({vr:1},'',url); }
   catch(err){}
