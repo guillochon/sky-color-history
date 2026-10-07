@@ -185,9 +185,17 @@ document.addEventListener('keydown',e=>{
     if(k==='t'&&!e.repeat){ e.preventDefault(); jumpNextEclipse(true); return; }
     return;
   }
-  if(document.activeElement.tagName==='INPUT'||document.activeElement.tagName==='SELECT') return;
-  if(e.key==='ArrowRight'&&tIdx<EP.length-1) setEpoch(tIdx+1);
-  if(e.key==='ArrowLeft'&&tIdx>0) setEpoch(tIdx-1);
+  // The page has VR's keys for time and eras: space plays or pauses the day, ← and → step it by
+  // five minutes, ↑ and ↓ (or [ and ]) change era, e and t jump to the next eclipse. Not while
+  // typing, or on a control that uses the key itself; with a modifier, the browser's own.
+  const t=document.activeElement, tag=t&&t.tagName;
+  if(e.ctrlKey||e.metaKey||e.altKey||tag==='INPUT'||tag==='SELECT'||tag==='TEXTAREA'||(t&&t.isContentEditable)) return;
+  if(e.key===' '&&(tag==='BUTTON'||tag==='A'||tag==='SUMMARY')) return;
+  const k=e.key.length===1?e.key.toLowerCase():e.key;
+  const act={' ':()=>{ if(!e.repeat) hplay.click(); }, ArrowRight:()=>stepMinutes(5), ArrowLeft:()=>stepMinutes(-5),
+    ArrowUp:()=>stepEpoch(1), ']':()=>stepEpoch(1), ArrowDown:()=>stepEpoch(-1), '[':()=>stepEpoch(-1),
+    e:()=>{ if(!e.repeat) jumpNextEclipse(false); }, t:()=>{ if(!e.repeat) jumpNextEclipse(true); }}[k];
+  if(act){ e.preventDefault(); act(); }
 });
 function syncVRPad(){
   const set=(id,on)=>{ const b=document.getElementById(id); if(b) b.setAttribute('aria-pressed', on?'true':'false'); };
@@ -262,10 +270,11 @@ function refreshVRTip(){
     let cloud=false;
     if(vrClouds&&vrGL.accumFbo&&vrGL.cw){ const a=vrReadPixel(vrGL.accumFbo, Math.floor(x*vrGL.cw/c.width), Math.floor(y*vrGL.ch/c.height), !!vrGL.cloudHDR); cloud=!!a&&(vrGL.cloudHDR?a[3]:a[3]/255)>0.35; }
     const sep=(bAz, bEl)=>Math.acos(Math.max(-1, Math.min(1, vdot(d, horizDir(bAz, apparentEl(bEl))))))*180/Math.PI, mo=skyNow.moon;
-    const disk=cloud?null:(mo.on&&sep(mo.az, mo.el)<mo.radDeg*DISK_SCALE?'moon':(skyNow.sunOn&&skyNow.sunVis>0.01&&sep(skyNow.sunAz, 90-skyNow.sza)<mo.sunRadDeg*DISK_SCALE?'sun':null));
+    const lit=!cloud&&mo.on?moonLitAt(horizDir(az, el), mo.radDeg*DISK_SCALE):null;
+    const disk=cloud?null:(lit!=null?'moon':(skyNow.sunOn&&skyNow.sunVis>0.01&&sep(skyNow.sunAz, 90-skyNow.sza)<mo.sunRadDeg*DISK_SCALE?'sun':null));
     let aurora=null;
-    if(!disk&&skyNow.aur&&skyNow.aur.on){ aurora=auroraProbe(gl, vrGL.aurStore||(vrGL.aurStore={}), skyNow.aur, horizDir(az, el)); vrRestoreGL(gl); }
-    spectrumHTML(box, el, az, {disk, aurora, cloud});
+    if(disk!=='sun'&&skyNow.aur&&skyNow.aur.on){ aurora=auroraProbe(gl, vrGL.aurStore||(vrGL.aurStore={}), skyNow.aur, horizDir(az, el)); vrRestoreGL(gl); }
+    spectrumHTML(box, el, az, {disk, aurora, cloud, lit});
   }
   tip.style.display='block';
   const w=tip.offsetWidth, h=tip.offsetHeight;

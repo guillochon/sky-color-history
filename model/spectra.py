@@ -7,9 +7,14 @@ to the luminance it already has for that pixel, so only the shape is stored: log
 of the spectrum over its own maximum, from -4 to 0 in a byte (0 is 1e-4 or less, and
 an all-zero spectrum is all zeros).
 
+The globe view's spectra follow (limb_grid.py's geometry): per epoch and latitude, the
+limb at each tangent height, then the disk.
+
 File: a 4-byte little-endian length, a JSON header of that length, then bytes in the
 order epoch, surface, solar zenith angle, slot, wavelength, where slots are the view
-directions (zenith angle major, azimuth from the Sun minor) and then the Sun.
+directions (zenith angle major, azimuth from the Sun minor) and then the Sun; then the
+globe's, in the order epoch, latitude, slot, wavelength, where slots are the tangent
+heights and then the disk.
 """
 import json, struct, sys, time
 from concurrent.futures import ProcessPoolExecutor
@@ -20,7 +25,7 @@ import numpy as np
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import daycycle as dc
-from skymodel import LAM
+from skymodel import LAM, limb_radiance, disk_radiance
 
 VZ = [0, 30, 60, 78, 88]
 AZ = [0, 60, 120, 180]
@@ -49,20 +54,38 @@ def job(args):
     return e['key'], lname, bytes(out)
 
 
+def limb_job(k):
+    """The globe's spectra for epoch key k, with limb_grid.py's atmosphere and grid."""
+    import limb_grid as lg
+    atm = lg.build(lg.EPOCHS[k], 0.06)
+    out = bytearray()
+    for lat in lg.LATS:
+        for h in lg.ALTS:
+            out += encode(limb_radiance(atm, h, lat))
+        out += encode(disk_radiance(atm, lat))
+    return k, bytes(out)
+
+
 def main():
     epochs = [e for e in dc.EPOCHS if e['key'] != 'y2100']
     lats = list(dc.ALB)
     t0 = time.time()
     with ProcessPoolExecutor(max_workers=6) as pool:
         got = {(k, l): b for k, l, b in pool.map(job, [(e, l, dc.ALB[l]) for e in epochs for l in lats])}
+        import limb_grid as lg
+        limb = dict(pool.map(limb_job, lg.PICK))
     header = json.dumps({'lam': [float(x) for x in LAM], 'szas': dc.SZAS, 'vz': VZ, 'az': AZ, 'lo': LO,
-                         'epochs': [e['key'] for e in epochs], 'lats': lats}, separators=(',', ':')).encode()
+                         'epochs': [e['key'] for e in epochs], 'lats': lats,
+                         'limb': {'epochs': lg.PICK, 'lats': [float(x) for x in lg.LATS], 'alts': [float(x) for x in lg.ALTS]}},
+                        separators=(',', ':')).encode()
     with open(OUT, 'wb') as f:
         f.write(struct.pack('<I', len(header)))
         f.write(header)
         for e in epochs:
             for l in lats:
                 f.write(got[(e['key'], l)])
+        for k in lg.PICK:
+            f.write(limb[k])
     print(OUT, OUT.stat().st_size, 'bytes', f'{time.time() - t0:.0f}s')
 
 

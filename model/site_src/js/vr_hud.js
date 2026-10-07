@@ -116,7 +116,7 @@ function jumpNextEclipse(central, totalOnly){
     if(Math.abs(ev.start-lead-(after-1000))>90*1000 && !(totalOnly && ev.type!=='total')) break;
     after=ev.start+1000;
   }
-  if(!ev){ vrNote=central?'no total or annular eclipse in the next forty years':'no eclipse in the next eight years'; paintVR(); return; }
+  if(!ev){ vrNote=central?'no total or annular eclipse in the next forty years':'no eclipse in the next eight years'; if(vrOn) paintVR(); else document.getElementById('rsun').textContent=vrNote; return; }
   const at=pageAt(dayOfMs(ev.start-lead));
   document.getElementById('moonDate').value=at.date;
   minutes=at.min;

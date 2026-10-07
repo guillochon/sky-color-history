@@ -112,6 +112,7 @@ button.tick.on{background:none;color:var(--ink)}
 .cta:hover{background:#ffd84a;transform:translateY(-1px)}
 .cta span{display:inline-block;transition:transform .15s}.cta:hover span{transform:translateX(4px)}
 .cta-note{font-size:.88rem;color:#9ea5b3;max-width:36em}
+.legend kbd{font:inherit;font-size:.78rem;border:1px solid var(--rule);border-radius:3px;padding:0 .28rem;margin:0 .06rem}
 .cta-note kbd,.hero kbd{font:inherit;font-size:.8rem;border:1px solid rgba(255,255,255,.35);border-radius:3px;padding:0 .3rem;margin:0 .08rem}
 .vrmini{position:absolute;top:.6rem;right:.6rem;z-index:6;font-weight:700;letter-spacing:.12em;color:#1c1400;background:#ffc400;border:0;border-radius:6px;padding:.3rem .75rem}
 .vrmini:hover{background:#ffd84a}
