@@ -23,7 +23,7 @@ function placeStars(lat){
     const dir=horizDir(p.az, p.alt);
     tex[o]=dir[0]; tex[o+1]=dir[1]; tex[o+2]=dir[2]; tex[o+3]=show.px;
     const c=STAR_MAP_W*4+o; tex[c]=show.rgb[0]; tex[c+1]=show.rgb[1]; tex[c+2]=show.rgb[2]; tex[c+3]=star[2];
-    marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb, mag:star[2]});
+    marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb, mag:star[2], star});
     up.push({i, x:dir[0], y:dir[1], z:dir[2]});
   }
   placePlanets(lat, tex, marks, up, epochKey, year, LST);

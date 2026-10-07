@@ -272,9 +272,11 @@ function refreshVRTip(){
     const sep=(bAz, bEl)=>Math.acos(Math.max(-1, Math.min(1, vdot(d, horizDir(bAz, apparentEl(bEl))))))*180/Math.PI, mo=skyNow.moon;
     const lit=!cloud&&mo.on?moonLitAt(horizDir(az, el), mo.radDeg*DISK_SCALE):null;
     const disk=cloud?null:(lit!=null?'moon':(skyNow.sunOn&&skyNow.sunVis>0.01&&sep(skyNow.sunAz, 90-skyNow.sza)<mo.sunRadDeg*DISK_SCALE?'sun':null));
+    const star=cloud||disk?null:starNear(horizDir(az, el), 9*vrFov/H);
     let aurora=null;
-    if(disk!=='sun'&&skyNow.aur&&skyNow.aur.on){ aurora=auroraProbe(gl, vrGL.aurStore||(vrGL.aurStore={}), skyNow.aur, horizDir(az, el)); vrRestoreGL(gl); }
-    spectrumHTML(box, el, az, {disk, aurora, cloud, lit});
+    if(!star&&disk!=='sun'&&skyNow.aur&&skyNow.aur.on){ aurora=auroraProbe(gl, vrGL.aurStore||(vrGL.aurStore={}), skyNow.aur, horizDir(az, el)); vrRestoreGL(gl); }
+    if(star) spectrumHTML(box, star.el, star.az, {star});
+    else spectrumHTML(box, el, az, {disk, aurora, cloud, lit});
   }
   tip.style.display='block';
   const w=tip.offsetWidth, h=tip.offsetHeight;

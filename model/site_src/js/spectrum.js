@@ -72,7 +72,8 @@ function spLoad(){
   spLoading=fetch('spectra.bin').then(r=>r.ok?r.arrayBuffer():Promise.reject(r.status)).then(buf=>{
     const n=new DataView(buf).getUint32(0, true), head=JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 4, n)));
     spData={...head, bytes:new Uint8Array(buf, 4+n), nl:head.lam.length, slots:head.vz.length*head.az.length+1};
-    if(spTipRefresh) spTipRefresh();
+    // Redraw whichever tooltip is waiting on them, without waiting for the pointer to move.
+    refreshDomeTip(); refreshGlobeTip(); refreshVRTip();
   }).catch(()=>{ spLoading=null; });
   return spLoading;
 }
@@ -211,16 +212,20 @@ function drawSpectrum(cv, sp){
 }
 // The tooltip body for a direction: the swatch line is the caller's; this adds the plot and the
 // sources. el is true altitude in degrees.
-let spTipRefresh=null;
 function spectrumHTML(box, el, az, opts={}){
   let cv=box.querySelector('canvas.spc'), src=box.querySelector('.spsrc');
   if(!cv){ cv=document.createElement('canvas'); cv.className='spc'; src=document.createElement('div'); src.className='spsrc'; box.append(cv, src); }
   if(opts.note){ cv.style.display='none'; src.textContent=opts.note; return; }
   if(!spData){ spLoad(); cv.style.display='none'; src.textContent='Loading the spectrum…'; return; }
+  if(opts.star){ const st=starSpectrum(opts.star, el); cv.style.display='block'; drawSpectrum(cv, st); src.textContent=st.note; return; }
   const sp=skySpectrum(el, az, opts.disk||null, opts.aurora||null, opts.lit??1);
   cv.style.display='block'; drawSpectrum(cv, sp);
   const fmt=Y=>Y>=1?Y.toPrecision(3)+' cd/m²':(Y>=1e-3?(Y*1e3).toPrecision(3)+' mcd/m²':skyMagArcsec(Y).toFixed(1)+' mag/arcsec²');
-  const top=sp.parts.slice().sort((a, b)=>b[1]-a[1]).filter(p=>p[1]>sp.Y*0.02).slice(0, 4).map(p=>`${p[0]} ${Math.round(100*p[1]/sp.Y)}%`);
+  // The strongest sources, and on the Moon its own light however faint (earthshine against a
+  // day or twilight sky is well under a percent).
+  const isMoon=p=>p[0].startsWith('the Moon'), ranked=sp.parts.slice().sort((a, b)=>b[1]-a[1]).filter(p=>isMoon(p)||p[1]>sp.Y*0.02);
+  const keep=new Set(ranked.filter(isMoon).concat(ranked.filter(p=>!isMoon(p))).slice(0, 4));
+  const top=ranked.filter(p=>keep.has(p)).map(p=>{ const f=100*p[1]/sp.Y; return `${p[0]} ${f<1?'<1':Math.round(f)}%`; });
   src.textContent=opts.disk==='sun'?'The Sun’s disk: sunlight through the air'
     :fmt(sp.Y)+' · '+top.join(' · ')+(opts.cloud?' · behind the cloud':'');
 }
@@ -233,6 +238,8 @@ function domeSpectrum(x, y, box){
   const mo=skyNow.moon, sunR=DOME_DISK*mo.sunRadDeg/SUN_RADIUS_DEG;
   const lit=mo.on&&mo.el>-mo.radDeg?moonLitAt(horizDir(az, el), DOME_DISK*mo.radDeg/SUN_RADIUS_DEG*90/R):null;
   const disk=lit!=null?'moon':(skyNow.sunOn&&skyNow.sunVis>0.01&&at(skyNow.sunAz, 90-skyNow.sza)<sunR?'sun':null);
+  const star=disk?null:starNear(horizDir(az, el), 7*90/R);
+  if(star){ spectrumHTML(box, star.el, star.az, {star}); return; }
   const st=skyNow.aur, aurora=disk!=='sun'&&st&&st.on&&domeAur.gl?auroraProbe(domeAur.gl, domeAur.store, st, horizDir(az, el)):null;
   spectrumHTML(box, el, az, {disk, aurora, lit});
 }
@@ -280,4 +287,72 @@ function globeSpectrumTip(x, y, box){
   cv.style.display='block'; drawSpectrum(cv, globeSpectrum(ep.key, lat, h));
   src.textContent=disk?`The disk at ${Math.round(lat)}° latitude: sunlight off the ground and back out through the air`
     :`The limb ${Math.round(h)} km up at ${Math.round(lat)}° latitude: sunlight scattered along the line of sight`;
+}
+// A bright star's light as it reaches the ground: the star's own spectrum (a body at its colour
+// temperature with the absorption of its class) through the air in front of it, nothing taken
+// out. The air's transmission comes from the model's direct sunlight overhead and at 60°: their
+// ratio is one more airmass of that epoch's air (Rayleigh, ozone, haze), raised to the star's
+// airmass. The O2 and water bands are added as for the sky.
+const STAR_SPEC_V=2.5;
+// The brightest-listed star drawn within tolDeg of dir that shows against the sky there, or null.
+function starNear(dir, tolDeg){
+  if(!skyNow||!skyNow.starMarks) return null;
+  const key=EP[dIdx].key;
+  let best=null, bestC=Math.cos(tolDeg*Math.PI/180);
+  for(const s of skyNow.starMarks){
+    if(!s.star||s.mag>STAR_SPEC_V) continue;
+    const c=vdot(dir, horizDir(s.az, s.el)); if(c<bestC) continue;
+    const m=starThroughAir(s.mag, s.el, key), dim=Math.pow(10, -0.2*(m-s.mag));
+    if(starVisible(m, skyRAt(skyNow.rgrid, s.el, s.az)*skyNow.rCd)*dim<0.3) continue;
+    best=s; bestC=c;
+  }
+  return best;
+}
+const spRamp=(lo, hi, x)=>Math.max(0, Math.min(1, (x-lo)/(hi-lo)));
+function starClass(T){ return T>=30000?'O':T>=10500?'B':T>=7300?'A':T>=6000?'F':T>=5200?'G':T>=3700?'K':'M'; }
+// The star above the air at colour temperature T, with the lines of its class: hydrogen strongest
+// near 9,500 K and broad there, helium in the hot stars, the metals (Ca II H and K, the G band,
+// Mg b, Na D, Ca I 423) growing toward the cool ones with their crowd of lines dimming the blue,
+// and TiO bands, sharp on the blue side, in the M stars.
+function starAbove(T){
+  const S=spPlanck(T), hyd=Math.exp(-0.5*((Math.log10(T)-Math.log10(9500))/0.11)**2);
+  const met=spRamp(9500, 4500, T), cool=spRamp(6500, 4000, T), he=spRamp(10000, 22000, T), tio=Math.min(1.2, spRamp(4100, 3200, T));
+  const lines=[[656.28, 1], [486.13, 1], [434.05, 0.95], [410.17, 0.9], [397.01, 0.8], [388.9, 0.7], [383.5, 0.6]].map(([l, k])=>[l, (0.12+0.6*hyd)*k, 0.4+3.2*hyd]);
+  lines.push([393.37, 0.1+0.75*met, 0.4+1.6*met], [396.85, 0.08+0.7*met, 0.4+1.6*met], [422.67, 0.55*cool, 0.6+0.6*cool],
+    [430.8, 0.4*met*spRamp(3300, 4200, T), 1.0], [517.3, 0.45*met, 0.6+0.8*met], [527.0, 0.25*met, 0.6], [589.3, 0.15+0.5*cool, 0.5+0.6*cool],
+    [447.15, 0.25*he, 0.6], [402.62, 0.2*he, 0.6], [587.56, 0.15*he, 0.5], [667.8, 0.12*he, 0.5]);
+  const heads=[[476.1, 0.3], [495.4, 0.4], [516.7, 0.45], [544.8, 0.4], [559.8, 0.35], [615.9, 0.4], [666.2, 0.3], [705.5, 0.55]];
+  for(let i=0;i<SP_N;i++){
+    const l=SP_LAM[i];
+    let t=1-0.4*met*Math.exp(-(l-380)/45);
+    for(const [c, d, w] of lines) if(d>0) t*=1-Math.min(d, 0.95)*Math.exp(-0.5*((l-c)/w)**2);
+    if(tio>0) for(const [h, d] of heads) if(l>=h) t*=1-tio*d*Math.exp(-(l-h)/14);
+    S[i]*=Math.max(t, 0.02);
+  }
+  const marks=[];
+  if(tio>0.3) marks.push({a:476, b:720, t:'TiO bands', band:true});
+  if(hyd>0.25) marks.push({l:656.3, t:'Hα'}, {l:486.1, t:'Hβ'}, {l:434.0, t:'Hγ'}, {l:410.2, t:'Hδ'});
+  else if(T>5000) marks.push({l:656.3, t:'Hα'}, {l:486.1, t:'Hβ'});
+  if(met>0.2) marks.push({l:393.4, t:'Ca II H&K'});
+  if(met>0.45&&tio<0.3) marks.push({l:430.8, t:'G band'}, {l:517.3, t:'Mg b'});
+  if(cool>0.3) marks.push({l:589.3, t:'Na D'}, {l:422.7, t:'Ca I'});
+  if(he>0.3) marks.push({l:447.1, t:'He I'});
+  return {S, marks};
+}
+// One airmass of the epoch's air, up to a constant, on the log grid: the direct Sun at 60° over
+// the Sun overhead.
+function spAirPerMass(key){
+  const D=spData, e=spEpoch(key), li=D.lats.indexOf(dLat), lo=spRaw(e, li, D.szas.indexOf(60), D.slots-1), hi=spRaw(e, li, D.szas.indexOf(0), D.slots-1);
+  return spTo1nm(lo.map((v, i)=>Math.max(v-hi[i], D.lo)));
+}
+function starSpectrum(s, el){
+  const key=EP[dIdx].key, T=s.star[6]||10000, {S, marks}=starAbove(T), X=Math.min(spAirmass(el), 40), air=spAirPerMass(key);
+  const o2=(SP_O2[key]??1)*X, h2o=(SP_H2O[key]??1)*X;
+  for(let i=0;i<SP_N;i++) S[i]*=Math.pow(air[i], X)*Math.exp(-SP_TAU_O2[i]*o2-SP_TAU_H2O[i]*h2o);
+  if(o2>0.05) marks.push({l:760.5, t:'O₂ A'}, {l:687.5, t:'O₂ B'});
+  if(SP_TAU_H2O[345]*h2o>0.15) marks.push({l:725, t:'H₂O'});
+  const cls=starClass(T), m=starThroughAir(s.mag, s.el, key);
+  const note=`${s.star[7]||'A star'} · ${cls==='O'||cls==='A'?'an':'a'} ${cls} star, ${Math.round(T/50)*50} K · V ${s.mag.toFixed(1)} above the air, `
+    +`${m.toFixed(1)} through ${X.toFixed(1)} airmass${X>=1.05?'es':''} of it, whose imprint is left in`;
+  return {S, Y:1, parts:[], marks, note};
 }
