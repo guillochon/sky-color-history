@@ -1,5 +1,7 @@
-import json
+import hashlib, json
 from pathlib import Path
+
+import numpy as np
 
 import gen_report as gr
 
@@ -25,6 +27,56 @@ for k in order:
                                 zc=int(v['zenith']['cct']), hc=int(v['horizon']['cct'])) for L, v in r['lat'].items()},
                    limb=LIMB[k]))
 YREF = byk['modern']['lat']['Equator']['zenith']['Y']
+SITE = HERE.parent / 'site'
+
+# The day-cycle colors (daycycle.json), one file per epoch in site/day, fetched when the
+# epoch is first shown. Each value is a uint16, and decodes to exactly the number in the JSON:
+#   x, y   round(1e4 * value)
+#   Y      0 for zero, else 1 + (e - Y_EMIN)*900 + (m - 100) for Y = m·10^e, 100 <= m <= 999
+# The file is three planes (x codes, y codes, Y codes), each in the order surface, solar
+# zenith angle, then the dome (view zenith major, azimuth minor) and the Sun. Along each
+# dome row the codes after the first are differences from the previous azimuth (mod 2^16).
+Y_EMIN = -40
+
+
+def y_code(Y):
+    if Y == 0:
+        return 0
+    mant, exp = ('%.2e' % Y).split('e')
+    m, e = int(mant.replace('.', '')), int(exp) - 2
+    assert float(f'{m}e{e}') == Y and 100 <= m <= 999 and e >= Y_EMIN, Y
+    return 1 + (e - Y_EMIN) * 900 + (m - 100)
+
+
+def day_codes(rec):
+    """The three planes of one epoch, as uint16 arrays."""
+    nv, na = len(DAY['vz']), len(DAY['az'])
+    planes = [[], [], []]
+    for lat in DAY_LATS:
+        for dome, sun in zip(rec[lat]['dome'], rec[lat]['sun']):
+            for row in dome:
+                for q in range(3):
+                    c = [round(v[q] * 1e4) if q < 2 else y_code(v[q]) for v in row]
+                    planes[q] += [c[0]] + [(c[i] - c[i-1]) & 0xFFFF for i in range(1, na)]
+            for q in range(3):
+                planes[q].append(round(sun[q] * 1e4) if q < 2 else y_code(sun[q]))
+    assert len(planes[0]) == len(DAY_LATS) * len(DAY['szas']) * (nv * na + 1)
+    return np.array(planes[0] + planes[1] + planes[2], '<u2')
+
+
+DAY_LATS = list(DAY['epochs']['modern'])
+day_dir = SITE / 'day'
+day_dir.mkdir(exist_ok=True)
+DAY_FILES = {}
+for key, rec in DAY['epochs'].items():
+    data = day_codes(rec).tobytes()
+    (day_dir / f'{key}.bin').write_bytes(data)
+    # The hash in the address lets browsers keep a file until it changes.
+    DAY_FILES[key] = f'day/{key}.bin?v={hashlib.sha1(data).hexdigest()[:10]}'
+for key in order:
+    if key not in DAY_FILES:     # the epochs that keep today's air
+        DAY_FILES[key] = DAY_FILES['modern']
+DAY_META = dict(szas=DAY['szas'], vz=DAY['vz'], az=DAY['az'], lats=DAY_LATS, yEmin=Y_EMIN, files=DAY_FILES)
 # The interactive page, in the order the browser receives it.
 # shader_terrain.js is a JavaScript template string. It has to stay ahead of
 # shader_hit.js, which interpolates it.
@@ -69,8 +121,8 @@ def page_source():
     return ''.join((src / rel).read_text(encoding='utf-8') for rel in PARTS)
 
 # Fill the code tokens before the data goes in, so no prose or number can match one.
-html = (page_source().replace('__YREF__', repr(YREF)).replace('EPOCH_MAX', str(len(order)-1))
+html = (page_source().replace('__YREF__', repr(YREF)).replace('__DAY_MODERN__', DAY_FILES['modern']).replace('EPOCH_MAX', str(len(order)-1))
         .replace('MODERN_IDX', str(order.index('modern'))))
-html = html.replace('__EP__', json.dumps(EP, separators=(',',':'))).replace('__DAY__', json.dumps(DAY, separators=(',',':')))
-(HERE.parent / 'site' / 'index.html').write_text(html, encoding='utf-8')
+html = html.replace('__EP__', json.dumps(EP, separators=(',',':'))).replace('__DAY__', json.dumps(DAY_META, separators=(',',':')))
+(SITE / 'index.html').write_text(html, encoding='utf-8')
 print(len(html)/1e6, 'MB')

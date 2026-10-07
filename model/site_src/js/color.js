@@ -1,8 +1,49 @@
 const EP = __EP__;
+// The day-cycle colors: the grid here, each epoch's samples in its own file (see gen_site.py
+// for the coding), fetched the first time the epoch is drawn. Epochs that keep today's air
+// share the modern file.
 const DAY = __DAY__;
-if(!DAY.epochs.y2100) DAY.epochs.y2100=DAY.epochs.modern;
-if(!DAY.epochs.geminga) DAY.epochs.geminga=DAY.epochs.modern;
-if(!DAY.epochs.zetaoph) DAY.epochs.zetaoph=DAY.epochs.modern;
+DAY.epochs={};
+const dayLoads={};
+let Y_OF_CODE=null;
+function decodeDay(buf){
+  const c=new Uint16Array(buf), nv=DAY.vz.length, na=DAY.az.length, per=nv*na+1, n=DAY.lats.length*DAY.szas.length*per;
+  if(!Y_OF_CODE){ Y_OF_CODE=new Float64Array(65536); for(let k=1;k<65536;k++){ const e=Math.floor((k-1)/900)+DAY.yEmin, m=(k-1)%900+100; Y_OF_CODE[k]=parseFloat(m+'e'+e); } }
+  const rec={}; let o=0;
+  for(const lat of DAY.lats){
+    const dome=[], sun=[];
+    for(let s=0;s<DAY.szas.length;s++,o+=per){
+      const grid=[];
+      for(let v=0;v<nv;v++){
+        const row=[], p=o+v*na; let x=0, y=0, L=0;
+        for(let a=0;a<na;a++){
+          x=a?(x+c[p+a])&0xFFFF:c[p]; y=a?(y+c[n+p+a])&0xFFFF:c[n+p]; L=a?(L+c[2*n+p+a])&0xFFFF:c[2*n+p];
+          row.push([x/1e4, y/1e4, Y_OF_CODE[L]]);
+        }
+        grid.push(row);
+      }
+      const q=o+per-1; dome.push(grid); sun.push([c[q]/1e4, c[n+q]/1e4, Y_OF_CODE[c[2*n+q]]]);
+    }
+    rec[lat]={dome, sun};
+  }
+  return rec;
+}
+function loadDay(key){
+  const file=DAY.files[key];
+  if(!dayLoads[file]) dayLoads[file]=fetch(file).then(r=>{ if(!r.ok) throw new Error(file+': '+r.status); return r.arrayBuffer(); })
+    .then(buf=>{ const rec=decodeDay(buf); for(const k in DAY.files) if(DAY.files[k]===file) DAY.epochs[k]=rec; })
+    .catch(err=>{ dayLoads[file]=null; console.error(err); });
+  return dayLoads[file];
+}
+// True when every epoch named has its colors. Otherwise starts loading them, draws the day
+// again once they arrive, and returns false.
+function dayReady(...keys){
+  const miss=keys.filter(k=>!DAY.epochs[k]);
+  if(!miss.length) return true;
+  Promise.all(miss.map(loadDay)).then(()=>{ if(miss.every(k=>DAY.epochs[k])) renderDay(); });
+  return false;
+}
+function dayPending(){ return EP.some(e=>dayLoads[DAY.files[e.key]] && !DAY.epochs[e.key]); }
 const YREF = __YREF__;
 const M = [[3.2406,-1.5372,-0.4986],[-0.9689,1.8758,0.0415],[0.0557,-0.2040,1.0570]];
 const g = v => v<=0.0031308 ? 12.92*v : 1.055*Math.pow(v,1/2.4)-0.055;

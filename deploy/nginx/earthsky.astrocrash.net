@@ -31,7 +31,11 @@ server {
 	gzip on;
 	gzip_comp_level 5;
 	gzip_min_length 1000;
-	gzip_types text/css application/javascript application/json image/svg+xml;
+	# spectra.bin and day/*.bin are application/octet-stream. gen_site.py also writes .gz
+	# copies of the page and the data, which gzip_static serves as they are.
+	gzip_types text/css application/javascript application/json image/svg+xml application/octet-stream;
+	gzip_static on;
+	gzip_vary on;
 
 	location / {
 		try_files $uri $uri/ =404;
