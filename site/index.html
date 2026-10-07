@@ -557,10 +557,13 @@ const tslider=document.getElementById('tslider');
 function setEpoch(i){ i=Math.max(0, Math.min(EP.length-1, i)); tslider.value=String(i); showEpoch(i); }
 tslider.addEventListener('input',()=>{ showEpoch(+tslider.value); });
 let tRAF=null; const tplay=document.getElementById('tplay');
+// The timeline's Play holds still while the globe is scrolled away.
+let globeOnScreen=true;
+if(window.IntersectionObserver) new IntersectionObserver(es=>{ globeOnScreen=es[es.length-1].isIntersecting; }).observe(globe);
 tplay.addEventListener('click',()=>{ if(tRAF){cancelAnimationFrame(tRAF);tRAF=null;tplay.textContent='Play';tplay.setAttribute('aria-pressed','false');return;}
   tplay.textContent='Pause'; tplay.setAttribute('aria-pressed','true'); let last=performance.now();
   const speed=1/2200; // epochs per ms (2.2 s per epoch)
-  const step=now=>{ const dt=now-last; last=now; let p=tPos+dt*speed; if(p>EP.length-1) p=0; tslider.value=p.toFixed(2); showEpoch(p); tRAF=requestAnimationFrame(step); };
+  const step=now=>{ const dt=now-last; last=now; tRAF=requestAnimationFrame(step); if(!globeOnScreen) return; let p=tPos+dt*speed; if(p>EP.length-1) p=0; tslider.value=p.toFixed(2); showEpoch(p); };
   tRAF=requestAnimationFrame(step); });
 /* ---------- Section 2: a day under that sky ---------- */
 // The Moon pass and the colour tip read the dome back every render, so it is kept in memory.
@@ -1057,9 +1060,15 @@ function renderDay(fast){
   refreshDomeTip();
 }
 function warm(){ const ep=EP[dIdx], key=ep.key, lat=dLat; let s=0; if(!DAY.epochs[key]){ loadDay(key).then(()=>{ if(EP[dIdx].key===key && dLat===lat && DAY.epochs[key]) warm(); }); return; } const step=()=>{ if(EP[dIdx].key!==key||dLat!==lat) return; while(s<SZ.length && denseSlices(key,lat)[s]) s++; if(s>=SZ.length) return; denseSlice(key,lat,s); s++; (window.requestIdleCallback||setTimeout)(step); }; (window.requestIdleCallback||setTimeout)(step); }
+// The controls ask for a render on the next frame, so a burst of input draws once.
+let renderQueued=0;
+function requestRender(){ if(!renderQueued) renderQueued=requestAnimationFrame(()=>{ renderQueued=0; renderDay(); }); }
+// Whether the dome is on screen: Play holds still while it is scrolled away.
+let domeOnScreen=true;
+if(window.IntersectionObserver) new IntersectionObserver(es=>{ domeOnScreen=es[es.length-1].isIntersecting; }).observe(dome);
 sel.addEventListener('change',()=>setEpoch(+sel.value));
-document.querySelectorAll('[data-lat]').forEach(b=>b.addEventListener('click',()=>{ dLat=b.dataset.lat; document.querySelectorAll('[data-lat]').forEach(x=>x.setAttribute('aria-pressed',x===b)); renderDay(); warm(); }));
-const hslider=document.getElementById('hslider'); hslider.addEventListener('input',()=>{ minutes=+hslider.value; renderDay(); });
+document.querySelectorAll('[data-lat]').forEach(b=>b.addEventListener('click',()=>{ dLat=b.dataset.lat; document.querySelectorAll('[data-lat]').forEach(x=>x.setAttribute('aria-pressed',x===b)); requestRender(); warm(); }));
+const hslider=document.getElementById('hslider'); hslider.addEventListener('input',()=>{ minutes=+hslider.value; requestRender(); });
 const htrack=document.getElementById('htrack');
 const HMIN=+hslider.min, HMAX=+hslider.max;
 // The time of day in the epoch's own hours: m is the fraction of the day times DAYMIN.
@@ -1069,12 +1078,12 @@ function clockLabel(m){ const [hh, mm]=clockParts(m); return hh+':'+String(mm).p
 function buildTicks(){
   const L=dayHours(); if(htrack.dataset.hours===String(L)) return;
   htrack.dataset.hours=String(L); htrack.innerHTML='';
-  for(let n=0; n<=L; n++){ const m=n/L*DAYMIN; const t=document.createElement('button'); t.type='button'; t.className='tick row'+(n%2); t.style.left=(100*(m-HMIN)/(HMAX-HMIN))+'%'; t.dataset.min=String(m); t.innerHTML=`<i></i><span class="lb">${n}:00</span>`; t.addEventListener('click',()=>{ minutes=m; hslider.value=minutes; renderDay(); }); htrack.appendChild(t); }
+  for(let n=0; n<=L; n++){ const m=n/L*DAYMIN; const t=document.createElement('button'); t.type='button'; t.className='tick row'+(n%2); t.style.left=(100*(m-HMIN)/(HMAX-HMIN))+'%'; t.dataset.min=String(m); t.innerHTML=`<i></i><span class="lb">${n}:00</span>`; t.addEventListener('click',()=>{ minutes=m; hslider.value=minutes; requestRender(); }); htrack.appendChild(t); }
 }
 function markHour(){ buildTicks(); const ticks=[...htrack.querySelectorAll('.tick')]; let best=0, bd=Infinity; ticks.forEach((t,j)=>{ const d=Math.abs(+t.dataset.min-minutes); if(d<bd){ bd=d; best=j; } }); ticks.forEach((t,j)=>{ const on=j===best; t.classList.toggle('on',on); if(on) t.setAttribute('aria-current','true'); else t.removeAttribute('aria-current'); }); }
-const aurBtn=document.getElementById('aurstorm'); aurBtn.addEventListener('click',()=>{ aurStorm=!aurStorm; aurBtn.setAttribute('aria-pressed',aurStorm); renderDay(); });
-const expo=document.getElementById('expo'); expo.addEventListener('click',()=>{ autoExpo=!autoExpo; expo.setAttribute('aria-pressed',autoExpo); renderDay(); });
-let hTimer=null, dayPlaying=false, playRAF=0, playStamp=0; const hplay=document.getElementById('hplay');
+const aurBtn=document.getElementById('aurstorm'); aurBtn.addEventListener('click',()=>{ aurStorm=!aurStorm; aurBtn.setAttribute('aria-pressed',aurStorm); requestRender(); });
+const expo=document.getElementById('expo'); expo.addEventListener('click',()=>{ autoExpo=!autoExpo; expo.setAttribute('aria-pressed',autoExpo); requestRender(); });
+let dayPlaying=false, playRAF=0, playStamp=0; const hplay=document.getElementById('hplay');
 // Play slows tenfold as the Sun goes from 85% to 99% covered and through an annular phase, so
 // totality and the ring last long enough to watch.
 function eclipseSlow(){
@@ -1082,7 +1091,6 @@ function eclipseSlow(){
   return 1-0.9*Math.max(skyNow.central?1:0, smooth01(0.85, 0.99, 1-(skyNow.sunVis==null?1:skyNow.sunVis)));
 }
 function adoptPlayRate(){
-  if(hTimer){ clearInterval(hTimer); hTimer=null; }
   if(playRAF){ cancelAnimationFrame(playRAF); playRAF=0; }
   if(!dayPlaying) return;
   if(vrOn){
@@ -1099,7 +1107,22 @@ function adoptPlayRate(){
       hslider.value=minutes; renderDay(true);
     };
     playRAF=requestAnimationFrame(frame);
-  }else hTimer=setInterval(()=>{ minutes+=2.5*eclipseSlow()*24/dayHours(); while(minutes>=DAYMIN){ minutes-=DAYMIN; shiftMoonDate(1); } hslider.value=minutes; renderDay(); },60);
+  }else{
+    // On the page the dome is drawn about every 60 ms, 2.5 minutes of sky each time, timed by
+    // the display so slow renders do not queue up.
+    playStamp=performance.now();
+    const frame=now=>{
+      if(!dayPlaying||vrOn) return;
+      playRAF=requestAnimationFrame(frame);
+      if(!domeOnScreen){ playStamp=now; return; }
+      const dt=now-playStamp; if(dt<60) return;
+      playStamp=now;
+      minutes+=2.5*Math.min(dt/60, 4)*eclipseSlow()*24/dayHours();
+      while(minutes>=DAYMIN){ minutes-=DAYMIN; shiftMoonDate(1); }
+      hslider.value=minutes; renderDay();
+    };
+    playRAF=requestAnimationFrame(frame);
+  }
 }
 hplay.addEventListener('click',()=>{
   if(dayPlaying){ dayPlaying=false; adoptPlayRate(); hplay.textContent='Play'; hplay.setAttribute('aria-pressed','false'); if(vrOn) syncVRLink(true); if(vrOn&&walking()) pumpWalk(); }

@@ -93,8 +93,11 @@ const tslider=document.getElementById('tslider');
 function setEpoch(i){ i=Math.max(0, Math.min(EP.length-1, i)); tslider.value=String(i); showEpoch(i); }
 tslider.addEventListener('input',()=>{ showEpoch(+tslider.value); });
 let tRAF=null; const tplay=document.getElementById('tplay');
+// The timeline's Play holds still while the globe is scrolled away.
+let globeOnScreen=true;
+if(window.IntersectionObserver) new IntersectionObserver(es=>{ globeOnScreen=es[es.length-1].isIntersecting; }).observe(globe);
 tplay.addEventListener('click',()=>{ if(tRAF){cancelAnimationFrame(tRAF);tRAF=null;tplay.textContent='Play';tplay.setAttribute('aria-pressed','false');return;}
   tplay.textContent='Pause'; tplay.setAttribute('aria-pressed','true'); let last=performance.now();
   const speed=1/2200; // epochs per ms (2.2 s per epoch)
-  const step=now=>{ const dt=now-last; last=now; let p=tPos+dt*speed; if(p>EP.length-1) p=0; tslider.value=p.toFixed(2); showEpoch(p); tRAF=requestAnimationFrame(step); };
+  const step=now=>{ const dt=now-last; last=now; tRAF=requestAnimationFrame(step); if(!globeOnScreen) return; let p=tPos+dt*speed; if(p>EP.length-1) p=0; tslider.value=p.toFixed(2); showEpoch(p); };
   tRAF=requestAnimationFrame(step); });
