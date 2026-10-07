@@ -14,6 +14,7 @@ const MOMENTS=[
   {epoch:'volcanic', date:'2026-07-08', t:1380, look:[180, 32], title:'A town night in 1815', sub:'Oil lamps light the streets but barely touch the sky', art:'stars'},
   {epoch:'modern', date:'2026-07-08', t:1380, look:[180, 32], title:'A city night, today', sub:'Sodium and LED glow hides all but the brightest stars', art:'city'},
   {epoch:'modern', date:null, eclipse:true, title:'The next total eclipse', sub:'The corona, Baily’s beads, and a sunset all round the horizon', art:'eclipse'},
+  {epoch:'y2100', date:'2026-03-20', t:1180, look:[300, 28], title:'Satellites at dusk, 2100', sub:'Megaconstellations and orbital datacenters still in sunlight', art:'sats'},
 ];
 const MOMENT_ART={
   eclipse:'<defs><radialGradient id="mglow"><stop offset=".5" stop-color="#f4ecd8" stop-opacity=".6"/><stop offset="1" stop-color="#f4ecd8" stop-opacity="0"/></radialGradient></defs><circle cx="60" cy="38" r="26" fill="url(#mglow)"/><circle cx="60" cy="38" r="14.5" fill="none" stroke="#fbf3e0" stroke-width="1.6"/><circle cx="60" cy="38" r="13.6" fill="#05070c"/>',
@@ -21,6 +22,9 @@ const MOMENT_ART={
   galaxy:'<path d="M-10 70 C30 40 70 30 130 6" stroke="#cfc4a6" stroke-width="22" fill="none" opacity=".18"/><path d="M-10 70 C30 40 70 30 130 6" stroke="#e8dfc6" stroke-width="7" fill="none" opacity=".22"/>',
   city:'<path d="M0 64h10v-9h8v6h7v-13h9v16h6v-7h10v9h9v-12h7v8h9v-5h10v10h8v-6h7v13H0z" fill="#0c0b0a"/>',
   aurora:`<defs><linearGradient id="maur" gradientUnits="userSpaceOnUse" x1="0" y1="52" x2="0" y2="0"><stop offset="0" stop-color="#ff7aa2" stop-opacity=".9"/><stop offset=".12" stop-color="#a98bff" stop-opacity=".7"/><stop offset=".7" stop-color="#7a66ff" stop-opacity=".15"/><stop offset="1" stop-color="#6b5cff" stop-opacity="0"/></linearGradient><clipPath id="mcur"><path d="M-5 50 C20 44 40 49 62 43 C84 37 102 45 125 40 V0 H-5Z"/></clipPath></defs><g clip-path="url(#mcur)"><rect x="-5" y="0" width="130" height="52" fill="url(#maur)" opacity=".35"/><g stroke="url(#maur)" fill="none">${[[4,1.4,8],[9,.7,18],[17,2.2,4],[23,.8,14],[31,1.6,10],[34,.6,22],[42,2.6,2],[50,1,12],[55,.7,20],[63,1.9,6],[70,.8,16],[76,2.4,3],[85,1,11],[91,.6,19],[98,1.8,7],[107,1.2,13],[114,2,5]].map(([x,w,t])=>`<path d="M${x} 52V${t}" stroke-width="${w}"/>`).join('')}</g></g><path d="M-5 50 C20 44 40 49 62 43 C84 37 102 45 125 40" stroke="#ff7aa2" stroke-width="1.4" fill="none" opacity=".75"/>`,
+  // Trains of satellites crossing the sky, a few bright datacenters among them.
+  sats:[[-4,30,124,10,.55],[-4,46,124,24,.45],[-4,58,124,40,.35]].map(([x0,y0,x1,y1,o])=>Array.from({length:23},(_, k)=>{ const t=k/22, x=x0+(x1-x0)*t, y=y0+(y1-y0)*t-6*Math.sin(Math.PI*t);
+    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${k%7===3?1.3:0.7}" fill="#fff6e8" opacity="${k%7===3?0.95:o}"/>`; }).join('')).join(''),
   stars:'',
   day:'',
 };
@@ -30,7 +34,7 @@ function momentGradient(m){
     return `linear-gradient(${hex(tone(xyY2XYZ(v.z), YREF))}, ${hex(tone(xyY2XYZ(v.h), YREF))})`;
   }
   return {aurora:'linear-gradient(#06050f, #151027)', eclipse:'linear-gradient(#0f1a2e, #3a3442)', nova:'linear-gradient(#05060c, #141a2c)', galaxy:'linear-gradient(#06070b, #121521)',
-    city:'linear-gradient(#2a1f17, #6b4527)', stars:'linear-gradient(#05060a, #10131c)'}[m.art];
+    city:'linear-gradient(#2a1f17, #6b4527)', sats:'linear-gradient(#0c0b0f, #2e2620)', stars:'linear-gradient(#05060a, #10131c)'}[m.art];
 }
 function starsSVG(seed){
   let s='', x=seed*9301+49297;
