@@ -123,7 +123,7 @@ function lockLook(){
   const p=document.getElementById('vrc').requestPointerLock(); if(p&&p.catch) p.catch(()=>{});
 }
 function exitVR(){
-  if(!vrOn) return; hideVRLoad(); if(vrGL&&vrGL.note) vrGL.note=''; if(vrInspect) setInspect(false, true); vrOn=false; stopVRMusic(); vrRelock=false; vrLinkKey=''; vrHeld.clear(); document.getElementById('sunmark').hidden=true; document.getElementById('moonmark').hidden=true; document.getElementById('snmark').hidden=true; if(vrWalk){ cancelAnimationFrame(vrWalk); vrWalk=0; }
+  if(!vrOn) return; if(momentClouds!==null){ vrClouds=momentClouds; momentClouds=null; } hideVRLoad(); if(vrGL&&vrGL.note) vrGL.note=''; if(vrInspect) setInspect(false, true); vrOn=false; stopVRMusic(); vrRelock=false; vrLinkKey=''; vrHeld.clear(); document.getElementById('sunmark').hidden=true; document.getElementById('moonmark').hidden=true; document.getElementById('snmark').hidden=true; if(vrWalk){ cancelAnimationFrame(vrWalk); vrWalk=0; }
   if(!vrNav) clearVRLink();
   const root=document.getElementById('vr'); root.classList.remove('on','locked'); root.setAttribute('aria-hidden','true');
   document.body.style.overflow='';
@@ -201,7 +201,7 @@ document.addEventListener('keydown',e=>{
     if(k==='w'||k==='a'||k==='s'||k==='d'){ e.preventDefault(); vrHeld.add(k); if(e.shiftKey) vrHeld.add('shift'); if(!dayPlaying) pumpWalk(); return; }
     if(e.key==='Shift'){ vrHeld.add('shift'); return; }
     if(k==='h'&&!e.repeat){ e.preventDefault(); vrScenery=!vrScenery; requestVR(); syncVRPad(); return; }
-    if(k==='c'&&!e.repeat){ e.preventDefault(); vrClouds=!vrClouds; requestVR(); syncVRPad(); return; }
+    if(k==='c'&&!e.repeat){ e.preventDefault(); vrClouds=!vrClouds; momentClouds=null; requestVR(); syncVRPad(); return; }
     if(k==='l'&&!e.repeat){ e.preventDefault(); vrLabels=!vrLabels; requestVR(); syncVRPad(); return; }
     if(k==='q'&&!e.repeat&&!vrTouch){ e.preventDefault(); setInspect(!vrInspect); return; }
     if(e.key==='Escape'){ exitVR(); return; }
@@ -243,7 +243,7 @@ document.querySelectorAll('.vrpad button, .vrplay').forEach(b=>{
     e.preventDefault(); e.stopPropagation();
     const act=b.dataset.act;
     if(act==='scenery'){ vrScenery=!vrScenery; requestVR(); }
-    else if(act==='clouds'){ vrClouds=!vrClouds; requestVR(); }
+    else if(act==='clouds'){ vrClouds=!vrClouds; momentClouds=null; requestVR(); }
     else if(act==='labels'){ vrLabels=!vrLabels; requestVR(); }
     else if(act==='music'){ toggleVRMusic(); return; }
     else if(act==='play') hplay.click();

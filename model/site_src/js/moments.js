@@ -2,19 +2,20 @@
 // latitude, date and clock time, then where to look: toward the Sun (the default), a direction
 // (look: [azimuth, elevation]), or the supernova (look: 'sn'). The eclipse card finds the next total
 // eclipse from today with the Sun up, as the t key does but passing over annular ones. Moments
-// about the sky itself open with clouds off
-// (c brings them back).
+// that show one feature (clear: the eclipse, the supernova, an aurora, the Milky Way, the
+// satellites) open with clouds off, and the visitor's own setting returns on leaving VR; c or the
+// pad during the moment makes that the setting.
 const MOMENTS=[
   {epoch:'hadean44', date:'2026-03-20', t:1050, title:'A Hadean evening, 4.4 Ga', sub:'Thirty bars of CO₂ under a young, faint Sun', art:'day'},
-  {epoch:'archean38', date:'2026-01-30', t:1410, look:[0, 22], title:'Aurora over the young Earth, 3.8 Ga', sub:'Violet and pink: nitrogen glowing in air with no oxygen', art:'aurora'},
+  {epoch:'archean38', date:'2026-01-30', t:1410, look:[0, 22], clear:true, title:'Aurora over the young Earth, 3.8 Ga', sub:'Violet and pink: nitrogen glowing in air with no oxygen', art:'aurora'},
   {epoch:'archean27', date:'2026-03-20', t:930, title:'Archean afternoon, 2.7 Ga', sub:'A pale orange organic haze, like Titan’s', art:'day'},
-  {epoch:'carbon30', date:'2026-07-08', t:1380, look:[180, 32], title:'The Milky Way, 300 Ma', sub:'No city lights, and stars no one has catalogued', art:'galaxy'},
+  {epoch:'carbon30', date:'2026-07-08', t:1380, look:[180, 32], clear:true, title:'The Milky Way, 300 Ma', sub:'No city lights, and stars no one has catalogued', art:'galaxy'},
   {epoch:'kpg66', date:'2026-03-20', t:720, title:'Noon after the asteroid', sub:'Soot from Chicxulub turns the sky dim amber', art:'day'},
-  {epoch:'geminga', date:'2026-01-15', t:1320, look:'sn', title:'The Geminga supernova', sub:'342,000 years ago, a star in Orion as bright as the quarter Moon', art:'nova'},
+  {epoch:'geminga', date:'2026-01-15', t:1320, look:'sn', clear:true, title:'The Geminga supernova', sub:'342,000 years ago, a star in Orion as bright as the quarter Moon', art:'nova'},
   {epoch:'volcanic', date:'2026-07-08', t:1380, look:[180, 32], title:'A town night in 1815', sub:'Oil lamps light the streets but barely touch the sky', art:'stars'},
   {epoch:'modern', date:'2026-07-08', t:1380, look:[180, 32], title:'A city night, today', sub:'Sodium and LED glow hides all but the brightest stars', art:'city'},
-  {epoch:'modern', date:null, eclipse:true, title:'The next total eclipse', sub:'The corona, Baily’s beads, and a sunset all round the horizon', art:'eclipse'},
-  {epoch:'y2100', date:'2026-03-20', t:1180, look:[300, 28], title:'Satellites at dusk, 2100', sub:'Megaconstellations and orbital datacenters still in sunlight', art:'sats'},
+  {epoch:'modern', date:null, eclipse:true, clear:true, title:'The next total eclipse', sub:'The corona, Baily’s beads, and a sunset all round the horizon', art:'eclipse'},
+  {epoch:'y2100', date:'2026-03-20', t:1180, look:[300, 28], clear:true, title:'Satellites at dusk, 2100', sub:'Megaconstellations and orbital datacenters still in sunlight', art:'sats'},
 ];
 const MOMENT_ART={
   eclipse:'<defs><radialGradient id="mglow"><stop offset=".5" stop-color="#f4ecd8" stop-opacity=".6"/><stop offset="1" stop-color="#f4ecd8" stop-opacity="0"/></radialGradient></defs><circle cx="60" cy="38" r="26" fill="url(#mglow)"/><circle cx="60" cy="38" r="14.5" fill="none" stroke="#fbf3e0" stroke-width="1.6"/><circle cx="60" cy="38" r="13.6" fill="#05070c"/>',
@@ -42,6 +43,8 @@ function starsSVG(seed){
     s+=`<circle cx="${(a*120).toFixed(1)}" cy="${(b*60).toFixed(1)}" r="${(0.3+0.9*(x/233280)**3).toFixed(2)}" fill="#fff" opacity="${(0.4+0.6*x/233280).toFixed(2)}"/>`; }
   return s;
 }
+// The visitor's cloud setting while a clear moment has them off, to restore on leaving VR.
+let momentClouds=null;
 function openMoment(m){
   setEpoch(EP.findIndex(e=>e.key===m.epoch));
   aurStorm=false; aurBtn.setAttribute('aria-pressed', 'false');
@@ -51,6 +54,9 @@ function openMoment(m){
   minutes=m.eclipse?0:m.t; hslider.value=String(minutes);
   renderDay();
   if(m.eclipse) jumpNextEclipse(true, true);
+  if(momentClouds!==null) vrClouds=momentClouds;
+  momentClouds=m.clear?vrClouds:null;
+  if(m.clear) vrClouds=false;
   enterVR(false);
   syncVRPad();
   if(m.look==='sn'){ const sn=supernovaPlace(LATDEG[dLat]); if(sn){ vrYaw=sn.az; vrPitch=Math.max(5, Math.min(60, sn.el-12)); } }
