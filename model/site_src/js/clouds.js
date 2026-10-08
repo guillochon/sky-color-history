@@ -98,6 +98,63 @@ function allocCloudTex(gl, w, h, hdr){
   else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
   return tex;
 }
+// The cloud layer's opacity, a quarter of its size, read back for the labels: a point behind
+// cloud is hidden, and so is its label. The copy is read without waiting on the GPU (a pixel
+// buffer and a fence), so the mask is a frame or two old; it keeps the view it was taken in, and
+// a direction is looked up there. With labels on only.
+function readCloudMask(fbo){
+  const gl=vrGL.gl, mw=Math.max(1, Math.ceil(vrGL.cw/4)), mh=Math.max(1, Math.ceil(vrGL.ch/4)), hdr=!!vrGL.cloudHDR;
+  takeCloudMask();
+  if(vrGL.maskSync) return;
+  if(!vrGL.maskFbo||vrGL.maskW!==mw||vrGL.maskH!==mh){
+    if(vrGL.maskTex) gl.deleteTexture(vrGL.maskTex);
+    vrGL.maskTex=allocCloudTex(gl, mw, mh, hdr); vrGL.maskFbo=vrGL.maskFbo||gl.createFramebuffer(); vrGL.maskW=mw; vrGL.maskH=mh;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.maskFbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, vrGL.maskTex, 0);
+    vrGL.maskPbo=vrGL.maskPbo||gl.createBuffer();
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, vrGL.maskPbo);
+    gl.bufferData(gl.PIXEL_PACK_BUFFER, mw*mh*4*(hdr?4:1), gl.STREAM_READ);
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+  }
+  gl.bindFramebuffer(gl.READ_FRAMEBUFFER, fbo); gl.readBuffer(gl.COLOR_ATTACHMENT0);
+  gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, vrGL.maskFbo);
+  gl.blitFramebuffer(0, 0, vrGL.cw, vrGL.ch, 0, 0, mw, mh, gl.COLOR_BUFFER_BIT, gl.LINEAR);
+  gl.bindFramebuffer(gl.READ_FRAMEBUFFER, vrGL.maskFbo);
+  gl.bindBuffer(gl.PIXEL_PACK_BUFFER, vrGL.maskPbo);
+  gl.readPixels(0, 0, mw, mh, gl.RGBA, hdr?gl.FLOAT:gl.UNSIGNED_BYTE, 0);
+  gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+  gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null); gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
+  vrGL.maskSync=gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+  vrGL.maskPending={w:mw, h:mh, hdr, yaw:vrYaw, pitch:vrPitch, fov:vrFov, aspect:vrGL.cw/vrGL.ch};
+  gl.flush();
+  requestAnimationFrame(function poll(){ if(!vrGL||!vrGL.maskSync) return; if(takeCloudMask()) drawVRLabels(); else requestAnimationFrame(poll); });
+}
+// Collects the copy once the GPU has made it; true when a new mask arrived.
+function takeCloudMask(){
+  const gl=vrGL.gl, sync=vrGL.maskSync;
+  if(!sync) return false;
+  const st=gl.clientWaitSync(sync, 0, 0);
+  if(st!==gl.ALREADY_SIGNALED&&st!==gl.CONDITION_SATISFIED) return false;
+  gl.deleteSync(sync); vrGL.maskSync=null;
+  const p=vrGL.maskPending, px=p.hdr?new Float32Array(p.w*p.h*4):new Uint8Array(p.w*p.h*4);
+  gl.bindBuffer(gl.PIXEL_PACK_BUFFER, vrGL.maskPbo);
+  gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, px);
+  gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+  const k=p.hdr?1:1/255, fy=Math.tan(p.fov*Math.PI/360), fx=fy*p.aspect, yaw=p.yaw*Math.PI/180, pitch=p.pitch*Math.PI/180;
+  const cp=Math.cos(pitch), sp=Math.sin(pitch), cy=Math.cos(yaw), sy=Math.sin(yaw);
+  // Opacity toward view direction d (apparent altitude), or 0 outside the view it was taken in.
+  vrGL.cloudAt=d=>{
+    const depth=d[0]*sy*cp+d[1]*cy*cp+d[2]*sp;
+    if(depth<0.02) return 0;
+    const x=(d[0]*cy-d[1]*sy)/depth/fx, y=(-d[0]*sy*sp-d[1]*cy*sp+d[2]*cp)/depth/fy;
+    if(Math.abs(x)>1||Math.abs(y)>1) return 0;
+    // Bilinear between the four nearest texels.
+    const u=Math.max(0, Math.min(p.w-1, (x*0.5+0.5)*p.w-0.5)), v=Math.max(0, Math.min(p.h-1, (y*0.5+0.5)*p.h-0.5));
+    const i=Math.min(p.w-2, Math.floor(u)), j=Math.min(p.h-2, Math.floor(v)), fu=u-i, fv=v-j, a=(ii, jj)=>px[(jj*p.w+ii)*4+3];
+    return ((a(i, j)*(1-fu)+a(i+1, j)*fu)*(1-fv)+(a(i, j+1)*(1-fu)+a(i+1, j+1)*fu)*fv)*k;
+  };
+  return true;
+}
 function ensureCloudTarget(w, h){
   const gl=vrGL.gl;
   if(vrGL.cw===w&&vrGL.ch===h) return;

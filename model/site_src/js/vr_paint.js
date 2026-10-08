@@ -381,6 +381,7 @@ function paintVR(){
   // ensureHitTarget binds new hit textures on the active unit, which can be the sky's.
   gl.bindTexture(gl.TEXTURE_2D, tex);
   gl.drawArrays(gl.TRIANGLES, 0, 6);
+  if(!vrClouds||!vrLabels) vrGL.cloudAt=null;
   if(vrClouds&&vrGL.cloudProg&&vrGL.noise){
     vrGL.cloudFrame=(vrGL.cloudFrame||0)+1;
     if(vrGL.histKey!==EP[dIdx].key){ vrGL.histOk=false; vrGL.histKey=EP[dIdx].key; }
@@ -444,6 +445,7 @@ function paintVR(){
       vrGL.histOk=true;
       shown=vrGL.accumTex;
     }
+    if(vrLabels) readCloudMask(shown===vrGL.accumTex?vrGL.accumFbo:vrGL.cloudFbo);
     vrGL.prevYaw=vrYaw*Math.PI/180; vrGL.prevPitch=vrPitch*Math.PI/180; vrGL.prevEyeX=vrX; vrGL.prevEyeY=vrY; vrGL.prevEyeZ=ez;
     // The march is jittered per frame; repaint a few times after the view settles so it converges.
     if(viewKey!==vrGL.settleKey){ vrGL.settleKey=viewKey; vrGL.settle=48; }

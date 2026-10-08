@@ -77,8 +77,9 @@ function placeBodyMarks(){
 }
 // Labels (l): a name beside each star, planet, satellite and supernova that shows. The faintest
 // labelled grows with the zoom, from about V 0.4 across 90° to every point (V 6.5) at 10°, and
-// a label that would overlap a brighter one's is left out. With them, the constellation figures
-// and names, wherever the epoch's stars still make them (constellations.js).
+// a label that would overlap a brighter one's is left out, as is one on a point cloud hides. With
+// them, the constellation figures and names, wherever the epoch's stars still make them
+// (constellations.js).
 let vrLabels=false;
 const CON_PLACES={};
 // The figures' vertices for the epoch, as right ascension and declination of date, or null.
@@ -140,17 +141,23 @@ function drawVRLabels(){
     return Math.abs(x)<3&&Math.abs(y)<3?[W/2+x*W/2, H/2-y*H/2]:null;
   };
   for(const n of drawConstellations(ctx, proj)) if(n.x>0&&n.x<W&&n.y>0&&n.y<H) pts.push({x:n.x, y:n.y, mag:1, text:n.text, kind:'con'});
+  const cloudAt=vrGL&&vrGL.cloudAt;
   const add=(s, text, kind)=>{
     if(s.el<=0) return;
     const p=projectBody(s.el, s.az, 0);
     if(!p.inView) return;
-    pts.push({x:W/2+p.nx*W/2, y:H/2-p.ny*H/2, mag:s.mag, text, kind});
+    const x=W/2+p.nx*W/2, y=H/2-p.ny*H/2;
+    pts.push({x, y, mag:s.mag, text, kind});
   };
   if(skyNow.sn) add(skyNow.sn, skyNow.sn.name||'Supernova', 'sn');
   for(const s of skyNow.starMarks){
     if(s.mag>lim&&!s.planet) continue;
+    // Labelled when it shows: its colour as the sky pass adds it (faded near the naked-eye limit,
+    // dimmed by the air), times what the cloud in front lets through. 0.06 is where the drawn
+    // point stands out from the sky around it.
     const m=starThroughAir(s.mag, s.el, key), dim=Math.pow(10, -0.2*(m-s.mag));
-    if(starVisible(m, skyRAt(skyNow.rgrid, s.el, s.az)*skyNow.rCd)*dim<0.3) continue;
+    const a=cloudAt?cloudAt(horizDir(s.az, apparentEl(s.el))):0;
+    if(Math.max(...s.rgb)*starVisible(m, skyRAt(skyNow.rgrid, s.el, s.az)*skyNow.rCd)*dim*(1-a)<0.06) continue;
     add(s, s.planet||(s.star?s.star[7]||'':'satellite'), s.planet?'planet':s.star?'star':'sat');
   }
   pts.sort((a, b)=>a.mag-b.mag);
