@@ -113,6 +113,9 @@ bool yardTree(vec2 g, vec2 mn, vec2 w, out vec2 c, out float h, out float rc, ou
   float along=h12(g+vec2(1.4, 5.5));
   if(alongX){ c.x=gl.x>gh.x?lo.x+gl.x*0.5:mn.x+w.x+gh.x*0.5; c.y=lo.y+rc+along*(cell-2.0*rc); }
   else { c.y=gl.y>gh.y?lo.y+gl.y*0.5:mn.y+w.y+gh.y*0.5; c.x=lo.x+rc+along*(cell-2.0*rc); }
+  // Not in the street (roads.js streetPitch).
+  vec2 st=abs(c-vec2(48.0, 120.0)*floor(c/vec2(48.0, 120.0)+0.5));
+  if(min(st.x, st.y)<3.2) return false;
   sty=h12(g+vec2(8.8, 0.3))<0.8?0.0:1.0;
   h=mix(5.0, 10.0, h12(g+vec2(2.7, 4.9)));
   return true;

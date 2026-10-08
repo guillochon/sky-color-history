@@ -59,7 +59,8 @@ function sceneFor(key){ return sceneCache[key]||(sceneCache[key]=buildScene(key)
 function buildScene(key){ // [bearing deg, distance m, radius m, height m, kind]; kinds 1 and 2 are procedural massifs
   const spots=list=>{ const o=new Float32Array(48), k=new Float32Array(12);
     for(let i=0;i<12;i++){ const s=list[i]; if(!s) continue; const a=s[0]*Math.PI/180; o[i*4]=Math.sin(a)*s[1]; o[i*4+1]=Math.cos(a)*s[1]; o[i*4+2]=s[2]; o[i*4+3]=s[4]<2.5?s[3]*MTN_SCALE:s[3]; k[i]=s[4]; }
-    return {o, k, ...townsFor(key)}; };
+    const tw=townsFor(key);
+    return {o, k, ...tw, ...roadsFor(o, k, tw.t, tw.tn)}; };
   const VOLC=[[175,320,80,150,2],[205,560,130,240,2],[140,900,200,340,2],[250,3000,700,520,2],[310,5200,1400,1000,1],[350,8000,2200,1500,1],[100,9000,2500,1600,1],[160,7000,1800,1100,1],[230,11000,2800,1700,1],[40,6500,1600,900,1],[70,4200,1100,780,1],[280,4800,1000,640,1]];
   const ICE=[[165,900,350,260,3],[200,1500,500,420,3],[120,1900,600,380,3],[240,2600,800,600,3],[300,3500,1100,700,3],[30,5000,1500,900,3],[90,7000,2000,1100,3],[190,8000,1800,1000,3],[260,10000,2600,1300,3],[330,6000,1600,900,3],[60,3000,900,500,3]];
   const TREES=[[40,6000,1600,900,1],[140,8500,2200,1300,1],[230,5000,1400,750,1],[310,10000,2500,1500,1],[100,7000,1800,1000,1],[190,9000,2400,1400,1]];
@@ -144,8 +145,8 @@ function townLot(sc, i, gx, gy){
     const alongX=Math.max(gl[0], gh[0])>Math.max(gl[1], gh[1]);
     const gap=alongX?Math.max(gl[0], gh[0]):Math.max(gl[1], gh[1]), rc=Math.min(3.6, gap*0.5-0.3), along=h12xy(gx+1.4, gy+5.5);
     if(rc>=1.6){
-      if(alongX) out.push(trunk(gl[0]>gh[0]?lo[0]+gl[0]*0.5:x0+w[0]+gh[0]*0.5, lo[1]+rc+along*(cell-2*rc)));
-      else out.push(trunk(lo[0]+rc+along*(cell-2*rc), gl[1]>gh[1]?lo[1]+gl[1]*0.5:y0+w[1]+gh[1]*0.5));
+      const c=alongX?[gl[0]>gh[0]?lo[0]+gl[0]*0.5:x0+w[0]+gh[0]*0.5, lo[1]+rc+along*(cell-2*rc)]:[lo[0]+rc+along*(cell-2*rc), gl[1]>gh[1]?lo[1]+gl[1]*0.5:y0+w[1]+gh[1]*0.5];
+      if(Math.min(Math.abs(c[0]-48*Math.round(c[0]/48)), Math.abs(c[1]-120*Math.round(c[1]/120)))>=3.2) out.push(trunk(c[0], c[1]));
     }
   }
   return out;
@@ -312,6 +313,8 @@ function paintVR(){
   gl.uniform3fv(u.mlDir, vrGL.mlDir); gl.uniform3fv(u.mlLight, vrGL.mlLight);
   const sc=sceneFor(EP[dIdx].key);
   gl.uniform4fv(u.pond, sc.p); gl.uniform1f(u.pondN, sc.pn);
+  gl.uniform4fv(u.grid, sc.g); gl.uniform1f(u.gridN, sc.gn);
+  gl.uniform4fv(u.road, sc.r); gl.uniform1f(u.roadN, sc.rn);
   gl.uniform1f(u.clockH, (minutes%DAYMIN)/60);
   gl.uniform4fv(u.obj, sc.o); gl.uniform1fv(u.kind, sc.k);
   // A star's px is the radius the page draws it at, with most of its light inside a third of

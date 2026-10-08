@@ -109,6 +109,7 @@ PARTS = [
     'js/clouds.js',
     'js/vr_init.js',
     'js/vr_paint.js',
+    'js/roads.js',
     'js/vr_hud.js',
     'js/vr_input.js',
     'js/moments.js',

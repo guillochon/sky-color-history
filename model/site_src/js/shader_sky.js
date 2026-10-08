@@ -33,6 +33,9 @@ float limbH(float pa){ return 0.002*sin(7.0*pa+1.3)+0.00167*sin(12.0*pa+4.1)+0.0
 uniform vec4 obj[12];
 uniform vec4 pond[8];
 uniform float pondN;
+uniform vec4 grid[6];
+uniform vec4 road[64];
+uniform float gridN, roadN;
 uniform float kind[12];
 out vec4 fragColor;
 float h12(vec2 p){
@@ -87,6 +90,25 @@ float groundMottle(vec2 p, float foot){
     wl*=0.32; amp*=0.8;
   }
   return m;
+}
+// Roads (roads.js). x: how far outside the paving p is, in metres. y: 1 on a road's dashed centre
+// line. grid[i] is a town's (centre, radius, type), road[i] a segment between towns.
+vec2 roadAt(vec2 p, float foot){
+  float d=1e4, line=0.0;
+  for(int i=0;i<int(gridN);i++){
+    vec4 g=grid[i];
+    if(length(p-g.xy)>g.z+(g.w<1.5?21.0:12.0)) continue;
+    vec2 sp=g.w<1.5?vec2(42.0):vec2(48.0, 120.0), s=abs(p-sp*floor(p/sp+0.5));
+    d=min(d, min(s.x, s.y)-2.4);
+  }
+  for(int i=0;i<int(roadN);i++){
+    vec4 r=road[i];
+    vec2 pa=p-r.xy, ba=r.zw-r.xy;
+    if(abs(pa.x-ba.x*0.5)>abs(ba.x)*0.5+4.0 || abs(pa.y-ba.y*0.5)>abs(ba.y)*0.5+4.0) continue;
+    float len=length(ba), h=clamp(dot(pa, ba)/(len*len), 0.0, 1.0), e=length(pa-ba*h)-3.4;
+    if(e<d){ d=e; line=(1.0-smoothstep(0.08, 0.08+foot, abs(e+3.4)))*step(fract(h*len/9.0), 0.4); }
+  }
+  return vec2(d, line);
 }
 float massifRad(float R, float volc){ return volc>1.5?R*1.08:R*mix(1.28, 1.12, volc); }
 float apparentEl(float h){ // Saemundsson 1986, true altitude (deg) to apparent
@@ -194,6 +216,19 @@ void main(){
     gcol*=mix(vec3(1.0), mix(vec3(0.88, 1.04, 0.94), vec3(1.24, 1.06, 0.72), patchy), colourful);
     gcol*=1.0+groundMottle(gp, foot)*mix(0.3, 0.8, colourful);
     gcol*=1.0+clamp(relief.z*0.18, -0.14, 0.08);
+    // Asphalt, a little worn, and white dashes down the middle of the roads between towns.
+    // Far off, where a road is narrower than a pixel, it fades to its share of the pixel.
+    if(tLand<0.0 && kBest<0.5){
+      vec2 rd2=roadAt(gp, foot);
+      float pave=(1.0-smoothstep(-0.5*foot, 0.5*foot, rd2.x))*clamp(5.0/max(foot, 1e-3), 0.0, 1.0);
+      if(pave>0.0){
+        float lum=dot(ground, vec3(0.3, 0.55, 0.15))*mix(0.84, 1.10, vN(gp*0.00115+3.0));
+        vec3 asph=lum*vec3(0.80, 0.79, 0.77)*(0.9+0.2*vN(gp/5.0))*(1.0+groundMottle(gp, foot)*0.15);
+        asph=mix(asph, lum*vec3(2.2), rd2.y*0.8);
+        gcol=mix(gcol, asph, pave);
+        nG=normalize(mix(nG, rollN(gp), pave));
+      }
+    }
 #endif
     gcol=mix(gcol, gcol*vec3(0.84, 0.78, 0.70), (1.0-smoothstep(0.55, 0.92, nG.z))*0.5);
     gcol=mix(gcol, gcol*vec3(1.06, 1.02, 0.95), smoothstep(28.0, 130.0, gp3.z)*0.4);
