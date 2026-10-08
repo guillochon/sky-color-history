@@ -210,11 +210,11 @@ function nightLight(rgb, rel, el, night){ const f=0.6*Math.sqrt(Math.max(rel, 0)
 // Text in the VR heads-up display, written only when it changes.
 function setText(el, text){ if(el.textContent!==text) el.textContent=text; }
 function paintVR(){
-  if(!vrOn||!vrGL||!skyNow) return;
+  if((!vrOn&&!vrRehearse)||!vrGL||!skyNow) return;
   // This paint answers any one already asked for.
   if(vrRAF){ cancelAnimationFrame(vrRAF); vrRAF=0; }
   // A sky drawn for the page has no star cells for VR: draw it again for VR, which paints.
-  if(!skyNow.starBins){ renderDay(true); return; }
+  if(!skyNow.starBins&&!vrRehearse){ renderDay(true); return; }
   const {gl,u,tex}=vrGL, c=gl.canvas;
   gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.disable(gl.BLEND); gl.drawBuffers([gl.BACK]);
   gl.viewport(0,0,c.width,c.height);
@@ -290,7 +290,7 @@ function paintVR(){
   gl.uniform1f(u.clockH, (minutes%DAYMIN)/60);
   gl.uniform4fv(u.obj, sc.o); gl.uniform1fv(u.kind, sc.k);
   gl.uniform1f(u.starPx, (vrFov*Math.PI/180)/Math.max(window.innerHeight,1));
-  if(skyNow.stars && vrGL.starTex && vrGL.starUploaded!==skyNow.gen){
+  if(skyNow.stars && skyNow.starBins && vrGL.starTex && vrGL.starUploaded!==skyNow.gen){
     gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, vrGL.starTex);
     gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, STAR_MAP_W, 2, gl.RGBA, gl.FLOAT, skyNow.stars);
     gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, vrGL.starBinTex);
@@ -423,6 +423,7 @@ function paintVR(){
     gl.disable(gl.BLEND);
     gl.activeTexture(gl.TEXTURE0); gl.useProgram(vrGL.prog);
   }
+  if(vrRehearse) return;
   const [hh, mm, ss]=clockParts(minutes);
   const lat=dLat==='Polar'?'75°':dLat==='Mid-latitude'?'45°':'equator';
   const hud=vrGL.hud||(vrGL.hud={place:document.getElementById('vrplace'), note:document.querySelector('.vrnote'), clock:document.getElementById('vrclock')});
