@@ -77,8 +77,49 @@ function placeBodyMarks(){
 }
 // Labels (l): a name beside each star, planet, satellite and supernova that shows. The faintest
 // labelled grows with the zoom, from about V 0.4 across 90° to every point (V 6.5) at 10°, and
-// a label that would overlap a brighter one's is left out.
+// a label that would overlap a brighter one's is left out. With them, the constellation figures
+// and names, wherever the epoch's stars still make them (constellations.js).
 let vrLabels=false;
+const CON_PLACES={};
+// The figures' vertices for the epoch, as right ascension and declination of date, or null.
+function conPlaces(key, year){
+  const k=key+'|'+year;
+  if(CON_PLACES[k]!==undefined) return CON_PLACES[k];
+  const moved=CON_EPOCHS[key], src=moved||(starsFor(key)===STARS?CON_VERT:null);
+  return CON_PLACES[k]=src&&src.map(v=>starMeanPlace([v[0], v[1], 0, 0, moved?0:v[2], moved?0:v[3]], key, year));
+}
+// The constellation lines, as great circles between their stars, cut at the horizon; returns
+// the names to label, at the middle of each figure's stars.
+function drawConstellations(ctx, proj){
+  const key=EP[dIdx].key, P=conPlaces(key, STAR_YEAR[key]||pageDate()[0]);
+  if(!P) return [];
+  const lat=LATDEG[dLat], LST=localSidereal();
+  const dirs=P.map(p=>{ let H=rev(LST-rev(p.ra)); if(H>180) H-=360; const a=altaz(lat, p.dec, H); return horizDir(a.az, a.alt); });
+  ctx.strokeStyle='rgba(140,170,225,.38)'; ctx.lineWidth=1; ctx.beginPath();
+  const names=[];
+  for(const [, name, chains] of CON_FIG){
+    const sum=[0, 0, 0];
+    for(const run of chains){
+      for(const i of run){ sum[0]+=dirs[i][0]; sum[1]+=dirs[i][1]; sum[2]+=dirs[i][2]; }
+      for(let k=1;k<run.length;k++){
+        const a=dirs[run[k-1]], b=dirs[run[k]], ang=Math.acos(Math.max(-1, Math.min(1, vdot(a, b))));
+        const n=Math.max(1, Math.ceil(ang*180/Math.PI/0.5)), s=Math.sin(ang)||1;
+        let pen=false;
+        for(let j=0;j<=n;j++){
+          const t=j/n, wa=ang>1e-6?Math.sin((1-t)*ang)/s:1-t, wb=ang>1e-6?Math.sin(t*ang)/s:t;
+          const d=[a[0]*wa+b[0]*wb, a[1]*wa+b[1]*wb, a[2]*wa+b[2]*wb], q=d[2]>0?proj(d):null;
+          if(!q){ pen=false; continue; }
+          if(pen) ctx.lineTo(q[0], q[1]); else ctx.moveTo(q[0], q[1]);
+          pen=true;
+        }
+      }
+    }
+    const c=vnorm(sum);
+    if(c[2]>0.02){ const q=proj(c); if(q) names.push({x:q[0], y:q[1], text:name}); }
+  }
+  ctx.stroke();
+  return names;
+}
 function drawVRLabels(){
   const c=document.getElementById('vrlabels'), dpr=Math.min(window.devicePixelRatio||1, 2), W=window.innerWidth, H=window.innerHeight;
   const w=Math.round(W*dpr), h=Math.round(H*dpr);
@@ -88,6 +129,17 @@ function drawVRLabels(){
   if(!vrLabels||!skyNow||!skyNow.starMarks) return;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const lim=1.5+6.5*Math.log10(60/vrFov), key=EP[dIdx].key, pts=[];
+  // The view's projection, as projectBody, for a direction at true altitude; null behind.
+  const fy=Math.tan(vrFov*Math.PI/360), fx=fy*W/Math.max(H, 1), yaw=vrYaw*Math.PI/180, pitch=vrPitch*Math.PI/180;
+  const cp=Math.cos(pitch), sp=Math.sin(pitch), cy=Math.cos(yaw), sy=Math.sin(yaw);
+  const proj=d=>{
+    const e=apparentEl(Math.asin(Math.min(1, d[2]))*180/Math.PI)*Math.PI/180, r=Math.hypot(d[0], d[1])||1, ce=Math.cos(e);
+    const v=[d[0]/r*ce, d[1]/r*ce, Math.sin(e)], depth=v[0]*sy*cp+v[1]*cy*cp+v[2]*sp;
+    if(depth<0.02) return null;
+    const x=(v[0]*cy-v[1]*sy)/depth/fx, y=(-v[0]*sy*sp-v[1]*cy*sp+v[2]*cp)/depth/fy;
+    return Math.abs(x)<3&&Math.abs(y)<3?[W/2+x*W/2, H/2-y*H/2]:null;
+  };
+  for(const n of drawConstellations(ctx, proj)) if(n.x>0&&n.x<W&&n.y>0&&n.y<H) pts.push({x:n.x, y:n.y, mag:1, text:n.text, kind:'con'});
   const add=(s, text, kind)=>{
     if(s.el<=0) return;
     const p=projectBody(s.el, s.az, 0);
@@ -103,12 +155,12 @@ function drawVRLabels(){
   }
   pts.sort((a, b)=>a.mag-b.mag);
   ctx.textBaseline='middle'; ctx.lineJoin='round';
-  const placed=[], STYLE={sn:['600 13px', '#dbeaff'], planet:['600 13px', '#ffe2a8'], star:['12px', 'rgba(220,230,255,.85)'], sat:['11px', 'rgba(180,190,205,.6)']};
+  const placed=[], STYLE={con:['italic 13px', 'rgba(150,180,235,.7)'], sn:['600 13px', '#dbeaff'], planet:['600 13px', '#ffe2a8'], star:['12px', 'rgba(220,230,255,.85)'], sat:['11px', 'rgba(180,190,205,.6)']};
   for(const p of pts){
     if(!p.text) continue;
     const [font, col]=STYLE[p.kind];
     ctx.font=font+' system-ui, sans-serif';
-    const tw=ctx.measureText(p.text).width, x=p.x+7, y=p.y-7, box=[x-2, y-8, x+tw+2, y+8];
+    const tw=ctx.measureText(p.text).width, x=p.kind==='con'?p.x-tw/2:p.x+7, y=p.kind==='con'?p.y:p.y-7, box=[x-2, y-8, x+tw+2, y+8];
     if(x+tw>W-4||y<40||y>H-72) continue;
     if(placed.some(b=>box[0]<b[2]&&box[2]>b[0]&&box[1]<b[3]&&box[3]>b[1])) continue;
     placed.push(box, [p.x-4, p.y-4, p.x+4, p.y+4]);

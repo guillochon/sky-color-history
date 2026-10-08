@@ -90,6 +90,7 @@ PARTS = [
     'js/calendar.js',
     'js/stars_catalog.js',
     'js/stars_epochs.js',
+    'js/constellations.js',
     'js/planets.js',
     'js/stars.js',
     'js/milkyway.js',

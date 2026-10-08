@@ -28,11 +28,13 @@ from galaxy import PC_MYR, R0, Z0, SUN_UVW, GAL, accel
 EPOCHS = {'zetaoph': 1.78e6, 'geminga': 3.42e5}   # years before J2000
 KMS_YR_TO_PC = 1.0227e-6                           # pc travelled per year at 1 km/s
 rows = load_bsc()
-xhip = {}
+xhip, hip_hd = {}, {}
 for line in (TEMP / 'xhip.tsv').read_text(encoding="utf-8").splitlines():
     f = line.split('\t')
     if len(f) < 7 or not f[1].strip().isdigit():
         continue
+    if f[0].strip().isdigit():
+        hip_hd[int(f[0])] = int(f[1])
     xhip[int(f[1])] = dict(plx=num(f[2], None), e=num(f[3], None), pma=num(f[4]) / 1000,
                            pmd=num(f[5]) / 1000, rv=num(f[6], None) if f[6].strip() else None)
 
@@ -94,7 +96,7 @@ for star in rows:
     stars.append(dict(ra=parse_ra(star['RA']), dec=parse_dec(star['Dec']), v=v, dist=dist, pma=pma, pmd=pmd,
                       rv=rv, bv=num(star.get('B-V')), k=int(round(num(star.get('K'), 10000))), name=name,
                       spec=(star.get('SpectralCls') or '').strip(), lum=(star.get('LuminosityCls') or '').strip(),
-                      glat=num(star.get('GLAT'))))
+                      glat=num(star.get('GLAT')), hd=int(num(star.get('HD'), 0))))
 print(f"{len(stars)} stars, {matched} with XHIP astrometry")
 
 
@@ -251,3 +253,65 @@ out.append("const STAR_EPOCH_GAL=" + json.dumps(epoch_meta) + ";")
 path = Path(__file__).with_name('site_src') / 'js' / 'stars_epochs.js'
 path.write_text("\n".join(out) + "\n", encoding="utf-8")
 print('wrote', path)
+
+
+# ---- Constellation figures: Stellarium's modern sky culture (skycultures/modern/index.json, ----
+# lines as chains of Hipparcos numbers), matched to the catalogue through XHIP's HD numbers.
+# Each vertex is placed today and moved to the supernova epochs as its star is. An epoch whose
+# figures have moved too far to be recognised gets none: the median change of a line's length
+# is printed for each, and the page draws only the epochs in CON_EPOCHS.
+by_hd = {s['hd']: s for s in stars if s['hd']}
+sky = json.loads((TEMP / 'stelcon' / 'index.json').read_text(encoding='utf-8'))
+verts, vindex, figures, dropped = [], {}, [], 0
+for con in sky['constellations']:
+    chains = []
+    for chain in con['lines']:
+        run = []
+        for hip in chain:
+            s = by_hd.get(hip_hd.get(hip, -1))
+            if s is None:
+                dropped += 1
+                if len(run) > 1:
+                    chains.append(run)
+                run = []
+                continue
+            if hip not in vindex:
+                vindex[hip] = len(verts)
+                verts.append(s)
+            run.append(vindex[hip])
+        if len(run) > 1:
+            chains.append(run)
+    figures.append((con['id'].split()[-1], con['common_name']['native'], chains))
+print(f"constellations: {len(verts)} stars, {dropped} line points without a catalogue star")
+
+
+def line_change(pos0, pos1):
+    out = []
+    for _, _, chains in figures:
+        for run in chains:
+            for i, j in zip(run, run[1:]):
+                l0 = math.dist(unit(*pos0[i])[0], unit(*pos0[j])[0])
+                l1 = math.dist(unit(*pos1[i])[0], unit(*pos1[j])[0])
+                out.append(abs(l1 - l0) / max(l0, 1e-9))
+    return float(np.median(out))
+
+
+now = [(s['ra'], s['dec']) for s in verts]
+con_pos, CON_MAX = {}, 0.25          # the median line stretched or shrunk by more than a quarter
+for key, years in EPOCHS.items():
+    pos = [at_epoch(s, years)[:2] for s in verts]
+    change = line_change(now, pos)
+    print(f"{key}: median line length change {change:.2f}" + ("" if change <= CON_MAX else ", too far: no figures"))
+    if change <= CON_MAX:
+        con_pos[key] = pos
+con_out = ["// Constellation figures from Stellarium's modern sky culture, by build_star_epochs.py. CON_FIG rows",
+           "// are abbreviation, name and chains of vertex indices. CON_VERT rows are J2000 right ascension,",
+           "// declination and proper motion (arcsec/yr), as in STARS. CON_EPOCHS holds the vertices moved",
+           "// to the epochs whose figures are still recognisable.",
+           "const CON_FIG=" + json.dumps(figures, ensure_ascii=False, separators=(',', ':')) + ";",
+           "const CON_VERT=[" + ",".join(f"[{s['ra']:.4f},{s['dec']:.4f},{s['pma']:.3f},{s['pmd']:.3f}]" for s in verts) + "];",
+           "const CON_EPOCHS={" + ",".join(f"{k}:[" + ",".join(f"[{ra:.4f},{dec:.4f}]" for ra, dec in pos) + "]"
+                                          for k, pos in con_pos.items()) + "};"]
+cpath = path.with_name('constellations.js')
+cpath.write_text("\n".join(con_out) + "\n", encoding="utf-8")
+print('wrote', cpath)
