@@ -217,7 +217,7 @@ function spectrumHTML(box, el, az, opts={}){
   if(!cv){ cv=document.createElement('canvas'); cv.className='spc'; src=document.createElement('div'); src.className='spsrc'; box.append(cv, src); }
   if(opts.note){ cv.style.display='none'; src.textContent=opts.note; return; }
   if(!spData){ spLoad(); cv.style.display='none'; src.textContent='Loading the spectrum…'; return; }
-  if(opts.sn||opts.star){ const st=opts.sn?snSpectrum(opts.sn):starSpectrum(opts.star, el); cv.style.display='block'; drawSpectrum(cv, st); src.textContent=st.note; return; }
+  if(opts.sn||opts.star){ const s=opts.star, st=opts.sn?snSpectrum(opts.sn):s.star?starSpectrum(s, el):reflectedSpectrum(s); cv.style.display='block'; drawSpectrum(cv, st); src.textContent=st.note; return; }
   const sp=skySpectrum(el, az, opts.disk||null, opts.aurora||null, opts.lit??1);
   cv.style.display='block'; drawSpectrum(cv, sp);
   const fmt=Y=>Y>=1?Y.toPrecision(3)+' cd/m²':(Y>=1e-3?(Y*1e3).toPrecision(3)+' mcd/m²':skyMagArcsec(Y).toFixed(1)+' mag/arcsec²');
@@ -290,25 +290,54 @@ function globeSpectrumTip(x, y, box){
   src.textContent=disk?`The disk at ${Math.round(lat)}° latitude: sunlight off the ground and back out through the air`
     :`The limb ${Math.round(h)} km up at ${Math.round(lat)}° latitude: sunlight scattered along the line of sight`;
 }
-// A bright star's light as it reaches the ground: the star's own spectrum (a body at its colour
+// A star's light as it reaches the ground: the star's own spectrum (a body at its colour
 // temperature with the absorption of its class) through the air in front of it, nothing taken
 // out. The air's transmission comes from the model's direct sunlight overhead and at 60°: their
 // ratio is one more airmass of that epoch's air (Rayleigh, ozone, haze), raised to the star's
 // airmass. The O2 and water bands are added as for the sky.
-const STAR_SPEC_V=2.5;
-// The brightest-listed star drawn within tolDeg of dir that shows against the sky there, or null.
+// The nearest star, planet or satellite drawn within tolDeg of dir that shows against the sky
+// there, or null.
 function starNear(dir, tolDeg){
   if(!skyNow||!skyNow.starMarks) return null;
   const key=EP[dIdx].key;
   let best=null, bestC=Math.cos(tolDeg*Math.PI/180);
   for(const s of skyNow.starMarks){
-    if(!s.star||s.mag>STAR_SPEC_V) continue;
     const c=vdot(dir, horizDir(s.az, s.el)); if(c<bestC) continue;
     const m=starThroughAir(s.mag, s.el, key), dim=Math.pow(10, -0.2*(m-s.mag));
     if(starVisible(m, skyRAt(skyNow.rgrid, s.el, s.az)*skyNow.rCd)*dim<0.3) continue;
     best=s; bestC=c;
   }
   return best;
+}
+// Planets and satellites: sunlight above the air (a 5772 K body with the Sun's lines) times the
+// body's reflectance, then through the air as a star. Reflectance shapes, 380-780 nm, are rough
+// fits to the planets' disk-integrated colours (the methane band depths after Karkoschka 1994);
+// a satellite's aluminium, panels and white paint reflect sunlight nearly grey, a little red.
+// Each: nodes [nm, relative reflectance], methane bands [nm, depth, width], and a caption.
+const REFL={
+  Mercury:{n:[[380, 0.55], [500, 0.75], [600, 0.88], [780, 1]], note:'sunlight off bare rock, reddened by space weathering'},
+  Venus:{n:[[380, 0.5], [430, 0.7], [500, 0.9], [600, 0.98], [780, 1]], note:'sunlight off sulfuric-acid clouds, dimmed in the violet by their unknown absorber', band:[380, 470, 'UV absorber']},
+  Mars:{n:[[380, 0.15], [450, 0.2], [500, 0.27], [550, 0.45], [600, 0.76], [650, 0.9], [700, 0.96], [780, 1]], note:'sunlight off iron-oxide dust, dark in the blue', band:[400, 560, 'Fe³⁺']},
+  Jupiter:{n:[[380, 0.6], [450, 0.75], [500, 0.85], [550, 0.94], [600, 1], [780, 1]], ch4:[[543, 0.06, 3], [619, 0.18, 4], [727, 0.42, 5]], note:'sunlight off ammonia clouds, with the bands of the methane above them'},
+  Saturn:{n:[[380, 0.45], [450, 0.6], [500, 0.75], [550, 0.9], [600, 1], [780, 1]], ch4:[[543, 0.06, 3], [619, 0.2, 4], [727, 0.48, 5]], note:'sunlight off its yellower haze and its rings, with methane bands'},
+  sat:{n:[[380, 0.85], [780, 1]], note:'sunlight off its metal, panels and paint'},
+};
+function reflectedSpectrum(s){
+  const key=EP[dIdx].key, r=REFL[s.planet||'sat'], S=spPlanck(5772), n=r.n;
+  for(let i=0;i<SP_N;i++){
+    const l=SP_LAM[i], k=Math.max(0, n.findIndex(([x])=>x>=l)-1), [x0, y0]=n[k], [x1, y1]=n[Math.min(k+1, n.length-1)];
+    let t=x1>x0?y0+(y1-y0)*(l-x0)/(x1-x0):y0;
+    for(const [c, d, w] of r.ch4||[]) t*=1-d*Math.exp(-0.5*((l-c)/w)**2);
+    S[i]*=SP_FRAUN_T[i]*t;
+  }
+  const marks=[{l:393.4, t:'Ca II H&K'}, {l:589.3, t:'Na D'}, {l:656.3, t:'Hα'}];
+  if(r.band) marks.unshift({a:r.band[0], b:r.band[1], t:r.band[2], band:true});
+  for(const [c, d] of r.ch4||[]) if(d>0.1) marks.push({l:c, t:'CH₄'});
+  const X=Math.min(spAirmass(s.el), 40);
+  spThroughAir(S, marks, key, X);
+  const m=starThroughAir(s.mag, s.el, key);
+  const note=`${s.planet||'A satellite'} · ${r.note} · V ${s.mag.toFixed(1)} above the air, ${m.toFixed(1)} through ${X.toFixed(1)} airmass${X>=1.05?'es':''}`;
+  return {S, Y:1, parts:[], marks, note};
 }
 // The supernova, if it is up within tolDeg of dir.
 function snNear(dir, tolDeg){
