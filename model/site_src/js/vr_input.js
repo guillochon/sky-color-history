@@ -145,12 +145,30 @@ window.addEventListener('popstate',()=>{
   vrNav=false;
 });
 const vrc=document.getElementById('vrc');
-// The scroll wheel zooms between a 10° and a 90° field of view, by the same factor per notch.
+// The view ray through page point (cx, cy), as the sky shader builds it.
+function vrRayAt(cx, cy, yawDeg, pitchDeg){
+  const W=window.innerWidth, H=Math.max(window.innerHeight, 1), fy=Math.tan(vrFov*Math.PI/360), fx=fy*W/H, u=((cx/W)*2-1)*fx, v=(1-(cy/H)*2)*fy;
+  const yaw=yawDeg*Math.PI/180, pitch=pitchDeg*Math.PI/180, cp=Math.cos(pitch), sp=Math.sin(pitch), cyw=Math.cos(yaw), syw=Math.sin(yaw);
+  return vnorm([syw*cp+u*cyw-v*syw*sp, cyw*cp-u*syw-v*cyw*sp, sp+v*cp]);
+}
+// The scroll wheel zooms between a 10° and a 90° field of view, by the same factor per notch,
+// about the pointer: the sky under it stays under it. With the look locked the pointer is the
+// middle of the view.
 window.addEventListener('wheel', e=>{
   if(!vrOn) return;
   e.preventDefault();
   const px=e.deltaMode===1?e.deltaY*33:e.deltaMode===2?e.deltaY*400:e.deltaY;
+  const locked=document.pointerLockElement===vrc, cx=locked?window.innerWidth/2:e.clientX, cy=locked?window.innerHeight/2:e.clientY;
+  const want=vrRayAt(cx, cy, vrYaw, vrPitch), azEl=d=>[Math.atan2(d[0], d[1])*180/Math.PI, Math.asin(Math.max(-1, Math.min(1, d[2])))*180/Math.PI];
   vrFov=Math.max(VR_FOV_MIN, Math.min(VR_FOV_MAX, vrFov*Math.exp(px*0.0015)));
+  // Turn the view until the ray under the pointer is the one that was there.
+  const [wAz, wEl]=azEl(want);
+  for(let i=0;i<6;i++){
+    const [az, el]=azEl(vrRayAt(cx, cy, vrYaw, vrPitch));
+    let dAz=wAz-az; dAz-=360*Math.round(dAz/360);
+    vrYaw=((vrYaw+dAz)%360+360)%360; vrPitch=Math.max(-80, Math.min(85, vrPitch+wEl-el));
+  }
+  if(vrInspect&&vrInspectAt) refreshVRTip();
   requestVR();
 }, {passive:false});
 window.addEventListener('mousemove', e=>{ if(!vrOn) return; if(vrInspect){ vrInspectAt=[e.clientX, e.clientY]; refreshVRTip(); return; } if(!e.movementX&&!e.movementY) return; lookVR(e.movementX, e.movementY); });

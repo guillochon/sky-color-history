@@ -515,7 +515,7 @@ void main(){
     if(snOn>0.5 && te>0.0){
       // The supernova: unresolved, so a core of a couple of pixels and a glare halo, plus the
       // light the air scatters back over the whole dome at night.
-      float a=acos(clamp(dot(src, snDir), -1.0, 1.0)), px=2.0*fy/res.y;
+      float a=2.0*asin(min(0.5*length(src-snDir), 1.0)), px=2.0*fy/res.y;
       float dark=1.0-smoothstep(0.05, 0.4, skyL);
       float g=a/(px*2.5);
       skyC+=snCol*((1.0-smoothstep(px*1.2, px*3.2, a))*3.0+0.7/(1.0+g*g)*(0.5+0.5*dark)+0.45*exp(-a/0.012)*(0.35+0.65*dark)
@@ -536,9 +536,11 @@ void main(){
           if(sp.w<=0.0) continue;
           // No narrower than about half a screen pixel, so a faint star does not shimmer as the view turns.
           float sig=max(sp.w*starPx, 1.2*fy/res.y);
-          float c=dot(src, sp.xyz);
-          if(c<1.0-8.0*sig*sig) continue;
-          float wgt=exp(-0.5*max(0.0, 2.0*(1.0-c))/(sig*sig));
+          // The squared chord, from the difference: 1-dot(src, star) loses the float's precision
+          // once zoomed in, where a pixel is a few 1e-4 rad and 1-cos only a few 1e-8.
+          vec3 dd=src-sp.xyz; float d2=dot(dd, dd);
+          if(d2>16.0*sig*sig) continue;
+          float wgt=exp(-0.5*d2/(sig*sig));
           vec4 sc=texelFetch(starMap, ivec2(si, 1), 0);
           // Through the air (mwK magnitudes per airmass) the star is fainter: less of it shows,
           // and what shows is dimmer (day.js starThroughAir).
