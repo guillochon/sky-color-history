@@ -42,35 +42,16 @@ function setupSkyProg(gl, prog){
   gl.uniform1f(u.sunRad, SUN_RADIUS_DEG*DISK_SCALE*Math.PI/180);
   return u;
 }
-// Start the VR context and its boot program while the page sits idle, and finish setting up
-// once that program links, so entering VR later doesn't wait on the shader compiler.
-let vrWarm=null;
-function warmVR(){
-  if(vrGL||vrWarm) return;
-  const gl=document.getElementById('vrc').getContext('webgl2',{alpha:false,depth:false,stencil:false,antialias:false,preserveDrawingBuffer:true});
-  if(!gl) return;
-  const vs=glShader(gl, gl.VERTEX_SHADER, '#version 300 es\nin vec2 a;void main(){gl_Position=vec4(a,0.0,1.0);}');
-  if(!vs) return;
-  vrWarm={gl, vs, boot:glProgramAsync(gl, vs, VRFS_BOOT)};
-  // Without KHR_parallel_shader_compile there's no way to wait without blocking, so just wait a while.
-  const ext=gl.getExtension('KHR_parallel_shader_compile');
-  const poll=()=>{
-    if(vrGL) return;
-    if(ext && !gl.getProgramParameter(vrWarm.boot.p, ext.COMPLETION_STATUS_KHR)){ setTimeout(poll, 50); return; }
-    initVR();
-  };
-  setTimeout(poll, ext?0:1000);
-}
 function initVR(){
   if(vrGL) return vrGL.gl;
   const canvas=document.getElementById('vrc');
-  const gl=vrWarm?vrWarm.gl:canvas.getContext('webgl2',{alpha:false,depth:false,stencil:false,antialias:false,preserveDrawingBuffer:true});
+  const gl=canvas.getContext('webgl2',{alpha:false,depth:false,stencil:false,antialias:false,preserveDrawingBuffer:true});
   if(!gl) return null;
-  const vs=vrWarm?vrWarm.vs:glShader(gl, gl.VERTEX_SHADER, '#version 300 es\nin vec2 a;void main(){gl_Position=vec4(a,0.0,1.0);}');
+  const vs=glShader(gl, gl.VERTEX_SHADER, '#version 300 es\nin vec2 a;void main(){gl_Position=vec4(a,0.0,1.0);}');
   if(!vs) return null;
-  // Only the boot sky program blocks, and only if warmVR hasn't linked it yet. It goes to the
-  // compiler first. The full sky, hills, and clouds compile meanwhile and take over when ready.
-  const boot=vrWarm?vrWarm.boot:glProgramAsync(gl, vs, VRFS_BOOT), prog=boot.p;
+  // Only the boot sky program blocks, so it goes to the compiler first. The full sky, hills,
+  // and clouds compile meanwhile and take over when they're ready.
+  const boot=glProgramAsync(gl, vs, VRFS_BOOT), prog=boot.p;
   const skyJob=glProgramAsync(gl, vs, VRFS);
   const cloudJobs=[CLOUDFS, COMPFS, TEMPFS, NOISEFS].map(src=>glProgramAsync(gl, vs, src));
   if(!gl.getProgramParameter(prog, gl.LINK_STATUS)){ console.warn(gl.getShaderInfoLog(boot.fs)||gl.getProgramInfoLog(prog)); return null; }
@@ -120,7 +101,7 @@ function initVR(){
     const boot=vrGL.prog;
     vrGL.u=setupSkyProg(gl, fp); vrGL.prog=fp; gl.deleteProgram(boot);
     skyUploaded=-1;
-    vrRestoreGL(gl); requestVR(); rehearseVR();
+    vrRestoreGL(gl); requestVR();
   });
   compileHit(gl, hitFlags(EP[dIdx].key));
   // The aurora pass needs a float target.
@@ -129,26 +110,12 @@ function initVR(){
     vrGL.aurProg=ap; vrGL.au=auroraUniforms(gl, ap, 14, 15);
     uniformLocs(gl, ap, ['res','yaw','pitch','fov'], vrGL.au);
     vrGL.aurFbo=gl.createFramebuffer(); vrGL.aurStore={};
-    vrRestoreGL(gl); requestVR(); rehearseVR();
+    vrRestoreGL(gl); requestVR();
   });
-  whenLinked(gl, cloudJobs, (cp, pp, tp, np)=>{ if(cp&&pp&&np&&vrGL){ setupCloudProgs(gl, cp, pp, tp, np); vrRestoreGL(gl); requestVR(); rehearseVR(); } });
+  whenLinked(gl, cloudJobs, (cp, pp, tp, np)=>{ if(cp&&pp&&np&&vrGL){ setupCloudProgs(gl, cp, pp, tp, np); vrRestoreGL(gl); requestVR(); } });
   // Last: when the moon image is already loaded this paints, so vrGL has to be complete.
   if(moonReady) uploadMoon();
   return gl;
-}
-// ANGLE finishes a program for the targets it draws into on its first draw, which for these
-// shaders can stall the GPU for seconds. So before VR opens, each new program draws once into a
-// tiny hidden canvas while the page is idle.
-let vrRehearse=false, vrRehearsal=0;
-function rehearseVR(){
-  if(vrOn||vrRehearsal) return;
-  vrRehearsal=(window.requestIdleCallback||setTimeout)(()=>{
-    vrRehearsal=0;
-    if(vrOn||!vrGL||!skyNow) return;
-    const c=vrGL.gl.canvas; c.width=c.height=16;
-    vrRehearse=true;
-    try{ paintVR(); } finally { vrRehearse=false; }
-  });
 }
 // Which scenery an epoch's hit program needs: towns, trees, glaciers, as '0'/'1' digits.
 const hitFlagCache={};
@@ -167,7 +134,7 @@ function compileHit(gl, flags){
     if(!vrGL) return;
     if(!hp){ vrGL.hits[flags]='failed'; return; }
     vrGL.hits[flags]={prog:hp, hu:setupHitProg(gl, hp)};
-    vrRestoreGL(gl); requestVR(); rehearseVR();
+    vrRestoreGL(gl); requestVR();
     if(Object.values(vrGL.hits).includes('pending')) return;
     const next=EP.map(e=>hitFlags(e.key)).find(f=>!vrGL.hits[f]);
     if(next) compileHit(gl, next);
