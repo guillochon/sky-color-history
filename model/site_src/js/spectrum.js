@@ -217,7 +217,7 @@ function spectrumHTML(box, el, az, opts={}){
   if(!cv){ cv=document.createElement('canvas'); cv.className='spc'; src=document.createElement('div'); src.className='spsrc'; box.append(cv, src); }
   if(opts.note){ cv.style.display='none'; src.textContent=opts.note; return; }
   if(!spData){ spLoad(); cv.style.display='none'; src.textContent='Loading the spectrum…'; return; }
-  if(opts.star){ const st=starSpectrum(opts.star, el); cv.style.display='block'; drawSpectrum(cv, st); src.textContent=st.note; return; }
+  if(opts.sn||opts.star){ const st=opts.sn?snSpectrum(opts.sn):starSpectrum(opts.star, el); cv.style.display='block'; drawSpectrum(cv, st); src.textContent=st.note; return; }
   const sp=skySpectrum(el, az, opts.disk||null, opts.aurora||null, opts.lit??1);
   cv.style.display='block'; drawSpectrum(cv, sp);
   const fmt=Y=>Y>=1?Y.toPrecision(3)+' cd/m²':(Y>=1e-3?(Y*1e3).toPrecision(3)+' mcd/m²':skyMagArcsec(Y).toFixed(1)+' mag/arcsec²');
@@ -238,6 +238,8 @@ function domeSpectrum(x, y, box){
   const mo=skyNow.moon, sunR=DOME_DISK*z*mo.sunRadDeg/SUN_RADIUS_DEG;
   const lit=mo.on&&mo.el>-mo.radDeg?moonLitAt(horizDir(az, el), DOME_DISK*z*mo.radDeg/SUN_RADIUS_DEG*90/R):null;
   const disk=lit!=null?'moon':(skyNow.sunOn&&skyNow.sunVis>0.01&&at(skyNow.sunAz, 90-skyNow.sza)<sunR?'sun':null);
+  const sn=disk?null:snNear(horizDir(az, el), 14*90/R);
+  if(sn){ spectrumHTML(box, sn.el, sn.az, {sn}); return; }
   const star=disk?null:starNear(horizDir(az, el), 7*90/R);
   if(star){ spectrumHTML(box, star.el, star.az, {star}); return; }
   const st=skyNow.aur, aurora=disk!=='sun'&&st&&st.on&&domeAur.gl?auroraProbe(domeAur.gl, domeAur.store, st, horizDir(az, el)):null;
@@ -308,6 +310,31 @@ function starNear(dir, tolDeg){
   }
   return best;
 }
+// The supernova, if it is up within tolDeg of dir.
+function snNear(dir, tolDeg){
+  const sn=skyNow&&skyNow.sn;
+  return sn&&sn.el>0&&vdot(dir, horizDir(sn.az, sn.el))>=Math.cos(tolDeg*Math.PI/180)?sn:null;
+}
+// A Type II-P supernova near its peak: the hot early photosphere, about 11,000 K (its drawn
+// blue-white), with the hydrogen and He I lines in P Cygni profiles, broad emission at rest
+// and absorption blueshifted by the ejecta's 10,000 km/s (Filippenko 1997).
+const SN_T=11000, SN_V=10000;
+function snSpectrum(sn){
+  const key=EP[dIdx].key, S=spPlanck(SN_T), b=SN_V/2.998e5;
+  const lines=[[656.28, 1.8, 0.3, 'Hα'], [486.13, 0.5, 0.35, 'Hβ'], [434.05, 0.2, 0.3, 'Hγ'], [587.56, 0.25, 0.25, 'He I']];
+  for(let i=0;i<SP_N;i++){
+    const l=SP_LAM[i];
+    let t=1;
+    for(const [l0, em, ab] of lines){ const s=l0*b*0.5; t*=(1+em*Math.exp(-0.5*((l-l0)/s)**2))*(1-ab*Math.exp(-0.5*((l-l0*(1-b))/(0.5*s))**2)); }
+    S[i]*=t;
+  }
+  const marks=lines.map(([l, , , t])=>({l, t, em:true})), X=Math.min(spAirmass(sn.el), 40);
+  spThroughAir(S, marks, key, X);
+  const m=starThroughAir(sn.mag, sn.el, key);
+  const note=`${sn.name||'A supernova'} · a Type II-P near peak: an ${SN_T.toLocaleString('en-US')} K photosphere, its hydrogen and helium in `
+    +`P Cygni lines from ejecta at ${SN_V.toLocaleString('en-US')} km/s · V ${sn.mag.toFixed(1)} above the air, ${m.toFixed(1)} through ${X.toFixed(1)} airmass${X>=1.05?'es':''}`;
+  return {S, Y:1, parts:[], marks, note};
+}
 const spRamp=(lo, hi, x)=>Math.max(0, Math.min(1, (x-lo)/(hi-lo)));
 function starClass(T){ return T>=30000?'O':T>=10500?'B':T>=7300?'A':T>=6000?'F':T>=5200?'G':T>=3700?'K':'M'; }
 // The star above the air at colour temperature T, with the lines of its class: hydrogen strongest
@@ -345,12 +372,16 @@ function spAirPerMass(key){
   const D=spData, e=spEpoch(key), li=D.lats.indexOf(dLat), lo=spRaw(e, li, D.szas.indexOf(60), D.slots-1), hi=spRaw(e, li, D.szas.indexOf(0), D.slots-1);
   return spTo1nm(lo.map((v, i)=>Math.max(v-hi[i], D.lo)));
 }
-function starSpectrum(s, el){
-  const key=EP[dIdx].key, T=s.star[6]||10000, {S, marks}=starAbove(T), X=Math.min(spAirmass(el), 40), air=spAirPerMass(key);
-  const o2=(SP_O2[key]??1)*X, h2o=(SP_H2O[key]??1)*X;
+// A point source's light S through X airmasses of the epoch's air, with the O2 and water bands.
+function spThroughAir(S, marks, key, X){
+  const air=spAirPerMass(key), o2=(SP_O2[key]??1)*X, h2o=(SP_H2O[key]??1)*X;
   for(let i=0;i<SP_N;i++) S[i]*=Math.pow(air[i], X)*Math.exp(-SP_TAU_O2[i]*o2-SP_TAU_H2O[i]*h2o);
   if(o2>0.05) marks.push({l:760.5, t:'O₂ A'}, {l:687.5, t:'O₂ B'});
   if(SP_TAU_H2O[345]*h2o>0.15) marks.push({l:725, t:'H₂O'});
+}
+function starSpectrum(s, el){
+  const key=EP[dIdx].key, T=s.star[6]||10000, {S, marks}=starAbove(T), X=Math.min(spAirmass(el), 40);
+  spThroughAir(S, marks, key, X);
   const cls=starClass(T), m=starThroughAir(s.mag, s.el, key);
   const note=`${s.star[7]||'A star'} · ${cls==='O'||cls==='A'?'an':'a'} ${cls} star, ${Math.round(T/50)*50} K · V ${s.mag.toFixed(1)} above the air, `
     +`${m.toFixed(1)} through ${X.toFixed(1)} airmass${X>=1.05?'es':''} of it, whose imprint is left in`;
