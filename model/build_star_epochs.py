@@ -22,7 +22,7 @@ from pathlib import Path
 
 import numpy as np
 
-from bsc import TEMP, load_bsc, num, common_name, bayer, parse_ra, parse_dec
+from bsc import TEMP, load_bsc, num, star_name, parse_ra, parse_dec
 from galaxy import PC_MYR, R0, Z0, SUN_UVW, GAL, accel
 
 EPOCHS = {'zetaoph': 1.78e6, 'geminga': 3.42e5}   # years before J2000
@@ -90,11 +90,7 @@ for star in rows:
     else:
         dist = spec
     dist = min(max(dist, 1.3), 3000.0)
-    # Some "names" in the notes are descriptions ("Called Iota Pup in ..."); fall back to Bayer for those.
-    common = common_name(star)
-    if len(common.split()) > 3:
-        common = ''
-    name = (common or bayer(star) or ('HR ' + str(star['HR']))).replace('<', '').replace("'", '')
+    name = star_name(star)
     stars.append(dict(ra=parse_ra(star['RA']), dec=parse_dec(star['Dec']), v=v, dist=dist, pma=pma, pmd=pmd,
                       rv=rv, bv=num(star.get('B-V')), k=int(round(num(star.get('K'), 10000))), name=name,
                       spec=(star.get('SpectralCls') or '').strip(), lum=(star.get('LuminosityCls') or '').strip(),

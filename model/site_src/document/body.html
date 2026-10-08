@@ -156,6 +156,7 @@
 </main>
 <div id="vr" aria-hidden="true">
 <canvas id="vrc"></canvas>
+<canvas id="vrlabels" aria-hidden="true"></canvas>
 <div class="tip" id="vrtip"></div>
 <div id="vrload" role="status" aria-live="polite" hidden></div>
 <div id="sunmark" class="aim" hidden><svg class="chev" viewBox="0 0 36 36" aria-hidden="true"><path d="M7 24 L18 8 L29 24" fill="none" stroke="#000" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 24 L18 8 L29 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="badge" viewBox="0 0 24 24" aria-hidden="true"><g stroke="#000" stroke-width="3.2" stroke-linecap="round"><path d="M12 1.6v3M12 19.4v3M1.6 12h3M19.4 12h3M4.5 4.5l2.1 2.1M17.4 17.4l2.1 2.1M19.5 4.5l-2.1 2.1M6.6 17.4l-2.1 2.1"/></g><g stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 1.6v3M12 19.4v3M1.6 12h3M19.4 12h3M4.5 4.5l2.1 2.1M17.4 17.4l2.1 2.1M19.5 4.5l-2.1 2.1M6.6 17.4l-2.1 2.1"/></g><circle cx="12" cy="12" r="4.3" fill="#000"/><circle cx="12" cy="12" r="3.2" fill="currentColor"/></svg></div>
@@ -164,13 +165,14 @@
 <div class="vrhud">
   <div class="vrtop"><div id="vrplace"></div><div class="vrtop-right"><div id="vrclock"></div><button type="button" id="vrpad-play" class="vrplay" data-act="play" aria-pressed="true" aria-label="Pause"><svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg><svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l12 7-12 7z"/></svg></button></div></div>
   <div class="vrbot">
-    <div class="vrkeys"><span>mouse looks</span><span>scroll zooms</span><span><kbd>w</kbd><kbd>a</kbd><kbd>s</kbd><kbd>d</kbd> move</span><span><kbd>shift</kbd> faster</span><span><kbd>h</kbd> scenery</span><span><kbd>c</kbd> clouds</span><span><kbd>q</kbd> inspect</span><span><kbd>m</kbd> <span id="vrmusiclabel">music</span></span><span><kbd>esc</kbd> leave</span><span><kbd>space</kbd> play / pause</span><span><kbd>←</kbd><kbd>→</kbd> step time</span><span><kbd>↑</kbd><kbd>↓</kbd> change era</span><span><kbd>e</kbd> next eclipse</span><span><kbd>t</kbd> next total / annular</span></div>
+    <div class="vrkeys"><span>mouse looks</span><span>scroll zooms</span><span><kbd>w</kbd><kbd>a</kbd><kbd>s</kbd><kbd>d</kbd> move</span><span><kbd>shift</kbd> faster</span><span><kbd>h</kbd> scenery</span><span><kbd>c</kbd> clouds</span><span><kbd>q</kbd> inspect</span><span><kbd>l</kbd> labels</span><span><kbd>m</kbd> <span id="vrmusiclabel">music</span></span><span><kbd>esc</kbd> leave</span><span><kbd>space</kbd> play / pause</span><span><kbd>←</kbd><kbd>→</kbd> step time</span><span><kbd>↑</kbd><kbd>↓</kbd> change era</span><span><kbd>e</kbd> next eclipse</span><span><kbd>t</kbd> next total / annular</span></div>
     <div class="vrnote">The plain, the shapes, and the clouds are scenery. The sky is the model.</div>
     <div class="vrpad" role="toolbar" aria-label="View controls">
       <div class="vrpad-row">
         <button type="button" id="vrpad-scenery" data-act="scenery" aria-pressed="true" aria-label="Scenery"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 19l6-11 4 6 3-4 5 9z"/></svg></button>
         <button type="button" id="vrpad-clouds" data-act="clouds" aria-pressed="true" aria-label="Clouds"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .5-8 5.5 5.5 0 0 0-10.6-1.6A3.5 3.5 0 0 0 7 18z"/></svg></button>
         <button type="button" id="vrpad-music" data-act="music" aria-pressed="true" aria-label="Music"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V6l10-2v10"/><circle cx="7" cy="18" r="2.4" fill="currentColor" stroke="none"/><circle cx="17" cy="14" r="2.4" fill="currentColor" stroke="none"/></svg></button>
+        <button type="button" id="vrpad-labels" data-act="labels" aria-pressed="false" aria-label="Labels"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12.5V5h7.5l8.5 8.5-7.5 7.5z"/><circle cx="8" cy="9" r="1.4" fill="currentColor" stroke="none"/></svg></button>
         <button type="button" data-act="eclipse" aria-label="Next eclipse"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9.2" cy="12" r="4.5"/><circle cx="14.8" cy="12" r="4.5"/></svg></button>
         <button type="button" data-act="central" aria-label="Next total or annular eclipse"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.6" fill="currentColor"/><path d="M12 3v2.4M12 18.6V21M3 12h2.4M18.6 12H21M5.6 5.6l1.7 1.7M16.7 16.7l1.7 1.7M5.6 18.4l1.7-1.7M16.7 7.3l1.7-1.7"/></svg></button>
       </div>

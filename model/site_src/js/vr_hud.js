@@ -75,6 +75,48 @@ function placeBodyMarks(){
     }
   }
 }
+// Labels (l): a name beside each star, planet, satellite and supernova that shows. The faintest
+// labelled grows with the zoom, from about V 0.4 across 90° to every point (V 6.5) at 10°, and
+// a label that would overlap a brighter one's is left out.
+let vrLabels=false;
+function drawVRLabels(){
+  const c=document.getElementById('vrlabels'), dpr=Math.min(window.devicePixelRatio||1, 2), W=window.innerWidth, H=window.innerHeight;
+  const w=Math.round(W*dpr), h=Math.round(H*dpr);
+  if(c.width!==w||c.height!==h){ c.width=w; c.height=h; }
+  const ctx=c.getContext('2d');
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, w, h);
+  if(!vrLabels||!skyNow||!skyNow.starMarks) return;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const lim=1.5+6.5*Math.log10(60/vrFov), key=EP[dIdx].key, pts=[];
+  const add=(s, text, kind)=>{
+    if(s.el<=0) return;
+    const p=projectBody(s.el, s.az, 0);
+    if(!p.inView) return;
+    pts.push({x:W/2+p.nx*W/2, y:H/2-p.ny*H/2, mag:s.mag, text, kind});
+  };
+  if(skyNow.sn) add(skyNow.sn, skyNow.sn.name||'Supernova', 'sn');
+  for(const s of skyNow.starMarks){
+    if(s.mag>lim&&!s.planet) continue;
+    const m=starThroughAir(s.mag, s.el, key), dim=Math.pow(10, -0.2*(m-s.mag));
+    if(starVisible(m, skyRAt(skyNow.rgrid, s.el, s.az)*skyNow.rCd)*dim<0.3) continue;
+    add(s, s.planet||(s.star?s.star[7]||'':'satellite'), s.planet?'planet':s.star?'star':'sat');
+  }
+  pts.sort((a, b)=>a.mag-b.mag);
+  ctx.textBaseline='middle'; ctx.lineJoin='round';
+  const placed=[], STYLE={sn:['600 13px', '#dbeaff'], planet:['600 13px', '#ffe2a8'], star:['12px', 'rgba(220,230,255,.85)'], sat:['11px', 'rgba(180,190,205,.6)']};
+  for(const p of pts){
+    if(!p.text) continue;
+    const [font, col]=STYLE[p.kind];
+    ctx.font=font+' system-ui, sans-serif';
+    const tw=ctx.measureText(p.text).width, x=p.x+7, y=p.y-7, box=[x-2, y-8, x+tw+2, y+8];
+    if(x+tw>W-4||y<40||y>H-72) continue;
+    if(placed.some(b=>box[0]<b[2]&&box[2]>b[0]&&box[1]<b[3]&&box[3]>b[1])) continue;
+    placed.push(box, [p.x-4, p.y-4, p.x+4, p.y+4]);
+    ctx.strokeStyle='rgba(0,0,0,.75)'; ctx.lineWidth=3; ctx.strokeText(p.text, x, y);
+    ctx.fillStyle=col; ctx.fillText(p.text, x, y);
+    if(placed.length>400) break;
+  }
+}
 // The note in the middle of the VR view while something slow is being prepared.
 function showVRLoad(text){ const el=document.getElementById('vrload'); el.textContent=text; el.hidden=false; }
 function hideVRLoad(){ document.getElementById('vrload').hidden=true; }

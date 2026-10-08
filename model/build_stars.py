@@ -7,7 +7,7 @@ Positions are J2000. Proper motions are arcseconds per year
 import json
 from pathlib import Path
 
-from bsc import load_bsc, num, common_name, bayer, parse_ra, parse_dec
+from bsc import load_bsc, num, star_name, parse_ra, parse_dec
 
 
 def main():
@@ -26,8 +26,7 @@ def main():
 
     catalog = []
     for magnitude, star in ranked[:1000]:
-        name = common_name(star) or bayer(star) or ("HR " + str(star["HR"]))
-        name = name.replace("<", "").replace("'", "")
+        name = star_name(star)
         catalog.append({
             "name": name,
             "ra": round(parse_ra(star["RA"]), 4),

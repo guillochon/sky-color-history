@@ -202,6 +202,7 @@ document.addEventListener('keydown',e=>{
     if(e.key==='Shift'){ vrHeld.add('shift'); return; }
     if(k==='h'&&!e.repeat){ e.preventDefault(); vrScenery=!vrScenery; requestVR(); syncVRPad(); return; }
     if(k==='c'&&!e.repeat){ e.preventDefault(); vrClouds=!vrClouds; requestVR(); syncVRPad(); return; }
+    if(k==='l'&&!e.repeat){ e.preventDefault(); vrLabels=!vrLabels; requestVR(); syncVRPad(); return; }
     if(k==='q'&&!e.repeat&&!vrTouch){ e.preventDefault(); setInspect(!vrInspect); return; }
     if(e.key==='Escape'){ exitVR(); return; }
     if(e.key===' ' && !e.repeat){ e.preventDefault(); hplay.click(); return; }
@@ -229,6 +230,7 @@ function syncVRPad(){
   const set=(id,on)=>{ const b=document.getElementById(id); if(b) b.setAttribute('aria-pressed', on?'true':'false'); };
   set('vrpad-scenery', vrScenery);
   set('vrpad-clouds', vrClouds);
+  set('vrpad-labels', vrLabels);
   set('vrpad-music', !musicMuted);
   const play=document.getElementById('vrpad-play');
   if(play){ play.setAttribute('aria-pressed', dayPlaying?'true':'false'); play.setAttribute('aria-label', dayPlaying?'Pause':'Play'); }
@@ -242,6 +244,7 @@ document.querySelectorAll('.vrpad button, .vrplay').forEach(b=>{
     const act=b.dataset.act;
     if(act==='scenery'){ vrScenery=!vrScenery; requestVR(); }
     else if(act==='clouds'){ vrClouds=!vrClouds; requestVR(); }
+    else if(act==='labels'){ vrLabels=!vrLabels; requestVR(); }
     else if(act==='music'){ toggleVRMusic(); return; }
     else if(act==='play') hplay.click();
     else if(act==='time') stepMinutes(+b.dataset.dir);
