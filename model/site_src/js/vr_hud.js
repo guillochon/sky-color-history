@@ -60,7 +60,10 @@ function placeBodyMarks(){
   const sunEl=90-skyNow.sza, moon=skyNow.moon;
   const sun=projectBody(sunEl, skyNow.sunAz, skyNow.moon.sunRadDeg*DISK_SCALE);
   const moonProj=projectBody(moon.el, moon.az, moon.radDeg*DISK_SCALE);
-  const m=bodyMarks||(bodyMarks={sun:document.getElementById('sunmark'), moon:document.getElementById('moonmark')});
+  const m=bodyMarks||(bodyMarks={sun:document.getElementById('sunmark'), moon:document.getElementById('moonmark'), sn:document.getElementById('snmark')});
+  // The supernova, while it is up, as the Sun and Moon.
+  const sn=skyNow.sn, snProj=sn&&projectBody(sn.el, sn.az, 0.5);
+  placeMark(m.sn, snProj||sun, !!sn && sn.el>0 && !snProj.inView);
   const sunAt=placeMark(m.sun, sun, !(skyNow.sunOn && sun.inView));
   if(!m.sun.hidden){ const rgb=skyNow.sunRGB; m.sun.style.color=`rgb(${rgb[0]},${rgb[1]},${rgb[2]})`; }
   const moonAt=placeMark(m.moon, moonProj, !(moon.on && moonProj.inView));

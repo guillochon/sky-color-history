@@ -72,6 +72,8 @@ button.tick.on{background:none;color:var(--ink)}
 #sunmark{z-index:7}
 #sunmark .badge{width:36px;height:36px}
 #moonmark{z-index:6;color:#e8e8ea}
+#snmark{z-index:5;color:#dbeaff}
+#snmark .badge{width:28px;height:28px}
 #moonDate{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg2);border:1px solid var(--rule);border-radius:3px;padding:.22rem .45rem}
 .vrhud{position:absolute;inset:0;pointer-events:none;color:#fff;font-size:.98rem}
 .vrtop,.vrbot{position:absolute;left:0;right:0;display:flex;justify-content:space-between;gap:1rem;padding:.85rem 1.15rem;text-shadow:0 1px 3px #000}
