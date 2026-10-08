@@ -1,9 +1,13 @@
 function glShader(gl, type, src){ const s=gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)){ console.warn(gl.getShaderInfoLog(s)); gl.deleteShader(s); return null; } return s; }
 // Start a compile and link without asking for the result. Asking blocks until the driver is done.
+// The job's cold says whether the program was compiled from scratch rather than taken from the
+// browser's shader cache: a cached program is ready a tenth of a second in, a fresh one is not.
 function glProgramAsync(gl, vs, src){
   const fs=gl.createShader(gl.FRAGMENT_SHADER); gl.shaderSource(fs, src); gl.compileShader(fs);
   const p=gl.createProgram(); gl.attachShader(p,vs); gl.attachShader(p,fs); gl.bindAttribLocation(p,0,'a'); gl.linkProgram(p);
-  return {p, fs};
+  const job={p, fs, t0:performance.now()}, ext=gl.getExtension('KHR_parallel_shader_compile');
+  if(ext) setTimeout(()=>{ if(job.cold===undefined) job.cold=!gl.getProgramParameter(p, ext.COMPLETION_STATUS_KHR); }, 100);
+  return job;
 }
 // Call done with each linked program (null if it failed) once all of them are ready.
 // With KHR_parallel_shader_compile the wait doesn't block. Without it, the first status query
@@ -13,11 +17,25 @@ function whenLinked(gl, list, done){
   const poll=()=>{
     if(ext && !list.every(x=>gl.getProgramParameter(x.p, ext.COMPLETION_STATUS_KHR))){ setTimeout(poll, 30); return; }
     done(...list.map(x=>{
+      if(x.cold===undefined) x.cold=performance.now()-x.t0>400;
       if(gl.getProgramParameter(x.p, gl.LINK_STATUS)){ gl.deleteShader(x.fs); return x.p; }
       console.warn(gl.getShaderInfoLog(x.fs)||gl.getProgramInfoLog(x.p)); return null;
     }));
   };
   setTimeout(poll, ext?0:150);
+}
+// Programs whose first draw will stall, mapped to what the VR note calls them. A program that
+// came out of the browser's shader cache links in a moment. One that took a while was compiled
+// from scratch, and on Windows ANGLE compiles the big ones a second time on their first draw,
+// which can freeze the browser for seconds. paintVR puts up a note before that draw.
+const vrSlow=new Map();
+function markSlow(job, prog, label){ if(prog && job.cold) vrSlow.set(prog, label); }
+// Run fn once the browser has put the current frame on screen, so a note shown just before
+// stays up through a stall that follows.
+function afterPaint(fn){
+  let done=false; const go=()=>{ if(!done){ done=true; fn(); } };
+  requestAnimationFrame(()=>requestAnimationFrame(()=>setTimeout(go, 30)));
+  setTimeout(go, 500);
 }
 function ensureWeather(gl){
   if(vrGL.weather) return vrGL.weather;
@@ -42,20 +60,28 @@ function setupSkyProg(gl, prog){
   gl.uniform1f(u.sunRad, SUN_RADIUS_DEG*DISK_SCALE*Math.PI/180);
   return u;
 }
-function initVR(){
-  if(vrGL) return vrGL.gl;
+// Set up the VR context, then call ready(true), or ready(false) if WebGL 2 or the boot sky
+// program isn't available. Nothing here waits on the shader compiler: the boot program, which
+// compiles fast, goes first, and the full sky, hills, and clouds take over when they're ready.
+let vrBoot=null;
+function initVR(ready){
+  if(vrGL){ ready(true); return; }
+  if(vrBoot){ vrBoot.push(ready); return; }
   const canvas=document.getElementById('vrc');
   const gl=canvas.getContext('webgl2',{alpha:false,depth:false,stencil:false,antialias:false,preserveDrawingBuffer:true});
-  if(!gl) return null;
-  const vs=glShader(gl, gl.VERTEX_SHADER, '#version 300 es\nin vec2 a;void main(){gl_Position=vec4(a,0.0,1.0);}');
-  if(!vs) return null;
-  // Only the boot sky program blocks, so it goes to the compiler first. The full sky, hills,
-  // and clouds compile meanwhile and take over when they're ready.
-  const boot=glProgramAsync(gl, vs, VRFS_BOOT), prog=boot.p;
+  const vs=gl&&glShader(gl, gl.VERTEX_SHADER, '#version 300 es\nin vec2 a;void main(){gl_Position=vec4(a,0.0,1.0);}');
+  if(!vs){ ready(false); return; }
+  const boot=glProgramAsync(gl, vs, VRFS_BOOT);
   const skyJob=glProgramAsync(gl, vs, VRFS);
   const cloudJobs=[CLOUDFS, COMPFS, TEMPFS, NOISEFS].map(src=>glProgramAsync(gl, vs, src));
-  if(!gl.getProgramParameter(prog, gl.LINK_STATUS)){ console.warn(gl.getShaderInfoLog(boot.fs)||gl.getProgramInfoLog(prog)); return null; }
-  gl.deleteShader(boot.fs);
+  vrBoot=[ready];
+  whenLinked(gl, [boot], prog=>{
+    const waiting=vrBoot; vrBoot=null;
+    if(prog) setupVR(gl, vs, prog, skyJob, cloudJobs);
+    for(const f of waiting) f(!!prog);
+  });
+}
+function setupVR(gl, vs, prog, skyJob, cloudJobs){
   gl.useProgram(prog);
   const buf=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
@@ -103,7 +129,8 @@ function initVR(){
     skyUploaded=-1;
     vrRestoreGL(gl); requestVR();
   });
-  compileHit(gl, hitFlags(EP[dIdx].key));
+  const hk=hitKeys(EP[dIdx].key);
+  compileHit(gl, hk.land); if(hk.town) compileHit(gl, hk.town);
   // The aurora pass needs a float target.
   if(vrGL.hitFloat) whenLinked(gl, [glProgramAsync(gl, vs, AURFS)], ap=>{
     if(!ap||!vrGL) return;
@@ -112,40 +139,53 @@ function initVR(){
     vrGL.aurFbo=gl.createFramebuffer(); vrGL.aurStore={};
     vrRestoreGL(gl); requestVR();
   });
-  whenLinked(gl, cloudJobs, (cp, pp, tp, np)=>{ if(cp&&pp&&np&&vrGL){ setupCloudProgs(gl, cp, pp, tp, np); vrRestoreGL(gl); requestVR(); } });
+  whenLinked(gl, cloudJobs, (cp, pp, tp, np)=>{ if(cp&&pp&&np&&vrGL){ setupCloudProgs(gl, cp, pp, tp, np); markSlow(cloudJobs[0], cp, 'the clouds'); vrRestoreGL(gl); requestVR(); } });
   // Last: when the moon image is already loaded this paints, so vrGL has to be complete.
   if(moonReady) uploadMoon();
-  return gl;
 }
-// Which scenery an epoch's hit program needs: towns, trees, glaciers, as '0'/'1' digits.
-const hitFlagCache={};
-function hitFlags(key){
-  if(hitFlagCache[key]) return hitFlagCache[key];
+// The programs an epoch's scenery needs: the land pass ('land' and a glacier digit) and, if it
+// has towns or woods, the town pass ('town' and digits for towns and trees).
+const hitKeyCache={};
+function hitKeys(key){
+  if(hitKeyCache[key]) return hitKeyCache[key];
   const z=ZONES[key]||[], k=sceneFor(key).k, has=(...kinds)=>z.some(s=>kinds.includes(s[2]));
-  const f=(has('city', 'hood')?'1':'0')+(has('hood', 'wood', 'carb', 'dead')?'1':'0')+(Array.from(k).some(v=>v>2.5&&v<3.5)?'1':'0');
-  return hitFlagCache[key]=f;
+  const tr=(has('city', 'hood')?'1':'0')+(has('hood', 'wood', 'carb', 'dead')?'1':'0');
+  return hitKeyCache[key]={land:'land'+(Array.from(k).some(v=>v>2.5&&v<3.5)?'1':'0'), town:tr==='00'?null:'town'+tr};
 }
-// Compile the hit program for these flags in the background. Once the current epoch's program
-// is ready, the other epochs' variants compile one at a time, so switching later is instant.
-function compileHit(gl, flags){
-  if(vrGL.hits[flags]) return;
-  vrGL.hits[flags]='pending';
-  whenLinked(gl, [glProgramAsync(gl, vrGL.vs, hitVariant(flags))], hp=>{
+// Compile a land or town program in the background. Once the current epoch's are ready, the
+// other epochs' variants compile one at a time, so switching later is quick.
+function compileHit(gl, key){
+  if(vrGL.hits[key]) return;
+  vrGL.hits[key]='pending';
+  const land=key.startsWith('land'), job=glProgramAsync(gl, vrGL.vs, land?hitVariant(key[4]):townVariant(key.slice(4)));
+  whenLinked(gl, [job], hp=>{
     if(!vrGL) return;
-    if(!hp){ vrGL.hits[flags]='failed'; return; }
-    vrGL.hits[flags]={prog:hp, hu:setupHitProg(gl, hp)};
+    if(!hp){ vrGL.hits[key]='failed'; return; }
+    vrGL.hits[key]={prog:hp, hu:land?setupHitProg(gl, hp):setupTownProg(gl, hp)};
+    markSlow(job, hp, 'the landscape');
     vrRestoreGL(gl); requestVR();
     if(Object.values(vrGL.hits).includes('pending')) return;
-    const next=EP.map(e=>hitFlags(e.key)).find(f=>!vrGL.hits[f]);
+    const next=EP.flatMap(e=>{ const k=hitKeys(e.key); return k.town?[k.land, k.town]:[k.land]; }).find(k=>!vrGL.hits[k]);
     if(next) compileHit(gl, next);
   });
 }
-// Point paintVR at the current epoch's hit program, or keep the last one until it's ready.
+// Point paintVR at the current epoch's programs, or keep the last ones until they're ready.
 function pickHit(gl){
-  const f=hitFlags(EP[dIdx].key);
-  compileHit(gl, f);
-  const v=vrGL.hits[f];
+  const k=hitKeys(EP[dIdx].key);
+  compileHit(gl, k.land);
+  const v=vrGL.hits[k.land];
   if(v && v.prog){ vrGL.hitProg=v.prog; vrGL.hu=v.hu; }
+  if(!k.town){ vrGL.townProg=null; return; }
+  compileHit(gl, k.town);
+  const t=vrGL.hits[k.town];
+  if(t && t.prog){ vrGL.townProg=t.prog; vrGL.tu2=t.hu; }
+}
+function setupTownProg(gl, tp){
+  const tu=uniformLocs(gl, tp, ['res','yaw','pitch','fov','eye','town[0]','townN']);
+  gl.useProgram(tp);
+  bindSamplers(gl, tp, [['landInfo',10],['landNrm',11]]);
+  gl.uniform1i(gl.getUniformLocation(tp,'loopPad'), 0);
+  return tu;
 }
 function setupHitProg(gl, hp){
   const hu=uniformLocs(gl, hp, ['res','yaw','pitch','fov','eye','showScn','sunAz','sunEl','obj[0]','kind[0]','town[0]','townN']);

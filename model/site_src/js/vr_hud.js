@@ -72,6 +72,10 @@ function placeBodyMarks(){
     }
   }
 }
+// The note in the middle of the VR view while something slow is being prepared.
+function showVRLoad(text){ const el=document.getElementById('vrload'); el.textContent=text; el.hidden=false; }
+function hideVRLoad(){ document.getElementById('vrload').hidden=true; }
+function andList(a){ return a.length<2?a.join(''):a.slice(0, -1).join(', ')+' and '+a[a.length-1]; }
 function requestVR(){ if(!vrOn||vrRAF) return; vrRAF=requestAnimationFrame(()=>{ vrRAF=0; paintVR(); }); }
 function lookVR(dx, dy){ const deg=vrFov/Math.max(window.innerHeight,1); vrYaw=(vrYaw+dx*deg)%360; if(vrYaw<0) vrYaw+=360; vrPitch=Math.max(-80, Math.min(85, vrPitch-dy*deg)); requestVR(); }
 function walking(){ return vrHeld.has('w')||vrHeld.has('a')||vrHeld.has('s')||vrHeld.has('d'); }

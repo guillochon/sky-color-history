@@ -1,3 +1,31 @@
+// Shared by the terrain and town passes.
+const HIT_COMMON=`
+float h12(vec2 p){
+  vec3 q=fract(vec3(p.xyx)*vec3(0.1031, 0.1030, 0.0973));
+  q+=dot(q, q.yzx+33.33);
+  return fract((q.x+q.y)*q.z);
+}
+vec2 cylSpan(vec3 ro, vec3 rd, vec2 c, float R, float z0, float z1){
+  float t0=0.05, t1=1e8;
+  if(abs(rd.z)<1e-5){ if(ro.z<z0||ro.z>z1) return vec2(-1.0); }
+  else {
+    float a=(z0-ro.z)/rd.z, b=(z1-ro.z)/rd.z;
+    if(a>b){ float s=a; a=b; b=s; }
+    t0=max(t0, a); t1=min(t1, b);
+  }
+  vec2 oc=ro.xy-c;
+  float A=dot(rd.xy, rd.xy);
+  if(A<1e-8){ if(dot(oc,oc)>R*R) return vec2(-1.0); }
+  else {
+    float B=2.0*dot(oc, rd.xy), C=dot(oc,oc)-R*R, disc=B*B-4.0*A*C;
+    if(disc<0.0) return vec2(-1.0);
+    float s=sqrt(disc), u0=(-B-s)/(2.0*A), u1=(-B+s)/(2.0*A);
+    t0=max(t0, u0); t1=min(t1, u1);
+  }
+  if(t1<t0) return vec2(-1.0);
+  return vec2(t0, t1);
+}
+`;
 // Marched by the hit shader. massifRad must match scRad. The volc argument picks the style:
 // 0 mountain, 1 volcano, 2 glacier.
 // Hill cells must match hillHeight in vr_paint.js. hillN, loopPad, town and townN are hit-shader uniforms.
@@ -6,11 +34,7 @@
 // rolled, and each heavy function is called from one place inside such a loop. Written the
 // obvious way, this shader took over five seconds to compile on every page load.
 const TERR=`
-float h12(vec2 p){
-  vec3 q=fract(vec3(p.xyx)*vec3(0.1031, 0.1030, 0.0973));
-  q+=dot(q, q.yzx+33.33);
-  return fract((q.x+q.y)*q.z);
-}
+${HIT_COMMON}
 float vN(vec2 p){
   vec2 i=floor(p), f=fract(p), u=f*f*(3.0-2.0*f);
   return mix(mix(h12(i), h12(i+vec2(1.0,0.0)), u.x), mix(h12(i+vec2(0.0,1.0)), h12(i+vec2(1.0,1.0)), u.x), u.y);
@@ -109,26 +133,6 @@ float massifH(vec2 p, vec4 q, float volc){
     h=max(h, onePeak(p, pc, pr, ph, pv, ps));
   }
   return h;
-}
-vec2 cylSpan(vec3 ro, vec3 rd, vec2 c, float R, float z0, float z1){
-  float t0=0.05, t1=1e8;
-  if(abs(rd.z)<1e-5){ if(ro.z<z0||ro.z>z1) return vec2(-1.0); }
-  else {
-    float a=(z0-ro.z)/rd.z, b=(z1-ro.z)/rd.z;
-    if(a>b){ float s=a; a=b; b=s; }
-    t0=max(t0, a); t1=min(t1, b);
-  }
-  vec2 oc=ro.xy-c;
-  float A=dot(rd.xy, rd.xy);
-  if(A<1e-8){ if(dot(oc,oc)>R*R) return vec2(-1.0); }
-  else {
-    float B=2.0*dot(oc, rd.xy), C=dot(oc,oc)-R*R, disc=B*B-4.0*A*C;
-    if(disc<0.0) return vec2(-1.0);
-    float s=sqrt(disc), u0=(-B-s)/(2.0*A), u1=(-B+s)/(2.0*A);
-    t0=max(t0, u0); t1=min(t1, u1);
-  }
-  if(t1<t0) return vec2(-1.0);
-  return vec2(t0, t1);
 }
 float marchMassif(vec3 ro, vec3 rd, vec4 q, float volc){
   float R=massifRad(q.z, volc);

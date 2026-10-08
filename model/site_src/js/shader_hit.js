@@ -1,52 +1,10 @@
-// Mountains and hills are marched in this pass. Folding the same code into the
-// sky shader makes the driver take about fifteen seconds to link the program.
-// hitVariant() defines TOWNS, TREES, and GLACIERS for the current epoch, so its program
-// compiles only the scenery that epoch shows. The defaults here include everything.
-const HITFS=`#version 300 es
-precision highp float;
-#ifndef TOWNS
-#define TOWNS 1
-#endif
-#ifndef TREES
-#define TREES 1
-#endif
-#ifndef GLACIERS
-#define GLACIERS 1
-#endif
-uniform sampler2D weather;
-uniform vec2 res;
-uniform float yaw,pitch,fov,showScn,sunAz,sunEl;
-uniform vec3 eye;
-uniform vec4 obj[12];
-uniform float kind[12];
-uniform float scnCount, hillN;
-uniform int loopPad;
-uniform vec4 town[16];
-uniform float townN;
-layout(location=0) out vec4 hitInfo;
-layout(location=1) out vec4 hitNrm;
-${TERR}
-float scnShadow(vec3 p, vec3 sd){
-  if(sd.z<=0.04) return 1.0;
-  float sh=1.0;
-  vec2 dir=sd.xy; float hl=length(dir);
-  if(hl<1e-3) return 1.0;
-  dir/=hl; float rise=sd.z/hl;
-  for(int i=0;i<12+loopPad;i++){
-    float kk=kind[i];
-    if(kk<0.5||kk>=3.5) continue;
-    vec4 q=obj[i]; float volc=kk>2.5?2.0:step(1.5, kk);
-    float R=massifRad(q.z, volc);
-    if(length(p.xy-q.xy)>R+q.w*min(5.5, 1.15/max(sd.z, 0.04))) continue;
-    for(int s=1;s<=5+loopPad;s++){
-      float dist=R*(0.04*float(s)+0.018*float(s*s));
-      float h=massifH(p.xy+dir*dist, q, volc);
-      float pen=smoothstep(0.0, dist*0.18+3.0, h-(p.z+rise*dist));
-      sh=min(sh, mix(1.0, 0.28, pen));
-    }
-  }
-  return sh;
-}
+// Mountains and hills are marched in this pass, and towns and woods in the next one (TOWNFS).
+// Folding the terrain into the sky shader makes the driver take about fifteen seconds to link
+// the program. On Windows a program can take seconds more to compile on its first draw, which
+// stalls the browser, so the towns are a pass of their own and each stall stays shorter.
+// hitVariant() and townVariant() define GLACIERS, TOWNS, and TREES for the current epoch, so
+// each program compiles only the scenery that epoch shows. The defaults include everything.
+const TOWN_GLSL=`
 // Towns and woods are lots on a grid. town[i] is (centre x, centre y, radius, type). Types:
 // 0 keeps hills out and nothing else (pools), 1 city of towers on 42 m lots, 2 neighbourhood of
 // houses on 24 m lots, 3 broadleaf and conifer wood, 4 Carboniferous forest, 5 dead wood, all
@@ -272,6 +230,46 @@ float marchTown(vec3 ro, vec3 rd, float tMax, vec4 tw, out vec3 nOut, out float 
   }
   return -1.0;
 }
+`;
+const HITFS=`#version 300 es
+precision highp float;
+#ifndef GLACIERS
+#define GLACIERS 1
+#endif
+uniform sampler2D weather;
+uniform vec2 res;
+uniform float yaw,pitch,fov,showScn,sunAz,sunEl;
+uniform vec3 eye;
+uniform vec4 obj[12];
+uniform float kind[12];
+uniform float scnCount, hillN;
+uniform int loopPad;
+uniform vec4 town[16];
+uniform float townN;
+layout(location=0) out vec4 hitInfo;
+layout(location=1) out vec4 hitNrm;
+${TERR}
+float scnShadow(vec3 p, vec3 sd){
+  if(sd.z<=0.04) return 1.0;
+  float sh=1.0;
+  vec2 dir=sd.xy; float hl=length(dir);
+  if(hl<1e-3) return 1.0;
+  dir/=hl; float rise=sd.z/hl;
+  for(int i=0;i<12+loopPad;i++){
+    float kk=kind[i];
+    if(kk<0.5||kk>=3.5) continue;
+    vec4 q=obj[i]; float volc=kk>2.5?2.0:step(1.5, kk);
+    float R=massifRad(q.z, volc);
+    if(length(p.xy-q.xy)>R+q.w*min(5.5, 1.15/max(sd.z, 0.04))) continue;
+    for(int s=1;s<=5+loopPad;s++){
+      float dist=R*(0.04*float(s)+0.018*float(s*s));
+      float h=massifH(p.xy+dir*dist, q, volc);
+      float pen=smoothstep(0.0, dist*0.18+3.0, h-(p.z+rise*dist));
+      sh=min(sh, mix(1.0, 0.28, pen));
+    }
+  }
+  return sh;
+}
 float coneT(vec3 ro,vec3 rd,vec2 c,float R,float h){
   float k=R/max(h,0.001);
   vec3 f=vec3(ro.x-c.x, ro.y-c.y, h-ro.z);
@@ -341,23 +339,6 @@ void main(){
     else if(rd.z<-0.0001) cap=min(cap, (-6.0-ro.z)/rd.z);
     tHill=marchLand(ro, rd, cap, nHill, rHill, hHill);
   }
-  float tTown=-1.0, aTown=0.0, sTown=0.0, kTown=0.0; vec3 nTown=vec3(0.0, 0.0, 1.0);
-  if(showScn>0.5 && rd.z<0.6){
-    float cap=min(tBest, tGround);
-    if(tHill>0.0) cap=min(cap, tHill);
-#if TOWNS || TREES
-    for(int i=0;i<int(townN)+loopPad;i++){
-      vec3 n; float k, a, s;
-      float t=marchTown(ro, rd, cap, town[i], n, k, a, s);
-      if(t>0.0 && t<cap){ cap=t; tTown=t; nTown=n; kTown=k; aTown=a; sTown=s; }
-    }
-#endif
-  }
-  if(tTown>0.0){
-    hitInfo=vec4(tTown, kTown, 1.0, aTown);
-    hitNrm=vec4(nTown, sTown);
-    return;
-  }
   bool hillWins=tHill>0.0 && (tObj<0.0 || tHill<tObj);
   bool objWins=tObj>0.0 && !hillWins;
   vec3 nOut=vec3(0.0,0.0,1.0), pShade=ro;
@@ -386,7 +367,46 @@ void main(){
   }
 }
 `;
-// flags is a string of three digits: towns, trees, glaciers.
-function hitVariant(flags){
-  return HITFS.replace('precision highp float;', 'precision highp float;\n#define TOWNS '+flags[0]+'\n#define TREES '+flags[1]+'\n#define GLACIERS '+flags[2]);
+// The town pass: reads the terrain pass's hit buffers (landInfo, landNrm) and writes them on,
+// with any tower, house, or tree that stands nearer.
+const TOWNFS=`#version 300 es
+precision highp float;
+#ifndef TOWNS
+#define TOWNS 1
+#endif
+#ifndef TREES
+#define TREES 1
+#endif
+uniform sampler2D landInfo, landNrm;
+uniform vec2 res;
+uniform float yaw,pitch,fov;
+uniform vec3 eye;
+uniform int loopPad;
+uniform vec4 town[16];
+uniform float townN;
+layout(location=0) out vec4 hitInfo;
+layout(location=1) out vec4 hitNrm;
+${HIT_COMMON}
+${TOWN_GLSL}
+${VIEW_RAY_GLSL}
+void main(){
+  vec4 info=texelFetch(landInfo, ivec2(gl_FragCoord.xy), 0), nrm=texelFetch(landNrm, ivec2(gl_FragCoord.xy), 0);
+  hitInfo=info; hitNrm=nrm;
+  vec3 rd=viewRay(gl_FragCoord.xy, res, fov, yaw, pitch), ro=eye;
+  if(rd.z>=0.6) return;
+  float cap=rd.z<0.0?-ro.z/rd.z:1e8;
+  if(info.r>0.0) cap=min(cap, info.r);
+  for(int i=0;i<int(townN)+loopPad;i++){
+    vec3 n; float k, a, s;
+    float t=marchTown(ro, rd, cap, town[i], n, k, a, s);
+    if(t>0.0 && t<cap){ cap=t; hitInfo=vec4(t, k, 1.0, a); hitNrm=vec4(n, s); }
+  }
+}
+`;
+// g is '1' for glaciers; tr is two digits, towns and trees.
+function hitVariant(g){
+  return HITFS.replace('precision highp float;', 'precision highp float;\n#define GLACIERS '+g);
+}
+function townVariant(tr){
+  return TOWNFS.replace('precision highp float;', 'precision highp float;\n#define TOWNS '+tr[0]+'\n#define TREES '+tr[1]);
 }

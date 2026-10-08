@@ -78,6 +78,7 @@ function toggleVRMusic(){
   if(!music) startVRMusic();
   pokeVRMusic(); applyMusicGain();
 }
+let vrEntry=0;
 function enterVR(fromLink){
   const root=document.getElementById('vr'); root.classList.add('on'); root.setAttribute('aria-hidden','false');
   document.body.style.overflow='hidden';
@@ -85,35 +86,44 @@ function enterVR(fromLink){
   // Lock before any shader work. A long link used to expire the click, so the pointer never captured and yaw stopped at the window edge.
   vrRelock=true; lockLook();
   const fsNow=root.requestFullscreen?root.requestFullscreen():null; if(fsNow&&fsNow.catch) fsNow.catch(()=>{});
-  if(!initVR()){
-    vrOn=false; vrRelock=false;
-    root.classList.remove('on','locked'); root.setAttribute('aria-hidden','true');
-    document.body.style.overflow='';
-    if(document.pointerLockElement) document.exitPointerLock();
-    if(document.fullscreenElement){ const p=document.exitFullscreen(); if(p&&p.catch) p.catch(()=>{}); }
-    return;
-  }
-  const g=sunGeom(LATDEG[dLat], minutes); vrYaw=g.az; const elev=90-g.sza; vrPitch=Math.max(-8, Math.min(15, elev-8));
-  sizeVR(); root.tabIndex=-1; root.focus();
-  if(!dayPlaying){ dayPlaying=true; if(minutes>=DAYMIN){ minutes-=DAYMIN; shiftMoonDate(1); } hplay.textContent='Pause'; hplay.setAttribute('aria-pressed','true'); }
-  if(!vrNav){
-    const url=vrLinkURL();
-    if(fromLink===true) history.replaceState({vr:1},'',url);
-    else history.pushState({vr:1},'',url);
-    vrLinkKey=EP[dIdx].key+'|'+dLat+'|'+Math.floor(minutes);
-  }
-  renderDay(false);
-  adoptPlayRate();
-  setTimeout(()=>{ vrRelock=false; }, 700);
-  if(!musicMuted) startVRMusic();
-  syncVRPad();
+  // The shaders take a moment, and the first compile can hold up the browser, so say so first.
+  const nav=vrNav, first=!vrGL, entry=++vrEntry;
+  if(first) showVRLoad('Loading VR…');
+  const open=ok=>{
+    if(!vrOn||entry!==vrEntry) return;
+    if(!ok){
+      hideVRLoad();
+      vrOn=false; vrRelock=false;
+      root.classList.remove('on','locked'); root.setAttribute('aria-hidden','true');
+      document.body.style.overflow='';
+      if(document.pointerLockElement) document.exitPointerLock();
+      if(document.fullscreenElement){ const p=document.exitFullscreen(); if(p&&p.catch) p.catch(()=>{}); }
+      return;
+    }
+    const g=sunGeom(LATDEG[dLat], minutes); vrYaw=g.az; const elev=90-g.sza; vrPitch=Math.max(-8, Math.min(15, elev-8));
+    sizeVR(); root.tabIndex=-1; root.focus();
+    if(!dayPlaying){ dayPlaying=true; if(minutes>=DAYMIN){ minutes-=DAYMIN; shiftMoonDate(1); } hplay.textContent='Pause'; hplay.setAttribute('aria-pressed','true'); }
+    if(!nav){
+      const url=vrLinkURL();
+      if(fromLink===true) history.replaceState({vr:1},'',url);
+      else history.pushState({vr:1},'',url);
+      vrLinkKey=EP[dIdx].key+'|'+dLat+'|'+Math.floor(minutes);
+    }
+    renderDay(false);
+    adoptPlayRate();
+    setTimeout(()=>{ vrRelock=false; }, 700);
+    if(!musicMuted) startVRMusic();
+    syncVRPad();
+    if(first) afterPaint(()=>{ if(document.getElementById('vrload').textContent==='Loading VR…') hideVRLoad(); });
+  };
+  if(first) afterPaint(()=>initVR(open)); else open(true);
 }
 function lockLook(){
   if(vrTouch||!vrOn||document.pointerLockElement===document.getElementById('vrc')) return;
   const p=document.getElementById('vrc').requestPointerLock(); if(p&&p.catch) p.catch(()=>{});
 }
 function exitVR(){
-  if(!vrOn) return; if(vrInspect) setInspect(false, true); vrOn=false; stopVRMusic(); vrRelock=false; vrLinkKey=''; vrHeld.clear(); document.getElementById('sunmark').hidden=true; document.getElementById('moonmark').hidden=true; if(vrWalk){ cancelAnimationFrame(vrWalk); vrWalk=0; }
+  if(!vrOn) return; hideVRLoad(); if(vrGL&&vrGL.note) vrGL.note=''; if(vrInspect) setInspect(false, true); vrOn=false; stopVRMusic(); vrRelock=false; vrLinkKey=''; vrHeld.clear(); document.getElementById('sunmark').hidden=true; document.getElementById('moonmark').hidden=true; if(vrWalk){ cancelAnimationFrame(vrWalk); vrWalk=0; }
   if(!vrNav) clearVRLink();
   const root=document.getElementById('vr'); root.classList.remove('on','locked'); root.setAttribute('aria-hidden','true');
   document.body.style.overflow='';

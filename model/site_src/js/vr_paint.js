@@ -171,6 +171,20 @@ function ensureHitTarget(w, h){
   const gl=vrGL.gl;
   if(vrGL.hitW===w&&vrGL.hitH===h&&vrGL.hitInfo) return;
   vrGL.hitW=w; vrGL.hitH=h;
+  vrGL.hitMRT=hitPair(gl, w, h, 'hitInfo', 'hitNrm', vrGL.hitFbo);
+  // The land pair belongs to the old size, so make it again when next needed.
+  for(const k of ['landInfo', 'landNrm']) if(vrGL[k]){ gl.deleteTexture(vrGL[k]); vrGL[k]=null; }
+  if(!vrGL.hitMRT&&vrGL.hitFloat){ vrGL.hitFloat=false; vrGL.hitW=0; ensureHitTarget(w, h); }
+}
+// hitInfo and hitNrm hold the scenery the other passes read. With a town pass, the land pass
+// draws into landInfo and landNrm, and the town pass carries them over into hitInfo and hitNrm.
+function ensureLandTarget(w, h){
+  if(vrGL.landInfo) return vrGL.landMRT;
+  vrGL.landFbo=vrGL.landFbo||vrGL.gl.createFramebuffer();
+  return vrGL.landMRT=hitPair(vrGL.gl, w, h, 'landInfo', 'landNrm', vrGL.landFbo);
+}
+// Make vrGL[a] and vrGL[b] at this size and attach them to fb. Says whether fb is complete.
+function hitPair(gl, w, h, a, b, fb){
   const alloc=()=>{
     const t=gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, t);
@@ -178,15 +192,13 @@ function ensureHitTarget(w, h){
     gl.texImage2D(gl.TEXTURE_2D, 0, vrGL.hitFloat?gl.RGBA32F:gl.RGBA16F, w, h, 0, gl.RGBA, vrGL.hitFloat?gl.FLOAT:gl.HALF_FLOAT, null);
     return t;
   };
-  if(vrGL.hitInfo) gl.deleteTexture(vrGL.hitInfo);
-  if(vrGL.hitNrm) gl.deleteTexture(vrGL.hitNrm);
-  vrGL.hitInfo=alloc(); vrGL.hitNrm=alloc();
-  gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.hitFbo);
-  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, vrGL.hitInfo, 0);
-  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, vrGL.hitNrm, 0);
-  vrGL.hitMRT=gl.checkFramebufferStatus(gl.FRAMEBUFFER)===gl.FRAMEBUFFER_COMPLETE;
+  for(const k of [a, b]){ if(vrGL[k]) gl.deleteTexture(vrGL[k]); vrGL[k]=alloc(); }
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, vrGL[a], 0);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, vrGL[b], 0);
+  const ok=gl.checkFramebufferStatus(gl.FRAMEBUFFER)===gl.FRAMEBUFFER_COMPLETE;
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-  if(!vrGL.hitMRT&&vrGL.hitFloat){ vrGL.hitFloat=false; vrGL.hitW=0; ensureHitTarget(w, h); }
+  return ok;
 }
 // Whether a pool that moves (water, swamp, or magma) is on screen and within 6 km.
 function movingPoolInView(){
@@ -215,6 +227,19 @@ function paintVR(){
   if(vrRAF){ cancelAnimationFrame(vrRAF); vrRAF=0; }
   // A sky drawn for the page has no star cells for VR: draw it again for VR, which paints.
   if(!skyNow.starBins){ renderDay(true); return; }
+  // A program compiled from scratch can stall the browser on its first draw. Put up a note,
+  // let it reach the screen, then draw.
+  pickHit(vrGL.gl);
+  const firsts=[vrScenery&&vrGL.hitProg, vrScenery&&vrGL.townProg, vrClouds&&vrGL.cloudProg].filter(p=>p&&vrSlow.has(p));
+  if(firsts.length){
+    if(vrGL.note==='waiting') return;
+    if(vrGL.note!=='shown'){
+      vrGL.note='waiting';
+      showVRLoad('Preparing '+andList([...new Set(firsts.map(p=>vrSlow.get(p)))])+'…');
+      afterPaint(()=>{ if(vrGL&&vrGL.note==='waiting'){ vrGL.note='shown'; paintVR(); } });
+      return;
+    }
+  }
   const {gl,u,tex}=vrGL, c=gl.canvas;
   gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.disable(gl.BLEND); gl.drawBuffers([gl.BACK]);
   gl.viewport(0,0,c.width,c.height);
@@ -309,11 +334,11 @@ function paintVR(){
     gl.uniform1f(u.cloudCov, vrGL.field.cov); gl.uniform1f(u.cloudScale, vrGL.field.scale); gl.uniform1f(u.cloudDrift, cloudScroll); gl.uniform1f(u.cloudOn, vrClouds?1:0);
     gl.activeTexture(gl.TEXTURE0);
   }
-  pickHit(gl);
   if(vrGL.hitProg&&vrScenery){
     ensureHitTarget(c.width, c.height);
     if(vrGL.hitMRT){
-      gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.hitFbo);
+      const town=!!vrGL.townProg&&ensureLandTarget(c.width, c.height);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, town?vrGL.landFbo:vrGL.hitFbo);
       gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
       gl.viewport(0,0,c.width,c.height);
       gl.useProgram(vrGL.hitProg);
@@ -327,6 +352,19 @@ function paintVR(){
       gl.uniform4fv(hu.obj, sc.o); gl.uniform1fv(hu.kind, sc.k);
       gl.uniform4fv(hu.town, sc.t); gl.uniform1f(hu.townN, sc.tn);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
+      if(town){
+        gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.hitFbo);
+        gl.useProgram(vrGL.townProg);
+        const tu=vrGL.tu2;
+        gl.activeTexture(gl.TEXTURE10); gl.bindTexture(gl.TEXTURE_2D, vrGL.landInfo);
+        gl.activeTexture(gl.TEXTURE11); gl.bindTexture(gl.TEXTURE_2D, vrGL.landNrm);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.uniform2f(tu.res, c.width, c.height); gl.uniform1f(tu.fov, vrFov*Math.PI/180);
+        gl.uniform1f(tu.yaw, vrYaw*Math.PI/180); gl.uniform1f(tu.pitch, vrPitch*Math.PI/180);
+        gl.uniform3f(tu.eye, vrX, vrY, ez);
+        gl.uniform4fv(tu.town, sc.t); gl.uniform1f(tu.townN, sc.tn);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+      }
       gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.drawBuffers([gl.BACK]);
       gl.viewport(0,0,c.width,c.height);
       gl.useProgram(vrGL.prog);
@@ -422,6 +460,11 @@ function paintVR(){
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     gl.disable(gl.BLEND);
     gl.activeTexture(gl.TEXTURE0); gl.useProgram(vrGL.prog);
+  }
+  if(firsts.length||vrGL.note==='shown'){
+    for(const p of firsts) vrSlow.delete(p);
+    vrGL.note='drawn';
+    afterPaint(()=>{ if(vrGL&&vrGL.note==='drawn'){ vrGL.note=''; hideVRLoad(); } });
   }
   const [hh, mm, ss]=clockParts(minutes);
   const lat=dLat==='Polar'?'75°':dLat==='Mid-latitude'?'45°':'equator';
