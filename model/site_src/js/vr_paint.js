@@ -354,6 +354,7 @@ function paintVR(){
       gl.drawArrays(gl.TRIANGLES, 0, 6);
       if(town){
         gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.hitFbo);
+        gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
         gl.useProgram(vrGL.townProg);
         const tu=vrGL.tu2;
         gl.activeTexture(gl.TEXTURE10); gl.bindTexture(gl.TEXTURE_2D, vrGL.landInfo);
