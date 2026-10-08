@@ -51,7 +51,6 @@ function openMoment(m){
   minutes=m.eclipse?0:m.t; hslider.value=String(minutes);
   renderDay();
   if(m.eclipse) jumpNextEclipse(true, true);
-  vrClouds=m.art==='day';
   enterVR(false);
   syncVRPad();
   if(m.look==='sn'){ const sn=supernovaPlace(LATDEG[dLat]); if(sn){ vrYaw=sn.az; vrPitch=Math.max(5, Math.min(60, sn.el-12)); } }
