@@ -533,8 +533,9 @@ void main(){
           int id=start+k;
           int si=int(texelFetch(starIdx, ivec2(id- (id/1024)*1024, id/1024), 0).r+0.5);
           vec4 sp=texelFetch(starMap, ivec2(si, 0), 0);
-          float sig=sp.w*starPx;
-          if(sig<=0.0) continue;
+          if(sp.w<=0.0) continue;
+          // No narrower than about half a screen pixel, so a faint star does not shimmer as the view turns.
+          float sig=max(sp.w*starPx, 1.2*fy/res.y);
           float c=dot(src, sp.xyz);
           if(c<1.0-8.0*sig*sig) continue;
           float wgt=exp(-0.5*max(0.0, 2.0*(1.0-c))/(sig*sig));

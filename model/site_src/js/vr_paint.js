@@ -314,7 +314,9 @@ function paintVR(){
   gl.uniform4fv(u.pond, sc.p); gl.uniform1f(u.pondN, sc.pn);
   gl.uniform1f(u.clockH, (minutes%DAYMIN)/60);
   gl.uniform4fv(u.obj, sc.o); gl.uniform1fv(u.kind, sc.k);
-  gl.uniform1f(u.starPx, (vrFov*Math.PI/180)/Math.max(window.innerHeight,1));
+  // A star's px is the radius the page draws it at, with most of its light inside a third of
+  // that; the Gaussian here takes that third as its width, in page pixels.
+  gl.uniform1f(u.starPx, 0.35*(vrFov*Math.PI/180)/Math.max(window.innerHeight,1));
   if(skyNow.stars && vrGL.starTex && vrGL.starUploaded!==skyNow.gen){
     gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, vrGL.starTex);
     gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, STAR_MAP_W, 2, gl.RGBA, gl.FLOAT, skyNow.stars);
