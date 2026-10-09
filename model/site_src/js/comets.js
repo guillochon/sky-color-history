@@ -127,12 +127,29 @@ function cometYear(key, b){
   if(cometBins.size>200) cometBins.clear();
   return got;
 }
+// An invented great comet for the ζ Oph sky, the only one not from an orbit catalogue or the random
+// draw. It returns every year, as the supernova shines every year in that sky: perihelion
+// (0.76 AU) on 29 June, then through July it passes 0.5–0.6 AU from Earth, due north in the late
+// evening from 45° (27–33° up at 22:30), its tail rising from the horizon, while the supernova is
+// low in the south-southwest, 125° or more away. Peak magnitude −3. Row: name, designation, q, e,
+// i, Ω, ω, [month, day] of perihelion, peak magnitude.
+const COMETS_FICT={zetaoph:[['The great comet of the ζ Oph sky (invented)', 'invented', 0.7625, 0.997, 28.88, 239.64, 34.01, [6, 29.4], -3]]};
+const cometFict={};
+for(const key in COMETS_FICT) cometFict[key]=COMETS_FICT[key].map(([name, desig, q, e, i, om, w, md, peak])=>{
+  const c={name, desig, q, e, i, om, w, md, rmin:0, M1:0, real:true}, tp=dayNumber(2026, md[0], Math.floor(md[1]), 24*(md[1]%1))+JD_D0;
+  let best=99;
+  for(let t=-250;t<=250;t+=0.5){ const jd=tp+t, P=cometHelio(c, jd, tp), E=earthHelio(jd-JD_D0), r=Math.hypot(...P), D=Math.hypot(P[0]-E[0], P[1]-E[1], P[2]-E[2]); best=Math.min(best, cometMag(c, r, D)); }
+  c.M1=peak-best;
+  return c;
+});
 // The comets in the sky now, with everything both views and the tooltip need.
 function cometsNow(key, lat){
   const d=astroDay(), jd=d+JD_D0, E=earthHelio(d), lst=localSidereal(), list=[];
   const cands=[];
   if(COMET_REAL_EPOCHS.has(key)){ for(const c of cometReal) for(const tp of c.tps) if(Math.abs(jd-tp)<400) cands.push([c, tp]); }
   else{ const b=Math.floor((jd-JD_D0)/365.25); for(let y=b-1;y<=b+1;y++) for(const c of cometYear(key, y)) if(Math.abs(jd-c.tps[0])<400) cands.push([c, c.tps[0]]); }
+  // The invented comet, on the same dates every year of the page's calendar.
+  for(const c of cometFict[key]||[]){ const Y=pageDate()[0]; for(let y=Y-1;y<=Y+1;y++){ const tp=dayNumber(y, c.md[0], Math.floor(c.md[1]), 24*(c.md[1]%1))+JD_D0; if(Math.abs(jd-tp)<400) cands.push([c, tp]); } }
   const k=extK(key);
   for(const [c, tp] of cands){
     const P=cometHelio(c, jd, tp), r=Math.hypot(...P), h=helioToHoriz(P, E, lat, lst), m=cometMag(c, r, h.D);
