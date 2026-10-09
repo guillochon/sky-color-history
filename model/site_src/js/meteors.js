@@ -66,7 +66,7 @@ const MET_Q1=128, MET_VIS_TODAY=11;
 function metCum(E, M){ return M>=1?Math.pow(E.rf, M-1):Math.pow(E.rb, M-1); }
 // Magnitude between lo and hi (lo may be −Infinity) from uniform U.
 function metDrawM(E, lo, hi, U){
-  const c0=lo===-Infinity?0:metCum(E, lo), n=c0+U*(metCum(E, hi)-c0);
+  const c0=lo===-Infinity?0:metCum(E, lo), n=c0+Math.max(U, 1e-9)*(metCum(E, hi)-c0);
   return n>=1?1+Math.log(n)/Math.log(E.rf):1+Math.log(n)/Math.log(E.rb);
 }
 // Mass in grams from absolute magnitude and speed (Jacchia, Verniani & Briggs 1967).
@@ -216,11 +216,9 @@ const FLASH_Q10=0.5, FLASH_R=2.5;
 // second of it, [b, b+1), come from a generator seeded by the epoch, the latitude and b, in two
 // streams: ordinary meteors (absolute magnitude above −1), looked back over the last 60 s for any
 // still glowing, and the bright ones, rarer but with trains that can last minutes, over 160 s.
-// Scrubbing back to a moment brings back its meteors. While the clock is paused the sky's time
-// keeps running from the moment shown (MET.live), so meteors go on falling; moving the clock
-// starts it again from there. In play the clock jumps minutes per frame, so each frame is a
-// snapshot of whatever is in the air then.
-const MET={list:[], gone:[], flashes:[], now:0, live:0, Tpage:0, state:'', last:0, raf:0, timer:0, hover:null, ptr:null, cache:new Map(), dark:{}};
+// Scrubbing back to a moment brings back its meteors, and pausing freezes them. Played in real
+// time they fall at their true pace; faster, each frame is a snapshot of whatever is in the air.
+const MET={list:[], gone:[], flashes:[], now:0, Tpage:0, drawnT:null, last:0, raf:0, timer:0, hover:null, ptr:null, cache:new Map(), dark:{}};
 const MET_SPLIT=-1, MET_LOOK=[60, 160];
 // The faintest meteor worth making, for the darkest sky the epoch has (no Moon, no Sun): its zenith
 // limit for meteors, and the faintest absolute magnitude that could reach it from overhead.
@@ -293,11 +291,9 @@ function flashDir(f, radDeg){
 function flashLit(f, radDeg){ const l=moonLitAt(flashDir(f, radDeg), radDeg); return l==null?1:l; }
 // One step: the sky time now, and what is in the air at it.
 function metTick(now){
-  const dt=Math.min(0.25, Math.max(0, (now-MET.last)/1000)); MET.last=now;
-  const state=EP[dIdx].key+'|'+dLat+'|'+document.getElementById('moonDate').value+'|'+minutes;
-  if(state!==MET.state){ MET.state=state; MET.live=0; } else if(!dayPlaying) MET.live+=dt;
+  MET.last=now;
   MET.Tpage=astroDay()*86400;
-  const t=MET.now=MET.Tpage+MET.live, list=[], gone=[], flashes=[];
+  const t=MET.now=MET.Tpage, list=[], gone=[], flashes=[];
   for(let s=0;s<2;s++) for(let b=Math.floor(t-MET_LOOK[s]);b<=Math.floor(t);b++){
     const got=metBin(s, b);
     for(const m of got.met){
@@ -465,13 +461,16 @@ function metLoop(now){
   metTick(now);
   const scene=metScene(); MET.scene=scene;
   if(showDome) drawDomeMeteors(scene); else if(metDrawn) drawDomeMeteors([]);
-  if(vrOn&&(scene.length||MET.vrLit)){ MET.vrLit=scene.length>0; requestVR(); }
+  // VR is drawn again only when the sky's time has moved and something is or was lit.
+  const moved=MET.now!==MET.drawnT; MET.drawnT=MET.now;
+  if(vrOn&&moved&&(scene.length||MET.vrLit)){ MET.vrLit=scene.length>0; requestVR(); }
   metHoverCheck();
-  // Every frame while something is lit; otherwise a few times a second is enough to spawn.
-  if(scene.length||MET.list.length||MET.flashes.length) MET.raf=requestAnimationFrame(metLoop);
-  else MET.timer=setTimeout(()=>metLoop(performance.now()), 120);
+  // Every frame while the clock runs and something is in the air; otherwise a few times a second
+  // (renderDay kicks it at once when the clock or the view changes).
+  if(moved&&(scene.length||MET.list.length||MET.flashes.length)) MET.raf=requestAnimationFrame(metLoop);
+  else MET.timer=setTimeout(()=>metLoop(performance.now()), 250);
 }
-function metKick(){ if(!MET.raf&&!MET.timer){ MET.last=performance.now(); MET.raf=requestAnimationFrame(metLoop); } }
+function metKick(){ if(MET.raf) return; if(MET.timer){ clearTimeout(MET.timer); MET.timer=0; } MET.last=performance.now(); MET.raf=requestAnimationFrame(metLoop); }
 document.addEventListener('visibilitychange', metKick);
 
 // Hovering: the meteor (or train, or flash) under the pointer, including one that has just gone

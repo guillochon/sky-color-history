@@ -137,7 +137,7 @@ float ringTauG(float rho){
   if(rho<ringU.x||rho>ringU.y) return 0.0;
   float e=smoothstep(ringU.x, ringU.x+0.08, rho)*(1.0-smoothstep(ringU.y-0.15, ringU.y, rho));
   float lets=0.72+0.28*cos(6.2831853*(rho-ringU.x)/0.17)*cos(6.2831853*(rho-ringU.x)/0.061);
-  float gap=1.0-0.9*exp(-pow((rho-2.2)/0.035, 2.0));
+  float gq=(rho-2.2)/0.035, gap=1.0-0.9*exp(-gq*gq);
   return ringU.z*e*lets*gap*(0.6+0.4*smoothstep(ringU.x, 2.1, rho));
 }
 // The ring's luminance over the sky reference toward v, sun direction s, pixel angle pw.
@@ -146,7 +146,7 @@ float ringAtG(vec3 v, vec3 s, float pw){
   vec3 X;
   if(abs(cp)<1e-6){
     if(abs(dp)>half_/ringU.x+pw) return 0.0;
-    float b=v.z, tm=-b+sqrt(b*b-1.0+pow((ringU.x+ringU.y)*0.5, 2.0)); X=v*tm+vec3(0.0, 0.0, 1.0);
+    float b=v.z, rm=(ringU.x+ringU.y)*0.5, tm=-b+sqrt(b*b-1.0+rm*rm); X=v*tm+vec3(0.0, 0.0, 1.0);
   }else{
     if(abs(dp)<1e-9) return 0.0;
     float t=cp/dp; if(t<=0.0) return 0.0;
