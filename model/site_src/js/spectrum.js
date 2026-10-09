@@ -110,13 +110,15 @@ function spTo1nm(lg){
 }
 function spAirmass(el){ return airmass(Math.max(el, 0)); }
 // A cloud is a near-grey scatterer, so its light is the light that falls on it. The cloud pass
-// lights it in display-linear light, with the sky's own drawn colours as its skylight (0.45 of
-// the zenith, 0.55 of the sky 36° up opposite the Sun). Its pixel (premultiplied, display-encoded,
-// with a soft shoulder over 0.6) over that skylight, times the skylight's cd/m², is its luminance:
-// linear, where taking it back through the display curve would not be (the curve is nearly flat
-// through twilight). Its spectrum is the mix of the lights that can reach it (that same skylight,
-// direct sunlight while it can reach a cloud, moonlight, and the city's light from below) whose
-// colour matches the drawn one, by non-negative least squares on linear RGB.
+// adds its lights in display-linear light, each drawn as the display shows its source. Its
+// spectrum is the mix of the lights that can reach it (the sky's light, direct sunlight while it
+// can reach a cloud, moonlight, and the city's light from below) whose colour matches the drawn
+// one, by non-negative least squares on linear RGB. Each light's share of the pixel (premultiplied,
+// display-encoded, with a soft shoulder over 0.6) is then taken to cd/m² against its own source:
+// the city's against the city light the pass is given (six times the clear-sky glow, cityUplight),
+// the rest against the skylight (0.45 of the zenith, 0.55 of the sky 36° up opposite the Sun, as
+// drawn and in cd/m²). Linear, where taking the pixel back through the display curve would not
+// be: the curve is nearly flat through twilight.
 function spRGB(S){
   let X=0, Y=0, Z=0;
   for(let i=0;i<SP_N;i++){ X+=S[i]*SP_CMF[i][0]; Y+=S[i]*SP_CMF[i][1]; Z+=S[i]*SP_CMF[i][2]; }
@@ -143,12 +145,13 @@ function cloudLight(px, key, lat){
   const rZ=skyRAt(skyNow.rgrid, 90, 0), rM=skyRAt(skyNow.rgrid, 36, antiAz);
   const tRef=0.45*toneT(rZ, k, p, 0.95)+0.55*toneT(rM, k, p, 0.95);
   if(!(tRef>0)) return null;
-  const zen=skySpectrum(90, 0), mid=skySpectrum(36, antiAz), Y=t/tRef*(0.45*zen.Y+0.55*mid.Y);
+  const zen=skySpectrum(90, 0), mid=skySpectrum(36, antiAz), perSky=(0.45*zen.Y+0.55*mid.Y)/tRef;
+  const cu=skyNow.cityUp, tCity=cu?0.2126*cu[0]+0.7152*cu[1]+0.0722*cu[2]:0, perCity=tCity>0&&SKYGLOW[key]?6*SKYGLOW[key][0]/tCity:perSky;
   const lights=[['cloud, lit by the sky', spNorm(spAdd([0.45, zen.S], [0.55, mid.S])), 'post']];
   // Direct sunlight reaches a cloud a few km up until the Sun is about 3° down.
   if(skyNow.sunVis>0&&sza<93) lights.push(['cloud, sunlit', spNorm(spSunDisk(key, lat, Math.min(sza, 89))), true]);
   if(sza>=90&&mo.el>0&&skyNow.mScale>0) lights.push(['cloud, moonlit', spNorm(spSunDisk(key, lat, 90-mo.el).map((v, i)=>v*(0.8+0.0014*(SP_LAM[i]-450)))), true]);
-  if(sza>=90&&SKYGLOW[key]) lights.push([key==='volcanic'?'cloud, lit by oil lamps':'cloud, lit by the city', spGlow(key), false]);
+  if(sza>=90&&SKYGLOW[key]) lights.push([key==='volcanic'?'cloud, lit by oil lamps':'cloud, lit by the city', spGlow(key), false, true]);
   if(!lights.length) return null;
   const A=lights.map(l=>spRGB(l[1])), u=rgb.map(v=>v/t), n=lights.length;
   let best=null, bestR=Infinity;
@@ -162,7 +165,9 @@ function cloudLight(px, key, lat){
   }
   if(!best) best=[[0, 1]];
   const sum=best.reduce((s, [, w])=>s+w, 0)||1;
-  return {a, Y, comps:best.map(([i, w])=>[lights[i][0], w/sum, lights[i][1], lights[i][2]])};
+  const Ys=best.map(([i, w])=>w/sum*t*(lights[i][3]?perCity:perSky)), Y=Ys.reduce((s, v)=>s+v, 0);
+  if(!(Y>0)) return null;
+  return {a, Y, comps:best.map(([i], j)=>[lights[i][0], Ys[j]/Y, lights[i][1], lights[i][2]])};
 }
 // The light toward true altitude el, azimuth az. disk is 'sun', 'moon' or null; aurora the
 // four emissions there (kR) or null; litHere, on the Moon, how sunlit that point of it is (0–1);

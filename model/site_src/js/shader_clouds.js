@@ -129,8 +129,7 @@ void main(){
   vec3 zen=toLin(texture(sky, vec2(0.5, 0.5/(nr+1.0))).rgb);
   vec3 mid=toLin(texture(sky, vec2((fract(sunAz/360.0+0.5)*na+0.5)/(na+1.0), (0.6*nr+0.5)/(nr+1.0))).rgb);
   vec3 ambTop=(zen*0.45+mid*0.55);
-  // cityUp: the city's own light, reflected up from the streets onto the cloud base.
-  vec3 ambBot=toLin(groundCol)*0.55+mid*0.35+cityUp;
+  vec3 ambBot=toLin(groundCol)*0.55+mid*0.35;
   // Sunlight that reaches a shaded side after bouncing off other clouds and the ground.
   vec3 bounce=sunL*0.03*sat(sd.z*2.0+0.2);
   float cosT=dot(rd, sd);
@@ -165,7 +164,10 @@ void main(){
         // thin patch of a deck stays lighter than a thick one.
         float hu, u1=cloudDen(p+vec3(0.0, 0.0, 280.0), false, hu), u2=cloudDen(p+vec3(0.0, 0.0, 900.0), false, hu);
         float occ=exp(-(u1*280.0+u2*620.0)*SIGMA*0.10);
-        vec3 A=mix(ambBot, ambTop, smoothstep(0.0, 0.85, h))*mix(0.4, 1.0, occ)+bounce;
+        // cityUp: the city's own light, reflected up from the streets onto the cloud base. It
+        // comes from below, so the cloud overhead does not shade it, and many scatterings carry
+        // it through the cloud as they do the skylight.
+        vec3 A=mix(ambBot, ambTop, smoothstep(0.0, 0.85, h))*mix(0.4, 1.0, occ)+cityUp+bounce;
         vec3 L=S+A;
         // The Moon and a supernova light the clouds at night.
         for(int k=0;k<2;k++){
