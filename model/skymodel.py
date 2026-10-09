@@ -77,11 +77,30 @@ class Comp:
     def __init__(self, name, tau, ssa, g, profile, rayleigh=False):
         self.name, self.tau, self.ssa, self.g, self.profile, self.rayleigh = name, tau, ssa, g, profile, rayleigh
 
+# The profiles are evaluated in place on arrays of altitude: they run over every
+# sample of every path column, and the temporaries cost more than the arithmetic.
 def expo(H):
-    return lambda h: np.exp(-h/H)/H
+    def n(h):
+        e = h/-H
+        np.exp(e, out=e)
+        e /= H
+        return e
+    return n
+
+def _gauss(h, hc, w):
+    e = h - hc
+    e /= w
+    np.square(e, out=e)
+    e *= -0.5
+    return np.exp(e, out=e)
 
 def gauss_layer(hc, w):
-    return lambda h: np.exp(-0.5*((h-hc)/w)**2)/(w*np.sqrt(2*np.pi))
+    norm = w*np.sqrt(2*np.pi)
+    def n(h):
+        e = _gauss(h, hc, w)
+        e /= norm
+        return e
+    return n
 
 def hg(g, cosT):
     return (1-g**2)/(4*np.pi*(1+g**2-2*g*cosT)**1.5)
@@ -159,8 +178,15 @@ def ozone_layer(lat_deg, trop_frac=0.0):
     f = min(max(float(trop_frac), 0.0), 1.0)
 
     def n(h):
-        strat = strat_norm * np.exp(-0.5 * ((h - hc) / w) ** 2)
-        return (1.0 - f) * strat + f * trop(h)
+        strat = _gauss(h, hc, w)
+        strat *= strat_norm
+        if f == 0.0:
+            return strat
+        strat *= 1.0 - f
+        t = trop(h)
+        t *= f
+        strat += t
+        return strat
     return n
 
 def aerosol_tau(beta, alpha):
@@ -181,7 +207,7 @@ def ray_points(h0, zen_view, smax=None, n=400):
     x = s*np.sin(zen_view); z = r0 + s*np.cos(zen_view)
     r = np.sqrt(x**2+z**2)
     h = r - R_E
-    return s, h, x, z
+    return s, h, x, z, r
 
 def path_columns(profiles, h_start_r, dir_cos_local, hmax=120.0, n=200):
     """Columns (integral of each profile along the path) from points at radius r
@@ -189,30 +215,54 @@ def path_columns(profiles, h_start_r, dir_cos_local, hmax=120.0, n=200):
     geometry is shared by all the profiles. Vectorised over arrays."""
     r0 = h_start_r
     mu = dir_cos_local
+    # if ray hits ground (mu<0 and perigee below R_E): mark inf
+    perigee = r0*np.sqrt(np.maximum(1-mu**2, 0))
+    hits_ground = (mu < 0) & (perigee < R_E)
+    cols = np.full((len(profiles), len(r0)), np.inf)
+    # Only the rays that reach space are integrated.
+    sky = ~hits_ground
+    r0, mu = r0[sky], mu[sky]
     # parametric: r(s) = sqrt(r0^2 + s^2 + 2 r0 s mu)
     # find s where r = R_E+hmax
     rt = R_E + hmax
     disc = (r0*mu)**2 + rt**2 - r0**2
     smax = -r0*mu + np.sqrt(np.maximum(disc, 0))
-    # if ray hits ground (mu<0 and perigee below R_E): mark inf
-    perigee = r0*np.sqrt(np.maximum(1-mu**2, 0))
-    hits_ground = (mu < 0) & (perigee < R_E) 
     t = np.linspace(0, 1, n)
     S = smax[:, None]*t[None, :]
     R = np.sqrt(r0[:, None]**2 + S**2 + 2*r0[:, None]*S*mu[:, None])
     H = R - R_E
     Hc = np.clip(H, 0, None)
     above = H > hmax
-    cols = np.empty((len(profiles), len(r0)))
+    any_above = above.any()
+    # np.trapezoid's arithmetic, with the steps shared by every profile
+    dS = np.diff(S, axis=1)
     for i, profile in enumerate(profiles):
-        dens = np.where(above, 0, profile(Hc))
-        cols[i] = np.where(hits_ground, np.inf, np.trapezoid(dens, S, axis=1))
+        dens = profile(Hc)
+        if any_above:
+            dens[above] = 0
+        seg = dens[:, 1:] + dens[:, :-1]
+        seg *= dS
+        seg /= 2.0
+        cols[i, sky] = seg.sum(axis=1)
     return cols
 
-
-def path_column(profile, h_start_r, dir_cos_local, hmax=120.0, n=200):
-    """Column of one profile; see path_columns."""
-    return path_columns([profile], h_start_r, dir_cos_local, hmax, n)[0]
+def single_scatter(atm, s, h, cols, cosT, to_end=False):
+    """Singly scattered radiance reaching the end s[0] of a sampled ray (s[-1] with to_end),
+    from points at altitudes h whose columns toward the Sun are cols (path_columns)."""
+    # Per component: optical depth from the observer to each point along the ray, the
+    # column toward the Sun from each point, and the local scattering coefficient times
+    # the phase function.
+    tau_obs = np.zeros((len(s), len(LAM))); tau_sun = np.zeros_like(tau_obs); beta = np.zeros_like(tau_obs)
+    ds = np.diff(s)
+    for c, col in zip(atm.comps, cols):
+        dens = c.profile(h)
+        seg = 0.5*(dens[1:]+dens[:-1])*ds
+        cum = np.concatenate([np.cumsum(seg[::-1])[::-1], [0]]) if to_end else np.concatenate([[0], np.cumsum(seg)])
+        tau_obs += cum[:, None]*c.tau[None, :]
+        tau_sun += np.where(np.isinf(col)[:, None], 1e6, col[:, None]*c.tau[None, :])
+        P = rayleigh_phase(cosT) if c.rayleigh else hg(c.g, cosT)
+        beta += dens[:, None]*(c.tau*c.ssa*P)[None, :]
+    return np.trapezoid(beta*np.exp(-tau_obs - tau_sun), s, axis=0)*atm.S0
 
 # ---------------- Two-stream (delta-Eddington) for diffuse flux ----------------
 def _two_stream(tau, w, g, mu0, albedo):
@@ -259,6 +309,7 @@ class Atmosphere:
     def __init__(self, comps, albedo=0.15, sun_T=5772.0, sun_L=1.0):
         self.comps, self.albedo = comps, albedo
         self.S0 = solar_spectrum(sun_T, sun_L)
+        self._ms = {}
 
     def total_tau(self):
         return sum(c.tau for c in self.comps)
@@ -286,8 +337,7 @@ class Atmosphere:
         zs, as_ = np.radians(sun_zen_deg), np.radians(sun_az_deg)
         # scattering angle
         cosT = np.cos(zv)*np.cos(zs) + np.sin(zv)*np.sin(zs)*np.cos(av-as_)
-        s, h, x, z = ray_points(h0, zv)
-        r = np.sqrt(x**2+z**2)
+        s, h, x, z, r = ray_points(h0, zv)
         keep = h < 120
         s, h, x, z, r = s[keep], h[keep], x[keep], z[keep], r[keep]
         # local sun zenith cosine at each point (sun direction fixed in observer frame;
@@ -296,27 +346,19 @@ class Atmosphere:
         sun = np.array([np.sin(zs)*np.cos(as_-av), np.sin(zs)*np.sin(as_-av), np.cos(zs)])
         vert = np.stack([x/r, np.zeros_like(x), z/r], axis=1)
         mu_sun_local = vert @ sun
-        # Per component: optical depth from the observer to each point along the view ray,
-        # the column toward the Sun from each point, and the local scattering coefficient
-        # times the phase function.
-        tau_view = np.zeros((len(s), len(LAM)))
-        tau_sun = np.zeros((len(s), len(LAM)))
-        beta = np.zeros((len(s), len(LAM)))
-        ds = np.diff(s)
         cols = path_columns([c.profile for c in self.comps], r, mu_sun_local)
-        for c, col in zip(self.comps, cols):
-            dens = c.profile(h)
-            cum = np.concatenate([[0], np.cumsum(0.5*(dens[1:]+dens[:-1])*ds)])
-            tau_view += cum[:, None]*c.tau[None, :]
-            tau_sun += np.where(np.isinf(col)[:, None], 1e6, col[:, None]*c.tau[None, :])
-            P = rayleigh_phase(cosT) if c.rayleigh else hg(c.g, cosT)
-            beta += dens[:, None]*(c.tau*c.ssa*P)[None, :]
-        atten = np.exp(-tau_view - tau_sun)
-        integrand = beta*atten
-        I_ss = np.trapezoid(integrand, s, axis=0)*self.S0
+        I_ss = single_scatter(self, s, h, cols, cosT)
         if not ms:
             return I_ss
+        return I_ss + self.multiple_scatter(sun_zen_deg)
+
+    def multiple_scatter(self, sun_zen_deg):
+        """The diffuse radiance added to single scattering. It does not depend on the
+        view direction, so it is kept per solar zenith angle."""
+        if sun_zen_deg in self._ms:
+            return self._ms[sun_zen_deg]
         # multiple scattering: two-stream diffuse flux minus the single-scatter hemispheric flux
+        zs = np.radians(sun_zen_deg)
         mu0 = max(np.cos(zs), 0.02)
         w, g = self.eff_ssa_g()
         tt = self.total_tau(); ts = self.scat_tau()
@@ -337,9 +379,8 @@ class Atmosphere:
         # small step, so sunrise is a fade rather than a jump.
         if sun_zen_deg > 80:
             F_ms = F_ms * np.exp(-(sun_zen_deg - 80.0) / 4.0)
-        I_ms = F_ms/np.pi
-        # horizon brightening for diffuse (mild)
-        return I_ss + I_ms
+        I_ms = self._ms[sun_zen_deg] = F_ms/np.pi
+        return I_ms
 
     def sky_color(self, view_zen, view_az, sun_zen, sun_az=0.0):
         return spec_to_XYZ(self.radiance(view_zen, view_az, sun_zen, sun_az))
@@ -381,20 +422,11 @@ def limb_radiance(atm, h_tan, sza_deg, hmax=110.0):
     s = np.linspace(-smax, smax, 361)
     r = np.sqrt(Rt**2 + s**2); h = r - R_E
     sza = np.radians(sza_deg)
-    mu_sun = Rt*np.cos(sza)/r
-    cosT = 0.0
-    tau_obs = np.zeros((len(s), len(LAM))); tau_sun = np.zeros_like(tau_obs); beta = np.zeros_like(tau_obs)
-    cols = path_columns([c.profile for c in atm.comps], r, mu_sun)
-    for c, col in zip(atm.comps, cols):
-        dens = c.profile(h)
-        seg = 0.5*(dens[1:]+dens[:-1])*np.diff(s)
-        cum_to_end = np.concatenate([np.cumsum(seg[::-1])[::-1], [0]])  # from point to +smax (observer side)
-        tau_obs += cum_to_end[:, None]*c.tau[None, :]
-        tau_sun += np.where(np.isinf(col)[:, None], 1e6, col[:, None]*c.tau[None, :])
-        P = rayleigh_phase(cosT) if c.rayleigh else hg(c.g, cosT)
-        beta += dens[:, None]*(c.tau*c.ssa*P)[None, :]
-    I = np.trapezoid(beta*np.exp(-tau_obs-tau_sun), s, axis=0)*atm.S0
-    return I
+    # The two halves of the path mirror each other, so most radii come twice.
+    ru, inv = np.unique(r, return_inverse=True)
+    cols = path_columns([c.profile for c in atm.comps], ru, Rt*np.cos(sza)/ru)[:, inv]
+    # The observer is at +smax.
+    return single_scatter(atm, s, h, cols, 0.0, to_end=True)
 
 def disk_radiance(atm, sza_deg):
     mu0 = max(np.cos(np.radians(sza_deg)), 0.03)

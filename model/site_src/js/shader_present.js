@@ -4,16 +4,7 @@ uniform sampler2D cloudTex; uniform sampler2D hitInfo; uniform vec2 res;
 uniform float yaw,pitch,fov,showScn;
 uniform vec3 eye;
 out vec4 fragColor;
-float shellT(vec3 ro, vec3 rd, float H){
-  float R=833333.0;
-  vec2 dh=ro.xy-eye.xy;
-  float c=dot(dh,dh)+(ro.z-H)*(ro.z+H+2.0*R);
-  if(c>=0.0) return -1.0;
-  float b=dot(vec3(dh, ro.z+R), rd);
-  float disc=b*b-c;
-  if(disc<=0.0) return -1.0;
-  return -c/(b+sqrt(disc));
-}
+${SHELL_GLSL}
 vec4 toneCloud(vec4 c){
   vec3 x=c.rgb/max(c.a, 1.0e-4);
   float m=max(x.r, max(x.g, x.b));

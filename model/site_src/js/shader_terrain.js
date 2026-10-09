@@ -96,11 +96,10 @@ float onePeak(vec2 p, vec2 c, float R, float H, float volc, float seed){
 // mean), and low-frequency noise varies each cliff from sheer to a steep ramp and each bench
 // from flat to sloping. The noise is kept smooth: high-frequency outlines make thin fins that
 // the march steps over.
-float glacierH(vec2 p, vec4 q){
+float glacierH(vec2 p, vec4 q, float seed){
   vec2 d=p-q.xy;
   float R=massifRad(q.z, 2.0), r=length(d);
   if(r>=R) return 0.0;
-  float seed=texture(weather, q.xy*0.00041+0.37).r;
   float ang=atan(d.y, d.x);
   float u=r/(R*(0.74+0.26*texture(weather, vec2(ang*0.3+seed*2.0, seed*3.1)).g));
   if(u>=1.0) return 0.0;
@@ -113,16 +112,24 @@ float glacierH(vec2 p, vec4 q){
   float prof=(b0+(b1-b0)*mix(cliff, f, mix(0.0, 0.55, n2)))/(tiers+0.5);
   return max(prof, 0.0)*smoothstep(0.0, 0.03, 1.0-u)*q.w;
 }
-float massifH(vec2 p, vec4 q, float volc){
+// What massifH takes from the massif alone, worked out once per massif rather than per sample:
+// its two seeds and the direction the first sets, or a glacier's seed in x.
+vec4 massifSeed(vec4 q, float volc){
 #if GLACIERS
-  if(volc>1.5) return glacierH(p, q);
+  if(volc>1.5) return vec4(texture(weather, q.xy*0.00041+0.37).r, 0.0, 0.0, 0.0);
+#endif
+  float s0=texture(weather, q.xy*0.00041+0.13).r, ang=s0*6.2831853;
+  return vec4(s0, texture(weather, q.xy*0.00041+0.71).g, cos(ang), sin(ang));
+}
+// ms is massifSeed(q, volc).
+float massifH(vec2 p, vec4 q, float volc, vec4 ms){
+#if GLACIERS
+  if(volc>1.5) return glacierH(p, q, ms.x);
 #endif
   vec2 c=q.xy;
   float R=massifRad(q.z, volc), H=q.w;
-  float s0=texture(weather, c*0.00041+0.13).r;
-  float s1=texture(weather, c*0.00041+0.71).g;
-  float ang=s0*6.2831853;
-  vec2 off=vec2(cos(ang), sin(ang));
+  float s0=ms.x, s1=ms.y;
+  vec2 off=ms.zw;
   float h=0.0;
   for(int k=0;k<(volc<0.5?3:2)+loopPad;k++){
     vec2 pc=c+off*R*mix(0.09, 0.02, volc); float pr=R*0.88, ph=H, pv=volc, ps=s0;
@@ -145,10 +152,11 @@ float marchMassif(vec3 ro, vec3 rd, vec4 q, float volc){
   // once a step lands inside.
   float nst=volc>1.5?64.0:28.0, dt=(t1-t0)/nst, prev=t0, lo=t0, hi=t0;
   int bis=-1;
+  vec4 ms=massifSeed(q, volc);
   for(int i=0;i<=int(nst)+6+loopPad;i++){
     float t=bis<0?min(t0+dt*float(i), t1):0.5*(lo+hi);
     vec3 p=ro+rd*t;
-    float h=massifH(p.xy, q, volc);
+    float h=massifH(p.xy, q, volc, ms);
     if(bis<0){
       if(h>0.3 && p.z<=h){ if(i==0) return t; lo=prev; hi=t; bis=0; }
       else { prev=t; if(t>=t1) break; }
@@ -161,10 +169,10 @@ float marchMassif(vec3 ro, vec3 rd, vec4 q, float volc){
 }
 vec3 massifN(vec2 p, vec4 q, float volc){
   float e=max(massifRad(q.z, volc)*(volc>1.5?0.012:0.028), 3.0);
-  vec4 s;
+  vec4 s, ms=massifSeed(q, volc);
   for(int k=0;k<4+loopPad;k++){
     vec2 o=vec2(k==0?e:(k==1?-e:0.0), k==2?e:(k==3?-e:0.0));
-    s[k]=massifH(p+o, q, volc);
+    s[k]=massifH(p+o, q, volc, ms);
   }
   return normalize(vec3(-(s.x-s.y), -(s.z-s.w), 2.0*e));
 }

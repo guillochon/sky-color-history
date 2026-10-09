@@ -14,14 +14,24 @@ function renderGlobe(ep){
   if(cache[ep.key]) return cache[ep.key];
   const W=globe.width,H=globe.height; const off=document.createElement('canvas'); off.width=W; off.height=H; const ctx=off.getContext('2d');
   const img=ctx.createImageData(W,H), px=img.data; const d=ep.limb; const lats=d.lats, alts=d.alts, hmax=alts[alts.length-1];
-  const cx=W/2, cy=H/2, R=W*0.30, EX=0.5;
-  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
-    const dx=x-cx, dy=y-cy, r=Math.hypot(dx,dy); let c=[0.02,0.024,0.04];
-    if(r<R){ const lat=Math.min(82.5,Math.abs(Math.asin(dy/R))*180/Math.PI); const [i,t]=bracket(lats,lat); const a=d.disk[i],b=d.disk[i+1]; const mu=Math.pow(Math.max(0,1-(r/R)**2),0.18); c=[0,1,2].map(q=>(a[q]+(b[q]-a[q])*t)*mu); }
-    else if(r<R*(1+EX)){ const h=(r/R-1)/EX*hmax; const lat=Math.min(82.5,Math.abs(Math.asin(dy/r))*180/Math.PI); const [i,t]=bracket(lats,lat),[j,u]=bracket(alts,h); const G=d.limb;
-      c=[0,1,2].map(q=>{const a=G[i][j][q]+(G[i][j+1][q]-G[i][j][q])*u, b=G[i+1][j][q]+(G[i+1][j+1][q]-G[i+1][j][q])*u; return a+(b-a)*t;});
-      const f=Math.min(1,(R*(1+EX)-r)/(R*EX*0.08)); c=c.map((v,q)=>[0.02,0.024,0.04][q]+(v-[0.02,0.024,0.04][q])*f); }
-    const o=(y*W+x)*4; px[o]=c[0]*255; px[o+1]=c[1]*255; px[o+2]=c[2]*255; px[o+3]=255;
+  const cx=W/2, cy=H/2, R=W*0.30, EX=0.5, RO=R*(1+EX), BG=[0.02,0.024,0.04], G=d.limb;
+  for(let y=0;y<H;y++){
+    // On the disk the latitude depends on the row alone.
+    const dy=y-cy; let disk=null;
+    for(let x=0;x<W;x++){
+      const dx=x-cx, r=Math.hypot(dx,dy), o=(y*W+x)*4; let c0=BG[0], c1=BG[1], c2=BG[2];
+      if(r<R){
+        if(!disk) disk=bracket(lats, Math.min(82.5,Math.abs(Math.asin(dy/R))*180/Math.PI));
+        const [i,t]=disk, a=d.disk[i], b=d.disk[i+1], mu=Math.pow(Math.max(0,1-(r/R)**2),0.18);
+        c0=(a[0]+(b[0]-a[0])*t)*mu; c1=(a[1]+(b[1]-a[1])*t)*mu; c2=(a[2]+(b[2]-a[2])*t)*mu;
+      }else if(r<RO){
+        const h=(r/R-1)/EX*hmax; const lat=Math.min(82.5,Math.abs(Math.asin(dy/r))*180/Math.PI); const [i,t]=bracket(lats,lat),[j,u]=bracket(alts,h);
+        const A0=G[i][j], A1=G[i][j+1], B0=G[i+1][j], B1=G[i+1][j+1], f=Math.min(1,(RO-r)/(R*EX*0.08));
+        const v=q=>{ const a=A0[q]+(A1[q]-A0[q])*u, b=B0[q]+(B1[q]-B0[q])*u; return BG[q]+(a+(b-a)*t-BG[q])*f; };
+        c0=v(0); c1=v(1); c2=v(2);
+      }
+      px[o]=c0*255; px[o+1]=c1*255; px[o+2]=c2*255; px[o+3]=255;
+    }
   }
   ctx.putImageData(img,0,0);
   ctx.strokeStyle='rgba(255,255,255,.5)'; ctx.fillStyle='rgba(255,255,255,.75)'; ctx.font='15px Newsreader, Georgia, serif';

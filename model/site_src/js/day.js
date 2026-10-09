@@ -217,7 +217,6 @@ function toneAt(T, r){
   const x=(Math.log10(Math.max(r, 1e-12))+12)/0.002, i=Math.min(6499, Math.floor(x)), f=Math.min(1, x-i);
   return T[i]+(T[i+1]-T[i])*f;
 }
-function toneFast(r, k, p){ return toneAt(toneLUT(k, p), r); }
 // tone(), for the XYZ at X[o..o+2], written to out[o..o+2].
 function toneTo(X, o, Yref, k, p, cap, out){
   const x0=X[o], x1=X[o+1], x2=X[o+2];
@@ -230,6 +229,9 @@ function toneTo(X, o, Yref, k, p, cap, out){
 }
 // The dome's sky grid: DOME_NR+1 rings from the zenith to the horizon, DOME_NA+1 azimuths.
 const DOME_NR=72, DOME_NA=144;
+// The sky in XYZ on that grid, and its log luminance for the Milky Way pass: scratch space that
+// every render fills in full.
+const DOME_XYZ=new Float64Array((DOME_NR+1)*(DOME_NA+1)*3), DOME_LOGR=new Float64Array((DOME_NR+1)*(DOME_NA+1));
 // The dome canvas's fixed geometry, worked out once: for each pixel the grid cell under it
 // (0xFFFF outside the sky circle) and where in the cell it falls; the same for each 2×2 block
 // of the Milky Way pass, with its direction and elevation.
@@ -340,9 +342,11 @@ function renderDay(fast){
   const zodiXY=xyY2XYZ([NIGHT_REST_XY[0], NIGHT_REST_XY[1], 1]), ekD=extK(ep.key), cduD=cdPerUnit();
   const ringLux=ringR?ringIlluminance(ringR, sunDir, ecl.pole, sunFlux, ekD):0, ringSky=ringR?xyY2XYZ([0.285, 0.300, 0.027*ringLux/cduD]):null;
   // The sky on the grid, in XYZ: the night sky, then the Sun's field, the Moon's, and the ring.
-  const grid=new Float64Array(NG*3), S=DOME_TMP, slices=denseSlices(ep.key, dLat), sunF=sunVis*sunFlux;
+  const grid=DOME_XYZ, S=DOME_TMP, slices=denseSlices(ep.key, dLat), sunF=sunVis*sunFlux;
   let Ymax=1e-30, Yhold=1e-30, Ysun=1e-30;
+  const zAbs=zodiOn?absZenith(ep.key):0;
   for(let ir=0;ir<=NR;ir++){ const vz=90*ir/NR, vzc=Math.min(vz,88), nr=night[ir], rg=ring?ring[Math.min(NR, Math.round(vz/90*NR))]:null;
+    const el=90-vz, zExt=zodiOn?0.4+0.6*extinction(el, ekD):0;
     for(let ia=0;ia<=NA;ia++){ const comp=360*ia/NA;
       let X0=nr[0], X1=nr[1], X2=nr[2];
       if(!(sunSrc.fade<=0)){
@@ -357,7 +361,7 @@ function renderDay(fast){
         if(mScale>0){ const f=moonSrc.fade*mScale; X0+=S[0]*f; X1+=S[1]*f; X2+=S[2]*f; }
       }
       if(rg){ X0+=rg[0]*ringK; X1+=rg[1]*ringK; X2+=rg[2]*ringK; }
-      if(zodiOn){ const el=90-vz, zl=zodiExtra(ep.key, horizDir(comp, el), ecl)*absZenith(ep.key)*(0.4+0.6*extinction(el, ekD))/cduD; X0+=zodiXY[0]*zl; X1+=zodiXY[1]*zl; X2+=zodiXY[2]*zl; }
+      if(zodiOn){ const zl=zodiExtra(ep.key, horizDir(comp, el), ecl)*zAbs*zExt/cduD; X0+=zodiXY[0]*zl; X1+=zodiXY[1]*zl; X2+=zodiXY[2]*zl; }
       if(ringSky){ X0+=ringSky[0]; X1+=ringSky[1]; X2+=ringSky[2]; }
       if(X1>Ymax) Ymax=X1;
       const o=(ir*NC+ia)*3; grid[o]=X0; grid[o+1]=X1; grid[o+2]=X2;
@@ -376,7 +380,7 @@ function renderDay(fast){
   const mwA=mwOn&&!fast?new Float32Array(geo.nb):null, mwB=mwA?new Float32Array(geo.nb):null;
   if(mwA){
     if(!MW_LIN) MW_LIN=xyzLin(xyY2XYZ([MW_XY[0], MW_XY[1], 1]));
-    const lgrid=new Float64Array(NG); for(let c=0;c<NG;c++) lgrid[c]=Math.log(rgrid[c]);
+    const lgrid=DOME_LOGR; for(let c=0;c<NG;c++) lgrid[c]=Math.log(rgrid[c]);
     const ext=domeExtinction(geo, ek), extZ=extZenith(ep.key), scale=cdu*Yref, T=toneLUT(k, p), bl=geo.bl, dir=geo.dir;
     const [b0, b1, b2]=galB, db=galB.db;
     for(let bi=0;bi<geo.nb;bi++){
@@ -470,6 +474,7 @@ function renderDay(fast){
   // full Moon's brightness), the ring while the last sliver is going.
   const sunUp=sza<90+SUN_RADIUS_DEG*diskScale;
   const corona=sunUp?1-smooth01(0.003, 0.03, sunVis):0;
+  const cGain=corona>0?coronaGain(ep.key, 90-sza):0, cMap=corona>0?coronaMap(ep.key, cGain):null, cRim=corona>0?coronaRimK(ep.key, cGain):1;
   const {beads, beadW, beadDir}=findBeads(moon, sunAz, sza, rSun, rMoon, sunUp);
   if(!fast && sunUpPix && (corona>0 || beadW>0)){
     const mrr=R*(90-moon.el)/90, ma=moon.az*Math.PI/180, mx=cx+mrr*Math.sin(ma), my=cy-mrr*Math.cos(ma), mr=moon.radDeg*(DOME_DISK*z/SUN_RADIUS_DEG);
@@ -477,10 +482,10 @@ function renderDay(fast){
     dctx.beginPath(); dctx.rect(0,0,W,H); dctx.arc(mx,my,mr,0,Math.PI*2,true); dctx.clip('evenodd');
     if(corona>0){
       // The epoch's corona, drawn as today's at the radius where today's is as bright (corona.js).
-      const map=coronaMap(ep.key, coronaGain(ep.key, 90-sza)), out=coronaOuter(map), g=dctx.createRadialGradient(sx,sy,SUNR,sx,sy,SUNR*out);
-      for(let i=0;i<=20;i++){ const t=i/20; const a=1+(out-1)*t; g.addColorStop(t, `rgba(255,248,236,${coronaAlpha(coronaRemap(map, a))*(1-smooth01(5, CORONA_MAP_MAX, a))*(i<20)*corona})`); }
+      const out=coronaOuter(cMap), g=dctx.createRadialGradient(sx,sy,SUNR,sx,sy,SUNR*out);
+      for(let i=0;i<=20;i++){ const t=i/20; const a=1+(out-1)*t; g.addColorStop(t, `rgba(255,248,236,${coronaAlpha(coronaRemap(cMap, a))*(1-smooth01(5, CORONA_MAP_MAX, a))*(i<20)*corona})`); }
       dctx.fillStyle=g; dctx.beginPath(); dctx.arc(sx,sy,SUNR*out,0,Math.PI*2); dctx.fill();
-      const rimK=coronaRimK(ep.key, coronaGain(ep.key, 90-sza)); dctx.strokeStyle=`rgba(255,90,120,${0.9*corona*Math.min(1, rimK)})`; dctx.lineWidth=1.5*Math.max(1, rimK); dctx.beginPath(); dctx.arc(sx,sy,SUNR+0.75,0,Math.PI*2); dctx.stroke();
+      dctx.strokeStyle=`rgba(255,90,120,${0.9*corona*Math.min(1, cRim)})`; dctx.lineWidth=1.5*Math.max(1, cRim); dctx.beginPath(); dctx.arc(sx,sy,SUNR+0.75,0,Math.PI*2); dctx.stroke();
     }
     dctx.restore();
   }
@@ -505,7 +510,7 @@ function renderDay(fast){
   const fullPct=r=>{ const p=r*100; return (p<10 ? p.toFixed(1) : Math.round(p))+'%'; };
   const sn=supernovaPlace(LATDEG[dLat]);
   if(!fast) drawSupernovaOnDome(sn);
-  skyNow={colgrid, nr:NR, na:NA, sza, sunAz, sunRGB, sunVis, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE*1.5+35/60*refK(), moon, corona, coronaMap:corona>0?coronaMap(ep.key, coronaGain(ep.key, 90-sza)):null, coronaRim:corona>0?coronaRimK(ep.key, coronaGain(ep.key, 90-sza)):1, beads, eclipse, central, rgrid, cityUp:cityUplight(ep.key, Yref, k, p), Yref, toneK:k, toneP:p, rCd:Yref*cdu, gal:mwMap?galacticBasis(LATDEG[dLat]):null, extK:ek, stars:stars.tex, starMarks:stars.marks, starBins:stars.bins, starIdx:stars.idx, starIdxCount:stars.idxCount, sn, moonRel:mScale/MOON_SUN_FULL, mScale, sunFlux, halo:haloVR, ring:ringVR, ecl, comets, aur:auroraState(ep.key, LATDEG[dLat], minutes, rgrid[0]*Yref*cdu), gen:++skyGen};
+  skyNow={colgrid, nr:NR, na:NA, sza, sunAz, sunRGB, sunVis, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE*1.5+35/60*refK(), moon, corona, coronaMap:cMap, coronaRim:cRim, beads, eclipse, central, rgrid, cityUp:cityUplight(ep.key, Yref, k, p), Yref, toneK:k, toneP:p, rCd:Yref*cdu, gal:mwMap?galacticBasis(LATDEG[dLat]):null, extK:ek, stars:stars.tex, starMarks:stars.marks, starBins:stars.bins, starIdx:stars.idx, starIdxCount:stars.idxCount, sn, moonRel:mScale/MOON_SUN_FULL, mScale, sunFlux, halo:haloVR, ring:ringVR, ecl, comets, aur:auroraState(ep.key, LATDEG[dLat], minutes, rgrid[0]*Yref*cdu), gen:++skyGen};
   document.getElementById('raur').textContent=auroraReadout(skyNow.aur);
   document.getElementById('rmet').textContent=meteorReadout();
   document.getElementById('rcomet').textContent=cometReadout();

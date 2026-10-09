@@ -122,12 +122,13 @@ const RING_REFL=l=>0.8+0.4*Math.max(0, Math.min(1, (l-400)/380))-0.08*Math.exp(-
 function domeRingPixel(px, o, j, c, tr, ta, H){
   const d=H.dir, v=H.v; v[0]=d[j*4]; v[1]=d[j*4+1]; v[2]=d[j*4+2];
   if(v[2]<-0.02) return;
-  const L=ringAt(H.R, v, H.s, H.P, H.pw, H.sunFlux)*extinction(Math.max(d[j*4+3], 0), H.k)*H.extZ;
+  // Most pixels miss the ring; only those that meet it need the extinction.
+  const L0=ringAt(H.R, v, H.s, H.P, H.pw, H.sunFlux);
+  if(!(L0>0)) return;
+  const L=L0*extinction(Math.max(d[j*4+3], 0), H.k)*H.extZ;
   if(!(L>0)) return;
-  const rH=L/H.rCd, g=H.rgrid, NC=H.NC, rBg=(g[c]*(1-ta)+g[c+1]*ta)*(1-tr)+(g[c+NC]*(1-ta)+g[c+NC+1]*ta)*tr;
-  if(rH<rBg*0.003) return;
-  const rNew=rBg+rH, tBg=toneAt(H.T, rBg), tNew=toneAt(H.T, rNew), a=tBg>0?(tNew/tBg)*(rBg/rNew):0, b=tNew/rNew*rH;
-  for(let q=0;q<3;q++) px[o+q]=linToByte(SRGB_LIN[px[o+q]]*a+RING_LIN[q]*b);
+  const rH=L/H.rCd;
+  domeMixLight(px, o, c, tr, ta, H, rH, RING_LIN, rH);
 }
 // The same in GLSL for the walk-around view: ringU = (rIn, rOut, tau, half-thickness in Earth
 // radii), ringV = (albedo × flux factor / rCd, across, on, unused), with the pole ringP.

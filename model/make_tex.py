@@ -1,26 +1,26 @@
-import json, re, html, os, copy
+import re, html
 from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 import gen_report as gr
-PROSE, LIMB_CAP, order, ages = gr.PROSE, gr.LIMB_CAP, gr.order, gr.ages
+PROSE, LIMB_CAP, order = gr.PROSE, gr.LIMB_CAP, gr.order
 # gen_report adds the epochs that reuse today's air (Year 2100 and the supernovae) to its records.
 byk = gr.byk
-SAME_AIR = {'y2100'} | {key for key, _, _ in gr.SUPERNOVA_EPOCHS}
-def sky_fig(k): return 'modern' if k in SAME_AIR else k
+def sky_fig(k): return 'modern' if k in gr.SAME_AIR else k
 L = str(ROOT.parent / 'latex')
+
+TEX_REP = {'&': r'\&', '%': r'\%', '#': r'\#', '_': r'\_', '~': r'$\sim$', '≈': r'$\approx$', '×': r'$\times$', '°': r'$^\circ$',
+           '–': '--', '—': '---', '’': "'", '‘': '`', '“': '``', '”': "''", '·': r'$\cdot$', '…': r'\ldots',
+           '₂': r'$_2$', '₃': r'$_3$', '₄': r'$_4$', 'τ': r'$\tau$', 'μ': r'$\mu$', 'λ': r'$\lambda$', 'ω': r'$\omega$',
+           '⁻': '^{-', '⁶': '6}', '²': r'$^2$', '³': r'$^3$', '⁴': r'$^4$',
+           '−': '$-$', '±': r'$\pm$', 'ζ': r'$\zeta$', 'θ': r'$\theta$', 'ε': r'$\varepsilon$', 'β': r'$\beta$',
+           'ν': r'$\nu$', 'ρ': r'$\rho$', 'ξ': r'$\xi$', 'α': r'$\alpha$'}
 
 def tex(s):
     s = html.unescape(s)
     s = re.sub(r'<em>(.*?)</em>', r'\\emph{\1}', s); s = re.sub(r'<i>(.*?)</i>', r'\\emph{\1}', s)
     s = re.sub(r'<[^>]+>', '', s)
-    rep = {'&': r'\&', '%': r'\%', '#': r'\#', '_': r'\_', '~': r'$\sim$', '≈': r'$\approx$', '×': r'$\times$', '°': r'$^\circ$',
-           '–': '--', '—': '---', '’': "'", '‘': '`', '“': '``', '”': "''", '·': r'$\cdot$', '…': r'\ldots',
-           '₂': r'$_2$', '₃': r'$_3$', '₄': r'$_4$', 'τ': r'$\tau$', 'μ': r'$\mu$', 'λ': r'$\lambda$', 'ω': r'$\omega$',
-           '⁻': '^{-', '⁶': '6}', '²': r'$^2$', '³': r'$^3$', '⁴': r'$^4$'}
     s = s.replace('⁶⁰', '$^{60}$')
-    rep.update({'−': '$-$', '±': r'$\pm$', 'ζ': r'$\zeta$', 'θ': r'$\theta$', 'ε': r'$\varepsilon$', 'β': r'$\beta$',
-                'ν': r'$\nu$', 'ρ': r'$\rho$', 'ξ': r'$\xi$', 'α': r'$\alpha$'})
-    for a, b in rep.items(): s = s.replace(a, b)
+    for a, b in TEX_REP.items(): s = s.replace(a, b)
     s = s.replace('$_2$$_2$', '$_{22}$')
     s = re.sub(r'10\^\{-(\d)\}', r'$10^{-\1}$', s)
     s = re.sub(r'10\$\^(\d)\$', r'$10^{\1}$', s)
@@ -51,31 +51,6 @@ Star & Type & Today: $V$, pc & Peak $V$ (68\% range) & Closest (pc) & Myr ago & 
 \end{table*}
 
 """ + tex(gr.ENC_PROSE[1])
-
-epoch_blocks = ''
-for k in order:
-    r = byk[k]
-    epoch_blocks += f"""
-\\subsection{{{tex(r['name'])}}}
-\\emph{{{tex(r['sub'])}}}
-
-{tex(PROSE[k])}
-
-\\begin{{figure}}[H]\\centering
-\\includegraphics[width=\\linewidth]{{figures/sky_{sky_fig(k)}.png}}
-\\caption{{{tex(r['name'])}: noon sky dome at the equator (solar zenith angle $15^\\circ$), mid-latitude ($45^\\circ$) and polar summer ($75^\\circ$), zenith at top and horizon at bottom, with the Sun's disk drawn in its color and relative brightness; below, the horizon-to-antisolar sky with the Sun on the horizon and $4^\\circ$ below it. Brightness relative to today's clean sky, gamma-compressed.}}
-\\label{{fig:sky_{k}}}
-\\end{{figure}}
-"""
-
-globe_order = ['modern','archean38','archean27','hadean44','snowball07','kpg66','volcanic']
-globe_items = ''
-for k in globe_order:
-    globe_items += f"""\\begin{{minipage}}[t]{{0.48\\linewidth}}\\centering
-\\includegraphics[width=\\linewidth]{{figures/globe_{k}.png}}
-\\footnotesize\\raggedright\\textbf{{{tex(byk[k]['name'])}.}} {tex(LIMB_CAP[k])}
-\\end{{minipage}}\\hfill
-"""
 
 # summary table rows
 rows = re.findall(r'<tr><td>(.*?)</td><td>(.*?)</td><td>(.*?)</td><td>(.*?)</td></tr>', H)

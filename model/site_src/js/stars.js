@@ -68,28 +68,24 @@ function starMeanPlace(star, epochKey, year){
   return {ra, dec:Math.asin(Math.max(-1,Math.min(1,C)))*180/Math.PI};
 }
 // Daylight exposure hides the stars. Flux is relative to the old faint limit.
-// At that magnitude and brighter, size and brightness stay as they were.
-// Fainter stars follow a power of the same flux, fit so the faintest star is one pixel.
-function starDisplay(star){
-  const flux=Math.pow(10, -0.4*(star[2]-STAR_VANCHOR));
-  const amp=Math.min(1, 0.62*Math.pow(Math.max(flux, 0), 0.5));
+// At that magnitude and brighter, size and brightness stay as they were, the size growing as
+// flux^grow up to flux cap. Fainter stars follow a power of the same flux, fit so the faintest
+// star is one pixel. Stars, planets, satellites and meteors all use this scale.
+function magDisplay(mag, cap, grow=0.22){
+  const flux=Math.pow(10, -0.4*(mag-STAR_VANCHOR));
   const px=flux>=1
-    ? STAR_PX_ANCHOR*Math.pow(Math.min(flux, 42), 0.22)
+    ? STAR_PX_ANCHOR*Math.pow(Math.min(flux, cap), grow)
     : STAR_PX_ANCHOR*Math.pow(Math.max(flux, 1e-6), STAR_FAINT_EXP);
-  const tint=starTint(star[6]||10000);
-  return {px, rgb:tint.map(c=>Math.min(2.4, c)*amp)};
+  return {flux, px, amp:Math.min(1, 0.62*Math.pow(Math.max(flux, 0), 0.5))};
+}
+function starDisplay(star){
+  const d=magDisplay(star[2], 42), tint=starTint(star[6]||10000);
+  return {px:d.px, rgb:tint.map(c=>Math.min(2.4, c)*d.amp)};
 }
 // Same scale as the stars. The catalog's brightest star sits on the flux cap of 42,
 // so a datacenter brighter than that still grows, up to a higher cap.
-function pointDisplay(mag){
-  const flux=Math.pow(10, -0.4*(mag-STAR_VANCHOR));
-  const amp=Math.min(1, 0.62*Math.pow(Math.max(flux, 0), 0.5));
-  const px=flux>=1
-    ? STAR_PX_ANCHOR*Math.pow(Math.min(flux, 200), 0.22)
-    : STAR_PX_ANCHOR*Math.pow(Math.max(flux, 1e-6), STAR_FAINT_EXP);
-  const tint=starTint(5772);
-  return {px, rgb:tint.map(c=>Math.min(2.4, c)*amp)};
-}
+const POINT_TINT=starTint(5772).map(c=>Math.min(2.4, c));
+function pointDisplay(mag){ const d=magDisplay(mag, 200); return {px:d.px, rgb:POINT_TINT.map(c=>c*d.amp)}; }
 // The star list for an epoch, as rows of STARS. A moved epoch's rows come from stars_epochs.js.
 // An epoch traced through the Galaxy keeps its traced stars and fills each quarter magnitude up
 // to today's count with stand-ins: today's stars of that magnitude, keeping their galactic
@@ -105,8 +101,7 @@ function starsFor(key){
   const traced=(STAR_TRACED[key]||[]).map(full), have={}, bins=new Map();
   for(const s of traced){ const b=Math.floor(s[2]*4); have[b]=(have[b]||0)+1; }
   for(const s of STARS){ const b=Math.floor(s[2]*4); if(!bins.has(b)) bins.set(b, []); bins.get(b).push(s); }
-  let st=seed>>>0;
-  const rand=()=>{ st=(st+0x6D2B79F5)>>>0; let t=st; t=Math.imul(t^(t>>>15), t|1); t^=t+Math.imul(t^(t>>>7), t|61); return ((t^(t>>>14))>>>0)/4294967296; };
+  const rand=mulberry32(seed>>>0);
   const d2r=Math.PI/180, [G0, G1, G2]=GAL_AXES, fill=[];
   for(const [b, group] of bins){
     for(const s of group.slice(0, Math.max(0, group.length-(have[b]||0)))){

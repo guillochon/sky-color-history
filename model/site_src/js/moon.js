@@ -1,6 +1,5 @@
 /* ---------- first-person view of the day sky ---------- */
 const SUN_RADIUS_DEG=0.2666; // mean solar angular radius: IAU radius over one astronomical unit
-const SUNANG=SUN_RADIUS_DEG; // VR disk. The fisheye enlarges the Sun and Moon together.
 let vrFov=60; // VR vertical field of view in degrees: twice the angle a desktop monitor fills; the scroll wheel zooms it
 const VR_FOV_MIN=10, VR_FOV_MAX=90;
 const DISK_SCALE=4; // Sun and Moon are drawn at four times their angular size
@@ -164,10 +163,11 @@ function altaz(lat,dec,H){
   let az=(180+A*180/Math.PI)%360; if(az<0) az+=360;
   return {alt, az};
 }
+// altaz for right ascension ra at local sidereal time LST, the hour angle taken from -180 to 180.
+function raDecAltaz(lat, ra, dec, LST){ let H=rev(LST-rev(ra)); if(H>180) H-=360; return altaz(lat, dec, H); }
 function lunarPlace(lat){
   const eq=moonAt(astroDay());
-  let H=rev(localSidereal()-rev(eq.RA)); if(H>180) H-=360;
-  const p=altaz(lat, eq.Dec, H), radDeg=moonRadiusAt(eq.r-Math.max(0, sind(p.alt))), sunRadDeg=sunRadiusAt(eq.Ms);
+  const p=raDecAltaz(lat, eq.RA, eq.Dec, localSidereal()), radDeg=moonRadiusAt(eq.r-Math.max(0, sind(p.alt))), sunRadDeg=sunRadiusAt(eq.Ms);
   return {az:p.az, el:p.alt, radDeg, rad:radDeg*Math.PI/180, sunRadDeg, on:apparentEl(p.alt)>-radDeg*DISK_SCALE};
 }
 

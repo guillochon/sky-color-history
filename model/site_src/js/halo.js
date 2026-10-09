@@ -74,7 +74,6 @@ vec3 haloAt(vec3 v, vec3 s){
 }`;
 // The same in JavaScript, for the dome. out gets the three channels.
 function haloEdge(x){ const t=Math.max(0, Math.min(1, (x+0.35)/0.45)); return t*t*(3-2*t); }
-function smoothJS(a, b, x){ const t=Math.max(0, Math.min(1, (x-a)/(b-a))); return t*t*(3-2*t); }
 // The parts of haloAt that depend only on the source, worked out once per frame.
 function haloSource(s){
   const D=180/Math.PI, sh=Math.max(-1, Math.min(1, s[2])), ch=Math.sqrt(Math.max(1-sh*sh, 1e-6)), h=Math.asin(sh)*D;
@@ -82,10 +81,10 @@ function haloSource(s){
   const per=HALO_N.map(n=>{
     const np=Math.sqrt(Math.max(n*n-sh*sh, 0))/ch, q=n*n-ch*ch;
     return {d22:2*Math.asin(n*0.5)*D-60, d46:2*Math.asin(n*Math.SQRT1_2)*D-90,
-            dog:np<2?2*Math.asin(np*0.5)*D-60:null, cza:(q<1&&h>0)?Math.asin(Math.sqrt(q))*D:null, czaW:smoothJS(0, 6, h)*(1-smoothJS(0.93, 1, q))};
+            dog:np<2?2*Math.asin(np*0.5)*D-60:null, cza:(q<1&&h>0)?Math.asin(Math.sqrt(q))*D:null, czaW:smooth01(0, 6, h)*(1-smooth01(0.93, 1, q))};
   });
   const up=[-s[0]*sh, -s[1]*sh, 1-s[2]*sh]; up.push(Math.hypot(up[0], up[1], up[2]));
-  return {s, sh, ch, h, hs, per, up, dogFade:1-smoothJS(35, 61, h), pilFade:1-smoothJS(4, 18, h)};
+  return {s, sh, ch, h, hs, per, up, dogFade:1-smooth01(35, 61, h), pilFade:1-smooth01(4, 18, h)};
 }
 function haloAt(v, src, out){
   // Terms are skipped where they have fallen below about a percent of their peak.
@@ -105,7 +104,7 @@ function haloAt(v, src, out){
     const p=src.per[c]; let I=0, x=th-p.d22;
     if(x>-0.35 && x<30){ const xp=Math.max(x, 0); I+=A.ring22*haloEdge(x)*(0.55*Math.exp(-xp/0.8)+0.45*Math.exp(-xp/5))*(1+(tang-1)*Math.exp(-xp/1.5)); }
     x=th-p.d46;
-    if(x>-0.8 && x<15) I+=A.ring46*smoothJS(-0.8, 0.4, x)*Math.exp(-Math.max(x, 0)/3);
+    if(x>-0.8 && x<15) I+=A.ring46*smooth01(-0.8, 0.4, x)*Math.exp(-Math.max(x, 0)/3);
     if(dogOn && p.dog!==null){
       x=(al-p.dog)*src.ch;
       if(x>-0.35 && x<25){ const xp=Math.max(x, 0), de=de0/1.4; I+=A.dog*src.dogFade*haloEdge(x)*(0.75*Math.exp(-xp/1.0)+0.25*Math.exp(-xp/4))*Math.exp(-0.5*de*de); }
@@ -140,8 +139,16 @@ function domePixelDirs(geo){
   }
   return geo.pdir=d;
 }
-// Add the halos to dome pixel j (bytes at o of px), over the sky cell c at (tr, ta), mixed under
-// the display curve the way the Milky Way is.
+// Light of luminance ratio rH and linear colour L times k added to dome pixel bytes at o of px,
+// over the sky cell c at (tr, ta), under the display curve the way the Milky Way is. The halos,
+// comets and ring share it.
+function domeMixLight(px, o, c, tr, ta, H, rH, L, k){
+  const g=H.rgrid, NC=H.NC, rBg=(g[c]*(1-ta)+g[c+1]*ta)*(1-tr)+(g[c+NC]*(1-ta)+g[c+NC+1]*ta)*tr;
+  if(rH<rBg*0.003) return;
+  const rNew=rBg+rH, tBg=toneAt(H.T, rBg), tNew=toneAt(H.T, rNew), a=tBg>0?(tNew/tBg)*(rBg/rNew):0, b=tNew/rNew*k;
+  for(let q=0;q<3;q++) px[o+q]=linToByte(SRGB_LIN[px[o+q]]*a+L[q]*b);
+}
+// Add the halos to dome pixel j (bytes at o of px), over the sky cell c at (tr, ta).
 function domeHaloPixel(px, o, j, c, tr, ta, halos, H){
   const d=H.dir, v=H.v, w=H.w, L=H.L, eDeg=d[j*4+3];
   v[0]=d[j*4]; v[1]=d[j*4+1]; v[2]=d[j*4+2];
@@ -155,8 +162,5 @@ function domeHaloPixel(px, o, j, c, tr, ta, halos, H){
   }
   const rH=0.2126*L[0]+0.7152*L[1]+0.0722*L[2];
   if(!(rH>0)) return;
-  const g=H.rgrid, NC=H.NC, rBg=(g[c]*(1-ta)+g[c+1]*ta)*(1-tr)+(g[c+NC]*(1-ta)+g[c+NC+1]*ta)*tr;
-  if(rH<rBg*0.003) return;
-  const rNew=rBg+rH, tBg=toneAt(H.T, rBg), tNew=toneAt(H.T, rNew), a=tBg>0?(tNew/tBg)*(rBg/rNew):0, b=tNew/rNew;
-  for(let q=0;q<3;q++) px[o+q]=linToByte(SRGB_LIN[px[o+q]]*a+L[q]*b);
+  domeMixLight(px, o, c, tr, ta, H, rH, L, 1);
 }

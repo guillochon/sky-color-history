@@ -22,12 +22,11 @@ from pathlib import Path
 
 import numpy as np
 
-from bsc import DATA, load_bsc, num, star_name, parse_ra, parse_dec
+from bsc import DATA, catalogue, num, star_name, parse_ra, parse_dec
 from galaxy import PC_MYR, R0, Z0, SUN_UVW, GAL, accel
 
 EPOCHS = {'zetaoph': 1.78e6, 'geminga': 3.42e5}   # years before J2000
-KMS_YR_TO_PC = 1.0227e-6                           # pc travelled per year at 1 km/s
-rows = load_bsc()
+KMS_YR_TO_PC = PC_MYR / 1e6                        # pc travelled per year at 1 km/s
 xhip, hip_hd = {}, {}
 for line in (DATA / 'xhip.tsv').read_text(encoding="utf-8").splitlines():
     f = line.split('\t')
@@ -70,12 +69,7 @@ def unit(ra, dec):
 
 
 stars, matched = [], 0
-for star in rows:
-    if str(star.get('HR')) == '5958':      # T CrB, catalogued in outburst
-        continue
-    v = num(star.get('Vmag'), None)
-    if v is None or not star.get('RA') or not star.get('Dec'):
-        continue
+for v, star in catalogue():
     spec = 10 ** ((v - abs_mag(star.get('SpectralCls'), star.get('LuminosityCls')) + 5) / 5)
     pma, pmd, rv = num(star.get('pmRA')), num(star.get('pmDE')), num(star.get('RadVel'))
     x = xhip.get(int(num(star.get('HD'), 0)))
@@ -100,10 +94,15 @@ for star in rows:
 print(f"{len(stars)} stars, {matched} with XHIP astrometry")
 
 
-def at_epoch(s, years):
+def velocity(s):
+    """The unit vector toward the star and its heliocentric velocity (km/s), equatorial."""
     u, ea, ed = unit(s['ra'], s['dec'])
     vt = 4.74047 * s['dist']
-    vel = [s['rv'] * u[i] + vt * (s['pma'] * ea[i] + s['pmd'] * ed[i]) for i in range(3)]
+    return u, [s['rv'] * u[i] + vt * (s['pma'] * ea[i] + s['pmd'] * ed[i]) for i in range(3)]
+
+
+def at_epoch(s, years):
+    u, vel = velocity(s)
     p = [s['dist'] * u[i] - vel[i] * KMS_YR_TO_PC * years for i in range(3)]
     d = max(math.sqrt(sum(x * x for x in p)), 1.0)
     ra = math.degrees(math.atan2(p[1], p[0])) % 360
@@ -172,11 +171,9 @@ def trace_back(years):
     nominal: small errors in the Galaxy's rotation, and the Sun's own radial migration, add up."""
     pos, vel = [np.array([-R0, 0.0, Z0])], [np.array(SUN_UVW) * PC_MYR]
     for s in (stars if years <= TRACE_MAX else []):
-        u, ea, ed = unit(s['ra'], s['dec'])
-        vt = 4.74047 * s['dist']
-        v_eq = np.array([s['rv'] * u[i] + vt * (s['pma'] * ea[i] + s['pmd'] * ed[i]) for i in range(3)])
+        u, v_eq = velocity(s)
         pos.append(pos[0] + GAL @ (s['dist'] * np.array(u)))
-        vel.append(vel[0] + GAL @ v_eq * PC_MYR)
+        vel.append(vel[0] + GAL @ np.array(v_eq) * PC_MYR)
     p, v = np.array(pos), np.array(vel)
     dt, n = -0.05, int(round(years / 1e6 / 0.05))
     v += 0.5 * dt * accel(p)
@@ -187,6 +184,7 @@ def trace_back(years):
 
 
 epoch_meta, alias, done, traced_lists, seeds = {}, {}, {}, {}, {}
+limit = sorted(stars, key=lambda s: s['v'])[999]['v']     # today's thousandth brightest
 for key, years in ORBIT_EPOCHS.items():
     if years in done:
         alias[key] = done[years]
@@ -215,7 +213,6 @@ for key, years in ORBIT_EPOCHS.items():
     # The page fills each quarter magnitude up to today's count with stand-ins (stars.js,
     # starsFor): today's stars of that magnitude at a random galactic longitude. Only the traced
     # stars as bright as today's thousandth are kept here.
-    limit = sorted(stars, key=lambda s: s['v'])[999]['v']
     kept = [m[:6] for m in traced if m[0] <= limit]
     print(f"{key}: {len(kept)} traced down to V = {limit:.2f}")
     traced_lists[key] = kept

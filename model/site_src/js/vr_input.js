@@ -437,11 +437,15 @@ function refreshVRTip(){
     else spectrumHTML(box, el, az, {disk, aurora, cloud:P.cloudPx, lit, r:P.r, cr:P.cr});
   }
   tip.style.display='block';
-  placeVRTip(cx, cy);
+  placeVRTip(cx, cy, true);
 }
-function placeVRTip(cx, cy){
+// With measure, the tip's size is taken afresh (its content has changed); otherwise the last one
+// is used, so following a pin each frame does not force a layout.
+let vrTipSize=[0, 0];
+function placeVRTip(cx, cy, measure){
   const tip=document.getElementById('vrtip'), mark=document.getElementById('vrpin'), W=window.innerWidth, H=window.innerHeight;
-  const w=tip.offsetWidth, h=tip.offsetHeight;
+  if(measure) vrTipSize=[tip.offsetWidth, tip.offsetHeight];
+  const [w, h]=vrTipSize;
   tip.style.left=Math.min(cx+16, W-w-8)+(cx+16+w>W-8?-(w+32):0)+'px';
   tip.style.top=Math.max(8, Math.min(H-h-8, cy-h/2))+'px';
   tip.style.transform='none';

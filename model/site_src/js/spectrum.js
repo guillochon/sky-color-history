@@ -29,6 +29,7 @@ function spG(x, mu, s1, s2){ const s=x<mu?s1:s2; return Math.exp(-0.5*((x-mu)/s)
 const SP_CMF=Array.from(SP_LAM, l=>[1.056*spG(l,599.8,37.9,31.0)+0.362*spG(l,442.0,16.0,26.7)-0.065*spG(l,501.1,20.4,26.2),
   0.821*spG(l,568.8,46.9,40.5)+0.286*spG(l,530.9,16.3,31.1), 1.217*spG(l,437.0,11.8,36.0)+0.681*spG(l,459.0,26.0,13.8)]);
 function spY(S){ let y=0; for(let i=0;i<SP_N;i++) y+=S[i]*SP_CMF[i][1]; return y; }
+function spXYZ(S){ let X=0, Y=0, Z=0; for(let i=0;i<SP_N;i++){ X+=S[i]*SP_CMF[i][0]; Y+=S[i]*SP_CMF[i][1]; Z+=S[i]*SP_CMF[i][2]; } return [X, Y, Z]; }
 function spNorm(S){ const y=spY(S); return y>0?S.map(v=>v/y):S; }
 const spGauss=(c, s)=>Float32Array.from(SP_LAM, l=>Math.exp(-0.5*((l-c)/s)**2));
 // Lines [nm, photons] as 0.6 nm Gaussians, in energy.
@@ -62,15 +63,27 @@ const SP_CHROMO=spNorm(spLines([[656.3, 1], [486.1, 0.25], [434.0, 0.1], [587.6,
 const SP_AUR=[[[557.7, 1]], [[630.0, 0.76], [636.4, 0.24]], [[391.4, 3.0], [427.8, 1.0], [470.9, 0.28], [423.6, 0.25], [380.5, 0.4], [399.8, 0.2], [405.9, 0.1]],
   [[687.5, .15], [678.9, .22], [670.5, .25], [662.4, .2], [654.5, .12], [646.9, .06], [595, .08], [606, .06]]].map(spLines).map(spNorm);
 const SP_AUR_Y=[1.927e-4, 4.271e-5, 9.359e-6, 2.335e-5];
-// Each lamp mix by luminance share of sodium, matching the glow's x (day.js SKYGLOW).
+// Each lamp mix by luminance share of sodium, matching the glow's x (day.js SKYGLOW), found once per epoch.
+const SP_GLOW={};
 function spGlow(key){
   const g=SKYGLOW[key]; if(!g) return null;
   if(key==='volcanic') return SP_OIL;
-  const xOf=S=>{ let X=0, Y=0, Z=0; for(let i=0;i<SP_N;i++){ X+=S[i]*SP_CMF[i][0]; Y+=S[i]*SP_CMF[i][1]; Z+=S[i]*SP_CMF[i][2]; } return X/(X+Y+Z); };
+  if(SP_GLOW[key]) return SP_GLOW[key];
+  const xOf=S=>{ const [X, Y, Z]=spXYZ(S); return X/(X+Y+Z); };
   let lo=0, hi=1;
   for(let k=0;k<30;k++){ const w=(lo+hi)/2; if(xOf(spAdd([w, SP_HPS], [1-w, SP_LED]))<g[1]) lo=w; else hi=w; }
-  return spAdd([lo, SP_HPS], [1-lo, SP_LED]);
+  return SP_GLOW[key]=spAdd([lo, SP_HPS], [1-lo, SP_LED]);
 }
+// The Moon's reflectance, relative, rising by about half from 400 to 750 nm.
+const SP_MOON_RED=Array.from(SP_LAM, l=>0.8+0.0014*(l-450));
+// The Sun's strongest lines, and the air's O2 and water bands along X airmasses as o2 and h2o.
+const SP_SUN_MARKS=[{l:393.4, t:'Ca II H&K'}, {l:486.1, t:'Hβ'}, {l:517.3, t:'Mg b'}, {l:656.3, t:'Hα'}];
+function spAirMarks(marks, o2, h2o){
+  if(o2>0.05) marks.push({l:760.5, t:'O₂ A'}, {l:687.5, t:'O₂ B'});
+  if(SP_TAU_H2O[345]*h2o>0.15) marks.push({l:725, t:'H₂O'});
+}
+// Whether the epoch's air has the ozone of the Chappuis band.
+function spOzone(key){ return (!(key in SP_O2)||SP_O2[key]>=0.01)&&key!=='proterozoic22'; }
 // The model's sky spectra, loaded the first time they are wanted.
 let spData=null, spLoading=null;
 function spLoad(){
@@ -87,7 +100,12 @@ function spLoad(){
 function spEpoch(key){ return spData.epochs.indexOf(spData.epochs.includes(key)?key:'modern'); }
 // log10 shape at (sza index si, slot), 10 nm grid.
 function spRaw(e, lat, si, slot){
-  const D=spData, o=((((e*D.lats.length+lat)*D.szas.length+si)*D.slots)+slot)*D.nl, out=new Float32Array(D.nl);
+  const D=spData;
+  return spDecode(((((e*D.lats.length+lat)*D.szas.length+si)*D.slots)+slot)*D.nl);
+}
+// The stored shape at byte offset o.
+function spDecode(o){
+  const D=spData, out=new Float32Array(D.nl);
   for(let i=0;i<D.nl;i++) out[i]=D.lo*(1-D.bytes[o+i]/255);
   return out;
 }
@@ -125,8 +143,7 @@ function spAirmass(el){ return airmass(Math.max(el, 0)); }
 // drawn and in cd/m²). Linear, where taking the pixel back through the display curve would not
 // be: the curve is nearly flat through twilight.
 function spRGB(S){
-  let X=0, Y=0, Z=0;
-  for(let i=0;i<SP_N;i++){ X+=S[i]*SP_CMF[i][0]; Y+=S[i]*SP_CMF[i][1]; Z+=S[i]*SP_CMF[i][2]; }
+  const [X, Y, Z]=spXYZ(S);
   return M.map(r=>(r[0]*X+r[1]*Y+r[2]*Z)/Y);
 }
 // Least squares for the columns cols of A (3 rows) against u, or null if singular.
@@ -155,7 +172,7 @@ function cloudLight(px, key, lat){
   const lights=[['cloud, lit by the sky', spNorm(spAdd([0.45, zen.S], [0.55, mid.S])), 'post']];
   // Direct sunlight reaches a cloud a few km up until the Sun is about 3° down.
   if(skyNow.sunVis>0&&sza<93) lights.push(['cloud, sunlit', spNorm(spSunDisk(key, lat, Math.min(sza, 89))), true]);
-  if(sza>=90&&mo.el>0&&skyNow.mScale>0) lights.push(['cloud, moonlit', spNorm(spSunDisk(key, lat, 90-mo.el).map((v, i)=>v*(0.8+0.0014*(SP_LAM[i]-450)))), true]);
+  if(sza>=90&&mo.el>0&&skyNow.mScale>0) lights.push(['cloud, moonlit', spNorm(spSunDisk(key, lat, 90-mo.el).map((v, i)=>v*SP_MOON_RED[i])), true]);
   if(sza>=90&&SKYGLOW[key]) lights.push([key==='volcanic'?'cloud, lit by oil lamps':'cloud, lit by the city', spGlow(key), false, true]);
   if(!lights.length) return null;
   const A=lights.map(l=>spRGB(l[1])), u=rgb.map(v=>v/t), n=lights.length;
@@ -196,13 +213,13 @@ function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null, cr=null){
       // the Earth looks full from the Moon. The air in front adds its own light below.
       const mo=skyNow.moon, frac=Math.max(moonLit(mo, skyNow.sunAz, 90-skyNow.sza), 0.02);
       const day=2500*(skyNow.moonRel||0)/frac/Math.pow(mo.radDeg/0.259, 2)*extinction(el, extK(key));
-      const red=spSunDisk(key, lat, 90-mo.el).map((v, i)=>v*(0.8+0.0014*(SP_LAM[i]-450)));
+      const red=spSunDisk(key, lat, 90-mo.el).map((v, i)=>v*SP_MOON_RED[i]);
       add('the Moon, sunlit', day*litHere, spNorm(red), true);
       add('the Moon, earthshine', day*2e-4*(1-frac)*(1-litHere), spNorm(red.map((v, i)=>v*550/SP_LAM[i])), true);
     }
     if(sunSrc.fade>0){ const X=domeXYZ(key, lat, sunSrc.si, sunSrc.st, vz, azr(skyNow.sunAz)); add('sunlit air', X[1]*sunSrc.fade*skyNow.sunVis*skyNow.sunFlux*cdu, spSky(key, lat, skyNow.sza, vz, azr(skyNow.sunAz)), true); }
     const mo=skyNow.moon, mSrc=skySource(90-mo.el, mo.az);
-    if(mSrc.fade>0&&skyNow.mScale>0){ const X=domeXYZ(key, lat, mSrc.si, mSrc.st, vz, azr(mo.az)); add('moonlit air', X[1]*mSrc.fade*skyNow.mScale*cdu, spNorm(spSky(key, lat, 90-mo.el, vz, azr(mo.az)).map((v, i)=>v*(0.8+0.0014*(SP_LAM[i]-450)))), true); }
+    if(mSrc.fade>0&&skyNow.mScale>0){ const X=domeXYZ(key, lat, mSrc.si, mSrc.st, vz, azr(mo.az)); add('moonlit air', X[1]*mSrc.fade*skyNow.mScale*cdu, spNorm(spSky(key, lat, 90-mo.el, vz, azr(mo.az)).map((v, i)=>v*SP_MOON_RED[i])), true); }
     // The corona and the chromosphere around the hidden Sun, as far as the drawing shows them.
     if(disk!=='moon'&&cr!=null&&cr>=1&&skyNow.corona>0){
       const st=coronaState(key), [K, F]=coronaKF(st, cr), ex=skyNow.corona*st.B*coronaThroughAir(key, el);
@@ -257,15 +274,13 @@ function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null, cr=null){
   // What to label: the strongest sources' own features.
   const share=n=>parts.filter(p=>p[0].startsWith(n)).reduce((s, p)=>s+p[1], 0)/Math.max(Y, 1e-30);
   const sun=share('sunlit')+share('moonlit')+share('Sun')+share('the Moon')+share('zodiacal')+share('cloud, sunlit')+share('cloud, lit by the sky')+share('cloud, moonlit');
-  const ozone=!(key in SP_O2)||SP_O2[key]>=0.01;
   if(share('sunlit')+share('moonlit')+share('cloud, lit by the sky')>0.3){
-    if(ozone&&key!=='proterozoic22') marks.push({a:500, b:680, t:'O₃ Chappuis', band:true});
+    if(spOzone(key)) marks.push({a:500, b:680, t:'O₃ Chappuis', band:true});
     if(key.startsWith('archean27')) marks.push({a:380, b:480, t:'organic haze', band:true});
     if(key==='kpg66') marks.push({a:380, b:780, t:'soot dims all colours', band:true, quiet:true});
   }
-  if(sun>0.3){ marks.push({l:393.4, t:'Ca II H&K'}, {l:486.1, t:'Hβ'}, {l:517.3, t:'Mg b'}, {l:656.3, t:'Hα'}); if(share('Sun')+share('sunlit')<0.5) marks.push({l:589.3, t:'Na D'}); }
-  if(o2>0.05) marks.push({l:760.5, t:'O₂ A'}, {l:687.5, t:'O₂ B'});
-  if(SP_TAU_H2O[345]*h2o>0.15) marks.push({l:725, t:'H₂O'});
+  if(sun>0.3){ marks.push(...SP_SUN_MARKS); if(share('Sun')+share('sunlit')<0.5) marks.push({l:589.3, t:'Na D'}); }
+  spAirMarks(marks, o2, h2o);
   if(share('airglow')>0.1){ marks.push({l:557.7, t:'[O I] 557.7', em:true}, {l:589.3, t:'Na D', em:true}, {l:630, t:'[O I] 630', em:true}, {l:735, t:'OH', em:true}); }
   if(share('violet')>0.1) marks.push({l:450, t:'O₂ Herzberg II', em:true});
   const shareHas=s=>parts.filter(p=>p[0].includes(s)).reduce((a, p)=>a+p[1], 0)/Math.max(Y, 1e-30);
@@ -285,15 +300,16 @@ function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null, cr=null){
 // continuum so a bright line runs off the top (marked with a caret) rather than flattening the rest.
 // Past 690 nm the fit's tails turn the hue back toward green, so the deep red holds from there.
 const SP_RGB=SP_CMF.map((c, i)=>SP_CMF[Math.min(i, 310)]).map(([x, y, z])=>{ const r=3.2406*x-1.5372*y-0.4986*z, gr=-0.9689*x+1.8758*y+0.0415*z, b=0.0557*x-0.2040*y+1.0570*z, m=Math.max(r, gr, b, 1e-6);
-  return [r, gr, b].map(v=>Math.round(255*g(Math.max(0, v/m)*0.75+0.08))); });
+  return `rgb(${[r, gr, b].map(v=>Math.round(255*g(Math.max(0, v/m)*0.75+0.08))).join(',')})`; });
 function drawSpectrum(cv, sp){
   const dpr=Math.min(window.devicePixelRatio||1, 2), W=264, H=118;
   if(cv.width!==W*dpr){ cv.width=W*dpr; cv.height=H*dpr; cv.style.width=W+'px'; cv.style.height=H+'px'; }
   const c=cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
   const L=6, R=W-6, T=30, B=H-16, X=l=>L+(l-SP_L0)/(SP_N-1)*(R-L);
-  const S=sp.S, sorted=Array.from(S).sort((a, b)=>a-b), cont=sorted[Math.floor(SP_N*0.9)]||1, top=Math.max(Math.max(...S)>3*cont?2.2*cont:Math.max(...S), 1e-30);
+  const S=sp.S, sorted=Array.from(S).sort((a, b)=>a-b), cont=sorted[Math.floor(SP_N*0.9)]||1, mx=Math.max(...S), top=Math.max(mx>3*cont?2.2*cont:mx, 1e-30);
   const Yv=v=>B-(B-T)*Math.min(v/top, 1);
-  for(let i=0;i<SP_N-1;i++){ const x0=X(SP_LAM[i]), x1=X(SP_LAM[i+1]); c.fillStyle=`rgb(${SP_RGB[i].join(',')})`; c.globalAlpha=0.55;
+  c.globalAlpha=0.55;
+  for(let i=0;i<SP_N-1;i++){ const x0=X(SP_LAM[i]), x1=X(SP_LAM[i+1]); c.fillStyle=SP_RGB[i];
     const y=Yv(Math.min(S[i], S[i+1])); c.fillRect(x0, y, x1-x0+0.5, B-y); }
   c.globalAlpha=1; c.strokeStyle='#fff'; c.lineWidth=1.1; c.beginPath();
   for(let i=0;i<SP_N;i++){ const x=X(SP_LAM[i]), y=Yv(S[i]); if(i) c.lineTo(x, y); else c.moveTo(x, y); }
@@ -306,7 +322,6 @@ function drawSpectrum(cv, sp){
   // Annotations: bands as a bracket along the top; lines as a tick and a label, staggered over two
   // rows and dropped when they would collide.
   const rows=[[], []], fits=(row, a, b)=>rows[row].every(([p, q])=>b<p-2||a>q+2);
-  c.font='9px system-ui, sans-serif';
   for(const m of sp.marks.filter(m=>m.band)){
     const a=X(m.a), b=X(m.b); c.strokeStyle='rgba(255,255,255,.5)'; c.beginPath(); c.moveTo(a, 26); c.lineTo(a, 23); c.lineTo(b, 23); c.lineTo(b, 26); c.stroke();
     const w=c.measureText(m.t).width, mid=(a+b)/2; c.fillStyle='rgba(255,255,255,.85)'; c.textAlign='center'; c.fillText(m.t, mid, 20); rows[1].push([mid-w/2, mid+w/2]);
@@ -322,25 +337,32 @@ function drawSpectrum(cv, sp){
     c.strokeStyle=m.em?'rgba(255,224,138,.55)':'rgba(159,208,255,.55)'; c.beginPath(); c.moveTo(x+0.5, ty+2); c.lineTo(x+0.5, Math.max(Yv(S[Math.round(m.l-SP_L0)]||0)-2, ty+3)); c.stroke();
   }
 }
+// A tooltip's spectrum box: its plot and caption, made on first use. With note, the caption alone.
+function spBox(box, note){
+  let cv=box.querySelector('canvas.spc'), src=box.querySelector('.spsrc');
+  if(!cv){ cv=document.createElement('canvas'); cv.className='spc'; src=document.createElement('div'); src.className='spsrc'; box.append(cv, src); }
+  if(note){ cv.style.display='none'; src.textContent=note; }
+  return {cv, src};
+}
+// Says whether the spectra are in; until they are, the box says they are loading.
+function spReady(b){ if(spData) return true; spLoad(); spBox(b, 'Loading the spectrum…'); return false; }
+function spShow(b, sp, note){ const {cv, src}=spBox(b); cv.style.display='block'; drawSpectrum(cv, sp); src.textContent=note; }
 // The tooltip body for a direction: the swatch line is the caller's; this adds the plot and the
 // sources. el is true altitude in degrees.
 function spectrumHTML(box, el, az, opts={}){
-  let cv=box.querySelector('canvas.spc'), src=box.querySelector('.spsrc');
-  if(!cv){ cv=document.createElement('canvas'); cv.className='spc'; src=document.createElement('div'); src.className='spsrc'; box.append(cv, src); }
-  if(opts.note){ cv.style.display='none'; src.textContent=opts.note; return; }
-  if(!spData){ spLoad(); cv.style.display='none'; src.textContent='Loading the spectrum…'; return; }
-  if(opts.meteor){ const st=meteorSpectrumTip(opts.meteor); cv.style.display='block'; drawSpectrum(cv, st); src.textContent=st.note; return; }
-  if(opts.sn||opts.star){ const s=opts.star, st=opts.sn?snSpectrum(opts.sn):s.star?starSpectrum(s, el):reflectedSpectrum(s); cv.style.display='block'; drawSpectrum(cv, st); src.textContent=st.note; return; }
+  if(opts.note){ spBox(box, opts.note); return; }
+  if(!spReady(box)) return;
+  if(opts.meteor){ const st=meteorSpectrumTip(opts.meteor); spShow(box, st, st.note); return; }
+  if(opts.sn||opts.star){ const s=opts.star, st=opts.sn?snSpectrum(opts.sn):s.star?starSpectrum(s, el):reflectedSpectrum(s); spShow(box, st, st.note); return; }
   const sp=skySpectrum(el, az, opts.disk||null, opts.aurora||null, opts.disk==='sun'?opts.r||0:opts.lit??1, opts.cloud||null, opts.cr??null);
-  cv.style.display='block'; drawSpectrum(cv, sp);
   const fmt=Y=>Y>=1?Y.toPrecision(3)+' cd/m²':(Y>=1e-3?(Y*1e3).toPrecision(3)+' mcd/m²':skyMagArcsec(Y).toFixed(1)+' mag/arcsec²');
   // The strongest sources, and on the Moon its own light however faint (earthshine against a
   // day or twilight sky is well under a percent).
   const isMoon=p=>p[0].startsWith('the Moon'), ranked=sp.parts.slice().sort((a, b)=>b[1]-a[1]).filter(p=>isMoon(p)||p[1]>sp.Y*0.02);
   const keep=new Set(ranked.filter(isMoon).concat(ranked.filter(p=>!isMoon(p))).slice(0, 4));
   const top=ranked.filter(p=>keep.has(p)).map(p=>{ const f=100*p[1]/sp.Y; return `${p[0]} ${f<1?'<1':Math.round(f)}%`; });
-  src.textContent=opts.disk==='sun'?(opts.r>0.5?'The Sun’s disk near its edge, dimmer and redder (limb darkening): sunlight through the air':'The Sun’s disk: sunlight through the air')
-    :fmt(sp.Y)+' · '+top.join(' · ');
+  spShow(box, sp, opts.disk==='sun'?(opts.r>0.5?'The Sun’s disk near its edge, dimmer and redder (limb darkening): sunlight through the air':'The Sun’s disk: sunlight through the air')
+    :fmt(sp.Y)+' · '+top.join(' · '));
 }
 // The dome's tooltip: the direction under canvas pixel (x, y), and whether it is on the Sun or Moon.
 function domeSpectrum(x, y, box){
@@ -377,7 +399,7 @@ function moonLitAt(dir, radDeg){
 function globeSpectrum(key, lat, h){
   const G=spData.limb, D=spData, e=G.epochs.indexOf(G.epochs.includes(key)?key:'modern'), na=G.alts.length+1;
   const off=D.epochs.length*D.lats.length*D.szas.length*D.slots*D.nl;
-  const raw=(i, j)=>{ const o=off+((e*G.lats.length+i)*na+j)*D.nl, out=new Float32Array(D.nl); for(let k=0;k<D.nl;k++) out[k]=D.lo*(1-D.bytes[o+k]/255); return out; };
+  const raw=(i, j)=>spDecode(off+((e*G.lats.length+i)*na+j)*D.nl);
   const [li, lt]=bracket(G.lats, lat), acc=new Float32Array(D.nl);
   const cells=h==null?[[na-1, 1]]:(([j, u])=>[[j, 1-u], [j+1, u]])(bracket(G.alts, h));
   for(const [i, wi] of [[li, 1-lt], [li+1, lt]]) for(const [j, wj] of cells){ const r=raw(i, j); for(let k=0;k<D.nl;k++) acc[k]+=wi*wj*r[k]; }
@@ -387,24 +409,20 @@ function globeSpectrum(key, lat, h){
   // stays low (2 km scale height).
   const X=Math.min(h==null?2/mu:76*Math.exp(-h/8), 60), o2=(SP_O2[key]??1)*X, h2o=(SP_H2O[key]??1)*X*(h==null?1:Math.exp(-h/2));
   for(let i=0;i<SP_N;i++) S[i]*=SP_FRAUN_T[i]*Math.exp(-SP_TAU_O2[i]*o2-SP_TAU_H2O[i]*h2o);
-  const marks=[{l:393.4, t:'Ca II H&K'}, {l:486.1, t:'Hβ'}, {l:517.3, t:'Mg b'}, {l:656.3, t:'Hα'}];
-  if((!(key in SP_O2)||SP_O2[key]>=0.01)&&key!=='proterozoic22') marks.unshift({a:500, b:680, t:'O₃ Chappuis', band:true});
+  const marks=[...SP_SUN_MARKS];
+  if(spOzone(key)) marks.unshift({a:500, b:680, t:'O₃ Chappuis', band:true});
   if(key.startsWith('archean27')) marks.unshift({a:380, b:480, t:'organic haze', band:true});
-  if(o2>0.05) marks.push({l:760.5, t:'O₂ A'}, {l:687.5, t:'O₂ B'});
-  if(SP_TAU_H2O[345]*h2o>0.15) marks.push({l:725, t:'H₂O'});
+  spAirMarks(marks, o2, h2o);
   return {S, Y:1, parts:[], marks};
 }
 // The globe's tooltip under canvas pixel (x, y), as renderGlobe lays it out.
 function globeSpectrumTip(x, y, box){
-  let cv=box.querySelector('canvas.spc'), src=box.querySelector('.spsrc');
-  if(!cv){ cv=document.createElement('canvas'); cv.className='spc'; src=document.createElement('div'); src.className='spsrc'; box.append(cv, src); }
-  if(!spData){ spLoad(); cv.style.display='none'; src.textContent='Loading the spectrum…'; return; }
+  if(!spReady(box)) return;
   const ep=EP[Math.round(tPos)], W=globe.width, R=W*0.30, EX=0.5, hmax=ep.limb.alts[ep.limb.alts.length-1];
   const dx=x-W/2, dy=y-globe.height/2, r=Math.hypot(dx, dy), disk=r<R;
   const lat=Math.min(82.5, Math.abs(Math.asin(Math.max(-1, Math.min(1, dy/(disk?R:r)))))*180/Math.PI), h=disk?null:(r/R-1)/EX*hmax;
-  cv.style.display='block'; drawSpectrum(cv, globeSpectrum(ep.key, lat, h));
-  src.textContent=disk?`The disk at ${Math.round(lat)}° latitude: sunlight off the ground and back out through the air`
-    :`The limb ${Math.round(h)} km up at ${Math.round(lat)}° latitude: sunlight scattered along the line of sight`;
+  spShow(box, globeSpectrum(ep.key, lat, h), disk?`The disk at ${Math.round(lat)}° latitude: sunlight off the ground and back out through the air`
+    :`The limb ${Math.round(h)} km up at ${Math.round(lat)}° latitude: sunlight scattered along the line of sight`);
 }
 // A star's light as it reaches the ground: the star's own spectrum (a body at its colour
 // temperature with the absorption of its class) through the air in front of it, nothing taken
@@ -522,8 +540,7 @@ function spAirPerMass(key){
 function spThroughAir(S, marks, key, X){
   const air=spAirPerMass(key), o2=(SP_O2[key]??1)*X, h2o=(SP_H2O[key]??1)*X;
   for(let i=0;i<SP_N;i++) S[i]*=Math.pow(air[i], X)*Math.exp(-SP_TAU_O2[i]*o2-SP_TAU_H2O[i]*h2o);
-  if(o2>0.05) marks.push({l:760.5, t:'O₂ A'}, {l:687.5, t:'O₂ B'});
-  if(SP_TAU_H2O[345]*h2o>0.15) marks.push({l:725, t:'H₂O'});
+  spAirMarks(marks, o2, h2o);
 }
 function starSpectrum(s, el){
   const key=EP[dIdx].key, T=s.star[6]||10000, {S, marks}=starAbove(T), X=Math.min(spAirmass(el), 40);
@@ -549,21 +566,17 @@ function noonSpectrum(key, L, f){
   const sza=NOON_SZA[L], vz=88*Math.max(0, Math.min(1, f)), S=spSky(key, L==='Polar summer'?'Polar':L, sza, vz, 90);
   const X=Math.min(spAirmass(90-vz)+spAirmass(90-sza)*0.5, 40), o2=(SP_O2[key]??1)*X, h2o=(SP_H2O[key]??1)*X;
   for(let i=0;i<SP_N;i++) S[i]*=SP_FRAUN_T[i]*Math.exp(-SP_TAU_O2[i]*o2-SP_TAU_H2O[i]*h2o);
-  const marks=[{l:393.4, t:'Ca II H&K'}, {l:486.1, t:'Hβ'}, {l:517.3, t:'Mg b'}, {l:656.3, t:'Hα'}];
-  if((!(key in SP_O2)||SP_O2[key]>=0.01)&&key!=='proterozoic22') marks.unshift({a:500, b:680, t:'O₃ Chappuis', band:true});
+  const marks=[...SP_SUN_MARKS];
+  if(spOzone(key)) marks.unshift({a:500, b:680, t:'O₃ Chappuis', band:true});
   if(key.startsWith('archean27')) marks.unshift({a:380, b:480, t:'organic haze', band:true});
   if(key==='kpg66') marks.unshift({a:380, b:780, t:'soot dims all colours', band:true, quiet:true});
-  if(o2>0.05) marks.push({l:760.5, t:'O₂ A'}, {l:687.5, t:'O₂ B'});
-  if(SP_TAU_H2O[345]*h2o>0.15) marks.push({l:725, t:'H₂O'});
+  spAirMarks(marks, o2, h2o);
   return {S, Y:1, parts:[], marks, vz, sza};
 }
 function noonSpectrumTip(sky, f, box){
-  let cv=box.querySelector('canvas.spc'), src=box.querySelector('.spsrc');
-  if(!cv){ cv=document.createElement('canvas'); cv.className='spc'; src=document.createElement('div'); src.className='spsrc'; box.append(cv, src); }
-  if(!spData){ spLoad(); cv.style.display='none'; src.textContent='Loading the spectrum…'; return; }
+  if(!spReady(box)) return;
   const L=sky.dataset.lat, sp=noonSpectrum(EP[tIdx].key, L, f), el=Math.round(90-sp.vz);
-  cv.style.display='block'; drawSpectrum(cv, sp);
-  src.textContent=`${el>=89?'The zenith':el+'° above the horizon'}, 90° round from the Sun (${90-sp.sza}° up): sunlight scattered by the air`;
+  spShow(box, sp, `${el>=89?'The zenith':el+'° above the horizon'}, 90° round from the Sun (${90-sp.sza}° up): sunlight scattered by the air`);
 }
 
 // The ring's light: sunlight off L-chondrite rubble (debris.js), and the same scattered by the air

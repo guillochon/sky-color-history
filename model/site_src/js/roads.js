@@ -4,7 +4,7 @@
 // Street spacing along x and y: every lot line in a city; in a neighbourhood every second lot
 // line one way and every fifth the other, so each house fronts a street. Must match streetD in
 // the sky shader and yardTree in the town pass.
-const STREET_HW=2.4, ROAD_HW=3.4, ROAD_MAX=64;
+const ROAD_HW=3.4, ROAD_MAX=64;
 function streetPitch(ty){ return ty<1.5?[42, 42]:[48, 120]; }
 // g: grid[6] for the sky shader, (centre, radius, type) of each town. r: road[64], segments (x0, y0, x1, y1).
 function roadsFor(o, k, t, tn){
@@ -24,13 +24,9 @@ function roadsFor(o, k, t, tn){
   // The routes stay within 1500 m of the box around the towns, so the hills near it will do.
   const C=20, x0=Math.min(...towns.map(w=>w.x))-1500, y0=Math.min(...towns.map(w=>w.y))-1500;
   const x1=Math.max(...towns.map(w=>w.x))+1500, y1=Math.max(...towns.map(w=>w.y))+1500;
-  for(let gx=Math.floor(x0/1800)-1;gx<=Math.floor(x1/1800)+1;gx++) for(let gy=Math.floor(y0/1800)-1;gy<=Math.floor(y1/1800)+1;gy++){
-    if(h12xy(gx, gy)<0.46) continue;
-    const cx=(gx+0.5+(h12xy(gx+1.7, gy+1.7)-0.5)*0.44)*1800, cy=(gy+0.5+(h12xy(gx+3.1, gy+3.1)-0.5)*0.44)*1800;
-    const R=140+200*h12xy(gx+5.5, gy+5.5);
-    let clear=true;
-    for(let i=0;i<tn;i++) if(Math.hypot(cx-t[i*4], cy-t[i*4+1])<t[i*4+2]+R*1.28+60) clear=false;
-    if(clear) disks.push([cx, cy, R*1.28+25]);
+  for(let gx=Math.floor(x0/HILL_CELL)-1;gx<=Math.floor(x1/HILL_CELL)+1;gx++) for(let gy=Math.floor(y0/HILL_CELL)-1;gy<=Math.floor(y1/HILL_CELL)+1;gy++){
+    const hill=hillIn(gx, gy);
+    if(hill&&hillClearOf(t, tn, ...hill)) disks.push([hill[0], hill[1], hill[2]*1.28+25]);
   }
   const blocked=(x, y, pad)=>{
     for(const d of disks){ const dx=x-d[0], dy=y-d[1], r=d[2]+pad; if(dx*dx+dy*dy<r*r) return true; }
@@ -58,8 +54,13 @@ function roadsFor(o, k, t, tn){
   };
   // A* on a 20 m grid over the towns' bounding box.
   const W=Math.ceil((x1-x0)/C), H=Math.ceil((y1-y0)/C);
+  // A cell is bad when its centre is blocked; each disk marks the cells in its own square.
   const bad=new Uint8Array(W*H);
-  for(let j=0;j<H;j++) for(let i=0;i<W;i++) bad[j*W+i]=blocked(x0+(i+0.5)*C, y0+(j+0.5)*C, ROAD_HW+30)?1:0;
+  for(const d of disks){
+    const r=d[2]+(ROAD_HW+30), i0=Math.max(0, Math.floor((d[0]-r-x0)/C)-1), i1=Math.min(W-1, Math.ceil((d[0]+r-x0)/C)+1);
+    const j0=Math.max(0, Math.floor((d[1]-r-y0)/C)-1), j1=Math.min(H-1, Math.ceil((d[1]+r-y0)/C)+1);
+    for(let j=j0;j<=j1;j++) for(let i=i0;i<=i1;i++){ const dx=x0+(i+0.5)*C-d[0], dy=y0+(j+0.5)*C-d[1]; if(dx*dx+dy*dy<r*r) bad[j*W+i]=1; }
+  }
   const route=(a, b)=>{
     const cellOf=p=>[Math.floor((p[0]-x0)/C), Math.floor((p[1]-y0)/C)];
     const [si, sj]=cellOf(a), [ei, ej]=cellOf(b), s=sj*W+si, e=ej*W+ei;

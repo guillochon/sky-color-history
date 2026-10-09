@@ -30,9 +30,9 @@ function markPoint(proj){
 }
 function placeMark(mark, proj, show){
   const at=markPoint(proj);
-  if(!show){ mark.hidden=true; return at; }
+  if(!show){ if(!mark.hidden) mark.hidden=true; return at; }
   const {px, py, ux, uy}=at, off=26;
-  mark.hidden=false;
+  if(mark.hidden) mark.hidden=false;
   mark.style.left=px+'px'; mark.style.top=py+'px';
   if(!mark._chev){ mark._chev=mark.querySelector('.chev'); mark._badge=mark.querySelector('.badge'); }
   mark._chev.style.transform=`rotate(${Math.atan2(ux, uy)}rad)`;
@@ -80,7 +80,7 @@ function placeBodyMarks(){
 // a label that would overlap a brighter one's is left out, as is one on a point cloud hides. With
 // them, the constellation figures and names, wherever the epoch's stars still make them
 // (constellations.js).
-let vrLabels=false;
+let vrLabels=false, vrLabelsDrawn=false;
 const CON_PLACES={};
 // The figures' vertices for the epoch, as right ascension and declination of date, or null.
 function conPlaces(key, year){
@@ -124,10 +124,13 @@ function drawConstellations(ctx, proj){
 function drawVRLabels(){
   const c=document.getElementById('vrlabels'), dpr=Math.min(window.devicePixelRatio||1, 2), W=window.innerWidth, H=window.innerHeight;
   const w=Math.round(W*dpr), h=Math.round(H*dpr);
-  if(c.width!==w||c.height!==h){ c.width=w; c.height=h; }
-  const ctx=c.getContext('2d');
+  if(c.width!==w||c.height!==h){ c.width=w; c.height=h; vrLabelsDrawn=false; }
+  const ctx=c.getContext('2d'), on=vrLabels&&skyNow&&skyNow.starMarks;
+  // A canvas left clear needs no clearing each frame.
+  if(!on&&!vrLabelsDrawn) return;
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, w, h);
-  if(!vrLabels||!skyNow||!skyNow.starMarks) return;
+  vrLabelsDrawn=!!on;
+  if(!on) return;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const lim=1.5+6.5*Math.log10(60/vrFov), key=EP[dIdx].key, pts=[];
   // The view's projection, as projectBody, for a direction at true altitude; null behind.
@@ -151,7 +154,7 @@ function drawVRLabels(){
   };
   if(skyNow.sn) add(skyNow.sn, skyNow.sn.name||'Supernova', 'sn');
   for(const s of skyNow.starMarks){
-    if(s.mag>lim&&!s.planet) continue;
+    if((s.mag>lim&&!s.planet)||s.el<=0) continue;
     // Labelled when it shows: its colour as the sky pass adds it (faded near the naked-eye limit,
     // dimmed by the air), times what the cloud in front lets through. 0.06 is where the drawn
     // point stands out from the sky around it.

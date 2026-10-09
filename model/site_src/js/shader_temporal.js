@@ -5,6 +5,7 @@ uniform vec2 res;
 uniform float yaw,pitch,prevYaw,prevPitch,fov,histValid,histW;
 uniform vec3 eye, prevEye;
 out vec4 fragColor;
+${VIEW_RAY_GLSL}
 void main(){
   vec2 uv=gl_FragCoord.xy/res;
   vec4 cur=texture(currTex, uv);
@@ -20,11 +21,8 @@ void main(){
     aLo=min(aLo, s.a); aHi=max(aHi, s.a);
     if(s.a>0.01){ vec3 c=s.rgb/s.a; cLo=min(cLo, c); cHi=max(cHi, c); }
   }
-  float aspect=res.x/max(res.y,1.0); float fy=tan(fov*0.5); float fx=fy*aspect;
-  float nu=((gl_FragCoord.x/res.x)*2.0-1.0)*fx;
-  float nv=((gl_FragCoord.y/res.y)*2.0-1.0)*fy;
-  float cp=cos(pitch), sp=sin(pitch), cy=cos(yaw), sy=sin(yaw);
-  vec3 rd=normalize(vec3(sy*cp, cy*cp, sp)+nu*vec3(cy,-sy,0.0)+nv*vec3(-sy*sp,-cy*sp,cp));
+  float fy=tan(fov*0.5), fx=fy*(res.x/max(res.y,1.0));
+  vec3 rd=viewRay(gl_FragCoord.xy, res, fov, yaw, pitch);
   // Where this frame found no cloud, reproject as if at the cloud base.
   float tMean=texture(metaTex, uv).r;
   if(tMean<1.0) tMean=1600.0/max(rd.z, 0.03);

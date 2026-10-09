@@ -99,12 +99,16 @@ function helioToHoriz(P, E, lat, lst){
   return {dir:horizDir(p.az, p.alt), el:p.alt, az:p.az, D};
 }
 function cometMag(c, r, D){ return c.M1+5*Math.log10(D)+10*Math.log10(Math.max(r, c.rmin||0)); }
+// M1 for comet c (with M1 0) whose brightest moment, within 250 days of perihelion tp, is peak.
+function cometFitM1(c, tp, peak){
+  let best=99;
+  for(let t=-250;t<=250;t+=0.5){ const jd=tp+t, P=cometHelio(c, jd, tp), E=earthHelio(jd-JD_D0), r=Math.hypot(...P), D=Math.hypot(P[0]-E[0], P[1]-E[1], P[2]-E[2]); best=Math.min(best, cometMag(c, r, D)); }
+  return peak-best;
+}
 // M1 for each real comet from its recorded peak, at the apparition listed first.
 const cometReal=COMETS_REAL.map(([name, desig, q, e, i, om, w, tps, peak, rmin])=>{
   const c={name, desig, q, e, i, om, w, tps, rmin:rmin||0, M1:0, real:true};
-  let best=99;
-  for(let t=-250;t<=250;t+=0.5){ const jd=tps[0]+t, d=jd-JD_D0, P=cometHelio(c, jd, tps[0]), E=earthHelio(d), r=Math.hypot(...P), D=Math.hypot(P[0]-E[0], P[1]-E[1], P[2]-E[2]); best=Math.min(best, cometMag(c, r, D)); }
-  c.M1=peak-best;
+  c.M1=cometFitM1(c, tps[0], peak);
   return c;
 });
 // Random comets of year bin b (365.25-day years of the day number) for epoch key.
@@ -137,10 +141,8 @@ function cometYear(key, b){
 const COMETS_FICT={zetaoph:[['The great comet of the ζ Oph sky (invented)', 'invented', 0.76572, 0.997, 40.480, 258.08, 14.913, [7, 2.27], -3]]};
 const cometFict={};
 for(const key in COMETS_FICT) cometFict[key]=COMETS_FICT[key].map(([name, desig, q, e, i, om, w, md, peak])=>{
-  const c={name, desig, q, e, i, om, w, md, rmin:0, M1:0, real:true}, tp=dayNumber(2026, md[0], Math.floor(md[1]), 24*(md[1]%1))+JD_D0;
-  let best=99;
-  for(let t=-250;t<=250;t+=0.5){ const jd=tp+t, P=cometHelio(c, jd, tp), E=earthHelio(jd-JD_D0), r=Math.hypot(...P), D=Math.hypot(P[0]-E[0], P[1]-E[1], P[2]-E[2]); best=Math.min(best, cometMag(c, r, D)); }
-  c.M1=peak-best;
+  const c={name, desig, q, e, i, om, w, md, rmin:0, M1:0, real:true};
+  c.M1=cometFitM1(c, dayNumber(2026, md[0], Math.floor(md[1]), 24*(md[1]%1))+JD_D0, peak);
   return c;
 });
 // The comets in the sky now, with everything both views and the tooltip need.
@@ -189,26 +191,27 @@ function cometAt(C, v, pw, out){
   const rc=Math.max(C.rhoc, 1.5*pw), dh=Math.sqrt(Math.max(0, 2-2*ch));
   const rc2=Math.max(C.rhoc/6, pw);
   out.coma=lx.coma*(0.8*Math.exp(-dh/rc)/(2*Math.PI*rc*rc)+0.2*Math.exp(-dh/rc2)/(2*Math.PI*rc2*rc2));
-  // A tail: distance to its spine, a width growing from the coma's size to a tenth of its
-  // length (a thirtieth for the ion tail), brightness falling along it; normalised so its light adds to lum.
-  const tail=(pts, len, lum, wEnd, fall)=>{
-    if(!(lum>0)||len<1e-6) return 0;
-    let best=Infinity, bs=0;
-    const n=pts.length-1;
-    for(let k=0;k<n;k++){
-      const a=pts[k], b=pts[k+1], ab=[b[0]-a[0], b[1]-a[1], b[2]-a[2]], L2=vdot(ab, ab);
-      const t=L2>0?Math.max(0, Math.min(1, ((v[0]-a[0])*ab[0]+(v[1]-a[1])*ab[1]+(v[2]-a[2])*ab[2])/L2)):0;
-      const q=[a[0]+ab[0]*t-v[0], a[1]+ab[1]*t-v[1], a[2]+ab[2]*t-v[2]], dd=vdot(q, q);
-      if(dd<best){ best=dd; bs=(k+t)/n; }
-    }
-    const w=Math.max(rc*(1-bs)+wEnd*len*bs, pw), b=Math.pow(1-bs, fall)*(bs>0?1:0.5);
-    // ∫0^1 (1−s)^fall ds · len · √(2π) w̄ with w̄ the mean width.
-    const norm=len/(fall+1)*Math.sqrt(2*Math.PI)*Math.max(0.5*(rc+wEnd*len), pw);
-    return lum*b*Math.exp(-0.5*best/(w*w))/norm;
-  };
-  out.dust=tail(C.spine, C.lenD, lx.dust, 0.1, 1.4);
-  out.ion=tail(C.ion, C.lenI, lx.ion, 0.03, 1.0);
+  out.dust=cometTailAt(v, C.spine, C.lenD, lx.dust, rc, 0.1, 1.4, pw);
+  out.ion=cometTailAt(v, C.ion, C.lenI, lx.ion, rc, 0.03, 1.0, pw);
   return out;
+}
+// A tail toward v: distance to its spine pts, a width growing from the coma's size rc to wEnd of its
+// length len (a tenth for the dust tail, a thirtieth for the ion tail), brightness falling along
+// it; normalised so its light adds to lum.
+function cometTailAt(v, pts, len, lum, rc, wEnd, fall, pw){
+  if(!(lum>0)||len<1e-6) return 0;
+  let best=Infinity, bs=0;
+  const n=pts.length-1, v0=v[0], v1=v[1], v2=v[2];
+  for(let k=0;k<n;k++){
+    const a=pts[k], b=pts[k+1], a0=a[0], a1=a[1], a2=a[2], x=b[0]-a0, y=b[1]-a1, z=b[2]-a2, L2=x*x+y*y+z*z;
+    const t=L2>0?Math.max(0, Math.min(1, ((v0-a0)*x+(v1-a1)*y+(v2-a2)*z)/L2)):0;
+    const q0=a0+x*t-v0, q1=a1+y*t-v1, q2=a2+z*t-v2, dd=q0*q0+q1*q1+q2*q2;
+    if(dd<best){ best=dd; bs=(k+t)/n; }
+  }
+  const w=Math.max(rc*(1-bs)+wEnd*len*bs, pw), b=Math.pow(1-bs, fall)*(bs>0?1:0.5);
+  // ∫0^1 (1−s)^fall ds · len · √(2π) w̄ with w̄ the mean width.
+  const norm=len/(fall+1)*Math.sqrt(2*Math.PI)*Math.max(0.5*(rc+wEnd*len), pw);
+  return lum*b*Math.exp(-0.5*best/(w*w))/norm;
 }
 // Colours of the parts as linear sRGB of unit luminance, from their spectra (spectrum.js).
 let COMET_LIN=null;
@@ -233,10 +236,7 @@ function domeCometPixel(px, o, j, c, tr, ta, H){
   }
   const rH=0.2126*L[0]+0.7152*L[1]+0.0722*L[2];
   if(!(rH>0)) return;
-  const g=H.rgrid, NC=H.NC, rBg=(g[c]*(1-ta)+g[c+1]*ta)*(1-tr)+(g[c+NC]*(1-ta)+g[c+NC+1]*ta)*tr;
-  if(rH<rBg*0.003) return;
-  const rNew=rBg+rH, tBg=toneAt(H.T, rBg), tNew=toneAt(H.T, rNew), a=tBg>0?(tNew/tBg)*(rBg/rNew):0, b=tNew/rNew;
-  for(let q=0;q<3;q++) px[o+q]=linToByte(SRGB_LIN[px[o+q]]*a+L[q]*b);
+  domeMixLight(px, o, c, tr, ta, H, rH, L, 1);
 }
 // The walk-around view: up to COMET_GL comets as uniforms, the same model in GLSL.
 const COMET_GL=3;

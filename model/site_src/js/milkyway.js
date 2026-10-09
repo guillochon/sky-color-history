@@ -11,42 +11,71 @@
 // colour is that of integrated starlight, about 4800 K.
 const MW_W=1024, MW_H=288, MW_BMAX=50, MW_PEAK=8.5e-4, MW_XY=[0.350, 0.360];
 let mwMap=null;
-function mwHash(ix, iy, seed){
-  let h=Math.imul(ix, 374761393)^Math.imul(iy, 668265263)^Math.imul(seed, 1442695041);
+// The map's terms that depend only on longitude, or only on latitude, are worked out once per
+// column or row. Spots (galactic longitude and latitude, and their widths in each, in degrees):
+// the bulge; the Sagittarius and Scutum star clouds; the Coalsack and the Ophiuchus and Taurus
+// dust; the Large and Small Magellanic Clouds and M31.
+const MW_SPOT=[[0, -1, 10, 8], [2, -4.5, 3, 2.5], [27, -2.5, 2.5, 2], [301, -1, 2.0, 2.0], [354, 16, 6, 5], [172, -15, 6, 5],
+  [280.5, -32.9, 3.2, 2.6], [302.8, -44.3, 1.6, 1.1], [121.2, -21.6, 1.1, 0.45]];
+// Fractal value noise: the cell size (degrees) and seed of each of mwSurface's six, three octaves
+// each, on cells periodic in longitude.
+const MW_FBM=[[2.4, 1], [1.6, 2], [1.2, 3], [1.5, 4], [1.5, 5], [1.0, 6]];
+const MW_OCT=MW_FBM.flatMap(([cell, seed])=>[[cell, seed], [cell/2.5, seed+7], [cell/6, seed+13]]);
+function mwGs(x, w){ return Math.exp(-0.5*(x/w)*(x/w)); }
+// A cell corner's hash, from the XOR of its column's and its row's (and seed's) parts.
+function mwHash(h){
   h=Math.imul(h^(h>>>13), 1274126177); h^=h>>>16;
   return (h>>>0)/4294967296;
 }
-// Value noise on cells of `cell` degrees, periodic in longitude.
-function mwNoise(l, b, cell, seed){
-  const P=Math.round(360/cell), x=(l+180)/cell, y=(b+90)/cell, ix=Math.floor(x), iy=Math.floor(y);
-  const fx=x-ix, fy=y-iy, u=fx*fx*(3-2*fx), v=fy*fy*(3-2*fy), w=i=>((i%P)+P)%P;
-  const a=mwHash(w(ix), iy, seed), c=mwHash(w(ix+1), iy, seed), d=mwHash(w(ix), iy+1, seed), e=mwHash(w(ix+1), iy+1, seed);
+// Longitude l: the band's brightness along the plane, its scale height, the rift's latitude and the
+// dust's strength, each spot's longitude factor, and each noise octave's two columns of cells
+// (hashed) and the weight across them.
+function mwColumn(l){
+  const dl=c=>((l-c+540)%360)-180, hx=new Int32Array(MW_OCT.length*2), ux=new Float64Array(MW_OCT.length);
+  MW_OCT.forEach(([cell], k)=>{
+    const P=Math.round(360/cell), x=(l+180)/cell, ix=Math.floor(x), fx=x-ix, w=i=>((i%P)+P)%P;
+    hx[2*k]=Math.imul(w(ix), 374761393); hx[2*k+1]=Math.imul(w(ix+1), 374761393); ux[k]=fx*fx*(3-2*fx);
+  });
+  const A=0.15+1.0*mwGs(dl(0), 24)+0.6*mwGs(dl(27), 7)+1.6*mwGs(dl(76), 13)+0.3*mwGs(dl(130), 30)
+    +0.9*mwGs(dl(287), 13)+0.8*mwGs(dl(310), 15)+0.6*mwGs(dl(338), 11);
+  return {A, h:5.0+4.0*mwGs(dl(0), 35), rift:1.2*Math.exp(-Math.pow(dl(38)/42, 4)), dust:0.2+0.8*mwGs(dl(35), 50),
+    spot:MW_SPOT.map(([lc, , wl])=>mwGs(dl(lc), wl)), hx, ux};
+}
+// Latitude b: each spot's latitude factor, and each noise octave's two rows of cells (hashed with
+// the seed) and the weight across them.
+function mwRow(b){
+  const hy=new Int32Array(MW_OCT.length*2), vy=new Float64Array(MW_OCT.length);
+  MW_OCT.forEach(([cell, seed], k)=>{
+    const y=(b+90)/cell, iy=Math.floor(y), fy=y-iy, hs=Math.imul(seed, 1442695041);
+    hy[2*k]=Math.imul(iy, 668265263)^hs; hy[2*k+1]=Math.imul(iy+1, 668265263)^hs; vy[k]=fy*fy*(3-2*fy);
+  });
+  return {b, spot:MW_SPOT.map(([, bc, , wb])=>mwGs(b-bc, wb)), hy, vy};
+}
+function mwNoise(C, R, k){
+  const x0=C.hx[2*k], x1=C.hx[2*k+1], y0=R.hy[2*k], y1=R.hy[2*k+1], u=C.ux[k], v=R.vy[k];
+  const a=mwHash(x0^y0), c=mwHash(x1^y0), d=mwHash(x0^y1), e=mwHash(x1^y1);
   return a+(c-a)*u+(d-a)*v+(a-c-d+e)*u*v;
 }
-function mwFbm(l, b, cell, seed){ return 0.55*mwNoise(l, b, cell, seed)+0.3*mwNoise(l, b, cell/2.5, seed+7)+0.15*mwNoise(l, b, cell/6, seed+13); }
-function mwSurface(l, b){
-  const dl=c=>((l-c+540)%360)-180, gs=(x, w)=>Math.exp(-0.5*(x/w)*(x/w));
-  const spot=(lc, bc, wl, wb)=>gs(dl(lc), wl)*gs(b-bc, wb);
-  const A=0.15+1.0*gs(dl(0), 24)+0.6*gs(dl(27), 7)+1.6*gs(dl(76), 13)+0.3*gs(dl(130), 30)
-    +0.9*gs(dl(287), 13)+0.8*gs(dl(310), 15)+0.6*gs(dl(338), 11);
-  const h=5.0+4.0*gs(dl(0), 35);
-  let I=A*Math.exp(-Math.abs(b)/h)*(0.45+1.1*mwFbm(l, b, 2.4, 1));
-  I+=0.8*spot(0, -1, 10, 8)*(0.7+0.6*mwFbm(l, b, 1.6, 2));
-  I+=0.5*spot(2, -4.5, 3, 2.5)+0.3*spot(27, -2.5, 2.5, 2);
-  const rift=1.2*Math.exp(-Math.pow(dl(38)/42, 4));
-  let tau=(0.2+0.8*gs(dl(35), 50))*Math.exp(-Math.abs(b-rift)/2.0)*(0.35+1.3*mwFbm(l, b, 1.2, 3));
-  tau+=1.3*spot(301, -1, 2.0, 2.0)+0.9*spot(354, 16, 6, 5)*mwFbm(l, b, 1.5, 4)*2+0.5*spot(172, -15, 6, 5)*mwFbm(l, b, 1.5, 5)*2;
+function mwFbm(C, R, f){ return 0.55*mwNoise(C, R, 3*f)+0.3*mwNoise(C, R, 3*f+1)+0.15*mwNoise(C, R, 3*f+2); }
+function mwSpot(C, R, k){ return C.spot[k]*R.spot[k]; }
+function mwSurface(C, R){
+  const b=R.b;
+  let I=C.A*Math.exp(-Math.abs(b)/C.h)*(0.45+1.1*mwFbm(C, R, 0));
+  I+=0.8*mwSpot(C, R, 0)*(0.7+0.6*mwFbm(C, R, 1));
+  I+=0.5*mwSpot(C, R, 1)+0.3*mwSpot(C, R, 2);
+  let tau=C.dust*Math.exp(-Math.abs(b-C.rift)/2.0)*(0.35+1.3*mwFbm(C, R, 2));
+  tau+=1.3*mwSpot(C, R, 3)+0.9*mwSpot(C, R, 4)*mwFbm(C, R, 3)*2+0.5*mwSpot(C, R, 5)*mwFbm(C, R, 4)*2;
   I*=Math.exp(-tau);
-  I+=0.6*spot(280.5, -32.9, 3.2, 2.6)*(0.7+0.6*mwFbm(l, b, 1.0, 6))+0.32*spot(302.8, -44.3, 1.6, 1.1)+0.22*spot(121.2, -21.6, 1.1, 0.45);
+  I+=0.6*mwSpot(C, R, 6)*(0.7+0.6*mwFbm(C, R, 5))+0.32*mwSpot(C, R, 7)+0.22*mwSpot(C, R, 8);
   return I;
 }
 function buildMilkyWay(){
   if(mwMap) return mwMap;
-  const m=new Float32Array(MW_W*MW_H);
+  const m=new Float32Array(MW_W*MW_H), cols=Array.from({length:MW_W}, (_, i)=>mwColumn(-180+(i+0.5)/MW_W*360));
   let peak=0;
   for(let j=0;j<MW_H;j++){
-    const b=-MW_BMAX+(j+0.5)/MW_H*2*MW_BMAX;
-    for(let i=0;i<MW_W;i++){ const v=mwSurface(-180+(i+0.5)/MW_W*360, b); m[j*MW_W+i]=v; if(v>peak) peak=v; }
+    const R=mwRow(-MW_BMAX+(j+0.5)/MW_H*2*MW_BMAX);
+    for(let i=0;i<MW_W;i++){ const v=mwSurface(cols[i], R); m[j*MW_W+i]=v; if(v>peak) peak=v; }
   }
   for(let i=0;i<m.length;i++) m[i]*=MW_PEAK/peak;
   return mwMap=m;
@@ -69,8 +98,7 @@ function galacticBasis(lat){
   const toHoriz=v=>{
     const ra=Math.atan2(v[1], v[0])*180/Math.PI, dec=Math.asin(Math.max(-1, Math.min(1, v[2])))*180/Math.PI;
     const place=starMeanPlace([ra, dec, 0, 0, 0, 0], epochKey, year);
-    let H=rev(LST-rev(place.ra)); if(H>180) H-=360;
-    const p=altaz(lat, place.dec, H); return horizDir(p.az, p.alt);
+    const p=raDecAltaz(lat, place.ra, place.dec, LST); return horizDir(p.az, p.alt);
   };
   // Rows of GAL_AXES are the galactic axes in J2000 equatorial coordinates. At a traced epoch
   // (STAR_EPOCH_GAL, from build_star_epochs.py) the plane is where it is now, but the Sun was

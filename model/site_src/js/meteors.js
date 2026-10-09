@@ -76,7 +76,7 @@ function metMass(M, v){ return Math.pow(10, (55.34-8.75*Math.log10(v*1e5)-M)/2.2
 let metRng=Math.random;
 function metRand(){ return metRng(); }
 function metHash(s){ let h=2166136261; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h, 16777619); } return h>>>0; }
-function metGauss(){ let u=0, v=0; while(u===0) u=metRand(); while(v===0) v=metRand(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+function metGauss(){ return gauss01(metRng); }
 // A direction near d, scattered by about sd degrees.
 function metScatter(d, sd){
   const a=Math.abs(d[2])<0.9?[0, 0, 1]:[1, 0, 0], e1=vnorm(vcross(a, d)), e2=vcross(d, e1), s=sd*Math.PI/180;
@@ -197,11 +197,7 @@ function metTint(v, key, ring){
 }
 // Display size and brightness for apparent magnitude m, as pointDisplay does for stars, but
 // growing further for the brightest fireballs.
-function metDisplay(m){
-  const flux=Math.pow(10, -0.4*(m-STAR_VANCHOR)), amp=Math.min(1, 0.62*Math.sqrt(Math.max(flux, 0)));
-  const px=flux>=1?STAR_PX_ANCHOR*Math.pow(Math.min(flux, 1e6), 0.2):STAR_PX_ANCHOR*Math.pow(Math.max(flux, 1e-6), STAR_FAINT_EXP);
-  return {px, amp};
-}
+function metDisplay(m){ const d=magDisplay(m, 1e6, 0.2); return {px:d.px, amp:Math.min(1, 0.62*Math.sqrt(Math.max(d.flux, 0)))}; }
 // How fully a meteor of apparent magnitude m shows against sky luminance L (cd/m²).
 function metVisible(m, L){ const lim=nakedEyeLimit(L)-MET_PERCEPT; return 1-smooth01(lim-0.8, lim+1.0, m); }
 

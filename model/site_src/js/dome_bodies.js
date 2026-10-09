@@ -17,8 +17,7 @@ function placeStars(lat){
   const tex=new Float32Array(STAR_MAP_W*8), marks=[], up=[];
   for(let i=0;i<P.n;i++){
     const star=list[i];
-    let H=rev(LST-rev(P.ra[i])); if(H>180) H-=360;
-    const p=altaz(lat, P.dec[i], H), show=P.show[i], o=i*4;
+    const p=raDecAltaz(lat, P.ra[i], P.dec[i], LST), show=P.show[i], o=i*4;
     if(!(p.alt>0)) continue;
     const dir=horizDir(p.az, p.alt);
     tex[o]=dir[0]; tex[o+1]=dir[1]; tex[o+2]=dir[2]; tex[o+3]=show.px;
@@ -33,12 +32,14 @@ function placeStars(lat){
   return {tex, marks, bins:bins.info, idx:bins.idx, idxCount:bins.count};
 }
 // Sky luminance ratio at (el, az), interpolated in log from the dome grid (skyNow.rgrid, rows
-// of DOME_NA+1 from the zenith down).
+// of DOME_NA+1 from the zenith down). Each render makes a new grid, and its logs are kept with it.
+const skyLogs=new WeakMap();
 function skyRAt(rgrid, el, az){
   const NR=DOME_NR, NA=DOME_NA, NC=NA+1, vz=Math.max(0,Math.min(90,90-el));
   let ang=az%360; if(ang<0) ang+=360;
-  const fr=vz/90*NR, ir=Math.min(NR-1,Math.floor(fr)), tr=fr-ir, fa=ang/360*NA, ia=Math.min(NA-1,Math.floor(fa)), ta=fa-ia, c=ir*NC+ia, L=Math.log;
-  const a=L(rgrid[c])*(1-ta)+L(rgrid[c+1])*ta, b=L(rgrid[c+NC])*(1-ta)+L(rgrid[c+NC+1])*ta;
+  let L=skyLogs.get(rgrid); if(!L){ L=Float64Array.from(rgrid, v=>Math.log(v)); skyLogs.set(rgrid, L); }
+  const fr=vz/90*NR, ir=Math.min(NR-1,Math.floor(fr)), tr=fr-ir, fa=ang/360*NA, ia=Math.min(NA-1,Math.floor(fa)), ta=fa-ia, c=ir*NC+ia;
+  const a=L[c]*(1-ta)+L[c+1]*ta, b=L[c+NC]*(1-ta)+L[c+NC+1]*ta;
   return Math.exp(a*(1-tr)+b*tr);
 }
 // A star shows in full when 0.8 mag brighter than the naked-eye limit for the sky around it,
@@ -97,8 +98,7 @@ function supernovaPlace(lat){
   if(!sn) return null;
   const year=pageDate()[0], LST=localSidereal();
   const place=starMeanPlace([sn.ra, sn.dec, sn.mag, 0, 0, 0], EP[dIdx].key, year);
-  let H=rev(LST-rev(place.ra)); if(H>180) H-=360;
-  const p=altaz(lat, place.dec, H);
+  const p=raDecAltaz(lat, place.ra, place.dec, LST);
   return {az:p.az, el:p.alt, mag:sn.mag, rgb:sn.rgb, name:sn.name};
 }
 // A point too bright to resolve: a white core and a glare halo, bright enough to show by day.
@@ -201,11 +201,13 @@ function paintMoonSprite(moon, sunAz, sunEl){
   const sctx=moonSprite.getContext('2d',{willReadFrequently:true});
   sctx.clearRect(0,0,96,96); sctx.drawImage(moonSurface(EP[dIdx].key),0,0,96,96);
   const img=sctx.getImageData(0,0,96,96), px=img.data, b=moonBasis(moon), sd=horizDir(sunAz,sunEl);
+  const E=b.east, N=b.north, M=b.md;
   for(let j=0;j<96;j++) for(let i=0;i<96;i++){
     const u=(i+0.5)/96*2-1, v=1-(j+0.5)/96*2, o=(j*96+i)*4;
     if(u*u+v*v>1){ px[o+3]=0; continue; }
-    const nrm=vnorm(vadd(vscale(b.east,u), vscale(b.north,v), vscale(b.md, -Math.sqrt(1-u*u-v*v))));
-    const lit=smooth01(-0.02,0.05, vdot(nrm,sd));
+    // The surface normal there, facing us, and its light from the Sun.
+    const w=-Math.sqrt(1-u*u-v*v), x=E[0]*u+N[0]*v+M[0]*w, y=E[1]*u+N[1]*v+M[1]*w, z=E[2]*u+N[2]*v+M[2]*w, m=Math.hypot(x,y,z)||1;
+    const lit=smooth01(-0.02,0.05, x/m*sd[0]+y/m*sd[1]+z/m*sd[2]);
     px[o+3]=Math.round(lit*255);
   }
   sctx.putImageData(img,0,0);
@@ -247,7 +249,7 @@ function drawMoonOnDome(moon, sunAz, sunEl){
     const Tr=Math.exp(-0.12/mu), Tg=Math.exp(-0.22/mu), Tb=Math.exp(-0.48/mu);
     const o=((y-y0)*bw+(x-x0))*4;
     const skyY=(0.2126*px[o]+0.7152*px[o+1]+0.0722*px[o+2])/255;
-    const t=Math.max(0,Math.min(1,skyY/1.15)), veil=1-t*t*(3-2*t);
+    const veil=1-smooth01(0, 1.15, skyY);
     px[o]=Math.min(255, px[o]+s[0]/255*wlit*Tr*veil*255);
     px[o+1]=Math.min(255, px[o+1]+s[1]/255*wlit*Tg*veil*255);
     px[o+2]=Math.min(255, px[o+2]+s[2]/255*wlit*Tb*veil*255);

@@ -51,7 +51,7 @@ def job(args):
     e, lname, alb, szs = args
     atm = dc.build(e, alb, lname)
     return {dc.spec_key(e['key'], lname, sz):
-            np.array([atm.radiance(vz, az, sz) for vz in VZ for az in AZ] + [dc.sun_spectrum(atm, sz)])
+            np.vstack([dc.dome(atm, sz, VZ, AZ).reshape(-1, len(LAM)), dc.sun_spectrum(atm, sz)])
             for sz in szs}
 
 

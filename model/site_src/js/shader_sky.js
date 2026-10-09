@@ -28,6 +28,7 @@ ${MET_GLSL}
 ${COMET_GLSL}
 ${TONE_GLSL}
 ${AUR_MIX_GLSL}
+${VIEW_RAY_GLSL}
 // Naked-eye limiting magnitude against a sky of L cd/m² (color.js nakedEyeLimit).
 float nakedEyeLimit(float L){
   float msky=-2.5*log(max(L, 1e-12)/10.8e4)/2.302585;
@@ -209,6 +210,18 @@ float windowMean(float frac, float offAt, float dark){
   float pOn=0.08+(clockH>=12.0?clamp(0.92-(clockH-offAt+1.0)*0.5, 0.0, 0.92):0.0);
   return frac*clamp((dark-0.1)/0.8, 0.0, 1.0)*pOn;
 }
+// The direction toward azimuth az and elevation el (degrees).
+vec3 azElDir(float az, float el){
+  float a=az*0.01745329252, z=(90.0-el)*0.01745329252;
+  return normalize(vec3(sin(a)*sin(z), cos(a)*sin(z), cos(z)));
+}
+// Light of luminance ratio r and linear color L (of luminance r) added to the sky's display
+// color skyC, of luminance ratio rBg, under the display curve: the pixel goes to the curve's
+// value for the sum, its color the luminance-weighted mix.
+vec3 overSky(vec3 skyC, float rBg, float r, vec3 L){
+  float rNew=rBg+r, tBg=toneT(rBg), tNew=toneT(rNew);
+  return lin2s3(clamp(s2lin3(skyC)*(tBg>0.0?(tNew/tBg)*(rBg/rNew):0.0)+L*(tNew/rNew), 0.0, 1.0));
+}
 // Light at night from the Moon (ml) and a supernova (sn), on a surface with normal n.
 vec3 nightLit(vec3 n){ return snLight*max(dot(n, snDir), 0.0)+mlLight*max(dot(n, mlDir), 0.0); }
 vec3 skyLook(vec3 d){
@@ -217,17 +230,14 @@ vec3 skyLook(vec3 d){
   return texture(sky, vec2((fract(c/6.28318530718)*na+0.5)/(na+1.0), ((90.0-max(el, 0.0))/90.0*nr+0.5)/(nr+1.0))).rgb;
 }
 void main(){
-  float aspect=res.x/max(res.y,1.0); float fy=tan(fov*0.5); float fx=fy*aspect;
-  float u=((gl_FragCoord.x/res.x)*2.0-1.0)*fx;
-  float v=((gl_FragCoord.y/res.y)*2.0-1.0)*fy;
-  float cp=cos(pitch), sp=sin(pitch), cy=cos(yaw), sy=sin(yaw);
-  vec3 rd=normalize(vec3(sy*cp, cy*cp, sp)+u*vec3(cy,-sy,0.0)+v*vec3(-sy*sp,-cy*sp,cp));
+  float fy=tan(fov*0.5);
+  vec3 rd=viewRay(gl_FragCoord.xy, res, fov, yaw, pitch);
   vec3 ro=eye;
   float comp=atan(rd.x, rd.y); if(comp<0.0) comp+=6.28318530718;
   float elevDeg=asin(clamp(rd.z,-1.0,1.0))*57.2957795;
   float compDeg=comp*57.2957795;
-  float sunA=sunAz*0.01745329252, sunZen=(90.0-sunEl)*0.01745329252;
-  vec3 sd=normalize(vec3(sin(sunA)*sin(sunZen), cos(sunA)*sin(sunZen), cos(sunZen)));
+  float sunA=sunAz*0.01745329252;
+  vec3 sd=azElDir(sunAz, sunEl);
   vec4 hit=texelFetch(hitInfo, ivec2(gl_FragCoord.xy), 0);
   vec4 hn=texelFetch(hitNrm, ivec2(gl_FragCoord.xy), 0);
   float tBest=1e8, kBest=0.0, hBest=1.0, tLand=-1.0, shBest=hit.b;
@@ -544,8 +554,7 @@ void main(){
       skyC=lin2s3(mix(sl, dsk, op));
     }
     if(moonOn>0.5&&te>-1.2){
-      float mA=moonAz*0.01745329252, mZ=(90.0-moonEl)*0.01745329252;
-      vec3 md=normalize(vec3(sin(mA)*sin(mZ), cos(mA)*sin(mZ), cos(mZ)));
+      vec3 md=azElDir(moonAz, moonEl);
       vec3 ncp=vec3(0.0, cos(latRad), sin(latRad));
       vec3 north=ncp-md*dot(ncp,md);
       if(dot(north,north)<1e-6) north=vec3(1.0,0.0,0.0);
@@ -584,12 +593,7 @@ void main(){
       if(abs(gb)<${MW_BMAX.toFixed(1)}){
         float gl=atan(gq.y, gq.x)*57.2957795;
         float rMw=texture(mwTex, vec2((gl+180.0)/360.0, (gb+${MW_BMAX.toFixed(1)})/${(2*MW_BMAX).toFixed(1)})).r*mwScale*extinctionAt(te, mwK);
-        if(rMw>rBg*0.003){
-          float rNew=rBg+rMw, tBg=toneT(rBg), tNew=toneT(rNew);
-          vec3 mwLin=vec3(${mwLinGLSL()});
-          vec3 lin=s2lin3(skyC)*(tBg>0.0?(tNew/tBg)*(rBg/rNew):0.0)+mwLin*tNew*(rMw/rNew);
-          skyC=lin2s3(clamp(lin, 0.0, 1.0));
-        }
+        if(rMw>rBg*0.003) skyC=overSky(skyC, rBg, rMw, vec3(${mwLinGLSL()})*rMw);
       }
     }
     if(haloK.x+haloK.y>0.0 && !onBody && te>-1.0){
@@ -605,26 +609,16 @@ void main(){
       float pick=h12(cell.xy+cell.z*17.31), tw=fract(pick*91.7+waterT*0.35);
       float glint=step(0.988, pick)*pow(max(sin(tw*6.2831853), 0.0), 12.0)*14.0;
       L+=haloSunLin*rH*glint; rH*=1.0+glint;
-      if(rH>rBg*0.003){
-        float rNew=rBg+rH, tBg=toneT(rBg), tNew=toneT(rNew);
-        vec3 lin=s2lin3(skyC)*(tBg>0.0?(tNew/tBg)*(rBg/rNew):0.0)+L*(tNew/rNew);
-        skyC=lin2s3(clamp(lin, 0.0, 1.0));
-      }
+      if(rH>rBg*0.003) skyC=overSky(skyC, rBg, rH, L);
     }
     if(ringV.z>0.5 && !onBody && te>-1.0){
       float rR=ringAtG(src, sd, 1.2*fy/res.y)*extinctionAt(max(te, 0.0), mwK);
-      if(rR>rBg*0.003){
-        float rNew=rBg+rR, tBg=toneT(rBg), tNew=toneT(rNew);
-        skyC=lin2s3(clamp(s2lin3(skyC)*(tBg>0.0?(tNew/tBg)*(rBg/rNew):0.0)+ringLin*(tNew/rNew*rR), 0.0, 1.0));
-      }
+      if(rR>rBg*0.003) skyC=overSky(skyC, rBg, rR, ringLin*rR);
     }
     if(cometN>0.5 && !onBody && te>-0.5){
       vec3 Lc=cometsAt(src, 1.2*fy/res.y)*extinctionAt(max(te, 0.0), mwK);
       float rC=dot(Lc, vec3(0.2126, 0.7152, 0.0722));
-      if(rC>rBg*0.003){
-        float rNew=rBg+rC, tBg=toneT(rBg), tNew=toneT(rNew);
-        skyC=lin2s3(clamp(s2lin3(skyC)*(tBg>0.0?(tNew/tBg)*(rBg/rNew):0.0)+Lc*(tNew/rNew), 0.0, 1.0));
-      }
+      if(rC>rBg*0.003) skyC=overSky(skyC, rBg, rC, Lc);
     }
     if(aurOn>0.5 && !onBody && te>-0.5) skyC=auroraMix(skyC, rBg, texture(aurTex, gl_FragCoord.xy/res)*0.001);
     if(corona>0.001 && !onBody && te>-1.0){
@@ -675,6 +669,9 @@ void main(){
       // Each star shows when brighter than the naked-eye limit for the sky around it.
       float lim=nakedEyeLimit(rBg*rCd);
       if(lim>-5.0){
+        // Through the air (mwK magnitudes per airmass) every star here is fainter by the same dm:
+        // less of it shows, and what shows is dimmer (day.js starThroughAir).
+        float dm=-2.5*log(max(extinctionAt(te, mwK), 1e-9))/2.302585+(mwK-0.25), dim=pow(10.0, -0.2*dm), sigMin=1.2*fy/res.y;
         int cell=starCubeCell(src);
         vec4 info=texelFetch(starBin, ivec2(cell- (cell/64)*64, cell/64), 0);
         int start=int(info.r+0.5), count=int(info.g+0.5);
@@ -685,17 +682,14 @@ void main(){
           vec4 sp=texelFetch(starMap, ivec2(si, 0), 0);
           if(sp.w<=0.0) continue;
           // No narrower than about half a screen pixel, so a faint star does not shimmer as the view turns.
-          float sig=max(sp.w*starPx, 1.2*fy/res.y);
+          float sig=max(sp.w*starPx, sigMin);
           // The squared chord, from the difference: 1-dot(src, star) loses the float's precision
           // once zoomed in, where a pixel is a few 1e-4 rad and 1-cos only a few 1e-8.
           vec3 dd=src-sp.xyz; float d2=dot(dd, dd);
           if(d2>16.0*sig*sig) continue;
           float wgt=exp(-0.5*d2/(sig*sig));
           vec4 sc=texelFetch(starMap, ivec2(si, 1), 0);
-          // Through the air (mwK magnitudes per airmass) the star is fainter: less of it shows,
-          // and what shows is dimmer (day.js starThroughAir).
-          float m=sc.a-2.5*log(max(extinctionAt(te, mwK), 1e-9))/2.302585+(mwK-0.25);
-          skyC+=sc.rgb*wgt*(1.0-smoothstep(lim-0.8, lim+0.2, m))*pow(10.0, -0.2*(m-sc.a));
+          skyC+=sc.rgb*wgt*(1.0-smoothstep(lim-0.8, lim+0.2, sc.a+dm))*dim;
         }
       }
     }

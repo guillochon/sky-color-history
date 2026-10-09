@@ -1,3 +1,17 @@
+// Distance along rd from ro to the layer H metres up, which curves away below eye as a sphere of
+// radius 833 km does, or -1 (the cloud and present passes). For shaders that declare uniform vec3 eye.
+const SHELL_GLSL=`
+float shellT(vec3 ro, vec3 rd, float H){
+  float R=833333.0;
+  vec2 dh=ro.xy-eye.xy;
+  float c=dot(dh,dh)+(ro.z-H)*(ro.z+H+2.0*R);
+  if(c>=0.0) return -1.0;
+  float b=dot(vec3(dh, ro.z+R), rd);
+  float disc=b*b-c;
+  if(disc<=0.0) return -1.0;
+  return -c/(b+sqrt(disc));
+}
+`;
 const CLOUDFS=`#version 300 es
 precision highp float;
 precision highp sampler2D;
@@ -14,16 +28,7 @@ uniform vec3 snDir,snLight,mlDir,mlLight;
 uniform vec3 sunCol,groundCol,eye;
 layout(location=0) out vec4 fragColor;
 layout(location=1) out vec4 fragDepth;
-float shellT(vec3 ro, vec3 rd, float H){
-  float R=833333.0;
-  vec2 dh=ro.xy-eye.xy;
-  float c=dot(dh,dh)+(ro.z-H)*(ro.z+H+2.0*R);
-  if(c>=0.0) return -1.0;
-  float b=dot(vec3(dh, ro.z+R), rd);
-  float disc=b*b-c;
-  if(disc<=0.0) return -1.0;
-  return -c/(b+sqrt(disc));
-}
+${SHELL_GLSL}
 float remap(float v, float lo, float hi, float a, float b){
   return a+(v-lo)/max(hi-lo,1.0e-4)*(b-a);
 }
@@ -31,21 +36,22 @@ float sat(float x){ return clamp(x, 0.0, 1.0); }
 vec3 toLin(vec3 c){ return pow(max(c, vec3(0.0)), vec3(2.2)); }
 uniform float sunVis;
 uniform vec3 cityUp;
-// The tallest column this era grows, from flat stratus to towering cumulus.
-float layerThick(){ return mix(500.0, 7000.0, pow(cloudType, 1.6))*mix(0.75, 1.30, cloudTop); }
+// The tallest column this era grows, from flat stratus to towering cumulus. main sets it first.
+float thickMax;
 // Henyey-Greenstein scaled so an isotropic scatterer is 1.
 float hg(float c, float g){
   float g2=g*g;
   return (1.0-g2)/pow(max(1.0+g2-2.0*g*c, 1.0e-4), 1.5);
 }
 float phase(float c){ return mix(hg(c, 0.55), hg(c, -0.2), 0.3); }
-// Density at p. hOut is the height inside the local column, 0 at the base and 1 at its top.
-float cloudDen(vec3 p, bool fine, out float hOut){
-  hOut=0.0;
+// Density at p without the fine detail or the fall-off at the base (cloudDen). hOut is the height
+// inside the local column, 0 at the base and 1 at its top; q and ng are where the base noise was
+// read and its green and blue, for cloudDetail.
+float cloudShape(vec3 p, out float hOut, out vec3 q, out vec2 ng){
+  hOut=0.0; q=vec3(0.0); ng=vec2(0.0);
   vec2 dh=p.xy-eye.xy;
   float alt=p.z+dot(dh,dh)/(2.0*833333.0);
   float h0=alt-cloudBase;
-  float thickMax=layerThick();
   if(h0<0.0||h0>thickMax) return 0.0;
   vec2 pl=p.xy+vec2(cloudDrift, cloudDrift*0.42);
   vec4 w=texture(weather, pl*cloudScale*0.33);
@@ -63,8 +69,9 @@ float cloudDen(vec3 p, bool fine, out float hOut){
   float cumulus=smoothstep(0.0, 0.05, h)*smoothstep(1.0, 0.18, h);
   float profile=mix(stratus, cumulus, cu)*cov;
   vec2 shear=vec2(0.92, 0.39)*h0*0.35;
-  vec3 q=vec3(pl+shear, alt*1.15)/9000.0+vec3(0.0, 0.0, cloudTime/90000.0);
+  q=vec3(pl+shear, alt*1.15)/9000.0+vec3(0.0, 0.0, cloudTime/90000.0);
   vec4 n=texture(noiseBase, q);
+  ng=n.gb;
   // Both channels come out of the generator in a narrow band (Perlin-Worley
   // about 0.62-0.85, Worley fbm about 0.30-0.66). Stretch them to 0-1 first.
   float pw=(n.r-0.62)/0.23;
@@ -72,16 +79,25 @@ float cloudDen(vec3 p, bool fine, out float hOut){
   float shape=sat((pw*0.55+wf*0.45-0.5)*1.5+0.5);
   float d=sat(remap(shape, 1.0-profile, 1.0, 0.0, 1.0));
   // Near overcast the noise still leaves gaps, so cloudDeck fills the layer with a textured sheet.
-  d=max(d, cloudDeck*stratus*cov*(0.35+0.45*shape));
+  return max(d, cloudDeck*stratus*cov*(0.35+0.45*shape));
+}
+// The fine detail eroding density d from cloudShape.
+float cloudDetail(float d, float h, vec3 q, vec2 ng){
+  vec3 dn=texture(noiseDetail, q*6.5+vec3(ng-0.5, 0.0)*0.12).rgb;
+  float dfbm=sat((dn.r*0.625+dn.g*0.25+dn.b*0.125-0.30)/0.36);
+  // Wispy and torn underneath, cauliflower billows above.
+  float m=mix(1.0-dfbm, dfbm, sat(h*4.0));
+  return sat(remap(d, m*0.65, 1.0, 0.0, 1.0));
+}
+// Thinner toward the base.
+float baseFade(float h){ return mix(0.55, 1.0, sat(h*3.0)); }
+// Density at p, with the fine detail if fine. hOut as for cloudShape.
+float cloudDen(vec3 p, bool fine, out float hOut){
+  vec3 q; vec2 ng;
+  float d=cloudShape(p, hOut, q, ng);
   if(d<=0.0) return 0.0;
-  if(fine){
-    vec3 dn=texture(noiseDetail, q*6.5+vec3(n.gb-0.5, 0.0)*0.12).rgb;
-    float dfbm=sat((dn.r*0.625+dn.g*0.25+dn.b*0.125-0.30)/0.36);
-    // Wispy and torn underneath, cauliflower billows above.
-    float m=mix(1.0-dfbm, dfbm, sat(h*4.0));
-    d=sat(remap(d, m*0.65, 1.0, 0.0, 1.0));
-  }
-  return d*mix(0.55, 1.0, sat(h*3.0));
+  if(fine) d=cloudDetail(d, hOut, q, ng);
+  return d*baseFade(hOut);
 }
 float lightTau(vec3 p, vec3 sd, float j){
   float tau=0.0, prev=0.0, dump;
@@ -109,7 +125,8 @@ void main(){
   vec3 sd=normalize(vec3(sin(sunA)*sin(sunZen), cos(sunA)*sin(sunZen), cos(sunZen)));
   fragColor=vec4(0.0); fragDepth=vec4(0.0);
   if(rd.z<0.0) return;
-  float top=cloudBase+layerThick();
+  thickMax=mix(500.0, 7000.0, pow(cloudType, 1.6))*mix(0.75, 1.30, cloudTop);
+  float top=cloudBase+thickMax;
   float tIn=shellT(ro, rd, cloudBase), tOut=shellT(ro, rd, top);
   if(tIn<0.0||tOut<tIn) return;
   float tHit=1e8;
@@ -148,10 +165,11 @@ void main(){
     if(T<0.02||t>tEnd) break;
     dt=clamp(t*0.007, 35.0, 700.0);
     vec3 p=ro+rd*t;
-    float h;
-    float coarse=cloudDen(p, false, h);
+    // The coarse shape first; the detail reuses its noise where there is any.
+    float h; vec3 q; vec2 ng;
+    float coarse=cloudShape(p, h, q, ng);
     if(coarse>0.0){
-      float den=cloudDen(p, true, h);
+      float den=cloudDetail(coarse, h, q, ng)*baseFade(h);
       if(den>0.003){
         // Fixed shadow-sample positions: jittering them speckled the lit faces,
         // and the short first steps keep sunset rims from combing without it.

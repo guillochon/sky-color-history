@@ -1,4 +1,4 @@
-import json, sys
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -8,31 +8,17 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from scipy.interpolate import RegularGridInterpolator
 
-from skymodel import XYZ_to_srgb
 import gen_report as gr
+from gen_report import byk, rgb, MOD, Yz, Yss, Ytw, LIMB
 
 HERE = Path(__file__).resolve().parent
 # Figures go to latex/figures, or to the folder given on the command line.
 OUT = Path(sys.argv[1]) if len(sys.argv) > 1 else HERE.parent / 'latex' / 'figures'
 OUT.mkdir(parents=True, exist_ok=True)
-byk = gr.byk
-LIMB = json.loads((HERE / 'limb_all.json').read_text(encoding='utf-8'))
 # The epochs that keep today's air (Year 2100, the supernovae) reuse the modern figures.
-SAME_AIR = {'y2100'} | {key for key, _, _ in gr.SUPERNOVA_EPOCHS}
-order = [k for k in gr.order if k not in SAME_AIR]
+order = [k for k in gr.order if k not in gr.SAME_AIR]
 ages = {'hadean44':'4.4 Ga','hadean40':'4.0 Ga','archean38':'3.8 Ga','archean27thin':'2.7 Ga\nthin haze','archean27':'2.7 Ga\nthick haze','archean27vthick':'2.7 Ga\nv. thick','proterozoic22':'2.2 Ga','snowball07':'700 Ma','ordovician466':'466 Ma','carbon30':'300 Ma','kpg66':'66 Ma','volcanic':'1815','ozonehole':'1980–2000','modern':'today','modernpoll':'today\npolluted'}
-MOD = byk['modern']
-Yz = MOD['lat']['Equator']['zenith']['Y']; Yss = MOD['sunset']['solar_horizon']['Y']; Ytw = MOD['twilight']['above_sun']['Y']
 
-def xyY(c):
-    x, y, Y = c['x'], c['y'], c['Y']
-    if y <= 0 or Y <= 0: return np.zeros(3)
-    return np.array([x*Y/y, Y, (1-x-y)*Y/y])
-def rgb(c, Yref, floor=0.0):
-    XYZ = xyY(c)
-    if XYZ[1] <= 1e-7*Yref: return np.array([0.02, 0.024, 0.04])
-    t = max(floor, min(0.92, 0.85*(XYZ[1]/Yref)**0.4))
-    return XYZ_to_srgb(XYZ, t/XYZ[1])
 def srgb2lin(c): c=np.asarray(c); return np.where(c<=0.04045, c/12.92, ((c+0.055)/1.055)**2.4)
 def lin2srgb(c): c=np.clip(c,0,1); return np.where(c<=0.0031308, 12.92*c, 1.055*c**(1/2.4)-0.055)
 def grad(top, bot, n=200):

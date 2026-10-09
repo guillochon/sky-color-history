@@ -7,22 +7,11 @@ Positions are J2000. Proper motions are arcseconds per year
 import json
 from pathlib import Path
 
-from bsc import load_bsc, num, star_name, parse_ra, parse_dec
+from bsc import catalogue, num, star_name, parse_ra, parse_dec
 
 
 def main():
-    rows_in = load_bsc()
-    ranked = []
-    for star in rows_in:
-        # HR 5958 is T CrB. The catalog magnitude is the 1946 outburst, not the star
-        # as it stands now (about tenth magnitude between eruptions).
-        if str(star.get("HR")) == "5958":
-            continue
-        magnitude = num(star.get("Vmag"), None)
-        if magnitude is None or not star.get("RA") or not star.get("Dec"):
-            continue
-        ranked.append((magnitude, star))
-    ranked.sort(key=lambda item: item[0])
+    ranked = sorted(catalogue(), key=lambda item: item[0])
 
     catalog = []
     for magnitude, star in ranked[:1000]:

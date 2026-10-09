@@ -78,7 +78,6 @@ function aurNoise(x, y, P, s){
   const a=aurHashI(x0, yi, s), b=aurHashI(x1, yi, s), c=aurHashI(x0, yi+1, s), d=aurHashI(x1, yi+1, s);
   return a+(b-a)*ux+(c-a)*uy+(a-b-c+d)*ux*uy;
 }
-function aurStrHash(s){ let h=2166136261; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h, 16777619); } return h>>>0; }
 // Hours from b to a round the clock, -12 to 12.
 function aurCirc(a, b){ return ((a-b)%24+36)%24-12; }
 // The page's day as a whole number of the epoch's days, the same all through the date in every
@@ -110,7 +109,7 @@ let aurStorm=false;
 function auroraState(key, latDeg, clockMin, zenithCd){
   const [rmp, kp0, drive0, fO, fN]=AURORA_EPOCH[key]||AURORA_TODAY;
   // Each night has its own activity, blended into the next across the middle of the day.
-  const seed=aurStrHash(key), n=aurDayIndex(), x=clockMin/DAYMIN, w=smooth01(0.35, 0.65, x);
+  const seed=metHash(key), n=aurDayIndex(), x=clockMin/DAYMIN, w=smooth01(0.35, 0.65, x);
   const night=j=>aurHashI(n-1, j, seed)*(1-w)+aurHashI(n, j, seed)*w;
   let kp=Math.max(0, kp0+(night(3)-0.5)*2), drive=drive0*(0.7+0.6*night(4));
   if(aurStorm){ kp=Math.min(11, kp+7); drive*=3; }
@@ -153,18 +152,28 @@ function auroraState(key, latDeg, clockMin, zenithCd){
   st.seed=seed;
   return st;
 }
+// What depends only on the texel, shared by the four arcs: its place round the oval as a fraction
+// of a turn, the substorm's weight there, the arcs' brightness by magnetic local time, and the fade
+// at the window's edges.
+const AUR_F=new Float64Array(AUR_N), AUR_WMID=new Float64Array(AUR_N), AUR_MLTW=new Float64Array(AUR_N), AUR_EDGE=new Float64Array(AUR_N), AUR_OFF=new Float32Array(AUR_N);
 // The arcs at real time t (seconds): per texel of longitude east of here, for each arc, its
 // offset poleward of its place in the oval (km), the offset's slope (km per degree of longitude), its
 // brightness, and how tall its rays reach.
 function auroraArcs(st, t){
-  const N=AUR_N, out=st.arcBuf||(st.arcBuf=new Float32Array(N*AUR_ARCS*4)), off=new Float32Array(N);
+  const N=AUR_N, out=st.arcBuf||(st.arcBuf=new Float32Array(N*AUR_ARCS*4)), off=AUR_OFF;
   const cosRef=Math.cos(st.refLat*Math.PI/180), C=360*KM_DEG*cosRef, dl=st.span/N;
   const cells=L=>Math.max(1, Math.round(C/L)), P1=cells(900), P2=cells(180), P3=cells(35), PE=cells(1400), PM=cells(220), PH=cells(9);
+  for(let j=0;j<N;j++){
+    const lon=(j+0.5)*dl-st.span/2, mlt=st.mlt0+lon/15;
+    AUR_F[j]=((mlt/24)%1+1)%1;
+    AUR_WMID[j]=Math.exp(-0.5*Math.pow(aurCirc(mlt, 23.5)/2.8, 2));
+    AUR_MLTW[j]=0.22+0.78*Math.exp(-0.5*Math.pow(aurCirc(mlt, 23)/4.2, 2))+0.3*Math.exp(-0.5*Math.pow(aurCirc(mlt, 12)/2, 2));
+    AUR_EDGE[j]=st.span<360?Math.min(1, Math.min(j, N-1-j)/(N*0.03)):1;
+  }
   for(let i=0;i<AUR_ARCS;i++){
     const bI=AUR_ARC[i][1], sd=st.seed+i*101, dir=i%2?-1:1;
     for(let j=0;j<N;j++){
-      const lon=(j+0.5)*dl-st.span/2, mlt=st.mlt0+lon/15, f=((mlt/24)%1+1)%1;
-      const wMid=Math.exp(-0.5*Math.pow(aurCirc(mlt, 23.5)/2.8, 2)), sub=st.sub*wMid;
+      const f=AUR_F[j], wMid=AUR_WMID[j], sub=st.sub*wMid;
       let o=(st.spread||0)*wMid*(25+30*i);
       o+=60*(aurNoise(f*P1-dir*1.5*t*P1/C, t/120+i*17, P1, sd)-0.5)*2;
       o+=25*(aurNoise(f*P2+dir*2.5*t*P2/C, t/30+i*7, P2, sd+1)-0.5)*2;
@@ -172,10 +181,8 @@ function auroraArcs(st, t){
       off[j]=o;
       const env=i===0?0.55+0.45*aurNoise(f*PE, t/300, PE, sd+3):Math.max(0, Math.min(1, (aurNoise(f*PE, t/300, PE, sd+3)-0.35)/0.35));
       const med=0.6+0.4*aurNoise(f*PM+t*3*PM/C, t/25, PM, sd+4);
-      const mltW=0.22+0.78*Math.exp(-0.5*Math.pow(aurCirc(mlt, 23)/4.2, 2))+0.3*Math.exp(-0.5*Math.pow(aurCirc(mlt, 12)/2, 2));
-      const edge=st.span<360?Math.min(1, Math.min(j, N-1-j)/(N*0.03)):1;
       const o4=(i*N+j)*4;
-      out[o4+2]=bI*env*med*mltW*(1+7*sub)*edge;
+      out[o4+2]=bI*env*med*AUR_MLTW[j]*(1+7*sub)*AUR_EDGE[j];
       out[o4+3]=0.3+aurNoise(f*PH, t/6, PH, sd+5);
     }
     for(let j=0;j<N;j++){
@@ -525,8 +532,7 @@ function domeAurInit(){
   const c=document.getElementById('domeAur');
   const gl=c&&c.getContext('webgl2', {alpha:false, depth:false, stencil:false, antialias:false, preserveDrawingBuffer:true});
   if(!gl){ domeAur.failed=true; return null; }
-  const vs=glShader(gl, gl.VERTEX_SHADER, '#version 300 es\nin vec2 a;void main(){gl_Position=vec4(a,0.0,1.0);}');
-  const fs=glShader(gl, gl.FRAGMENT_SHADER, DOMEAURFS);
+  const vs=glShader(gl, gl.VERTEX_SHADER, AUR_VS), fs=glShader(gl, gl.FRAGMENT_SHADER, DOMEAURFS);
   if(!vs||!fs){ domeAur.failed=true; return null; }
   const p=gl.createProgram(); gl.attachShader(p, vs); gl.attachShader(p, fs); gl.bindAttribLocation(p, 0, 'a'); gl.linkProgram(p);
   if(!gl.getProgramParameter(p, gl.LINK_STATUS)){ console.warn(gl.getProgramInfoLog(p)); domeAur.failed=true; return null; }
@@ -567,7 +573,6 @@ function drawDomeAurora(){
   gl.viewport(0, 0, c.width, c.height); gl.useProgram(domeAur.prog);
   gl.activeTexture(gl.TEXTURE2); auroraTextures(gl, domeAur.store, f.arcs, f.v);
   gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, domeAur.store.aurRays);
-  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, domeAur.store.aurArcs);
   gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, domeAur.domeTex);
   gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, domeAur.skyTex);
   gl.uniform2f(u.res, c.width, c.height); const v=domeView(); gl.uniform3f(u.view, v.cx, c.height-v.cy, v.R); gl.uniform1f(u.nr, domeAur.nr); gl.uniform1f(u.na, domeAur.na);

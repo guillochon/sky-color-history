@@ -52,24 +52,28 @@ def pack(X):
             float('%.3g' % float(X[1]))]
 
 
+def dome(atm, sz, vzs, azs):
+    """Spectral radiance in the directions vzs x azs, indexed [vz, az, wavelength]."""
+    out = np.empty((len(vzs), len(azs), len(LAM)))
+    for i, vz in enumerate(vzs):
+        for j, az in enumerate(azs):
+            # The zenith is one direction at every azimuth.
+            out[i, j] = atm.radiance(vz, az, sz) if vz or j == 0 else out[i, 0]
+    return out
+
+
 def sample_dome(atm, sz):
     """The dome's packed colors, the Sun's, and the spectra of the SPEC_VZ x SPEC_AZ
     directions followed by the Sun's."""
     # Keep the model's multiple-scattering fade below the horizon. Single
     # scattering alone goes exactly to zero over more of the dome each degree,
     # and those holes read as bands.
-    grid, spec = [], {}
-    for vz in VZ:
-        row = []
-        for az in AZ:
-            S = atm.radiance(vz, az, sz)
-            if vz in SPEC_VZ and az in SPEC_AZ:
-                spec[vz, az] = S
-            row.append(pack(spec_to_XYZ(S)))
-        grid.append(row)
+    S = dome(atm, sz, VZ, AZ)
+    grid = [[pack(spec_to_XYZ(s)) for s in row] for row in S]
     S_sun = sun_spectrum(atm, sz)
     sun = pack(spec_to_XYZ(S_sun)) if sz < 90 else [0.33, 0.33, 0.0]
-    return grid, sun, np.array([spec[vz, az] for vz in SPEC_VZ for az in SPEC_AZ] + [S_sun])
+    spec = S[np.ix_([VZ.index(vz) for vz in SPEC_VZ], [AZ.index(az) for az in SPEC_AZ])]
+    return grid, sun, np.vstack([spec.reshape(-1, len(LAM)), S_sun])
 
 
 def compute_job(job):

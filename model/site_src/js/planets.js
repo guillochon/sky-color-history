@@ -35,12 +35,7 @@ function planetMag(name, r, d, i, ringSinB){
   return -8.88+base+0.044*i-2.60*ringSinB+1.25*ringSinB*ringSinB;
 }
 // The same display scale as the stars and satellites, in the planet's own tint.
-function planetDisplay(mag, tint){
-  const flux=Math.pow(10, -0.4*(mag-STAR_VANCHOR));
-  const amp=Math.min(1, 0.62*Math.pow(Math.max(flux, 0), 0.5));
-  const px=flux>=1 ? STAR_PX_ANCHOR*Math.pow(Math.min(flux, 200), 0.22) : STAR_PX_ANCHOR*Math.pow(Math.max(flux, 1e-6), STAR_FAINT_EXP);
-  return {px, rgb:tint.map(c=>Math.min(2.4, c)*amp)};
-}
+function planetDisplay(mag, tint){ const d=magDisplay(mag, 200); return {px:d.px, rgb:tint.map(c=>Math.min(2.4, c)*d.amp)}; }
 // Write the planets into slots STAR_N to STAR_N+PLANET_N-1 of the star texture. Positions are
 // J2000, precessed to the same year as the stars so they sit correctly among them.
 function placePlanets(lat, tex, marks, up, epochKey, year, LST){
@@ -58,8 +53,7 @@ function placePlanets(lat, tex, marks, up, epochKey, year, LST){
     const ringSinB=name==='Saturn'?Math.abs(q[0]*pole[0]+q[1]*pole[1]+q[2]*pole[2])/d:0;
     const mag=planetMag(name, r, d, i, ringSinB);
     const place=starMeanPlace([ra, dec, mag, 0, 0, 0], epochKey, year);
-    let H=rev(LST-rev(place.ra)); if(H>180) H-=360;
-    const p=altaz(lat, place.dec, H);
+    const p=raDecAltaz(lat, place.ra, place.dec, LST);
     const slot=STAR_N+k, o=slot*4, c=STAR_MAP_W*4+o;
     tex[o+3]=0; tex[c+3]=0;
     if(!(p.alt>0)) return;

@@ -5,21 +5,19 @@ from skymodel import XYZ_to_srgb, hexcol
 ROOT = Path(__file__).resolve().parent
 D = json.load(open(ROOT / 'skycolors.json', encoding='utf-8'))
 byk = {r['key']: r for r in D}
-# Year 2100 keeps today's air. The new lights are satellites, drawn in the site.
-y2100 = copy.deepcopy(byk['modern'])
-y2100.update(key='y2100', name='Year 2100',
-             sub="today's clean air, with the filed megaconstellation and the Sunrise orbital datacenters",
-             note='Same atmosphere as the modern clean sky.')
-byk['y2100'] = y2100
-# The supernova epochs keep clean modern air. The explosions themselves are drawn in the site.
-SUPERNOVA_EPOCHS = [
+# Year 2100 and the supernova epochs keep today's clean air. The satellites and the explosions
+# are drawn in the site.
+SAME_AIR_EPOCHS = [
+    ('y2100', 'Year 2100', "today's clean air, with the filed megaconstellation and the Sunrise orbital datacenters"),
     ('zetaoph', 'ζ Ophiuchi supernova, ~1.78 Ma', 'clean Early Pleistocene air, under a magnitude −11.6 supernova in Scorpius'),
     ('geminga', 'Geminga supernova, ~342 ka', 'clean Middle Pleistocene air, under a magnitude −11 supernova in Orion'),
 ]
-for key, name, sub in SUPERNOVA_EPOCHS:
+for key, name, sub in SAME_AIR_EPOCHS:
     rec = copy.deepcopy(byk['modern'])
     rec.update(key=key, name=name, sub=sub, note='Same atmosphere as the modern clean sky.')
     byk[key] = rec
+# Their figures, globes and day cycles are today's.
+SAME_AIR = {key for key, _, _ in SAME_AIR_EPOCHS}
 
 def xyY(c, Y=None):
     Y = c['Y'] if Y is None else Y
@@ -27,18 +25,16 @@ def xyY(c, Y=None):
     if y <= 0 or Y <= 0: return np.array([0., 0., 0.])
     return np.array([x*Y/y, Y, (1-x-y)*Y/y])
 
-def hx(c, Yref, floor=0.0):
+def rgb(c, Yref, floor=0.0):
     """Color with global exposure so dimmer skies render dimmer (gamma-compressed)."""
     XYZ = xyY(c)
-    if XYZ[1] <= 1e-7*Yref: return '#05060a'
-    rel = XYZ[1]/Yref
-    # compress dynamic range: brightness ~ rel^0.4, capped
-    target = min(0.92, 0.85*rel**0.4)
-    target = max(target, floor)
-    return hexcol(XYZ_to_srgb(XYZ, target/XYZ[1]))
+    if XYZ[1] <= 1e-7*Yref: return np.array([0.02, 0.024, 0.04])
+    # compress dynamic range: brightness ~ (Y/Yref)^0.4, capped
+    target = max(floor, min(0.92, 0.85*(XYZ[1]/Yref)**0.4))
+    return XYZ_to_srgb(XYZ, target/XYZ[1])
 
-def hx_pure(c):
-    return c['hex']
+def hx(c, Yref, floor=0.0):
+    return hexcol(rgb(c, Yref, floor))
 
 MOD = byk['modern']
 Yz = MOD['lat']['Equator']['zenith']['Y']

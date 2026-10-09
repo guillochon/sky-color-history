@@ -137,7 +137,10 @@ function takeCloudMask(){
   const st=gl.clientWaitSync(sync, 0, 0);
   if(st!==gl.ALREADY_SIGNALED&&st!==gl.CONDITION_SATISFIED) return false;
   gl.deleteSync(sync); vrGL.maskSync=null;
-  const p=vrGL.maskPending, px=p.hdr?new Float32Array(p.w*p.h*4):new Uint8Array(p.w*p.h*4);
+  // The copy lands in the same array each time; cloudAt is replaced with it below.
+  const p=vrGL.maskPending, n=p.w*p.h*4;
+  let px=vrGL.maskBuf;
+  if(!px||px.length!==n||(px instanceof Float32Array)!==p.hdr) px=vrGL.maskBuf=p.hdr?new Float32Array(n):new Uint8Array(n);
   gl.bindBuffer(gl.PIXEL_PACK_BUFFER, vrGL.maskPbo);
   gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, px);
   gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);

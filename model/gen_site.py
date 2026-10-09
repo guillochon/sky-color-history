@@ -1,28 +1,34 @@
-import gzip, hashlib, json, shutil, subprocess, sys, urllib.parse
+import functools, gzip, hashlib, json, shutil, subprocess, sys, urllib.parse
 from pathlib import Path
 
 import numpy as np
 
+import epochs as _ep
 import gen_report as gr
+import skymodel as sm
 
 HERE = Path(__file__).resolve().parent
-LIMB = json.loads((HERE / 'limb_all.json').read_text(encoding='utf-8'))
+LIMB = dict(gr.LIMB)
 DAY = json.loads((HERE / 'daycycle.json').read_text(encoding='utf-8'))
 PROSE = gr.PROSE
 order = ['hadean44','hadean40','archean38','archean27thin','archean27','archean27vthick','proterozoic22','snowball07','ordovician466','carbon30','kpg66','zetaoph','geminga','volcanic','ozonehole','modern','modernpoll','y2100']
-ages = {'hadean44':'4.4 Ga','hadean40':'4.0 Ga','archean38':'3.8 Ga','archean27thin':'2.7 Ga','archean27':'2.7 Ga','archean27vthick':'2.7 Ga','proterozoic22':'2.2 Ga','snowball07':'700 Ma','ordovician466':'466 Ma','carbon30':'300 Ma','kpg66':'66 Ma','zetaoph':'1.78 Ma','geminga':'342 ka','volcanic':'1815 CE','modern':'Today','modernpoll':'Today','ozonehole':'1980–2000','y2100':'2100'}
+ages = {**gr.ages, 'volcanic': '1815 CE', 'modern': 'Today', 'modernpoll': 'Today'}
 short = {'hadean44':'Early Hadean','hadean40':'Late Hadean','archean38':'Early Archean','archean27thin':'Thin haze','archean27':'Thick haze','archean27vthick':'Very thick haze','proterozoic22':'Post-oxidation','snowball07':'Snowball Earth','ordovician466':'Meteor storm','carbon30':'Carboniferous','kpg66':'Impact winter','zetaoph':'ζ Oph supernova','geminga':'Geminga supernova','volcanic':'Volcanic year','modern':'Clean air','modernpoll':'Polluted city','ozonehole':'Ozone hole','y2100':'Year 2100'}
 # gen_report adds the epochs that keep today's air (Year 2100 and the supernovae). Their globes
 # are today's, so the page is given the key of the modern limb instead of a copy (color.js).
 byk = gr.byk
-SAME_AIR = {'y2100'} | {key for key, _, _ in gr.SUPERNOVA_EPOCHS}
-for key in SAME_AIR:
+for key in gr.SAME_AIR:
     LIMB.setdefault(key, 'modern')
+
+
+def epoch(key):
+    """The epoch's atmosphere (epochs.py), today's for the epochs it does not list."""
+    return _ep.BY_KEY.get(key, _ep.BY_KEY['modern'])
+
+
 # The air's make-up by atoms (O, N, C) and its O2 share, for the meteors' spectra (meteors.js).
-import epochs as _ep
-import skymodel as sm
 def air_atoms(key):
-    gas = _ep.BY_KEY.get(key, _ep.BY_KEY['modern'])['gas']
+    gas = epoch(key)['gas']
     n = dict(O=2*gas.get('O2', 0)+2*gas.get('CO2', 0)+gas.get('H2O', 0), N=2*gas.get('N2', 0), C=gas.get('CO2', 0)+gas.get('CH4', 0))
     tot = sum(n.values())
     out = {a: round(v/tot, 4) for a, v in n.items()}
@@ -44,35 +50,34 @@ SUN_APP = [0, 0.3, 0.7, 1.2, 2, 3, 5, 8, 14, 30.0]
 REFRAC = {'N2': 298, 'O2': 271, 'Ar': 281, 'CO2': 449, 'CH4': 444, 'H2O': 256}
 def sun_radius(key):
     """The epoch's solar radius over today's, from its effective temperature and luminosity."""
-    T, L = _ep.BY_KEY.get(key, _ep.BY_KEY['modern'])['sun']
+    T, L = epoch(key)['sun']
     return round(L**0.5/(T/5772)**2, 4)
 
 
+# Called with the key epochs.py files the air under, so the epochs that keep today's share its bands.
+@functools.cache
 def sun_bands(key):
-    e = _ep.BY_KEY.get(key, _ep.BY_KEY['modern'])
+    e = epoch(key)
     k = sum(p*REFRAC[g] for g, p in e['gas'].items())/(0.78*298+0.21*271+0.01*281)
     atm = _ep.build(e, 0.15)
-    w, t = [], []
+    band = lambda a: a[:40].reshape(20, 2)     # twenty bands of two samples
+    XYZ = np.array([band(atm.S0*c).sum(1) for c in (sm.XB, sm.YB, sm.ZB)])*10.0
+    w = [float('%.4g' % v) for b in range(20) for v in sm.M_XYZ2RGB @ XYZ[:, b]]
     lam_w = atm.S0*(sm.XB+sm.YB+sm.ZB)
-    for b in range(20):
-        sl = slice(2*b, 2*b+2)
-        XYZ = np.array([np.sum(atm.S0[sl]*c[sl]) for c in (sm.XB, sm.YB, sm.ZB)])*10.0
-        w += [float('%.4g' % v) for v in sm.M_XYZ2RGB @ XYZ]
+    t = []
     for a in SUN_APP:
         mu, r0 = np.sin(np.radians(a)), sm.R_E
         smax = -r0*mu+np.sqrt((r0*mu)**2+(r0+120)**2-r0**2)
         s = np.concatenate([[0], np.geomspace(1e-3, smax, 3000)])
         h = np.sqrt(r0**2+s**2+2*r0*s*mu)-r0
         tau = sum(c.tau*np.trapezoid(c.profile(h), s) for c in atm.comps)
-        for b in range(20):
-            sl = slice(2*b, 2*b+2)
-            T = np.sum(lam_w[sl]*np.exp(-tau[sl]))/np.sum(lam_w[sl])
-            t.append(float('%.4g' % (-np.log(max(T, 1e-300)))))
+        T = band(lam_w*np.exp(-tau)).sum(1)/band(lam_w).sum(1)
+        t += [float('%.4g' % v) for v in -np.log(np.maximum(T, 1e-300))]
     return dict(k=round(min(k, 3.0), 3), w=w, t=t)
 EP = []
 for k in order:
     r = byk[k]
-    EP.append(dict(key=k, name=r['name'], sub=r['sub'].replace('tau(550nm)','τ(550 nm)'), age=ages[k], short=short[k], prose=PROSE[k], air=air_atoms(k), sun=sun_bands(k), teff=_ep.BY_KEY.get(k, _ep.BY_KEY['modern'])['sun'][0], sunR=sun_radius(k),
+    EP.append(dict(key=k, name=r['name'], sub=r['sub'].replace('tau(550nm)','τ(550 nm)'), age=ages[k], short=short[k], prose=PROSE[k], air=air_atoms(k), sun=sun_bands(epoch(k)['key']), teff=epoch(k)['sun'][0], sunR=sun_radius(k),
                    lat={L: dict(z=[v['zenith']['x'], v['zenith']['y'], v['zenith']['Y']], h=[v['horizon']['x'], v['horizon']['y'], v['horizon']['Y']],
                                 zc=int(v['zenith']['cct']), hc=int(v['horizon']['cct'])) for L, v in r['lat'].items()},
                    limb=LIMB[k]))
@@ -103,15 +108,22 @@ def day_codes(rec):
     nv, na = len(DAY['vz']), len(DAY['az'])
     planes = [[], [], []]
     for lat in DAY_LATS:
-        for dome, sun in zip(rec[lat]['dome'], rec[lat]['sun']):
-            for row in dome:
-                for q in range(3):
-                    c = [round(v[q] * 1e4) if q < 2 else y_code(v[q]) for v in row]
-                    planes[q] += [c[0]] + [(c[i] - c[i-1]) & 0xFFFF for i in range(1, na)]
-            for q in range(3):
-                planes[q].append(round(sun[q] * 1e4) if q < 2 else y_code(sun[q]))
+        dome = np.array(rec[lat]['dome'], float)      # solar zenith angle, view zenith, azimuth, xyY
+        sun = np.array(rec[lat]['sun'], float)
+        nsza = len(dome)
+        assert dome.shape == (nsza, nv, na, 3)
+        for q in range(3):
+            if q < 2:
+                c, cs = np.rint(dome[..., q]*1e4).astype(np.int64), np.rint(sun[:, q]*1e4).astype(np.int64)
+            else:
+                u, inv = np.unique(np.concatenate([dome[..., 2].ravel(), sun[:, 2]]), return_inverse=True)
+                codes = np.array([y_code(float(v)) for v in u], np.int64)[inv]
+                c, cs = codes[:-nsza].reshape(dome.shape[:3]), codes[-nsza:]
+            c[..., 1:] = (c[..., 1:] - c[..., :-1]) & 0xFFFF
+            planes[q].append(np.concatenate([c.reshape(nsza, nv*na), cs[:, None]], 1).ravel())
+    planes = [np.concatenate(p) for p in planes]
     assert len(planes[0]) == len(DAY_LATS) * len(DAY['szas']) * (nv * na + 1)
-    return np.array(planes[0] + planes[1] + planes[2], '<u2')
+    return np.concatenate(planes).astype('<u2')
 
 
 DAY_LATS = list(DAY['epochs']['modern'])

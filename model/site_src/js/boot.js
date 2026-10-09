@@ -18,12 +18,13 @@ function colorTip(canvas, tip, inside, pixel=()=>null, extra=null){
   const refresh=()=>{
     if(!hovering){ tip.style.display='none'; return; }
     if(!inside(px,py)){ tip.style.display='none'; cur=null; return; }
+    // The canvas box is read before the tip changes, so the tip forces one layout rather than two.
+    const b=canvas.getBoundingClientRect();
     const x=Math.max(0,Math.min(canvas.width-1,Math.round(px))), y=Math.max(0,Math.min(canvas.height-1,Math.round(py)));
     const d=pixel(x,y)||ctx.getImageData(x,y,1,1).data; cur=hex([d[0],d[1],d[2]]);
     if(!tip.firstChild||!tip.querySelector('.tline')) tip.innerHTML='<span class="tline"></span>'+(extra?'<div class="spbox"></div>':'');
     tip.querySelector('.tline').innerHTML=`<i style="background:${cur}"></i>current color ${cur}${performance.now()<copiedUntil?' copied':''}`;
     if(extra) extra(x, y, tip.querySelector('.spbox'));
-    const b=canvas.getBoundingClientRect();
     tip.style.display='block';
     // Keep the whole tip inside the stage, which clips it.
     const h=tip.offsetHeight, top=Math.max(h/2+4, Math.min(b.height-h/2-4, py*b.height/canvas.height));

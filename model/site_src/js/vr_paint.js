@@ -91,12 +91,17 @@ function peakEnv(x, y, cx, cy, R, H){
   const skirt=Math.pow(1-u, 1.9);
   return (core*0.78+skirt*0.22)*H;
 }
-function hillHeight(x, y){
-  const cell=1800, gx=Math.floor(x/cell), gy=Math.floor(y/cell);
-  if(h12xy(gx, gy)<0.46) return 0;
+// The hill in 1800 m cell (gx, gy), as [cx, cy, R], or null. Mirrors marchLand in the hit shader.
+const HILL_CELL=1800;
+function hillIn(gx, gy){
+  if(h12xy(gx, gy)<0.46) return null;
   const jx=h12xy(gx+1.7, gy+1.7), jy=h12xy(gx+3.1, gy+3.1);
-  const cx=(gx+0.5+(jx-0.5)*0.44)*cell, cy=(gy+0.5+(jy-0.5)*0.44)*cell;
-  const R=140+h12xy(gx+5.5, gy+5.5)*(340-140);
+  return [(gx+0.5+(jx-0.5)*0.44)*HILL_CELL, (gy+0.5+(jy-0.5)*0.44)*HILL_CELL, 140+h12xy(gx+5.5, gy+5.5)*(340-140)];
+}
+function hillHeight(x, y){
+  const gx=Math.floor(x/HILL_CELL), gy=Math.floor(y/HILL_CELL), hill=hillIn(gx, gy);
+  if(!hill) return 0;
+  const [cx, cy, R]=hill;
   const H=(100+h12xy(gx+8.2, gy+8.2)*(280-100))*MTN_SCALE;
   if(!hillClear(cx, cy, R)) return 0;
   const Rm=R*1.28;
@@ -111,9 +116,10 @@ function hillHeight(x, y){
 }
 function landHeight(x, y){ return hillHeight(x, y); }
 // Mirrors hillClear in the hit shader.
-function hillClear(cx, cy, R){
-  const sc=sceneFor(EP[dIdx].key);
-  for(let i=0;i<sc.tn;i++){ if(Math.hypot(cx-sc.t[i*4], cy-sc.t[i*4+1])<sc.t[i*4+2]+R*1.28+60) return false; }
+function hillClear(cx, cy, R){ const sc=sceneFor(EP[dIdx].key); return hillClearOf(sc.t, sc.tn, cx, cy, R); }
+// Whether a hill at (cx, cy) of radius R stays out of the tn towns in t.
+function hillClearOf(t, tn, cx, cy, R){
+  for(let i=0;i<tn;i++){ if(Math.hypot(cx-t[i*4], cy-t[i*4+1])<t[i*4+2]+R*1.28+60) return false; }
   return true;
 }
 function lotCell(ty){ return ty<1.5?42:ty<2.5?24:10; }
@@ -162,12 +168,13 @@ function townSolid(sc, x, y, pad){
   return false;
 }
 function eyeZ(){ return vrScenery?2+landHeight(vrX, vrY):2; }
-function groundRGB(){
+// The ground's colour under the sky's light and sunlight mu (sunMu in paintVR).
+function groundRGB(mu){
   const alb=LAND[EP[dIdx].key]||[.2,.18,.14], cg=skyNow.colgrid, NR=skyNow.nr, NA=skyNow.na;
   let ar=0,ag=0,ab=0,n=0; const ir=Math.round(NR*0.45);
   for(let ia=0; ia<=NA; ia+=8){ const c=(ir*(NA+1)+ia)*3; ar+=cg[c]; ag+=cg[c+1]; ab+=cg[c+2]; n++; }
   ar=ar/n*0.65+cg[0]*0.35; ag=ag/n*0.65+cg[1]*0.35; ab=ab/n*0.65+cg[2]*0.35;
-  const mu=Math.max(0, Math.sin(apparentEl(90-skyNow.sza)*Math.PI/180))*(skyNow.sunVis==null?1:skyNow.sunVis), s=skyNow.sunRGB, amb=[ar,ag,ab];
+  const s=skyNow.sunRGB, amb=[ar,ag,ab];
   return new Float32Array(alb.map((a,i)=>Math.min(255, a*(0.42*amb[i]+1.25*mu*s[i]+16))/255));
 }
 function ensureHitTarget(w, h){
@@ -299,8 +306,8 @@ function paintVR(){
   gl.uniform3fv(u.sunG, sCen.map((v, q)=>Math.max(gAll, v>0?sLin[q]/v:0)));
   gl.uniform4fv(u.sunLay, sl.lay); gl.uniform4fv(u.sunMir, sl.mir);
   // The Sun's light on the ground and the ground's colour, for the sky and cloud passes.
-  const sunMu=Math.max(0, Math.sin(apparentEl(90-skyNow.sza)*Math.PI/180))*(skyNow.sunVis==null?1:skyNow.sunVis);
-  const sunCol=new Float32Array(skyNow.sunRGB.map(v=>v/255)), ground=groundRGB();
+  const sinApp=Math.max(0, Math.sin(app*Math.PI/180)), sunMu=sinApp*(skyNow.sunVis==null?1:skyNow.sunVis);
+  const sunCol=new Float32Array(skyNow.sunRGB.map(v=>v/255)), ground=groundRGB(sunMu);
   gl.uniform1f(u.sunMu, sunMu);
   gl.uniform3fv(u.sunCol, sunCol);
   gl.uniform3fv(u.ground, ground);
@@ -312,7 +319,7 @@ function paintVR(){
   // proportion to 0.6 times the square root of its brightness relative to the full Moon, a
   // perceptual scale under which the full Moon still outshines the supernova. They only
   // matter once the sky is dark, and the air dims them near the horizon.
-  const night=1-smoothstep(0.0, 0.25, Math.max(0, Math.sin(apparentEl(90-skyNow.sza)*Math.PI/180)));
+  const night=1-smoothstep(0.0, 0.25, sinApp);
   const sn=skyNow.sn, snUp=!!sn && sn.el>-0.5;
   gl.uniform1f(u.snOn, snUp?1:0);
   if(snUp){
@@ -505,10 +512,10 @@ function paintVR(){
   }
   const [hh, mm, ss]=clockParts(minutes);
   const lat=dLat==='Polar'?'75°':dLat==='Mid-latitude'?'45°':'equator';
-  const hud=vrGL.hud||(vrGL.hud={place:document.getElementById('vrplace'), note:document.querySelector('.vrnote'), clock:document.getElementById('vrclock')});
+  const hud=vrGL.hud||(vrGL.hud={place:document.getElementById('vrplace'), note:document.querySelector('.vrnote'), clock:document.getElementById('vrclock'), date:document.getElementById('moonDate')});
   setText(hud.place, EP[dIdx].name+' · '+lat);
   setText(hud.note, vrCaption());
-  setText(hud.clock, (document.getElementById('moonDate').value||'')+' · '+hh+':'+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0')+' · '+(dayPlaying?(playSpeed==='real'?'playing in real time':playSpeed==='fast'?'playing fast':'playing'):'paused')+(Math.abs(vrFov-60)>0.5?' · '+Math.round(vrFov)+'° view':'')+(skyNow.eclipse?' · '+skyNow.eclipse:'')+(vrClouds&&vrGL.field?' · clouds '+Math.round(vrGL.field.cov*100)+'%':'')+(vrNote?' · '+vrNote:''));
+  setText(hud.clock, (hud.date.value||'')+' · '+hh+':'+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0')+' · '+(dayPlaying?(playSpeed==='real'?'playing in real time':playSpeed==='fast'?'playing fast':'playing'):'paused')+(Math.abs(vrFov-60)>0.5?' · '+Math.round(vrFov)+'° view':'')+(skyNow.eclipse?' · '+skyNow.eclipse:'')+(vrClouds&&vrGL.field?' · clouds '+Math.round(vrGL.field.cov*100)+'%':'')+(vrNote?' · '+vrNote:''));
   placeBodyMarks();
   drawVRLabels();
   followVRPin();

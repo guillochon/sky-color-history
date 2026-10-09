@@ -21,6 +21,18 @@ def num(value, default=0.0):
         return default
 
 
+def catalogue():
+    """(V, star) for each catalogue star with a magnitude and a position, in catalogue order."""
+    for star in load_bsc():
+        # HR 5958 is T CrB. The catalogue magnitude is the 1946 outburst, not the star
+        # as it stands now (about tenth magnitude between eruptions).
+        if str(star.get("HR")) == "5958":
+            continue
+        v = num(star.get("Vmag"), None)
+        if v is not None and star.get("RA") and star.get("Dec"):
+            yield v, star
+
+
 def common_name(star):
     for note in star.get("Notes") or []:
         if note.get("Category") == "Star names":
