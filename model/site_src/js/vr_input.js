@@ -123,7 +123,7 @@ function lockLook(){
   const p=document.getElementById('vrc').requestPointerLock(); if(p&&p.catch) p.catch(()=>{});
 }
 function exitVR(){
-  if(!vrOn) return; if(momentClouds!==null){ vrClouds=momentClouds; momentClouds=null; } hideVRLoad(); if(vrGL&&vrGL.note) vrGL.note=''; if(vrInspect) setInspect(false, true); vrOn=false; stopVRMusic(); vrRelock=false; vrLinkKey=''; vrHeld.clear(); document.getElementById('sunmark').hidden=true; document.getElementById('moonmark').hidden=true; document.getElementById('snmark').hidden=true; if(vrWalk){ cancelAnimationFrame(vrWalk); vrWalk=0; }
+  if(!vrOn) return; if(momentClouds!==null){ vrClouds=momentClouds; momentClouds=null; } hideVRLoad(); if(vrGL&&vrGL.note) vrGL.note=''; if(vrInspect) setInspect(false, true); vrPin=null; hideVRTip(); clearInterval(vrInspectTimer); vrInspectTimer=0; vrHoldEsc(false); vrOn=false; stopVRMusic(); vrRelock=false; vrLinkKey=''; vrHeld.clear(); document.getElementById('sunmark').hidden=true; document.getElementById('moonmark').hidden=true; document.getElementById('snmark').hidden=true; if(vrWalk){ cancelAnimationFrame(vrWalk); vrWalk=0; }
   if(!vrNav) clearVRLink();
   const root=document.getElementById('vr'); root.classList.remove('on','locked'); root.setAttribute('aria-hidden','true');
   document.body.style.overflow='';
@@ -168,7 +168,7 @@ window.addEventListener('wheel', e=>{
     let dAz=wAz-az; dAz-=360*Math.round(dAz/360);
     vrYaw=((vrYaw+dAz)%360+360)%360; vrPitch=Math.max(-80, Math.min(85, vrPitch+wEl-el));
   }
-  if(vrInspect&&(vrInspectAt||vrPin)) refreshVRTip();
+  if(vrPin||(vrInspect&&vrInspectAt)) refreshVRTip();
   requestVR();
 }, {passive:false});
 window.addEventListener('mousemove', e=>{ if(!vrOn) return; if(vrInspect){ vrInspectAt=[e.clientX, e.clientY]; if(!vrPin) refreshVRTip(); if(!vrEdgeRAF) vrEdgeRAF=requestAnimationFrame(edgeScroll); return; } if(!e.movementX&&!e.movementY) return; lookVR(e.movementX, e.movementY); });
@@ -198,10 +198,12 @@ function vrLeaveUnlessAway(stillLost){
 }
 document.addEventListener('fullscreenchange', ()=>{
   if(!vrOn) return;
-  // Where the page can't hold Esc (see setInspect), Esc in inspect leaves full screen instead: that
+  // Where the page can't hold Esc (see vrHoldEsc), Esc in inspect leaves full screen instead: that
   // ends inspect and keeps VR, and the next click brings the full screen back.
   if(!document.fullscreenElement&&(vrInspect||performance.now()-vrInspectLeftAt<400)){ if(vrInspect) setInspect(false, true); return; }
   if(!document.fullscreenElement){ vrLeaveUnlessAway(()=>!document.fullscreenElement); return; }
+  vrHoldEsc(true);
+  if(vrInspect) return;
   vrRelock=true; lockLook(); setTimeout(()=>{ vrRelock=false; }, 400);
 });
 let vrLockedOnce=false;
@@ -279,25 +281,27 @@ document.querySelectorAll('.vrpad button, .vrplay').forEach(b=>{
 syncVRPad();
 // Inspect (q): the camera holds still, the pointer comes back, and a tooltip under it gives the
 // pixel's colour and the spectrum of the sky in that direction; a click pins it (pinVRTip).
-// Esc leaves inspect first, then VR. In full screen the browser takes Esc for itself, so inspect
-// holds it with the keyboard lock where there is one (Chrome, Edge); elsewhere see fullscreenchange.
+// Esc leaves inspect first, then VR. A pinned tooltip stays after inspect ends, until VR does.
 let vrInspect=false, vrInspectAt=null, vrInspectTimer=0, vrInspectLeftAt=-1e9, vrEdgeRAF=0, vrEdgeT=0;
 function setInspect(on, leaving){
-  vrInspect=on; vrInspectAt=null; vrPin=null;
+  vrInspect=on; vrInspectAt=null;
   if(!on) vrInspectLeftAt=performance.now();
   document.getElementById('vr').classList.toggle('inspect', on);
-  hideVRTip();
+  if(!vrPin) hideVRTip();
   clearInterval(vrInspectTimer); vrInspectTimer=0;
+  if(on||vrPin) vrInspectTimer=setInterval(refreshVRTip, 250);
   cancelAnimationFrame(vrEdgeRAF); vrEdgeRAF=0; vrEdgeT=0;
+  if(on){ if(document.pointerLockElement) document.exitPointerLock(); }
+  else if(!leaving){ vrRelock=true; lockLook(); setTimeout(()=>{ vrRelock=false; }, 400); }
+}
+// In full screen the browser takes Esc for itself. Where there is a keyboard lock (Chrome, Edge)
+// VR holds Esc for as long as it is in full screen (a long press still leaves); releasing it
+// while Esc is down let that same press take the full screen too. Elsewhere see fullscreenchange.
+function vrHoldEsc(on){
   const kb=navigator.keyboard;
-  if(on){
-    if(document.pointerLockElement) document.exitPointerLock();
-    if(kb&&kb.lock&&document.fullscreenElement){ const p=kb.lock(['Escape']); if(p&&p.catch) p.catch(()=>{}); }
-    vrInspectTimer=setInterval(refreshVRTip, 250);
-  }else{
-    if(kb&&kb.unlock) kb.unlock();
-    if(!leaving){ vrRelock=true; lockLook(); setTimeout(()=>{ vrRelock=false; }, 400); }
-  }
+  if(!kb) return;
+  if(!on){ if(kb.unlock) kb.unlock(); return; }
+  if(kb.lock&&document.fullscreenElement){ const p=kb.lock(['Escape']); if(p&&p.catch) p.catch(()=>{}); }
 }
 // Edge scrolling, in inspect only: with the pointer in the outer band of the view, the view turns
 // that way, faster the nearer the edge, up to 0.7 of the field of view a second.
@@ -405,7 +409,7 @@ function vrPinPoint(){
 function hideVRTip(){ document.getElementById('vrtip').style.display='none'; document.getElementById('vrpin').style.display='none'; }
 function refreshVRTip(){
   const tip=document.getElementById('vrtip');
-  const at=vrOn&&vrInspect&&vrGL&&skyNow?(vrPin?vrPinPoint():vrInspectAt):null;
+  const at=vrOn&&vrGL&&skyNow?(vrPin?vrPinPoint():vrInspect?vrInspectAt:null):null;
   if(!at){ hideVRTip(); return; }
   const gl=vrGL.gl, [cx, cy]=at, P=vrProbe(cx, cy), {el, az, app}=P;
   const col=vrReadPixel(null, P.x, P.y, false);
@@ -437,7 +441,7 @@ function placeVRTip(cx, cy){
 }
 // Each frame, a pinned tooltip moves with what it is pinned to; its spectrum follows every 250 ms.
 function followVRPin(){
-  if(!vrOn||!vrInspect||!vrPin) return;
+  if(!vrOn||!vrPin) return;
   const at=vrPinPoint();
   if(!at){ hideVRTip(); return; }
   if(document.getElementById('vrtip').style.display==='none') refreshVRTip(); else placeVRTip(at[0], at[1]);
