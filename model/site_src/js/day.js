@@ -385,9 +385,23 @@ function renderDay(fast){
       mwA[bi]=tBg>0?(tNew/tBg)*(rBg/rNew):0; mwB[bi]=tNew*rMw/rNew;
     }
   }
+  // Ice halos (halo.js), from the Sun and the Moon: each source's halo luminance over Yref per
+  // unit of haloAt, and its colour as linear RGB of unit luminance.
+  const hStr=haloStrength(ep.key, dLat), halos=[];
+  let haloVR=null;
+  if(hStr>0){
+    let rMin=Infinity; for(let c=0;c<NG;c++) if(rgrid[c]<rMin) rMin=rgrid[c];
+    const beamLin=sza0=>{ const [i]=bracket(SZ, Math.max(sza0, SZ[0])); let j=i; while(j>0 && !(rec.sun[j][1]>0)) j--; const c=rec.sun[j]; return c[1]>0?xyzLin(xyY2XYZ([c[0], c[1], 1])):[1, 1, 1]; };
+    const add=(az, el, k, sza0)=>{ const h={src:haloSource(horizDir(az, el)), k:el>-1&&k>0?k:0, lin:beamLin(sza0)}; if(h.k*20>rMin*0.003) halos.push(h); return h; };
+    const hs=add(sunAz, 90-sza, hStr*directBeam(rec, sza)*sunVis*sunFlux*YREF/Yref, sza);
+    const hm=add(moon.az, moon.el, hStr*directBeam(rec, 90-moon.el)*mScale*YREF/Yref, 90-moon.el);
+    haloVR={k:new Float32Array([hs.k, hm.k]), sun:new Float32Array(hs.lin), moon:new Float32Array(hm.lin)};
+  }
+  const haloOn=!fast && halos.length>0;
   if(!fast){
     if(!geo.img) geo.img=dctx.createImageData(W,H);
     const img=geo.img, px=img.data, cell=geo.px.cell, ptr=geo.px.tr, pta=geo.px.ta, C2=NC*3;
+    const hctx=haloOn?{dir:domePixelDirs(geo), rgrid, NC, T:toneLUT(k, p), v:[0, 0, 0], w:[0, 0, 0], L:[0, 0, 0]}:null;
     for(let y=0, j=0;y<H;y++) for(let x=0;x<W;x++,j++){
       const o=j*4, c=cell[j];
       if(c===0xFFFF){ px[o]=10;px[o+1]=12;px[o+2]=18;px[o+3]=255; continue; }
@@ -398,6 +412,7 @@ function renderDay(fast){
         const bi=(y>>1)*W2+(x>>1), b=mwB[bi];
         if(b>0){ const a=mwA[bi]; for(let q=0;q<3;q++) px[o+q]=linToByte(SRGB_LIN[Math.round(px[o+q])]*a+MW_LIN[q]*b); }
       }
+      if(haloOn) domeHaloPixel(px, o, j, c, tr, ta, halos, hctx);
     }
     dctx.putImageData(img,0,0);
   }
@@ -471,7 +486,7 @@ function renderDay(fast){
   const fullPct=r=>{ const p=r*100; return (p<10 ? p.toFixed(1) : Math.round(p))+'%'; };
   const sn=supernovaPlace(LATDEG[dLat]);
   if(!fast) drawSupernovaOnDome(sn);
-  skyNow={colgrid, nr:NR, na:NA, sza, sunAz, sunRGB, sunVis, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE+35/60, moon, corona, beads, eclipse, central, rgrid, cityUp:cityUplight(ep.key, Yref, k, p), Yref, toneK:k, toneP:p, rCd:Yref*cdu, gal:mwMap?galacticBasis(LATDEG[dLat]):null, extK:ek, stars:stars.tex, starMarks:stars.marks, starBins:stars.bins, starIdx:stars.idx, starIdxCount:stars.idxCount, sn, moonRel:mScale/MOON_SUN_FULL, mScale, sunFlux, aur:auroraState(ep.key, LATDEG[dLat], minutes, rgrid[0]*Yref*cdu), gen:++skyGen};
+  skyNow={colgrid, nr:NR, na:NA, sza, sunAz, sunRGB, sunVis, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE+35/60, moon, corona, beads, eclipse, central, rgrid, cityUp:cityUplight(ep.key, Yref, k, p), Yref, toneK:k, toneP:p, rCd:Yref*cdu, gal:mwMap?galacticBasis(LATDEG[dLat]):null, extK:ek, stars:stars.tex, starMarks:stars.marks, starBins:stars.bins, starIdx:stars.idx, starIdxCount:stars.idxCount, sn, moonRel:mScale/MOON_SUN_FULL, mScale, sunFlux, halo:haloVR, aur:auroraState(ep.key, LATDEG[dLat], minutes, rgrid[0]*Yref*cdu), gen:++skyGen};
   document.getElementById('raur').textContent=auroraReadout(skyNow.aur);
   document.getElementById('rmoon').textContent = (moon.el<-moon.radDeg ? 'below horizon' : moon.el.toFixed(1)+'°')+' · '+Math.round(moonLit(moon, sunAz, 90-sza)*100)+'% lit · '+fullPct(mScale/MOON_SUN_FULL)+' of full';
   if(vrOn) paintVR();

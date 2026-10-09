@@ -95,6 +95,7 @@ PARTS = [
     'js/stars.js',
     'js/milkyway.js',
     'js/aurora.js',
+    'js/halo.js',
     'js/spectrum.js',
     'js/satellites.js',
     'js/dome_bodies.js',

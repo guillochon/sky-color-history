@@ -380,6 +380,9 @@ function paintVR(){
   const aurSt=skyNow.aur, aurOn=!!(aurSt&&aurSt.on&&vrGL.aurProg&&vrPitch+vrFov*0.5>-2);
   if(aurOn) drawAuroraVR(gl, aurSt, c);
   gl.uniform1f(u.aurOn, aurOn?1:0);
+  const hl=skyNow.halo;
+  gl.uniform2fv(u.haloK, hl?hl.k:new Float32Array(2));
+  if(hl){ gl.uniform3fv(u.haloSunLin, hl.sun); gl.uniform3fv(u.haloMoonLin, hl.moon); }
   gl.activeTexture(gl.TEXTURE10); gl.bindTexture(gl.TEXTURE_2D, vrGL.hitInfo||vrGL.noHitInfo); gl.activeTexture(gl.TEXTURE11); gl.bindTexture(gl.TEXTURE_2D, vrGL.hitInfo?vrGL.hitNrm:vrGL.noHitNrm); gl.activeTexture(gl.TEXTURE0);
   // ensureHitTarget binds new hit textures on the active unit, which can be the sky's.
   gl.bindTexture(gl.TEXTURE_2D, tex);

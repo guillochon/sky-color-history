@@ -16,6 +16,10 @@ uniform float rCd,mwOn,mwScale,mwK,mwDB;
 uniform vec3 galX,galY,galZ;
 // The aurora, from its own pass (aurora.js) at reduced size, in cd/m² times 1000.
 uniform sampler2D aurTex; uniform float aurOn;
+// Ice halos (halo.js): x the Sun's and y the Moon's halo luminance over the sky reference per
+// unit of haloAt, with their colours as linear RGB of unit luminance.
+uniform vec2 haloK; uniform vec3 haloSunLin, haloMoonLin;
+${HALO_GLSL}
 ${TONE_GLSL}
 ${AUR_MIX_GLSL}
 // Naked-eye limiting magnitude against a sky of L cd/m² (color.js nakedEyeLimit).
@@ -520,6 +524,25 @@ void main(){
           vec3 lin=s2lin3(skyC)*(tBg>0.0?(tNew/tBg)*(rBg/rNew):0.0)+mwLin*tNew*(rMw/rNew);
           skyC=lin2s3(clamp(lin, 0.0, 1.0));
         }
+      }
+    }
+    if(haloK.x+haloK.y>0.0 && !onBody && te>-1.0){
+      // Diamond dust: the halos, and the glints of single crystals, most of them where the halos are.
+      vec3 L=vec3(0.0);
+      if(haloK.x>0.0) L+=haloAt(src, sd)*haloSunLin*haloK.x;
+      if(haloK.y>0.0){
+        float mA=moonAz*0.01745329252, mZ=(90.0-moonEl)*0.01745329252;
+        L+=haloAt(src, vec3(sin(mA)*sin(mZ), cos(mA)*sin(mZ), cos(mZ)))*haloMoonLin*haloK.y;
+      }
+      float rH=dot(L, vec3(0.2126, 0.7152, 0.0722));
+      vec3 cell=floor(src/(3.0*fy/res.y));
+      float pick=h12(cell.xy+cell.z*17.31), tw=fract(pick*91.7+waterT*0.35);
+      float glint=step(0.988, pick)*pow(max(sin(tw*6.2831853), 0.0), 12.0)*14.0;
+      L+=haloSunLin*rH*glint; rH*=1.0+glint;
+      if(rH>rBg*0.003){
+        float rNew=rBg+rH, tBg=toneT(rBg), tNew=toneT(rNew);
+        vec3 lin=s2lin3(skyC)*(tBg>0.0?(tNew/tBg)*(rBg/rNew):0.0)+L*(tNew/rNew);
+        skyC=lin2s3(clamp(lin, 0.0, 1.0));
       }
     }
     if(aurOn>0.5 && !onBody && te>-0.5) skyC=auroraMix(skyC, rBg, texture(aurTex, gl_FragCoord.xy/res)*0.001);
