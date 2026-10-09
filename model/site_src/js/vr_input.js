@@ -171,7 +171,7 @@ window.addEventListener('wheel', e=>{
   if(vrInspect&&vrInspectAt) refreshVRTip();
   requestVR();
 }, {passive:false});
-window.addEventListener('mousemove', e=>{ if(!vrOn) return; if(vrInspect){ vrInspectAt=[e.clientX, e.clientY]; refreshVRTip(); return; } if(!e.movementX&&!e.movementY) return; lookVR(e.movementX, e.movementY); });
+window.addEventListener('mousemove', e=>{ if(!vrOn) return; if(vrInspect){ vrInspectAt=[e.clientX, e.clientY]; refreshVRTip(); if(!vrEdgeRAF) vrEdgeRAF=requestAnimationFrame(edgeScroll); return; } if(!e.movementX&&!e.movementY) return; lookVR(e.movementX, e.movementY); });
 window.addEventListener('pointerdown', ()=>{ if(!vrOn) return; pokeVRMusic(); if(vrInspect||document.pointerLockElement===vrc) return; vrRelock=true;
   const root=document.getElementById('vr'); if(!document.fullscreenElement&&root.requestFullscreen){ const p=root.requestFullscreen(); if(p&&p.catch) p.catch(()=>{}); }
   lockLook(); setTimeout(()=>{ vrRelock=false; }, 400); });
@@ -198,6 +198,9 @@ function vrLeaveUnlessAway(stillLost){
 }
 document.addEventListener('fullscreenchange', ()=>{
   if(!vrOn) return;
+  // Where the page can't hold Esc (see setInspect), Esc in inspect leaves full screen instead: that
+  // ends inspect and keeps VR, and the next click brings the full screen back.
+  if(!document.fullscreenElement&&(vrInspect||performance.now()-vrInspectLeftAt<400)){ if(vrInspect) setInspect(false, true); return; }
   if(!document.fullscreenElement){ vrLeaveUnlessAway(()=>!document.fullscreenElement); return; }
   vrRelock=true; lockLook(); setTimeout(()=>{ vrRelock=false; }, 400);
 });
@@ -223,7 +226,7 @@ document.addEventListener('keydown',e=>{
     if(k==='c'&&!e.repeat){ e.preventDefault(); vrClouds=!vrClouds; momentClouds=null; requestVR(); syncVRPad(); return; }
     if(k==='l'&&!e.repeat){ e.preventDefault(); vrLabels=!vrLabels; requestVR(); syncVRPad(); return; }
     if(k==='q'&&!e.repeat&&!vrTouch){ e.preventDefault(); setInspect(!vrInspect); return; }
-    if(e.key==='Escape'){ exitVR(); return; }
+    if(e.key==='Escape'){ e.preventDefault(); if(vrInspect) setInspect(false); else exitVR(); return; }
     if(e.key===' ' && !e.repeat){ e.preventDefault(); hplay.click(); return; }
     if(e.key==='ArrowRight'){ e.preventDefault(); stepMinutes(5); return; }
     if(e.key==='ArrowLeft'){ e.preventDefault(); stepMinutes(-5); return; }
@@ -276,17 +279,42 @@ document.querySelectorAll('.vrpad button, .vrplay').forEach(b=>{
 syncVRPad();
 // Inspect (q): the camera holds still, the pointer comes back, and a tooltip under it gives the
 // pixel's colour and the spectrum of the sky in that direction.
-let vrInspect=false, vrInspectAt=null, vrInspectTimer=0;
+// Esc leaves inspect first, then VR. In full screen the browser takes Esc for itself, so inspect
+// holds it with the keyboard lock where there is one (Chrome, Edge); elsewhere see fullscreenchange.
+let vrInspect=false, vrInspectAt=null, vrInspectTimer=0, vrInspectLeftAt=-1e9, vrEdgeRAF=0, vrEdgeT=0;
 function setInspect(on, leaving){
   vrInspect=on; vrInspectAt=null;
+  if(!on) vrInspectLeftAt=performance.now();
   document.getElementById('vr').classList.toggle('inspect', on);
   document.getElementById('vrtip').style.display='none';
   clearInterval(vrInspectTimer); vrInspectTimer=0;
+  cancelAnimationFrame(vrEdgeRAF); vrEdgeRAF=0; vrEdgeT=0;
+  const kb=navigator.keyboard;
   if(on){
     if(document.pointerLockElement) document.exitPointerLock();
+    if(kb&&kb.lock&&document.fullscreenElement){ const p=kb.lock(['Escape']); if(p&&p.catch) p.catch(()=>{}); }
     vrInspectTimer=setInterval(refreshVRTip, 250);
-  }else if(!leaving){ vrRelock=true; lockLook(); setTimeout(()=>{ vrRelock=false; }, 400); }
+  }else{
+    if(kb&&kb.unlock) kb.unlock();
+    if(!leaving){ vrRelock=true; lockLook(); setTimeout(()=>{ vrRelock=false; }, 400); }
+  }
 }
+// Edge scrolling, in inspect only: with the pointer in the outer band of the view, the view turns
+// that way, faster the nearer the edge, up to 0.7 of the field of view a second.
+function edgeScroll(t){
+  vrEdgeRAF=0;
+  if(!vrOn||!vrInspect||!vrInspectAt){ vrEdgeT=0; return; }
+  const W=window.innerWidth, H=Math.max(window.innerHeight, 1), m=Math.max(24, Math.min(W, H)*0.06), [x, y]=vrInspectAt;
+  const push=(p, L)=>p<m?-(1-Math.max(p, 0)/m):p>L-1-m?1-Math.max(L-1-p, 0)/m:0;
+  const dx=push(x, W), dy=push(y, H);
+  if(!dx&&!dy){ vrEdgeT=0; return; }
+  const dt=vrEdgeT?Math.min(0.05, (t-vrEdgeT)/1000):0; vrEdgeT=t;
+  const rate=0.7*H*dt;
+  if(dt) lookVR(dx*Math.abs(dx)*rate, dy*Math.abs(dy)*rate);
+  vrEdgeRAF=requestAnimationFrame(edgeScroll);
+}
+// A pointer that leaves the window stops the turning.
+document.addEventListener('mouseout', e=>{ if(vrInspect&&!e.relatedTarget){ vrInspectAt=null; document.getElementById('vrtip').style.display='none'; } });
 // One pixel of a framebuffer as numbers, or null.
 function vrReadPixel(fb, x, y, float){
   const gl=vrGL.gl;
