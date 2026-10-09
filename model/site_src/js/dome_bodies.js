@@ -44,8 +44,12 @@ function skyRAt(rgrid, el, az){
 // A star shows in full when 0.8 mag brighter than the naked-eye limit for the sky around it,
 // fading out to 0.2 mag fainter than the limit.
 function starVisible(mag, L){ const lim=nakedEyeLimit(L); return 1-smooth01(lim-0.8, lim+0.2, mag); }
-function drawStarsOnDome(marks, rgrid, rCd, key){
-  const {cx, cy, R}=domeView();
+function drawStarsOnDome(marks, rgrid, rCd, key, moon){
+  const {cx, cy, R, z}=domeView();
+  // The Moon is added onto what is drawn under it (drawMoonOnDome), so what it covers is left out
+  // here: its drawn disk, enlarged like the Sun's, hides stars and planets a few degrees from it.
+  const mUp=moon&&moonReady&&moon.el>=-moon.radDeg, mrr=mUp?R*(90-moon.el)/90:0, ma=mUp?moon.az*Math.PI/180:0;
+  const mx=cx+mrr*Math.sin(ma), my=cy-mrr*Math.cos(ma), mrad=mUp?moon.radDeg*(DOME_DISK*z/SUN_RADIUS_DEG):0;
   dctx.save();
   dctx.beginPath(); dctx.arc(cx,cy,R,0,Math.PI*2); dctx.clip();
   dctx.globalCompositeOperation='lighter';
@@ -55,6 +59,7 @@ function drawStarsOnDome(marks, rgrid, rCd, key){
     const night=starVisible(m, skyRAt(rgrid, s.el, s.az)*rCd)*dim;
     if(night<0.03) continue;
     const rr=R*(90-s.el)/90, a=s.az*Math.PI/180, x=cx+rr*Math.sin(a), y=cy-rr*Math.cos(a);
+    if(mUp&&(x-mx)**2+(y-my)**2<mrad*mrad) continue;
     const col=s.rgb.map(c=>Math.round(Math.min(255, c*night*255)));
     if(s.px<2.2){
       dctx.fillStyle='rgb('+col[0]+','+col[1]+','+col[2]+')';

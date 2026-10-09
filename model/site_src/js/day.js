@@ -451,7 +451,7 @@ function renderDay(fast){
   const stars=placeStars(LATDEG[dLat]);
   // Comet heads join the stars as points (their coma and tails are drawn per pixel above).
   for(const C of comets){ if(C.el<0) continue; const sh=pointDisplay(cometHeadMag(C)); stars.marks.push({az:C.az, el:C.el, mag:cometHeadMag(C), px:sh.px, rgb:starTint(5200).map(v=>Math.min(2.4, v)*Math.min(1, 0.62*Math.sqrt(Math.pow(10, -0.4*(cometHeadMag(C)-STAR_VANCHOR))))), comet:C}); }
-  if(!fast) drawStarsOnDome(stars.marks, rgrid, Yref*cdu, ep.key);
+  if(!fast) drawStarsOnDome(stars.marks, rgrid, Yref*cdu, ep.key, moon);
   const sunUpPix=!fast && rr-SUNR<R && sunRelD>3e-4;
   if(sunUpPix){
     dctx.save(); dctx.beginPath(); dctx.arc(cx,cy,R,0,Math.PI*2); dctx.clip();
