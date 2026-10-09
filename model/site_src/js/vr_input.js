@@ -172,14 +172,33 @@ window.addEventListener('wheel', e=>{
   requestVR();
 }, {passive:false});
 window.addEventListener('mousemove', e=>{ if(!vrOn) return; if(vrInspect){ vrInspectAt=[e.clientX, e.clientY]; refreshVRTip(); return; } if(!e.movementX&&!e.movementY) return; lookVR(e.movementX, e.movementY); });
-window.addEventListener('pointerdown', ()=>{ if(!vrOn) return; pokeVRMusic(); if(vrInspect||document.pointerLockElement===vrc) return; vrRelock=true; lockLook(); setTimeout(()=>{ vrRelock=false; }, 400); });
+window.addEventListener('pointerdown', ()=>{ if(!vrOn) return; pokeVRMusic(); if(vrInspect||document.pointerLockElement===vrc) return; vrRelock=true;
+  const root=document.getElementById('vr'); if(!document.fullscreenElement&&root.requestFullscreen){ const p=root.requestFullscreen(); if(p&&p.catch) p.catch(()=>{}); }
+  lockLook(); setTimeout(()=>{ vrRelock=false; }, 400); });
 let vrTX=0, vrTY=0;
 vrc.addEventListener('touchstart', e=>{ const t=e.touches[0]; vrTX=t.clientX; vrTY=t.clientY; }, {passive:true});
 vrc.addEventListener('touchmove', e=>{ if(!vrOn) return; const t=e.touches[0]; lookVR(t.clientX-vrTX, t.clientY-vrTY); vrTX=t.clientX; vrTY=t.clientY; e.preventDefault(); }, {passive:false});
 window.addEventListener('resize', ()=>{ if(vrOn){ sizeVR(); requestVR(); } });
+// A screenshot (PrintScreen, Win+Shift+S, Cmd+Shift+3/4/5) takes the focus or the OS keys, and
+// the browser drops the pointer lock, and sometimes the full screen, with it. That is not the
+// viewer leaving: VR stays, and the next click takes the look (and the full screen) back. Only a
+// loss with the page still in focus and no OS key just pressed, as Esc gives, leaves VR.
+let vrAwayAt=-1e9;
+const vrAway=()=>{ vrAwayAt=performance.now(); };
+const vrOSKey=e=>e.key==='Meta'||e.key==='OS'||e.key==='PrintScreen'||e.code==='PrintScreen'||e.metaKey;
+window.addEventListener('blur', vrAway);
+document.addEventListener('keydown', e=>{ if(vrOSKey(e)) vrAway(); }, true);
+document.addEventListener('keyup', e=>{ if(vrOSKey(e)) vrAway(); }, true);
+function vrLeaveUnlessAway(stillLost){
+  setTimeout(()=>{
+    if(!vrOn||!stillLost()) return;
+    if(!document.hasFocus()||performance.now()-vrAwayAt<1500) return;
+    exitVR();
+  }, 250);
+}
 document.addEventListener('fullscreenchange', ()=>{
   if(!vrOn) return;
-  if(!document.fullscreenElement){ exitVR(); return; }
+  if(!document.fullscreenElement){ vrLeaveUnlessAway(()=>!document.fullscreenElement); return; }
   vrRelock=true; lockLook(); setTimeout(()=>{ vrRelock=false; }, 400);
 });
 let vrLockedOnce=false;
@@ -189,7 +208,7 @@ document.addEventListener('pointerlockchange', ()=>{
   if(locked){ vrLockedOnce=true; return; }
   if(!vrOn||!vrLockedOnce||vrInspect) return;
   if(vrRelock){ lockLook(); return; }
-  exitVR();
+  vrLeaveUnlessAway(()=>document.pointerLockElement!==vrc&&!vrInspect);
 });
 document.addEventListener('keyup',e=>{ if(e.key==='Shift') vrHeld.delete('shift'); else vrHeld.delete(e.key.length===1?e.key.toLowerCase():e.key); });
 window.addEventListener('blur',()=>vrHeld.clear());
