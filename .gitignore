@@ -14,3 +14,4 @@ model/limb_spectra.npz
 site/*.gz
 site/day/*.gz
 .venv/
+site/main.pdf

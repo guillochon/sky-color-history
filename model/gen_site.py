@@ -208,6 +208,8 @@ def minify(html):
 html = minify(html)
 (SITE / 'index.html').write_text(html, encoding='utf-8')
 print(len(html)/1e6, 'MB')
+# The report the page links to (main.pdf), from the LaTeX build.
+shutil.copy2(HERE.parent / 'latex' / 'main.pdf', SITE / 'main.pdf')
 # Compressed copies for nginx's gzip_static, so the server need not compress them on the fly.
 for path in [SITE / 'index.html', SITE / 'spectra.bin', *sorted(day_dir.glob('*.bin'))]:
     if path.exists():
