@@ -54,7 +54,9 @@ Star & Type & Today: $V$, pc & Peak $V$ (68\% range) & Closest (pc) & Myr ago & 
 """ + tex(gr.ENC_PROSE[1])
 
 # summary table rows
-rows = re.findall(r'<tr><td>(.*?)</td><td>(.*?)</td><td>(.*?)</td><td>(.*?)</td></tr>', H)
+# Only the "Findings in brief" table: the report's other tables have rows of their own.
+summary_html = re.search(r'<h3>Findings in brief</h3>(.*?)</table>', H, re.S).group(1)
+rows = re.findall(r'<tr><td>(.*?)</td><td>(.*?)</td><td>(.*?)</td><td>(.*?)</td></tr>', summary_html)
 table = '\n'.join(' & '.join(tex(c) for c in row) + r' \\' for row in rows)
 
 # data appendix table
