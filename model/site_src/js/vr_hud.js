@@ -76,7 +76,7 @@ function placeBodyMarks(){
   }
 }
 // Labels (l): a name beside each star, planet, satellite and supernova that shows. The faintest
-// labelled grows with the zoom, from about V 0.4 across 90° to every point (V 6.5) at 10°, and
+// labelled grows with the zoom, from about V 0.4 across 90° to every point (V 6.5) by 10°, and
 // a label that would overlap a brighter one's is left out, as is one on a point cloud hides. With
 // them, the constellation figures and names, wherever the epoch's stars still make them
 // (constellations.js).

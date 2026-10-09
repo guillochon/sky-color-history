@@ -151,7 +151,7 @@ function vrRayAt(cx, cy, yawDeg, pitchDeg){
   const yaw=yawDeg*Math.PI/180, pitch=pitchDeg*Math.PI/180, cp=Math.cos(pitch), sp=Math.sin(pitch), cyw=Math.cos(yaw), syw=Math.sin(yaw);
   return vnorm([syw*cp+u*cyw-v*syw*sp, cyw*cp-u*syw-v*cyw*sp, sp+v*cp]);
 }
-// The scroll wheel zooms between a 10° and a 90° field of view, by the same factor per notch,
+// The scroll wheel zooms between a 5° and a 90° field of view, by the same factor per notch,
 // about the pointer: the sky under it stays under it. With the look locked the pointer is the
 // middle of the view.
 window.addEventListener('wheel', e=>{

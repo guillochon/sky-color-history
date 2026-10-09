@@ -277,7 +277,7 @@ function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null, cr=null){
   if(share('sunlit')+share('moonlit')+share('cloud, lit by the sky')>0.3){
     if(spOzone(key)) marks.push({a:500, b:680, t:'O₃ Chappuis', band:true});
     if(key.startsWith('archean27')) marks.push({a:380, b:480, t:'organic haze', band:true});
-    if(key==='kpg66') marks.push({a:380, b:780, t:'soot dims all colours', band:true, quiet:true});
+    if(key==='kpg66') marks.push({a:380, b:780, t:'soot dims all colours', band:true});
   }
   if(sun>0.3){ marks.push(...SP_SUN_MARKS); if(share('Sun')+share('sunlit')<0.5) marks.push({l:589.3, t:'Na D'}); }
   spAirMarks(marks, o2, h2o);
@@ -320,11 +320,16 @@ function drawSpectrum(cv, sp){
   for(const l of [400, 500, 600, 700]){ c.fillRect(X(l), B, 1, 3); c.fillText(String(l), X(l), B+12); }
   c.textAlign='right'; c.fillText('nm', R, B+12);
   // Annotations: bands as a bracket along the top; lines as a tick and a label, staggered over two
-  // rows and dropped when they would collide.
+  // rows and dropped when they would collide. A band's label sits over its middle, narrowest band
+  // first; one that would collide slides along its band to the nearest free place.
   const rows=[[], []], fits=(row, a, b)=>rows[row].every(([p, q])=>b<p-2||a>q+2);
-  for(const m of sp.marks.filter(m=>m.band)){
+  for(const m of sp.marks.filter(m=>m.band).sort((p, q)=>(p.b-p.a)-(q.b-q.a))){
     const a=X(m.a), b=X(m.b); c.strokeStyle='rgba(255,255,255,.5)'; c.beginPath(); c.moveTo(a, 26); c.lineTo(a, 23); c.lineTo(b, 23); c.lineTo(b, 26); c.stroke();
-    const w=c.measureText(m.t).width, mid=(a+b)/2; c.fillStyle='rgba(255,255,255,.85)'; c.textAlign='center'; c.fillText(m.t, mid, 20); rows[1].push([mid-w/2, mid+w/2]);
+    const w=c.measureText(m.t).width, lo=Math.max(a, L)+w/2, hi=Math.min(b, R)-w/2;
+    let mid=(a+b)/2;
+    for(let d=0;d<=b-a;d+=2){ const l=mid-d, r=mid+d;
+      if(r<=hi&&fits(1, r-w/2, r+w/2)){ mid=r; break; } if(l>=lo&&fits(1, l-w/2, l+w/2)){ mid=l; break; } }
+    c.fillStyle='rgba(255,255,255,.85)'; c.textAlign='center'; c.fillText(m.t, mid, 20); rows[1].push([mid-w/2, mid+w/2]);
   }
   const seen=new Set();
   for(const m of sp.marks.filter(m=>!m.band)){
@@ -569,7 +574,7 @@ function noonSpectrum(key, L, f){
   const marks=[...SP_SUN_MARKS];
   if(spOzone(key)) marks.unshift({a:500, b:680, t:'O₃ Chappuis', band:true});
   if(key.startsWith('archean27')) marks.unshift({a:380, b:480, t:'organic haze', band:true});
-  if(key==='kpg66') marks.unshift({a:380, b:780, t:'soot dims all colours', band:true, quiet:true});
+  if(key==='kpg66') marks.unshift({a:380, b:780, t:'soot dims all colours', band:true});
   spAirMarks(marks, o2, h2o);
   return {S, Y:1, parts:[], marks, vz, sza};
 }
