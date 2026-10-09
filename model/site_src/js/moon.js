@@ -33,7 +33,7 @@ function apparentEl(h){ if(h>80) return h; const u=h+10.3/(h+5.11); if(u<0.25) r
 // extend the long-term drift and stay beyond 30 Earth radii.
 const MOON_RE={
   modern:60.14, modernpoll:60.14, ozonehole:60.14, y2100:60.14, volcanic:60.14, geminga:60.14, zetaoph:60.14,
-  kpg66:59.93, carbon30:58.56, snowball07:57.71,
+  kpg66:59.93, carbon30:58.56, ordovician466:58.21, snowball07:57.71,
   proterozoic22:50.98, archean27thin:47.60, archean27:47.60, archean27vthick:47.60,
   archean38:40.4, hadean40:39.8, hadean44:38.7
 };
@@ -43,7 +43,7 @@ const MOON_R_KM=1737.4, EARTH_R_KM=6378.14;
 // day lengths Farhat et al. 2022 (Tables D.1, D.2) give for their Moon distances to within
 // 0.1 h, and it gives 15.2 h at 3.2 Ga.
 const DAY_HOURS={
-  kpg66:23.8, carbon30:22.6, snowball07:21.9, proterozoic22:17.4,
+  kpg66:23.8, carbon30:22.6, ordovician466:22.3, snowball07:21.9, proterozoic22:17.4,
   archean27thin:15.6, archean27:15.6, archean27vthick:15.6,
   archean38:12.8, hadean40:12.6, hadean44:12.3
 };

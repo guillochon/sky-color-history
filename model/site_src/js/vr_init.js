@@ -54,7 +54,7 @@ function vrRestoreGL(gl){
 // Uniform locations, texture units, and fixed values for a sky program (boot or full).
 function setupSkyProg(gl, prog){
   gl.useProgram(prog);
-  const u=uniformLocs(gl, prog, ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','eye','nr','na','sunMu','showScn','mtnSnow','moonAz','moonEl','moonRad','moonOn','latRad','starPx','cloudCov','cloudScale','cloudDrift','cloudOn','clockH','pondN','snowCover','waterT','snOn','snDir','snCol','snLight','mlDir','mlLight','corona','toneU','rCd','mwOn','mwScale','mwK','mwDB','galX','galY','galZ','aurOn','haloK','haloSunLin','haloMoonLin','beads[0]','pond[0]','gridN','roadN','grid[0]','road[0]','obj[0]','kind[0]']);
+  const u=uniformLocs(gl, prog, ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','eye','nr','na','sunMu','showScn','mtnSnow','moonAz','moonEl','moonRad','moonOn','latRad','starPx','cloudCov','cloudScale','cloudDrift','cloudOn','clockH','pondN','snowCover','waterT','snOn','snDir','snCol','snLight','mlDir','mlLight','corona','toneU','rCd','mwOn','mwScale','mwK','mwDB','galX','galY','galZ','aurOn','haloK','haloSunLin','haloMoonLin','ringU','ringV','ringP','ringLin','metA[0]','metB[0]','metC[0]','metN','metFlash','beads[0]','pond[0]','gridN','roadN','grid[0]','road[0]','obj[0]','kind[0]']);
   bindSamplers(gl, prog, [['sky',0],['moonMap',1],['starMap',3],['starBin',4],['starIdx',5],['weather',7],['hitInfo',10],['hitNrm',11],['noiseTex',12],['mwTex',13],['aurTex',9]]);
   gl.uniform1f(u.fov, vrFov*Math.PI/180);
   gl.uniform1f(u.sunRad, SUN_RADIUS_DEG*DISK_SCALE*Math.PI/180);

@@ -2021,7 +2021,7 @@ kpg66:[
 [50.5844,22.1212,4.47,0.30,7500,"130 Tau"],
 ],
 };
-const STAR_STANDIN_SEED={"kpg66": 66, "carbon30": 300, "snowball07": 700, "proterozoic22": 2200, "archean27thin": 2700, "archean38": 3800, "hadean40": 4000, "hadean44": 4400, "archean27": 2700, "archean27vthick": 2700};
+const STAR_STANDIN_SEED={"kpg66": 66, "carbon30": 300, "ordovician466": 466, "snowball07": 700, "proterozoic22": 2200, "archean27thin": 2700, "archean38": 3800, "hadean40": 4000, "hadean44": 4400, "archean27": 2700, "archean27vthick": 2700};
 // For each traced epoch: the galactic longitude (in today's coordinates) of the Galactic centre
 // as seen from the Sun then, where the Milky Way was brightest, and the Sun's height above the plane (pc).
-const STAR_EPOCH_GAL={"kpg66": {"mwL": 101.6, "sunZ": 101.3}, "carbon30": {"mwL": 108.12, "sunZ": 24.3}, "snowball07": {"mwL": 22.76, "sunZ": -96.2}, "proterozoic22": {"mwL": -140.58, "sunZ": -84.7}, "archean27thin": {"mwL": -72.81, "sunZ": -64.5}, "archean27": {"mwL": -72.81, "sunZ": -64.5}, "archean27vthick": {"mwL": -72.81, "sunZ": -64.5}, "archean38": {"mwL": -137.67, "sunZ": -97.3}, "hadean40": {"mwL": 176.42, "sunZ": 52.2}, "hadean44": {"mwL": 95.2, "sunZ": -82.7}};
+const STAR_EPOCH_GAL={"kpg66": {"mwL": 101.6, "sunZ": 101.3}, "carbon30": {"mwL": 108.12, "sunZ": 24.3}, "ordovician466": {"mwL": 10.61, "sunZ": 9.3}, "snowball07": {"mwL": 22.76, "sunZ": -96.2}, "proterozoic22": {"mwL": -140.58, "sunZ": -84.7}, "archean27thin": {"mwL": -72.81, "sunZ": -64.5}, "archean27": {"mwL": -72.81, "sunZ": -64.5}, "archean27vthick": {"mwL": -72.81, "sunZ": -64.5}, "archean38": {"mwL": -137.67, "sunZ": -97.3}, "hadean40": {"mwL": 176.42, "sunZ": 52.2}, "hadean44": {"mwL": 95.2, "sunZ": -82.7}};

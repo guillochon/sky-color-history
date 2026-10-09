@@ -9,6 +9,7 @@ const MOMENTS=[
   {epoch:'hadean44', date:'2026-03-20', t:1050, title:'A Hadean evening, 4.4 Ga', sub:'Thirty bars of CO₂ under a young, faint Sun', art:'day'},
   {epoch:'archean38', date:'2026-01-30', t:1410, look:[0, 22], clear:true, title:'Aurora over the young Earth, 3.8 Ga', sub:'Violet and pink: nitrogen glowing in air with no oxygen', art:'aurora'},
   {epoch:'archean27', date:'2026-03-20', t:930, title:'Archean afternoon, 2.7 Ga', sub:'A pale orange organic haze, like Titan’s', art:'day'},
+  {epoch:'ordovician466', date:'2026-10-09', t:1324, look:[200, 18], clear:true, title:'Meteor storm and ring, 466 Ma', sub:'A shattered asteroid’s fragments, and perhaps a ring across the sky', art:'meteors'},
   {epoch:'carbon30', date:'2026-07-08', t:1380, look:[180, 32], clear:true, title:'The Milky Way, 300 Ma', sub:'No city lights, and stars no one has catalogued', art:'galaxy'},
   {epoch:'kpg66', date:'2026-03-20', t:720, title:'Noon after the asteroid', sub:'Soot from Chicxulub turns the sky dim amber', art:'day'},
   {epoch:'geminga', date:'2026-01-15', t:1320, look:'sn', clear:true, title:'The Geminga supernova', sub:'342,000 years ago, a star in Orion as bright as the quarter Moon', art:'nova'},
@@ -26,6 +27,9 @@ const MOMENT_ART={
   // Trains of satellites crossing the sky, a few bright datacenters among them.
   sats:[[-4,30,124,10,.55],[-4,46,124,24,.45],[-4,58,124,40,.35]].map(([x0,y0,x1,y1,o])=>Array.from({length:23},(_, k)=>{ const t=k/22, x=x0+(x1-x0)*t, y=y0+(y1-y0)*t-6*Math.sin(Math.PI*t);
     return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${k%7===3?1.3:0.7}" fill="#fff6e8" opacity="${k%7===3?0.95:o}"/>`; }).join('')).join(''),
+  // Meteors falling from upper right, under the arc of a ring.
+  meteors:'<path d="M-10 58 Q60 20 130 58" stroke="#c9a585" stroke-width="5" fill="none" opacity=".22"/><path d="M-10 58 Q60 20 130 58" stroke="#e6c7a6" stroke-width="1.2" fill="none" opacity=".35"/>'
+    +[[96,6,80,22,1],[70,4,58,16,.8],[112,24,100,36,.7],[40,10,30,20,.6],[86,30,78,38,.5]].map(([x0,y0,x1,y1,o])=>`<line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y1}" stroke="#fff3d9" stroke-width="${0.5+o*0.6}" stroke-linecap="round" opacity="${o}"/><circle cx="${x1}" cy="${y1}" r="${0.6+o*0.7}" fill="#fffbe9" opacity="${o}"/>`).join(''),
   stars:'',
   day:'',
 };
@@ -35,7 +39,7 @@ function momentGradient(m){
     return `linear-gradient(${hex(tone(xyY2XYZ(v.z), YREF))}, ${hex(tone(xyY2XYZ(v.h), YREF))})`;
   }
   return {aurora:'linear-gradient(#06050f, #151027)', eclipse:'linear-gradient(#0f1a2e, #3a3442)', nova:'linear-gradient(#05060c, #141a2c)', galaxy:'linear-gradient(#06070b, #121521)',
-    city:'linear-gradient(#2a1f17, #6b4527)', sats:'linear-gradient(#0c0b0f, #2e2620)', stars:'linear-gradient(#05060a, #10131c)'}[m.art];
+    city:'linear-gradient(#2a1f17, #6b4527)', sats:'linear-gradient(#0c0b0f, #2e2620)', meteors:'linear-gradient(#07070c, #1d1a1c)', stars:'linear-gradient(#05060a, #10131c)'}[m.art];
 }
 function starsSVG(seed){
   let s='', x=seed*9301+49297;

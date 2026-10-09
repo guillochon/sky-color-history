@@ -10,7 +10,7 @@ import speccache
 HERE = Path(__file__).resolve().parent
 EPOCHS = epochs.BY_KEY
 
-PICK = ['hadean44','hadean40','archean38','archean27thin','archean27','archean27vthick','proterozoic22','snowball07','carbon30','kpg66','volcanic','ozonehole','modern','modernpoll']
+PICK = ['hadean44','hadean40','archean38','archean27thin','archean27','archean27vthick','proterozoic22','snowball07','ordovician466','carbon30','kpg66','volcanic','ozonehole','modern','modernpoll']
 LATS = np.arange(0, 86, 7.5)
 ALTS = np.concatenate([np.arange(0, 20, 2), np.arange(20, 60, 4), np.arange(60, 101, 8)])
 # The limb and disk spectra, per epoch: latitude, then the tangent heights and the disk.

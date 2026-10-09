@@ -51,6 +51,7 @@ const CLOUD_ERA={
   archean27vthick:{cov:0.16,vary:0.06,type:0.20,base:1700,top:0.30,cirrus:0.10},
   proterozoic22:{cov:0.58,vary:0.2,type:0.40,base:1550,top:0.50,cirrus:0.30},
   snowball07:{cov:0.22,vary:0.12,type:0.04,base:1400,top:0.20,cirrus:0.15},
+  ordovician466:{cov:0.55,vary:0.22,type:0.45,base:1600,top:0.55,cirrus:0.45},
   carbon30:{cov:0.82,vary:0.15,type:0.78,base:1500,top:0.90,cirrus:0.45},
   kpg66:{cov:0.08,vary:0.04,type:0.02,base:2200,top:0.15,cirrus:0.05},
   zetaoph:{cov:0.50,vary:0.25,type:0.50,base:1600,top:0.55,cirrus:0.55},

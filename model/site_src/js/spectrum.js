@@ -40,7 +40,7 @@ const SP_FRAUN_T=Float32Array.from(SP_LAM, l=>SP_FRAUN.reduce((t, [c, d, s])=>t*
 const SP_TAU_O2=Float32Array.from(SP_LAM, l=>(l>=759&&l<=770?2.0*(l<762?1:0.25+0.75*(770-l)/8):0)+(l>=686.5&&l<=694?0.55*(l<689?1:(694-l)/5):0));
 const SP_TAU_H2O=Float32Array.from(SP_LAM, l=>0.25*Math.exp(-0.5*((l-725)/5)**2));
 // O2 relative to today's 21%, and the water column relative to today's.
-const SP_O2={hadean44:0, hadean40:0, archean38:0, archean27thin:0, archean27:0, archean27vthick:0, proterozoic22:0.01, snowball07:0.1, carbon30:1.57};
+const SP_O2={hadean44:0, hadean40:0, archean38:0, archean27thin:0, archean27:0, archean27vthick:0, proterozoic22:0.01, snowball07:0.1, ordovician466:0.81, carbon30:1.57};
 const SP_H2O={hadean44:4, snowball07:0.2};
 // The night's sources, each to unit luminance.
 const SP_SUN5772=spNorm(spPlanck(5772));
@@ -201,6 +201,14 @@ function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null){
     const q=6371/6471, sz=Math.sin(vz*Math.PI/180), f=absZenith(key)*(0.4+0.6*extinction(el, extK(key)))/Math.sqrt(1-q*q*sz*sz);
     const fo=AIRGLOW_O[key]??1, fc=AIRGLOW_CO2[key]||0;
     add('zodiacal light and stars', (1-AIRGLOW_SHARE)*NIGHT_NATURAL*f, SP_SUN5772, true);
+    // Debris (debris.js): the extra zodiacal light, the ring, and the ring's light in the air.
+    if(skyNow.ecl&&zodiK(key)>1) add(`zodiacal light, ${zodiK(key)}× today’s`, zodiExtra(key, horizDir(az, el), skyNow.ecl)*absZenith(key)*(0.4+0.6*extinction(el, extK(key))), SP_SUN5772, true);
+    const rg=skyNow.ring;
+    if(rg){
+      const sd=horizDir(skyNow.sunAz, 90-skyNow.sza), pw=Math.PI/180*90/domeView().R;
+      add('the ring, sunlit', ringAt(rg.R, horizDir(az, el), sd, rg.P, pw, skyNow.sunFlux)*extinction(el, extK(key))*absZenith(key), SP_RING, true);
+      add('ring-lit air', 0.027*ringIlluminance(rg.R, sd, rg.P, skyNow.sunFlux, extK(key)), SP_RINGSKY, true);
+    }
     add('airglow', AIRGLOW_SHARE*fo*NIGHT_NATURAL*f, SP_AIRGLOW);
     add('violet O₂ airglow', AIRGLOW_SHARE*fc*NIGHT_NATURAL*f, SP_HERZ);
     const glow=SKYGLOW[key];
@@ -290,6 +298,7 @@ function spectrumHTML(box, el, az, opts={}){
   if(!cv){ cv=document.createElement('canvas'); cv.className='spc'; src=document.createElement('div'); src.className='spsrc'; box.append(cv, src); }
   if(opts.note){ cv.style.display='none'; src.textContent=opts.note; return; }
   if(!spData){ spLoad(); cv.style.display='none'; src.textContent='Loading the spectrum…'; return; }
+  if(opts.meteor){ const st=meteorSpectrumTip(opts.meteor); cv.style.display='block'; drawSpectrum(cv, st); src.textContent=st.note; return; }
   if(opts.sn||opts.star){ const s=opts.star, st=opts.sn?snSpectrum(opts.sn):s.star?starSpectrum(s, el):reflectedSpectrum(s); cv.style.display='block'; drawSpectrum(cv, st); src.textContent=st.note; return; }
   const sp=skySpectrum(el, az, opts.disk||null, opts.aurora||null, opts.disk==='sun'?opts.r||0:opts.lit??1, opts.cloud||null);
   cv.style.display='block'; drawSpectrum(cv, sp);
@@ -311,6 +320,8 @@ function domeSpectrum(x, y, box){
   const mo=skyNow.moon, sunR=DOME_DISK*z*mo.sunRadDeg/SUN_RADIUS_DEG;
   const lit=mo.on&&mo.el>-mo.radDeg?moonLitAt(horizDir(az, el), DOME_DISK*z*mo.radDeg/SUN_RADIUS_DEG*90/R):null;
   const disk=lit!=null?'moon':(skyNow.sunOn&&skyNow.sunVis>0.01&&at(skyNow.sunAz, 90-skyNow.sza)<sunR?'sun':null);
+  const met=meteorNearDome(x, y);
+  if(met){ spectrumHTML(box, met.el, met.az, {meteor:met}); return; }
   const sn=disk?null:snNear(horizDir(az, el), 14*90/R);
   if(sn){ spectrumHTML(box, sn.el, sn.az, {sn}); return; }
   const star=disk?null:starNear(horizDir(az, el), 7*90/R);
@@ -520,4 +531,42 @@ function noonSpectrumTip(sky, f, box){
   const L=sky.dataset.lat, sp=noonSpectrum(EP[tIdx].key, L, f), el=Math.round(90-sp.vz);
   cv.style.display='block'; drawSpectrum(cv, sp);
   src.textContent=`${el>=89?'The zenith':el+'° above the horizon'}, 90° round from the Sun (${90-sp.sza}° up): sunlight scattered by the air`;
+}
+
+// The ring's light: sunlight off L-chondrite rubble (debris.js), and the same scattered by the air
+// (bluer, as the moonlit sky is). Its display colour for the dome and VR.
+const SP_RING=spNorm(spPlanck(5772).map((v, i)=>v*RING_REFL(SP_LAM[i])));
+const SP_RINGSKY=spNorm(SP_RING.map((v, i)=>v*Math.pow(550/SP_LAM[i], 3)));
+RING_LIN=(()=>{ const X=[0, 0, 0]; for(let i=0;i<SP_N;i++) for(let q=0;q<3;q++) X[q]+=SP_RING[i]*SP_FRAUN_T[i]*SP_CMF[i][q]; return xyzLin(X).map(c=>Math.max(0, c)/X[1]); })();
+// A meteor's spectrum as it reaches the ground (meteors.js metEmission, through the air), or a
+// lunar impact flash's, with a caption.
+function metFmtMass(g){ return g<1e-3?`${+(g*1e3).toPrecision(2)} mg`:g<1e3?`${+g.toPrecision(2)} g`:g<1e6?`${+(g/1e3).toPrecision(2)} kg`:`${(+(g/1e6).toPrecision(2)).toLocaleString('en-US')} tonnes`; }
+function metFmtSize(cm){ return cm<0.1?`${+(cm*10).toPrecision(2)} mm`:cm<100?`${+cm.toPrecision(2)} cm`:`${+(cm/100).toPrecision(2)} m`; }
+const MET_SRC={apex:'from the apex of Earth’s motion: cometary dust met head-on', helion:'from the helion source, near the Sun', antihelion:'from the antihelion source, opposite the Sun',
+  toroidal:'from a toroidal source, high above the ecliptic', iso:'from no particular direction', aster:'from the asteroid belt, slow', ring:'falling from the ring'};
+function meteorSpectrumTip(h){
+  const key=EP[dIdx].key, air=EP[dIdx].air||{O:0.21, N:0.79, C:0, O2:0.21}, X=Math.min(spAirmass(h.el), 40);
+  if(h.kind==='flash'){
+    const f=h.f, S=spPlanck(f.temp), na=spLines([[589.0, 1], [589.6, 0.5]]), y=spY(S)||1;
+    for(let i=0;i<SP_N;i++) S[i]+=0.08*y*na[i]/(spY(na)||1);
+    const marks=[{l:589.3, t:'Na D', em:true}];
+    spThroughAir(S, marks, key, X);
+    return {S, Y:1, parts:[], marks, note:`An impact flash on the Moon’s night side · rock vapour and melt glowing at about ${Math.round(f.temp/100)*100} K, for a fraction of a second · V ${h.mag.toFixed(1)}`};
+  }
+  const m=h.m, k=extK(key), S=metEmission(m.v, air, m.src==='ring'), marks=[];
+  const Or=(air.O||0)/0.21, Nr=(air.N||0)/0.79, Cr=Math.min(1, (air.C||0)/0.3), hot=m.v>35, fast=m.v>30;
+  marks.push({l:589.3, t:'Na D', em:true}, {l:517.3, t:'Mg I', em:true}, {l:438.4, t:'Fe I', em:true}, {l:527, t:'Fe I', em:true});
+  if(hot) marks.push({l:393.4, t:'Ca II', em:true}, {l:448.1, t:'Mg II', em:true});
+  else marks.push({l:385.9, t:'Fe I', em:true}, {l:422.7, t:'Ca I', em:true});
+  if(fast&&Or>0.1) marks.push({l:777.4, t:'O I', em:true});
+  if(fast&&Nr>0.1) marks.push({l:650, t:'N₂ 1P', em:true});
+  if(fast&&Cr>0.1) marks.push({l:483.5, t:'CO Ångström', em:true});
+  if(hot&&m.v>30) marks.push({l:656.3, t:'Hα', em:true});
+  spThroughAir(S, marks, key, X);
+  let peak=99; for(let i=0;i<=20;i++){ const a=metApparent(m, i/20, k); if(a.mag<peak) peak=a.mag; }
+  const comp=m.rho>3?'stone':m.rho<1?'fluffy cometary dust':'grain';
+  const ago=h.ago>0.05?` · went by ${h.ago.toFixed(1)} s ago`:'';
+  const big=m.he<35?' · deep enough that part of it may fall as meteorites':'';
+  return {S, Y:1, parts:[], marks, note:`A meteor ${key==='ordovician466'&&m.src==='aster'?'from the shattered L-chondrite parent body':(MET_SRC[m.src]||'')} · ${Math.round(m.v)} km/s · a ${metFmtMass(m.mass)} ${comp} about ${metFmtSize(m.diam)} across · `
+    +`glowing from ${Math.round(m.hb)} to ${Math.round(m.he)} km up, ${m.T.toFixed(1)} s · peak V ${peak.toFixed(1)}${big}${ago}`};
 }

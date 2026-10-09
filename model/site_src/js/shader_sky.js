@@ -20,6 +20,9 @@ uniform sampler2D aurTex; uniform float aurOn;
 // unit of haloAt, with their colours as linear RGB of unit luminance.
 uniform vec2 haloK; uniform vec3 haloSunLin, haloMoonLin;
 ${HALO_GLSL}
+// The Ordovician ring and the meteors (debris.js, meteors.js).
+${RING_GLSL}
+${MET_GLSL}
 ${TONE_GLSL}
 ${AUR_MIX_GLSL}
 // Naked-eye limiting magnitude against a sky of L cd/m² (color.js nakedEyeLimit).
@@ -545,6 +548,13 @@ void main(){
         skyC=lin2s3(clamp(lin, 0.0, 1.0));
       }
     }
+    if(ringV.z>0.5 && !onBody && te>-1.0){
+      float rR=ringAtG(src, sd, 1.2*fy/res.y)*extinctionAt(max(te, 0.0), mwK);
+      if(rR>rBg*0.003){
+        float rNew=rBg+rR, tBg=toneT(rBg), tNew=toneT(rNew);
+        skyC=lin2s3(clamp(s2lin3(skyC)*(tBg>0.0?(tNew/tBg)*(rBg/rNew):0.0)+ringLin*(tNew/rNew*rR), 0.0, 1.0));
+      }
+    }
     if(aurOn>0.5 && !onBody && te>-0.5) skyC=auroraMix(skyC, rBg, texture(aurTex, gl_FragCoord.xy/res)*0.001);
     if(corona>0.001 && !onBody && te>-1.0){
       // The corona around the hidden Sun: a bright inner glow falling off steeply, and fainter
@@ -613,6 +623,7 @@ void main(){
         }
       }
     }
+    if(metN>0.5 && te>-0.5) skyC=meteorsAt(skyC+metFlash, src, onBody);
     float w=max(fwidth(elevDeg),0.04);
     col=mix(gcol, skyC, smoothstep(-w,w,elevDeg));
   }

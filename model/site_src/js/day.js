@@ -163,7 +163,7 @@ const NIGHT_NATURAL=1.71e-4, NIGHT_XY=[0.310, 0.330];
 //     so their luminance is about 15% of today's airglow (band shape: a Gaussian at 450 nm, 45 nm
 //     wide, xy 0.145, 0.120).
 const NIGHT_REST_XY=[0.3265, 0.3361], AIRGLOW_XY=[0.294, 0.324], HERZBERG_XY=[0.145, 0.120], AIRGLOW_SHARE=0.5;
-const AIRGLOW_O={proterozoic22:0.3, snowball07:0.8, archean27thin:0, archean27:0, archean27vthick:0, archean38:0, hadean40:0, hadean44:0};
+const AIRGLOW_O={proterozoic22:0.3, snowball07:0.8, ordovician466:0.9, archean27thin:0, archean27:0, archean27vthick:0, archean38:0, hadean40:0, hadean44:0};
 const AIRGLOW_CO2={archean27thin:0.15, archean27:0.15, archean27vthick:0.15, archean38:0.15, hadean40:0.15, hadean44:0.15};
 // The natural night sky at the zenith outside the air (cd/m², XYZ) for epoch key.
 function nightNatural(key){
@@ -334,6 +334,11 @@ function renderDay(fast){
   }
   const addRing=(X, vz)=>{ if(!ring) return; const r=ring[Math.min(NR, Math.round(vz/90*NR))]; X[0]+=r[0]*ringK; X[1]+=r[1]*ringK; X[2]+=r[2]*ringK; };
   const night=nightRows(ep.key, NR);
+  // Debris (debris.js): the excess zodiacal light, and the Ordovician ring with the glow its light
+  // lends the air (0.027 cd/m² of sky per lux, as moonlight).
+  const ringR=ringOf(ep.key), zodiOn=zodiK(ep.key)>1, ecl=(zodiOn||ringR)?eclipticFrame(LATDEG[dLat]):null, sunDir=horizDir(sunAz, 90-sza);
+  const zodiXY=xyY2XYZ([NIGHT_REST_XY[0], NIGHT_REST_XY[1], 1]), ekD=extK(ep.key), cduD=cdPerUnit();
+  const ringLux=ringR?ringIlluminance(ringR, sunDir, ecl.pole, sunFlux, ekD):0, ringSky=ringR?xyY2XYZ([0.285, 0.300, 0.027*ringLux/cduD]):null;
   // The sky on the grid, in XYZ: the night sky, then the Sun's field, the Moon's, and the ring.
   const grid=new Float64Array(NG*3), S=DOME_TMP, slices=denseSlices(ep.key, dLat), sunF=sunVis*sunFlux;
   let Ymax=1e-30, Yhold=1e-30, Ysun=1e-30;
@@ -352,6 +357,8 @@ function renderDay(fast){
         if(mScale>0){ const f=moonSrc.fade*mScale; X0+=S[0]*f; X1+=S[1]*f; X2+=S[2]*f; }
       }
       if(rg){ X0+=rg[0]*ringK; X1+=rg[1]*ringK; X2+=rg[2]*ringK; }
+      if(zodiOn){ const el=90-vz, zl=zodiExtra(ep.key, horizDir(comp, el), ecl)*absZenith(ep.key)*(0.4+0.6*extinction(el, ekD))/cduD; X0+=zodiXY[0]*zl; X1+=zodiXY[1]*zl; X2+=zodiXY[2]*zl; }
+      if(ringSky){ X0+=ringSky[0]; X1+=ringSky[1]; X2+=ringSky[2]; }
       if(X1>Ymax) Ymax=X1;
       const o=(ir*NC+ia)*3; grid[o]=X0; grid[o+1]=X1; grid[o+2]=X2;
     }
@@ -398,9 +405,13 @@ function renderDay(fast){
     haloVR={k:new Float32Array([hs.k, hm.k]), sun:new Float32Array(hs.lin), moon:new Float32Array(hm.lin)};
   }
   const haloOn=!fast && halos.length>0;
+  // The ring, per pixel on the dome; for VR its constants.
+  const ringPw=Math.PI/180*90/R, ringOn=!fast&&!!ringR;
+  const ringVR=ringR?{R:ringR, P:ecl.pole, k:1.27e5*ringR.sunL*sunFlux*ringR.alb/(4*Math.PI)/(Yref*cdu)*absZenith(ep.key)}:null;
   if(!fast){
     if(!geo.img) geo.img=dctx.createImageData(W,H);
     const img=geo.img, px=img.data, cell=geo.px.cell, ptr=geo.px.tr, pta=geo.px.ta, C2=NC*3;
+    const rctx=ringOn?{dir:domePixelDirs(geo), v:[0, 0, 0], R:ringR, s:sunDir, P:ecl.pole, pw:ringPw, sunFlux, k:ekD, extZ:absZenith(ep.key), rCd:Yref*cdu, rgrid, NC, T:toneLUT(k, p)}:null;
     const hctx=haloOn?{dir:domePixelDirs(geo), rgrid, NC, T:toneLUT(k, p), v:[0, 0, 0], w:[0, 0, 0], L:[0, 0, 0]}:null;
     for(let y=0, j=0;y<H;y++) for(let x=0;x<W;x++,j++){
       const o=j*4, c=cell[j];
@@ -412,6 +423,7 @@ function renderDay(fast){
         const bi=(y>>1)*W2+(x>>1), b=mwB[bi];
         if(b>0){ const a=mwA[bi]; for(let q=0;q<3;q++) px[o+q]=linToByte(SRGB_LIN[Math.round(px[o+q])]*a+MW_LIN[q]*b); }
       }
+      if(ringOn) domeRingPixel(px, o, j, c, tr, ta, rctx);
       if(haloOn) domeHaloPixel(px, o, j, c, tr, ta, halos, hctx);
     }
     dctx.putImageData(img,0,0);
@@ -486,8 +498,10 @@ function renderDay(fast){
   const fullPct=r=>{ const p=r*100; return (p<10 ? p.toFixed(1) : Math.round(p))+'%'; };
   const sn=supernovaPlace(LATDEG[dLat]);
   if(!fast) drawSupernovaOnDome(sn);
-  skyNow={colgrid, nr:NR, na:NA, sza, sunAz, sunRGB, sunVis, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE+35/60, moon, corona, beads, eclipse, central, rgrid, cityUp:cityUplight(ep.key, Yref, k, p), Yref, toneK:k, toneP:p, rCd:Yref*cdu, gal:mwMap?galacticBasis(LATDEG[dLat]):null, extK:ek, stars:stars.tex, starMarks:stars.marks, starBins:stars.bins, starIdx:stars.idx, starIdxCount:stars.idxCount, sn, moonRel:mScale/MOON_SUN_FULL, mScale, sunFlux, halo:haloVR, aur:auroraState(ep.key, LATDEG[dLat], minutes, rgrid[0]*Yref*cdu), gen:++skyGen};
+  skyNow={colgrid, nr:NR, na:NA, sza, sunAz, sunRGB, sunVis, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE+35/60, moon, corona, beads, eclipse, central, rgrid, cityUp:cityUplight(ep.key, Yref, k, p), Yref, toneK:k, toneP:p, rCd:Yref*cdu, gal:mwMap?galacticBasis(LATDEG[dLat]):null, extK:ek, stars:stars.tex, starMarks:stars.marks, starBins:stars.bins, starIdx:stars.idx, starIdxCount:stars.idxCount, sn, moonRel:mScale/MOON_SUN_FULL, mScale, sunFlux, halo:haloVR, ring:ringVR, ecl, aur:auroraState(ep.key, LATDEG[dLat], minutes, rgrid[0]*Yref*cdu), gen:++skyGen};
   document.getElementById('raur').textContent=auroraReadout(skyNow.aur);
+  document.getElementById('rmet').textContent=meteorReadout();
+  metKick();
   document.getElementById('rmoon').textContent = (moon.el<-moon.radDeg ? 'below horizon' : moon.el.toFixed(1)+'°')+' · '+Math.round(moonLit(moon, sunAz, 90-sza)*100)+'% lit · '+fullPct(mScale/MOON_SUN_FULL)+' of full';
   if(vrOn) paintVR();
   if(fast) return;
@@ -502,7 +516,10 @@ function renderDay(fast){
   // readouts
   document.getElementById('hclock').textContent=clockLabel(minutes)+(dayHours()<24?` · ${dayHours()}-hour day · ${Math.round(yearDays())}-day year`:'');
   document.getElementById('relev').textContent=(90-sza).toFixed(1)+'°';
-  const sumAt=(vz,comp)=>{ const X=night[Math.min(NR, Math.round(vz/90*NR))].slice(); addField(X,sunSrc,sunVis*sunFlux,vz,comp); addField(X,moonSrc,mScale,vz,comp); addRing(X,vz); return X; };
+  const sumAt=(vz,comp)=>{ const X=night[Math.min(NR, Math.round(vz/90*NR))].slice(); addField(X,sunSrc,sunVis*sunFlux,vz,comp); addField(X,moonSrc,mScale,vz,comp); addRing(X,vz);
+    if(zodiOn){ const el=90-vz, zl=zodiExtra(ep.key, horizDir(comp, el), ecl)*absZenith(ep.key)*(0.4+0.6*extinction(el, ekD))/cduD; for(let q=0;q<3;q++) X[q]+=zodiXY[q]*zl; }
+    if(ringSky) for(let q=0;q<3;q++) X[q]+=ringSky[q];
+    return X; };
   const zX=sumAt(0, sunAz), hX=sumAt(88, sunAz+90);
   const fmt=X=>{ if(X[1]*cdu<1) return skyMagArcsec(X[1]*cdu).toFixed(1)+' mag/arcsec²'; const s=X[0]+X[1]+X[2]; const c=cct(X[0]/s,X[1]/s); return (c>800&&c<60000? c.toLocaleString()+' K':'—')+` · ${(100*X[1]/YREF).toPrecision(2)}%`; };
   document.getElementById('rzen').textContent=fmt(zX); document.getElementById('rhor').textContent=fmt(hX);

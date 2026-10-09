@@ -9,7 +9,7 @@ function mtnSnowFor(key){
   if(key==='modern'||key==='ozonehole'||key==='geminga'||key==='zetaoph') return 1;
   if(key==='modernpoll'||key==='y2100') return 0.75;
   if(key==='carbon30') return 0.35;
-  if(key==='proterozoic22') return 0.2;
+  if(key==='proterozoic22'||key==='ordovician466') return 0.2;
   return 0;
 }
 function scRad(k, r){ return (k>0.5&&k<1.5)?r*1.28:(k>1.5&&k<2.5)?r*1.12:(k>2.5&&k<3.5)?r*1.08:r; }
@@ -25,6 +25,8 @@ const ZONES={
   proterozoic22:[[20,520,'water',180],[300,720,'water',250],[100,480,'water',120]],
   snowball07:[[30,320,'ice',120],[300,520,'ice',200],[60,700,'ice',160]],
   carbon30:[[0,560,'carb',300],[70,520,'carb',230],[140,720,'carb',350],[205,560,'carb',260],[265,860,'carb',420],[325,620,'carb',270],[105,170,'swamp',55],[235,150,'swamp',45],[350,130,'swamp',40]],
+  // No land plants yet beyond mosses and crusts; shallow seas flooded the continents.
+  ordovician466:[[20,600,'water',260],[110,900,'water',380],[230,480,'water',150],[300,1400,'water',420]],
   kpg66:[[20,520,'dead',260],[300,650,'dead',300],[110,300,'water',70]],
   zetaoph:[[20,520,'wood',260],[300,650,'wood',300],[80,800,'wood',280],[110,330,'water',90],[240,500,'water',130]],
   geminga:[[20,520,'wood',260],[300,650,'wood',300],[80,800,'wood',280],[110,330,'water',90],[240,500,'water',130]],
@@ -383,6 +385,13 @@ function paintVR(){
   const hl=skyNow.halo;
   gl.uniform2fv(u.haloK, hl?hl.k:new Float32Array(2));
   if(hl){ gl.uniform3fv(u.haloSunLin, hl.sun); gl.uniform3fv(u.haloMoonLin, hl.moon); }
+  const rg=skyNow.ring;
+  gl.uniform4f(u.ringV, rg?rg.k:0, rg?(rg.R.rOut-rg.R.rIn)/(rg.R.H/RE_KM):0, rg?1:0, 0);
+  if(rg){ gl.uniform4f(u.ringU, rg.R.rIn, rg.R.rOut, rg.R.tau, 0.5*rg.R.H/RE_KM); gl.uniform3fv(u.ringP, rg.P); gl.uniform3fv(u.ringLin, RING_LIN); }
+  // Meteors and lunar flashes (meteors.js), as they are this instant.
+  const mu=metUniforms();
+  gl.uniform1f(u.metN, mu.n); gl.uniform3fv(u.metFlash, mu.flash||[0, 0, 0]);
+  if(mu.n){ gl.uniform4fv(u.metA, mu.A); gl.uniform4fv(u.metB, mu.B); gl.uniform4fv(u.metC, mu.C); }
   gl.activeTexture(gl.TEXTURE10); gl.bindTexture(gl.TEXTURE_2D, vrGL.hitInfo||vrGL.noHitInfo); gl.activeTexture(gl.TEXTURE11); gl.bindTexture(gl.TEXTURE_2D, vrGL.hitInfo?vrGL.hitNrm:vrGL.noHitNrm); gl.activeTexture(gl.TEXTURE0);
   // ensureHitTarget binds new hit textures on the active unit, which can be the sky's.
   gl.bindTexture(gl.TEXTURE_2D, tex);

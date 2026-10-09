@@ -350,8 +350,11 @@ function vrProbe(cx, cy, throughCloud){
   P.disk=P.cloud?null:(P.lit!=null?'moon':(skyNow.sunOn&&skyNow.sunVis>0.01&&sep(skyNow.sunAz, 90-skyNow.sza)<mo.sunRadDeg*DISK_SCALE?'sun':null));
   if(P.disk==='sun') P.r=sep(skyNow.sunAz, 90-skyNow.sza)/(mo.sunRadDeg*DISK_SCALE);
   // Within about 18 page pixels of a star, twice that of the supernova and its glare.
-  P.sn=P.cloud||P.disk?null:snNear(horizDir(az, el), 36*vrFov/H);
-  P.star=P.cloud||P.disk||P.sn?null:starNear(horizDir(az, el), 18*vrFov/H);
+  // A meteor (or a lunar flash) within about 18 page pixels, in front of all but the clouds.
+  P.meteor=P.cloud?null:metNearDir(d, 18*vrFov/H);
+  if(P.meteor&&P.meteor.kind!=='flash'&&P.disk) P.meteor=null;
+  P.sn=P.cloud||P.disk||P.meteor?null:snNear(horizDir(az, el), 36*vrFov/H);
+  P.star=P.cloud||P.disk||P.sn||P.meteor?null:starNear(horizDir(az, el), 18*vrFov/H);
   return P;
 }
 // A click in inspect pins the tooltip to what was under it. The sky keeps its direction; the Sun
@@ -424,7 +427,8 @@ function refreshVRTip(){
     const {sn, star, disk, lit}=P;
     let aurora=null;
     if(!star&&disk!=='sun'&&skyNow.aur&&skyNow.aur.on){ aurora=auroraProbe(gl, vrGL.aurStore||(vrGL.aurStore={}), skyNow.aur, horizDir(az, el)); vrRestoreGL(gl); }
-    if(sn) spectrumHTML(box, sn.el, sn.az, {sn});
+    if(P.meteor) spectrumHTML(box, P.meteor.el, P.meteor.az, {meteor:P.meteor});
+    else if(sn) spectrumHTML(box, sn.el, sn.az, {sn});
     else if(star) spectrumHTML(box, star.el, star.az, {star});
     else spectrumHTML(box, el, az, {disk, aurora, cloud:P.cloudPx, lit, r:P.r});
   }

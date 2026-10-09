@@ -20,7 +20,7 @@ LIMB = json.loads((HERE / 'limb_all.json').read_text(encoding='utf-8'))
 # The epochs that keep today's air (Year 2100, the supernovae) reuse the modern figures.
 SAME_AIR = {'y2100'} | {key for key, _, _ in gr.SUPERNOVA_EPOCHS}
 order = [k for k in gr.order if k not in SAME_AIR]
-ages = {'hadean44':'4.4 Ga','hadean40':'4.0 Ga','archean38':'3.8 Ga','archean27thin':'2.7 Ga\nthin haze','archean27':'2.7 Ga\nthick haze','archean27vthick':'2.7 Ga\nv. thick','proterozoic22':'2.2 Ga','snowball07':'700 Ma','carbon30':'300 Ma','kpg66':'66 Ma','volcanic':'1815','ozonehole':'1980–2000','modern':'today','modernpoll':'today\npolluted'}
+ages = {'hadean44':'4.4 Ga','hadean40':'4.0 Ga','archean38':'3.8 Ga','archean27thin':'2.7 Ga\nthin haze','archean27':'2.7 Ga\nthick haze','archean27vthick':'2.7 Ga\nv. thick','proterozoic22':'2.2 Ga','snowball07':'700 Ma','ordovician466':'466 Ma','carbon30':'300 Ma','kpg66':'66 Ma','volcanic':'1815','ozonehole':'1980–2000','modern':'today','modernpoll':'today\npolluted'}
 MOD = byk['modern']
 Yz = MOD['lat']['Equator']['zenith']['Y']; Yss = MOD['sunset']['solar_horizon']['Y']; Ytw = MOD['twilight']['above_sun']['Y']
 

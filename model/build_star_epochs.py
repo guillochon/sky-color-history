@@ -139,7 +139,7 @@ for key, years in EPOCHS.items():
 # known.
 # Before the impact winter no catalogue star can be traced near the Sun, so those skies are all
 # stand-ins (see below). The three 2.7 Ga epochs share one sky.
-ORBIT_EPOCHS = {'kpg66': 66e6, 'carbon30': 300e6, 'snowball07': 700e6, 'proterozoic22': 2.2e9,
+ORBIT_EPOCHS = {'kpg66': 66e6, 'carbon30': 300e6, 'ordovician466': 466e6, 'snowball07': 700e6, 'proterozoic22': 2.2e9,
                 'archean27thin': 2.7e9, 'archean27': 2.7e9, 'archean27vthick': 2.7e9,
                 'archean38': 3.8e9, 'hadean40': 4.0e9, 'hadean44': 4.4e9}
 TRACE_MAX = 1e8                       # trace catalogue stars only this far back

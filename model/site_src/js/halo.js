@@ -6,6 +6,7 @@
 const HALO_STRENGTH={
   snowball07:{Equator:0.8, 'Mid-latitude':1, Polar:1},
   proterozoic22:{Polar:0.5},   // the tail of the Huronian glaciations
+  ordovician466:{Polar:0.4},  // the cooling that led to the Late Ordovician ice age
   carbon30:{Polar:0.6},        // the Late Paleozoic Ice Age's Gondwana ice sheets
   zetaoph:{Polar:0.7}, geminga:{Polar:0.8, 'Mid-latitude':0.25}, // Pleistocene; 342 ka is a glacial maximum
   volcanic:{Polar:0.7}, ozonehole:{Polar:1}, modern:{Polar:0.6}, modernpoll:{Polar:0.3}, y2100:{Polar:0.4},

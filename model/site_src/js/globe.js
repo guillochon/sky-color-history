@@ -48,6 +48,7 @@ const WIKI={
   archean27vthick:['Neoarchean','https://en.wikipedia.org/wiki/Neoarchean'],
   proterozoic22:['Paleoproterozoic','https://en.wikipedia.org/wiki/Paleoproterozoic'],
   snowball07:['Snowball Earth','https://en.wikipedia.org/wiki/Snowball_Earth'],
+  ordovician466:['Ordovician meteor event','https://en.wikipedia.org/wiki/Ordovician_meteor_event'],
   carbon30:['Carboniferous','https://en.wikipedia.org/wiki/Carboniferous'],
   kpg66:['Cretaceous–Paleogene extinction event','https://en.wikipedia.org/wiki/Cretaceous–Paleogene_extinction_event'],
   zetaoph:['Zeta Ophiuchi','https://en.wikipedia.org/wiki/Zeta_Ophiuchi'],
