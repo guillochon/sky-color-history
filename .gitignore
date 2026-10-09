@@ -15,3 +15,4 @@ site/*.gz
 site/day/*.gz
 .venv/
 site/main.pdf
+model/data/

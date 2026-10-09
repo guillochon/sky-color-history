@@ -14,7 +14,7 @@ mostly formed nearby since. θ Col, whose closest approach rests on a 0.4 mas/yr
 is traced again with Gaia DR3 astrometry (Gaia Collaboration, Vallenari et al. 2023).
 
 Input is a local download of XHIP (Anderson & Francis 2012, VizieR V/137D), saved as
-xhip_err.tsv in the temp directory, from
+xhip_err.tsv in model/data/ (fetch_catalogs.py), from
 https://vizier.cds.unistra.fr/viz-bin/asu-tsv?-source=V/137D/XHIP&-out=_RAJ2000,_DEJ2000,HIP,HD,Vmag,Plx,e_Plx,pmRA,e_pmRA,pmDE,e_pmDE,RV,e_RV,SpType&-out.max=unlimited
 Writes encounters.json, which gen_report.py turns into the report's table. Takes a few minutes.
 """
@@ -25,7 +25,7 @@ from pathlib import Path
 import sys
 import numpy as np
 
-from bsc import TEMP
+from bsc import DATA
 from galaxy import PC_MYR, R0, Z0, SUN_UVW, GAL, accel
 
 sys.stdout.reconfigure(encoding='utf-8')
@@ -42,7 +42,7 @@ GAIA = {29034: (4.1731, 0.0694, 0.391, 0.077, 0.121, 0.101)}   # plx, e, pmra, e
 
 num = lambda s: float(s) if s.strip() else np.nan
 rows = []
-for line in (TEMP / 'xhip_err.tsv').read_text(encoding='utf-8').splitlines():
+for line in (DATA / 'xhip_err.tsv').read_text(encoding='utf-8').splitlines():
     c = line.split('\t')
     if line.startswith('#') or len(c) < 14 or not c[2].strip().isdigit():
         continue

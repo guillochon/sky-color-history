@@ -1,16 +1,17 @@
 """Reading the Yale Bright Star Catalogue (bsc5.json), shared by the star scripts.
 
-The catalogue and the XHIP tables are local downloads kept in the temp folder.
+The catalogue, the XHIP tables and Stellarium's figures are downloads kept in model/data/
+(not in git); run fetch_catalogs.py to get them.
 """
 import json
 import re
 from pathlib import Path
 
-TEMP = Path.home() / 'AppData' / 'Local' / 'Temp'
+DATA = Path(__file__).resolve().parent / 'data'
 
 
 def load_bsc():
-    return json.loads((TEMP / 'bsc5.json').read_text(encoding='utf-8'))
+    return json.loads((DATA / 'bsc5.json').read_text(encoding='utf-8'))
 
 
 def num(value, default=0.0):

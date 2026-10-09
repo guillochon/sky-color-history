@@ -12,7 +12,7 @@ magnitude at the epoch follows from the change in distance. Every catalogue star
 not just today's thousand brightest, because a star that was closer then may have been
 brighter. Writes site_src/js/stars_epochs.js in the same row format as stars_catalog.js.
 
-Inputs are local downloads: bsc5.json (as for build_stars.py) and xhip.tsv, from
+Inputs are downloads in model/data/ (fetch_catalogs.py): bsc5.json and xhip.tsv, from
 https://vizier.cds.unistra.fr/viz-bin/asu-tsv?-source=V/137D/XHIP&-out=HIP,HD,Plx,e_Plx,pmRA,pmDE,RV&-out.max=unlimited
 """
 import json
@@ -22,14 +22,14 @@ from pathlib import Path
 
 import numpy as np
 
-from bsc import TEMP, load_bsc, num, star_name, parse_ra, parse_dec
+from bsc import DATA, load_bsc, num, star_name, parse_ra, parse_dec
 from galaxy import PC_MYR, R0, Z0, SUN_UVW, GAL, accel
 
 EPOCHS = {'zetaoph': 1.78e6, 'geminga': 3.42e5}   # years before J2000
 KMS_YR_TO_PC = 1.0227e-6                           # pc travelled per year at 1 km/s
 rows = load_bsc()
 xhip, hip_hd = {}, {}
-for line in (TEMP / 'xhip.tsv').read_text(encoding="utf-8").splitlines():
+for line in (DATA / 'xhip.tsv').read_text(encoding="utf-8").splitlines():
     f = line.split('\t')
     if len(f) < 7 or not f[1].strip().isdigit():
         continue
@@ -261,7 +261,7 @@ print('wrote', path)
 # figures have moved too far to be recognised gets none: the median change of a line's length
 # is printed for each, and the page draws only the epochs in CON_EPOCHS.
 by_hd = {s['hd']: s for s in stars if s['hd']}
-sky = json.loads((TEMP / 'stelcon' / 'index.json').read_text(encoding='utf-8'))
+sky = json.loads((DATA / 'stelcon' / 'index.json').read_text(encoding='utf-8'))
 verts, vindex, figures, dropped = [], {}, [], 0
 for con in sky['constellations']:
     chains = []
