@@ -4,13 +4,32 @@ const MOON_MA={kpg66:66, carbon30:300, ordovician466:466, snowball07:700, proter
   archean27thin:2700, archean27:2700, archean27vthick:2700, archean38:3800, hadean40:4000, hadean44:4400};
 // The dark maria are basalt that flooded the great basins from about 3.9 Ga, most of it by 3.3 Ga
 // (Hiesinger et al. 2011, GSA Special Paper 477): before then the near side was bright highland
-// crust from limb to limb. maria is the share of today's darkening, taken as rising evenly over
-// those 600 Myr. Tycho is 108 Myr old (Apollo 17 samples of its ray; Arvidson et al. 1976), so its
-// rays, the brightest on the full Moon, are missing before it.
+// crust from limb to limb. They did not darken together. Each mare here has a date its floor
+// began to go dark: a little before its oldest dated basalt, from the Apollo and Luna samples
+// (Apollo 11 low-K basalts to 3.88 Ga, Apollo 17 3.7–3.8 Ga, Luna 16 and 24 3.3–3.4 Ga) and the
+// crater-count ages of its oldest surface units, since the first flows are buried under later
+// ones. Its floor then darkens over 150 Myr, as flood basalts spread fast. So at 3.8 Ga
+// Tranquillitatis is two-thirds dark and Serenitatis and Nectaris a third, while Imbrium, only
+// 50–100 Myr old, is still a bright basin and Procellarum has not begun. [name, selenographic
+// latitude and longitude, radius (degrees), onset (Ga)]; dark ground nearer none is Procellarum's.
+const MARIA=[['Tranquillitatis', 8.5, 31.4, 13, 3.90], ['Serenitatis', 28, 17.5, 10, 3.85], ['Nectaris', -15.2, 35.5, 5, 3.85],
+  ['Fecunditatis', -7.8, 51.3, 10, 3.80], ['Crisium', 17, 59.1, 9, 3.80], ['Australe', -38.9, 93, 10, 3.90], ['Marginis', 13.3, 86.1, 6, 3.80],
+  ['Smythii', 1.3, 87.5, 6, 3.85], ['Vaporum', 13.3, 3.6, 4, 3.75], ['Nubium', -21.3, -16.6, 11, 3.75], ['Humorum', -24.4, -38.6, 7, 3.75],
+  ['Cognitum', -10, -23, 5, 3.70], ['Imbrium', 32.8, -15.6, 18, 3.70], ['Frigoris', 56, 1.4, 10, 3.70], ['Insularum', 7.5, -30.9, 8, 3.65],
+  ['Procellarum', 18, -57, 20, 3.60]];
+const MARE_RAMP=150, MARE_DEFAULT=MARIA.length-1;
+function mareVec(lat, lon){ return [cosd(lat)*sind(lon), sind(lat), cosd(lat)*cosd(lon)]; }
+// Share of today's darkening of each mare at ma (Ma).
+function mareShares(ma){ return MARIA.map(m=>Math.max(0, Math.min(1, (m[4]*1000-ma)/MARE_RAMP))); }
+// Tycho is 108 Myr old (Apollo 17 samples of its ray; Arvidson et al. 1976), so its rays, the
+// brightest on the full Moon, are missing before it.
 function moonFace(key){
   const ma=MOON_MA[key]||0;
-  return {maria:Math.max(0, Math.min(1, (3900-ma)/600)), tycho:ma<108};
+  return {ma, shares:mareShares(ma), tycho:ma<108};
 }
+// The photograph's disk: centre and radius in its pixels (1024 across). North is down in it, and
+// the texture is flipped when drawn.
+const MOON_PHOTO_R=0.98;
 // The photograph remade for a face, kept per face. Sizes are in the photograph's pixels (1024
 // across). A pixel's brightness is pulled to that of the highlands (MOON_HL, the 85th percentile
 // of the photograph's brightness 20 pixels across) at the scale of a few pixels, which floods the
@@ -20,8 +39,8 @@ function moonFace(key){
 // pixels to the cell.
 const MOON_HL=0.755, moonFaces=new Map();
 function moonSurface(key){
-  const f=moonFace(key), id=f.maria.toFixed(2)+'|'+f.tycho;
-  if(f.maria===1&&f.tycho||!moonReady) return moonImg;
+  const f=moonFace(key), id=f.shares.map(v=>v.toFixed(2)).join(',')+'|'+f.tycho, dated=f.shares.some(v=>v<1);
+  if(!dated&&f.tycho||!moonReady) return moonImg;
   let c=moonFaces.get(id); if(c) return c;
   const W=moonImg.naturalWidth, H=moonImg.naturalHeight, N=W*H, sc=W/1024, q=4, w=Math.ceil(W/q), h=Math.ceil(H/q), n=w*h;
   c=document.createElement('canvas'); c.width=W; c.height=H;
@@ -99,12 +118,26 @@ function moonSurface(key){
     for(let p=0;p<N;p++) L[p]=0.2126*rgb[p*3]+0.7152*rgb[p*3+1]+0.0722*rgb[p*3+2];
     Lc=coarse(L);
   }
-  if(f.maria<1){
+  if(dated){
+    // Each cell takes the share of the mare nearest it on the sphere, in units of that mare's
+    // radius (Procellarum's beyond 1.6 of them), softened over about 12 pixels. Bright ground is
+    // flattened as far as the least-flooded mare is: the rays of today's young craters go too.
+    const sh=new Float32Array(n), cv=MARIA.map(m=>mareVec(m[1], m[2])), c0=512*sc, R=512*sc*MOON_PHOTO_R;
+    for(let j=0;j<h;j++) for(let i=0;i<w;i++){
+      const X=((i+0.5)*q-c0)/R, Y=((j+0.5)*q-c0)/R, Z=Math.sqrt(Math.max(0, 1-X*X-Y*Y));
+      let best=1.6, m=MARE_DEFAULT;
+      for(let k=0;k<MARIA.length;k++){
+        const v=cv[k], d=Math.acos(Math.max(-1, Math.min(1, X*v[0]+Y*v[1]+Z*v[2])))*180/Math.PI/MARIA[k][3];
+        if(d<best){ best=d; m=k; }
+      }
+      sh[j*w+i]=f.shares[m];
+    }
     // The flooded basins also take the highlands' warmer, greyer colour.
-    const Bs=up(blur(Lc, 6)), Bc=up(blur(Lc, 20)), e=1-f.maria;
+    const S=up(blur(sh, 12)), Bs=up(blur(Lc, 6)), Bc=up(blur(Lc, 20)), e0=1-Math.min(...f.shares);
     for(let p=0;p<N;p++){
-      scale(p, Math.pow(Math.max(0.8, Math.min(3, MOON_HL/Math.max(Bs[p], 1e-3))), e));
-      const k=0.8*e*Math.max(0, Math.min(1, (MOON_HL-Bc[p])/(MOON_HL-0.4)));
+      const g=Math.max(0.8, Math.min(3, MOON_HL/Math.max(Bs[p], 1e-3))), e=g>1?1-S[p]:e0;
+      scale(p, Math.pow(g, e));
+      const k=0.8*(1-S[p])*Math.max(0, Math.min(1, (MOON_HL-Bc[p])/(MOON_HL-0.4)));
       const y=0.2126*rgb[p*3]+0.7152*rgb[p*3+1]+0.0722*rgb[p*3+2];
       rgb[p*3]+=(1.03*y-rgb[p*3])*k; rgb[p*3+1]+=(y-rgb[p*3+1])*k; rgb[p*3+2]+=(0.95*y-rgb[p*3+2])*k;
     }
@@ -119,23 +152,26 @@ function warmMoonFaces(){
   const keys=['carbon30', 'archean38', 'hadean44'], next=()=>{ const k=keys.shift(); if(!k) return; moonSurface(k); (window.requestIdleCallback||setTimeout)(next); };
   (window.requestIdleCallback||setTimeout)(next);
 }
-// Mare volcanism, from about 3.9 to 3.1 Ga: fissures feeding the flood basalts fountained lava at
-// about 1,400 K, as bright per square kilometre as the sunlit Moon and far redder. A few to a
-// hundred square kilometres of it glowing at once is a point of magnitude +4 to −1 from 40 Earth
-// radii (the page draws +3 to −1, as fainter ones are lost in the moonlit sky beside the Moon), on the night side a red star on the Moon. Each eruption lasted months; years without one
-// were common, so this is a sky with eruptions under way: one to three each lunation, at mare
-// sites, changing at full Moon when the night side is out of sight.
-const LAVA_SITES=[[-0.77,-0.19],[-0.55,0.16],[0.58,-0.05],[-0.38,-0.38],[-0.81,0.09],[-0.20,0.25],[-0.19,-0.48],[0.33,-0.48],[0.83,-0.02],
-  [0.16,-0.23],[-0.50,-0.56],[-0.53,0.42],[0.55,-0.27],[-0.16,-0.09],[-0.31,-0.69],[0.34,-0.11],[-0.69,-0.45],[-0.56,-0.27]];
+// Mare volcanism: fissures feeding the flood basalts fountained lava at about 1,400 K, as bright
+// per square kilometre as the sunlit Moon and far redder. A few to a hundred square kilometres of
+// it glowing at once is a point of magnitude +4 to −1 from 40 Earth radii (the page draws +3 to
+// −1, as fainter ones are lost in the moonlit sky beside the Moon), on the night side a red star
+// on the Moon. Each eruption lasted months; years without one were common, so this is a sky with
+// eruptions under way: one to three each lunation, changing at full Moon when the night side is
+// out of sight, in the maria then filling (from 50 Myr before a mare's onset to 500 Myr after),
+// the larger ones more often.
 function lunarLava(key){
-  const ma=MOON_MA[key]||0;
-  if(ma<3100||ma>3900) return [];
+  const ma=MOON_MA[key]||0, live=MARIA.filter(m=>ma<=m[4]*1000+50&&ma>=m[4]*1000-500);
+  if(!live.length) return [];
   const k=Math.floor((astroDay()-DN_NEW0)/synodic()+0.5), rnd=mulberry32(metHash(key+'|lava|'+k)), out=[];
-  const n=1+Math.floor(rnd()*3), dm=5*Math.log10((MOON_RE[key]||40)/40);
+  const n=1+Math.floor(rnd()*3), dm=5*Math.log10((MOON_RE[key]||40)/40), tot=live.reduce((a, m)=>a+m[3]*m[3], 0);
   for(let i=0;i<n;i++){
-    const s=LAVA_SITES[Math.floor(rnd()*LAVA_SITES.length)];
-    // Within a site the vents wander a little; the brightness is for the Moon at 40 Earth radii.
-    out.push({id:key+'|lava|'+k+'|'+i, x:s[0]+0.06*(rnd()-0.5), y:s[1]+0.06*(rnd()-0.5), mag:3-4*rnd()+dm, temp:1300+250*rnd(), lava:true});
+    let u=rnd()*tot, m=live[0]; for(const c of live){ u-=c[3]*c[3]; if(u<=0){ m=c; break; } }
+    // A vent within 0.6 of the mare's radius of its centre, on the near side; the brightness is
+    // for the Moon at 40 Earth radii. On the disk (moonBasis east and north), x is K·v₀ and y −K·v₁.
+    const a=2*Math.PI*rnd(), r=0.6*m[3]*Math.sqrt(rnd()), v=mareVec(m[1]+r*Math.sin(a), m[2]+r*Math.cos(a)/Math.max(0.2, cosd(m[1])));
+    if(v[2]<0.2) continue;
+    out.push({id:key+'|lava|'+k+'|'+i, x:MOON_PHOTO_R*v[0], y:-MOON_PHOTO_R*v[1], mag:3-4*rnd()+dm, temp:1300+250*rnd(), lava:true, mare:m[0]});
   }
   return out;
 }

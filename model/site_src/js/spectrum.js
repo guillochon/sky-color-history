@@ -561,7 +561,7 @@ function meteorSpectrumTip(h){
   if(h.kind==='lava'){
     const S=spPlanck(h.f.temp), marks=[];
     spThroughAir(S, marks, key, X);
-    return {S, Y:1, parts:[], marks, note:`Lava erupting on the Moon’s night side · basalt fountaining from a fissure at about ${Math.round(h.f.temp/50)*50} K, as the maria were flooded · V ${h.mag.toFixed(1)}`};
+    return {S, Y:1, parts:[], marks, note:`Lava erupting in ${h.f.mare==='Procellarum'?'Oceanus':'Mare'} ${h.f.mare}, on the Moon’s night side · basalt fountaining from a fissure at about ${Math.round(h.f.temp/50)*50} K as the mare floods · V ${h.mag.toFixed(1)}`};
   }
   if(h.kind==='flash'){
     const f=h.f, S=spPlanck(f.temp), na=spLines([[589.0, 1], [589.6, 0.5]]), y=spY(S)||1;
