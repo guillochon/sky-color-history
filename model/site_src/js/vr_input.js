@@ -454,5 +454,5 @@ function followVRPin(){
   if(!at){ hideVRTip(); return; }
   if(document.getElementById('vrtip').style.display==='none') refreshVRTip(); else placeVRTip(at[0], at[1]);
 }
-// Apparent altitude (degrees) to true (Bennett 1982), as the sky shader's trueAlt.
-function trueAltDeg(a){ return a>80?a:a-1/Math.tan((a+7.31/(a+4.4))*Math.PI/180)/60; }
+// Apparent altitude (degrees) to true (Bennett 1982, times refK), as the sky shader's trueAlt.
+function trueAltDeg(a){ return a>80?a:a-refK()/Math.tan((a+7.31/(a+4.4))*Math.PI/180)/60; }

@@ -286,6 +286,17 @@ function paintVR(){
     gl.uniform3fv(u.galX, skyNow.gal[0]); gl.uniform3fv(u.galY, skyNow.gal[1]); gl.uniform3fv(u.galZ, skyNow.gal[2]);
   }
   gl.uniform4fv(u.beads, skyNow.beads||new Float32Array(24));
+  // The setting Sun (sunset.js): the epoch's bands, the light at the disk's middle, the day's layers.
+  const sb=EP[dIdx].sun, rd=skyNow.moon.sunRadDeg*DISK_SCALE, sl=sunsetLayers(rd);
+  // Each channel's gain keeps sunCol at the disk's middle. It is held to at least the brightest
+  // channel's, so a colour the display curve has dropped from sunCol (the blue at sunset) still
+  // shows where it is all that is left: a blue flash.
+  const app=apparentEl(90-skyNow.sza), off=Math.min(...sunTauAt(app));
+  const sCen=sunBandsAt(app, off), sLin=skyNow.sunRGB.map(v=>SRGB_LIN[Math.round(v)]);
+  const gAll=Math.max(...sLin)/Math.max(...sCen, 1e-30);
+  gl.uniform1f(u.refK, sb.k); gl.uniform1f(u.sunOff, off); gl.uniform4fv(u.sunTau, sb.t.map(t=>t-off)); gl.uniform3fv(u.sunW, sb.w);
+  gl.uniform3fv(u.sunG, sCen.map((v, q)=>Math.max(gAll, v>0?sLin[q]/v:0)));
+  gl.uniform4fv(u.sunLay, sl.lay); gl.uniform4fv(u.sunMir, sl.mir);
   // The Sun's light on the ground and the ground's colour, for the sky and cloud passes.
   const sunMu=Math.max(0, Math.sin(apparentEl(90-skyNow.sza)*Math.PI/180))*(skyNow.sunVis==null?1:skyNow.sunVis);
   const sunCol=new Float32Array(skyNow.sunRGB.map(v=>v/255)), ground=groundRGB();

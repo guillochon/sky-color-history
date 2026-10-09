@@ -20,6 +20,7 @@ for key in SAME_AIR:
     LIMB.setdefault(key, 'modern')
 # The air's make-up by atoms (O, N, C) and its O2 share, for the meteors' spectra (meteors.js).
 import epochs as _ep
+import skymodel as sm
 def air_atoms(key):
     gas = _ep.BY_KEY.get(key, _ep.BY_KEY['modern'])['gas']
     n = dict(O=2*gas.get('O2', 0)+2*gas.get('CO2', 0)+gas.get('H2O', 0), N=2*gas.get('N2', 0), C=gas.get('CO2', 0)+gas.get('CH4', 0))
@@ -27,10 +28,45 @@ def air_atoms(key):
     out = {a: round(v/tot, 4) for a, v in n.items()}
     out['O2'] = round(gas.get('O2', 0)/sum(gas.values()), 4)
     return out
+# The Sun's disk near the horizon (sunset.js, shader_sky.js sunDiskAt). The disk is drawn as
+# twenty images, one per 20 nm band from 375 nm, each refracted by its own amount and dimmed by
+# its own extinction, so the flash at the top of a setting Sun is whatever colour the epoch's air
+# lets through last.
+#   k  the refraction, as a multiple of today's: the surface refractivity of the epoch's gases at
+#      today's temperature (STP values at 550 nm, (n-1)·1e6: N2 298, O2 271, Ar 281, CO2 449,
+#      CH4 444, H2O 256), held to 3. Past about 4 a horizontal ray bends faster than the ground
+#      curves and is trapped; the 30-bar Hadean is far past that, but its Sun is gone in the
+#      Rayleigh scattering well before the horizon.
+#   w  each band's light in linear sRGB, above the air.
+#   t  each band's optical depth (a band mean, weighted by its light) along a straight ray at the
+#      apparent altitudes SUN_APP, twenty bands per altitude, through the mid-latitude air.
+SUN_APP = [0, 0.3, 0.7, 1.2, 2, 3, 5, 8, 14, 30.0]
+REFRAC = {'N2': 298, 'O2': 271, 'Ar': 281, 'CO2': 449, 'CH4': 444, 'H2O': 256}
+def sun_bands(key):
+    e = _ep.BY_KEY.get(key, _ep.BY_KEY['modern'])
+    k = sum(p*REFRAC[g] for g, p in e['gas'].items())/(0.78*298+0.21*271+0.01*281)
+    atm = _ep.build(e, 0.15)
+    w, t = [], []
+    lam_w = atm.S0*(sm.XB+sm.YB+sm.ZB)
+    for b in range(20):
+        sl = slice(2*b, 2*b+2)
+        XYZ = np.array([np.sum(atm.S0[sl]*c[sl]) for c in (sm.XB, sm.YB, sm.ZB)])*10.0
+        w += [float('%.4g' % v) for v in sm.M_XYZ2RGB @ XYZ]
+    for a in SUN_APP:
+        mu, r0 = np.sin(np.radians(a)), sm.R_E
+        smax = -r0*mu+np.sqrt((r0*mu)**2+(r0+120)**2-r0**2)
+        s = np.concatenate([[0], np.geomspace(1e-3, smax, 3000)])
+        h = np.sqrt(r0**2+s**2+2*r0*s*mu)-r0
+        tau = sum(c.tau*np.trapezoid(c.profile(h), s) for c in atm.comps)
+        for b in range(20):
+            sl = slice(2*b, 2*b+2)
+            T = np.sum(lam_w[sl]*np.exp(-tau[sl]))/np.sum(lam_w[sl])
+            t.append(float('%.4g' % (-np.log(max(T, 1e-300)))))
+    return dict(k=round(min(k, 3.0), 3), w=w, t=t)
 EP = []
 for k in order:
     r = byk[k]
-    EP.append(dict(key=k, name=r['name'], sub=r['sub'].replace('tau(550nm)','τ(550 nm)'), age=ages[k], short=short[k], prose=PROSE[k], air=air_atoms(k),
+    EP.append(dict(key=k, name=r['name'], sub=r['sub'].replace('tau(550nm)','τ(550 nm)'), age=ages[k], short=short[k], prose=PROSE[k], air=air_atoms(k), sun=sun_bands(k),
                    lat={L: dict(z=[v['zenith']['x'], v['zenith']['y'], v['zenith']['Y']], h=[v['horizon']['x'], v['horizon']['y'], v['horizon']['Y']],
                                 zc=int(v['zenith']['cct']), hc=int(v['horizon']['cct'])) for L, v in r['lat'].items()},
                    limb=LIMB[k]))
@@ -96,6 +132,7 @@ PARTS = [
     'js/globe.js',
     'js/day.js',
     'js/moon.js',
+    'js/sunset.js',
     'js/calendar.js',
     'js/stars_catalog.js',
     'js/stars_epochs.js',

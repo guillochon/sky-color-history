@@ -24,8 +24,9 @@ function sunLimbRGB(rgb, r){
   const lin=rgb.map(v=>SRGB_LIN[Math.round(v)]), c=lin.map((v, i)=>v*SUN_LD_C[i]), k=Math.max(...lin)/Math.max(...c, 1e-9), mu=limbMu(r);
   return c.map((v, i)=>linToByte(v*k*Math.pow(mu, SUN_LD[i])));
 }
-// Sæmundsson 1986: true altitude (degrees) to apparent altitude. Matches Bennett in the shader.
-function apparentEl(h){ if(h>80) return h; const u=h+10.3/(h+5.11); if(u<0.25) return h; return h+(1.02/Math.tan(u*Math.PI/180))/60; }
+// Sæmundsson 1986: true altitude (degrees) to apparent altitude, scaled by the epoch's refraction
+// (sunset.js refK). Matches Bennett in the shader.
+function apparentEl(h){ if(h>80) return h; const u=h+10.3/(h+5.11); if(u<0.25) return h; return h+refK()*(1.02/Math.tan(u*Math.PI/180))/60; }
 // Mean Earth-Moon distance in Earth radii. Younger than 3.2 Ga the values are
 // interpolated from Farhat, Auclair-Desrotour, Boué & Laskar 2022, A&A 665, L1,
 // Table 2 (and the Williams Elatina point in Table 3). 3.2 Ga is 70% of the

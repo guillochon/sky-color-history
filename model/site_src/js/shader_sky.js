@@ -9,6 +9,8 @@ uniform float yaw,pitch,fov,sunAz,sunEl,sunRad,sunOn,nr,na,sunMu,showScn,mtnSnow
 uniform float moonAz,moonEl,moonRad,moonOn,latRad,starPx,cloudCov,cloudScale,cloudDrift,cloudOn,clockH,snowCover,waterT,snOn;
 uniform vec3 snDir,snCol,snLight,mlDir,mlLight;
 uniform vec3 sunCol,ground,eye;
+// The setting Sun (sunDiskAt).
+uniform float refK, sunOff; uniform vec4 sunTau[50]; uniform vec3 sunW[20]; uniform vec3 sunG; uniform vec4 sunLay[4]; uniform vec4 sunMir;
 uniform float corona;
 uniform sampler2D mwTex;
 uniform vec4 toneU; // display curve: k, p, cap, cd/m² per unit r (color.js toneT)
@@ -119,15 +121,57 @@ vec2 roadAt(vec2 p, float foot){
   return vec2(d, line);
 }
 float massifRad(float R, float volc){ return volc>1.5?R*1.08:R*mix(1.28, 1.12, volc); }
-float apparentEl(float h){ // Saemundsson 1986, true altitude (deg) to apparent
+float apparentEl(float h){ // Saemundsson 1986, true altitude (deg) to apparent, times the epoch's refK
   if(h>80.0) return h;
   float u=h+10.3/(h+5.11);
   if(u<0.25) return h;
-  return h+(1.02/tan(u*0.01745329252))/60.0;
+  return h+refK*(1.02/tan(u*0.01745329252))/60.0;
 }
-float trueAlt(float app){ // Bennett 1982, apparent altitude (deg) to true
-  if(app>80.0) return app;
-  return app-(1.0/tan((app+7.31/(app+4.4))*0.01745329252))/60.0;
+float bennett(float app){ // Bennett 1982: today's refraction (deg) at apparent altitude app
+  return app>80.0?0.0:(1.0/tan((app+7.31/(app+4.4))*0.01745329252))/60.0;
+}
+float trueAlt(float app){ return app-refK*bennett(app); } // apparent altitude (deg) to true
+// The setting Sun (sunset.js): twenty images, one per 20 nm band, each bent by its own amount
+// (SUN_DISP, enlarged by dispX) and dimmed by its own optical depth along the ray (sunTau, twenty
+// bands at each of the apparent altitudes SUN_APPS, less sunOff, four to a vec4). The day's inversion layers (sunLay) step
+// the true altitude a ray reaches and darken the rays trapped along them; below an inferior
+// mirage's mirror line (sunMir) the rays come up off the warm surface layer, so the disk there
+// is an inverted, squeezed image of the rays above. sunG takes band light to linear sRGB, so the
+// disk's middle is sunCol. xyz is the band light reaching this ray, w its
+// fraction of the disk's radius in the nearest image.
+const float SUN_DISP[20]=float[20](${SUN_DISP.join(', ')});
+const float SUN_APPS[10]=float[10](${SUN_APP.map(v=>v.toFixed(1)).join(', ')});
+vec4 sunDiskAt(float comp, float app, vec3 sd, float rd){
+  float ap=app+sunMir.w*(0.6*sin(comp*1432.4+waterT*2.1)+0.4*sin(comp*3610.0-waterT*3.3))*exp(-max(app, 0.0)/rd);
+  float extra=0.0;
+  if(sunMir.x>0.0 && ap<sunMir.x){ ap=sunMir.x+(sunMir.x-ap)*sunMir.y; extra=sunMir.z; }
+  float bend=refK*bennett(ap);
+  for(int i=0;i<4;i++){
+    vec4 L=sunLay[i];
+    if(L.y<=0.0) continue;
+    float w=max(L.y, tan(fov*0.5)/res.y*57.2957795); // at least a pixel thick
+    bend+=L.z*smoothstep(L.x-w, L.x+w, ap);
+    extra+=L.w*exp(-pow((app-L.x)/w, 2.0));
+  }
+  float dispX=${DISK_SCALE.toFixed(1)}*(1.0+5.0*exp(-max(ap, 0.0)/0.6)), px=2.0*tan(fov*0.5)/res.y;
+  float a=clamp(app, 0.0, 30.0), f; int i=0;
+  for(int k=1;k<9;k++) if(a>SUN_APPS[k]) i=k;
+  f=(a-SUN_APPS[i])/(SUN_APPS[i+1]-SUN_APPS[i]);
+  vec3 P=vec3(0.0); float r=2.0;
+  for(int b=0;b<20;b++){
+    float te=(ap-(1.0+dispX*(SUN_DISP[b]-1.0))*bend)*0.01745329252, ct=cos(te);
+    float d=acos(clamp(dot(vec3(sin(comp)*ct, cos(comp)*ct, sin(te)), sd), -1.0, 1.0));
+    // Each image's edge is spread over the gap to the next band's (or a pixel), so the rim is a
+    // gradient rather than ten steps.
+    float gap=max(dispX*abs(SUN_DISP[b]-SUN_DISP[min(b+1, 19)])*bend*0.01745329252, px);
+    float cov=clamp(0.5+(sunRad-d)/gap, 0.0, 1.0);
+    if(cov<=0.0) continue;
+    int k0=i*20+b, k1=k0+20;
+    float t=mix(sunTau[k0/4][k0%4], sunTau[k1/4][k1%4], f);
+    P+=sunW[b]*exp(-t-(t+sunOff)*extra)*cov;
+    r=min(r, d/sunRad);
+  }
+  return vec4(P, r);
 }
 int starCubeCell(vec3 d){
   float ax=abs(d.x), ay=abs(d.y), az=abs(d.z);
@@ -471,15 +515,33 @@ void main(){
     float rBg=pow(10.0, skyT.a*${LOGR_SPAN.toFixed(1)}+${LOGR_LO.toFixed(1)});
     float te=trueAlt(elevDeg), teR=te*0.01745329252, cth=cos(teR);
     vec3 src=vec3(sin(comp)*cth, cos(comp)*cth, sin(teR));
-    bool inSun=sunOn>0.5&&te>-1.0&&dot(src,sd)>cos(sunRad);
+    bool inSun=false; float sunR=2.0; vec3 sunP=vec3(0.0);
+    if(sunOn>0.5&&te>-1.5&&dot(src,sd)>cos(sunRad*2.5+0.03)){
+      vec4 sk=sunDiskAt(comp, elevDeg, sd, sunRad*57.2957795);
+      inSun=sk.x+sk.y+sk.z!=0.0; sunR=min(sk.w, 1.0); sunP=max(sk.rgb, vec3(0.0));
+    }
     bool onBody=inSun;
     vec3 skyBase=skyC;
     if(inSun){
-      // Limb darkening (moon.js sunLimbRGB): dimmer and redder toward the edge.
-      float r=acos(clamp(dot(src, sd), -1.0, 1.0))/sunRad, mu=sqrt(max(0.01, 1.0-r*r));
-      vec3 lin=s2lin3(sunCol), c=lin*vec3(${SUN_LD_C.map(v=>v.toFixed(4)).join(', ')});
+      // Limb darkening (moon.js sunLimbRGB): dimmer and redder toward the edge. The bands that
+      // reach this ray, over those at the disk's middle, colour sunCol: redder low on the disk,
+      // a rim of the last colour the air lets through at its top. The disk is far brighter than
+      // the display, so its range is squeezed (brightness to the power 0.45, hue kept), as the
+      // eye and a camera both see a setting Sun: dark red at the bottom is still bright. Below a
+      // tenth of the middle's brightness it falls off faster, so a rim the air has all but put
+      // out (green through soot or haze) stays dark beside the disk.
+      float r=sunR, mu=sqrt(max(0.01, 1.0-r*r));
+      vec3 lin=s2lin3(sunCol), v=sunP*sunG;
+      float vm=max(v.r, max(v.g, v.b)), lm=max(lin.r, max(lin.g, lin.b)), x=vm/max(lm, 1e-6);
+      if(vm>0.0) lin=v*(lm*(x>0.1?pow(x, 0.45):0.355*pow(x*10.0, 1.3))/vm);
+      lin=clamp(lin, 0.0, 1.0);
+      vec3 c=lin*vec3(${SUN_LD_C.map(v=>v.toFixed(4)).join(', ')});
       c*=max(lin.r, max(lin.g, lin.b))/max(max(c.r, max(c.g, c.b)), 1e-9);
-      skyC=lin2s3(clamp(c*pow(vec3(mu), vec3(${SUN_LD.map(v=>v.toFixed(4)).join(', ')})), 0.0, 1.0));
+      // Over the sky in front of it, as opaque as it is bright against that sky, so an image
+      // fainter than the sky (the violet one, all but gone in the air) disappears into it.
+      vec3 dsk=clamp(c*pow(vec3(mu), vec3(${SUN_LD.map(v=>v.toFixed(4)).join(', ')})), 0.0, 1.0), sl=s2lin3(skyBase);
+      float op=clamp((dot(dsk, vec3(0.2126, 0.7152, 0.0722))/max(dot(sl, vec3(0.2126, 0.7152, 0.0722)), 1e-6)-0.1)*3.0, 0.0, 1.0);
+      skyC=lin2s3(mix(sl, dsk, op));
     }
     if(moonOn>0.5&&te>-1.2){
       float mA=moonAz*0.01745329252, mZ=(90.0-moonEl)*0.01745329252;
