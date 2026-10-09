@@ -194,7 +194,7 @@ function moonBasis(moon){
 }
 function paintMoonSprite(moon, sunAz, sunEl){
   const sctx=moonSprite.getContext('2d',{willReadFrequently:true});
-  sctx.clearRect(0,0,96,96); sctx.drawImage(moonImg,0,0,96,96);
+  sctx.clearRect(0,0,96,96); sctx.drawImage(moonSurface(EP[dIdx].key),0,0,96,96);
   const img=sctx.getImageData(0,0,96,96), px=img.data, b=moonBasis(moon), sd=horizDir(sunAz,sunEl);
   for(let j=0;j<96;j++) for(let i=0;i<96;i++){
     const u=(i+0.5)/96*2-1, v=1-(j+0.5)/96*2, o=(j*96+i)*4;
@@ -249,13 +249,17 @@ function drawMoonOnDome(moon, sunAz, sunEl){
   }
   dctx.putImageData(img,x0,y0);
 }
-function uploadMoon(){
-  if(!vrGL||!moonReady) return;
+// The epoch's face of the Moon (moon_surface.js) into the walk-around view's texture, when it
+// has changed. True if it did.
+function syncMoonTex(){
+  if(!vrGL||!moonReady) return false;
+  const src=moonSurface(EP[dIdx].key); if(vrGL.moonSrc===src) return false;
   const gl=vrGL.gl; gl.bindTexture(gl.TEXTURE_2D, vrGL.moonTex);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, moonImg);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
   gl.generateMipmap(gl.TEXTURE_2D);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-  if(vrOn) paintVR();
+  vrGL.moonSrc=src; return true;
 }
-moonImg.onload=()=>{ moonReady=true; uploadMoon(); renderDay(); };
+function uploadMoon(){ if(syncMoonTex()&&vrOn) paintVR(); }
+moonImg.onload=()=>{ moonReady=true; uploadMoon(); renderDay(); warmMoonFaces(); };

@@ -558,6 +558,11 @@ const MET_SRC={apex:'from the apex of Earth’s motion: cometary dust met head-o
   toroidal:'from a toroidal source, high above the ecliptic', iso:'from no particular direction', aster:'from the asteroid belt, slow', ring:'falling from the ring'};
 function meteorSpectrumTip(h){
   const key=EP[dIdx].key, air=EP[dIdx].air||{O:0.21, N:0.79, C:0, O2:0.21}, X=Math.min(spAirmass(h.el), 40);
+  if(h.kind==='lava'){
+    const S=spPlanck(h.f.temp), marks=[];
+    spThroughAir(S, marks, key, X);
+    return {S, Y:1, parts:[], marks, note:`Lava erupting on the Moon’s night side · basalt fountaining from a fissure at about ${Math.round(h.f.temp/50)*50} K, as the maria were flooded · V ${h.mag.toFixed(1)}`};
+  }
   if(h.kind==='flash'){
     const f=h.f, S=spPlanck(f.temp), na=spLines([[589.0, 1], [589.6, 0.5]]), y=spY(S)||1;
     for(let i=0;i<SP_N;i++) S[i]+=0.08*y*na[i]/(spY(na)||1);

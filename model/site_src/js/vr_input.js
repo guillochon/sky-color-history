@@ -355,7 +355,7 @@ function vrProbe(cx, cy, throughCloud){
   // Within about 18 page pixels of a star, twice that of the supernova and its glare.
   // A meteor (or a lunar flash) within about 18 page pixels, in front of all but the clouds.
   P.meteor=P.cloud?null:metNearDir(d, 18*vrFov/H);
-  if(P.meteor&&P.meteor.kind!=='flash'&&P.disk) P.meteor=null;
+  if(P.meteor&&P.meteor.kind!=='flash'&&P.meteor.kind!=='lava'&&P.disk) P.meteor=null;
   P.sn=P.cloud||P.disk||P.meteor?null:snNear(horizDir(az, el), 36*vrFov/H);
   P.star=P.cloud||P.disk||P.sn||P.meteor?null:starNear(horizDir(az, el), 18*vrFov/H);
   return P;

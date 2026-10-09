@@ -341,9 +341,10 @@ function metScene(){
     }
   }
   const mo=skyNow.moon;
-  for(const f of MET.flashes){
-    const age=t-f.t0; if(age<0) continue;
-    const I=age<f.T?1:Math.exp(-(age-f.T)/0.12), mag=f.mag-2.5*Math.log10(Math.max(I, 1e-6));
+  // Lava on the Moon (moon_surface.js) is drawn as a flash that does not end.
+  for(const f of mo.on?MET.flashes.concat(lunarLava(EP[dIdx].key)):MET.flashes){
+    const age=f.lava?0:t-f.t0; if(age<0) continue;
+    const I=f.lava||age<f.T?1:Math.exp(-(age-f.T)/0.12), mag=f.mag-2.5*Math.log10(Math.max(I, 1e-6));
     const mm=starThroughAir(mag, mo.el, EP[dIdx].key);
     // Someone watching the Moon catches a flash 1 magnitude above the star limit.
     const vis=metVisible(mm-(MET_PERCEPT-1), skyRAt(g0, mo.el, mo.az)*rCd);
@@ -489,7 +490,7 @@ function metNearDir(dir, tolDeg){
   for(const s of MET.scene||[]) if(s.kind!==2) test(s.m, Math.min(1, (t-s.m.t0)/s.m.T));
   for(const m of MET.gone) if(m.M<6) test(m, 1);
   for(const s of MET.scene||[]) if(s.kind===2){ const rad=vrOn?skyNow.moon.radDeg*DISK_SCALE:skyNow.moon.radDeg*(DOME_DISK*domeView().z/SUN_RADIUS_DEG)*90/domeView().R;
-    const d=flashDir(s.f, rad), c=vdot(d, dir); if(c>Math.cos(tolDeg*2*Math.PI/180)) best={f:s.f, kind:'flash', el:skyNow.moon.el, az:skyNow.moon.az, mag:s.mag, ago:0}; }
+    const d=flashDir(s.f, rad), c=vdot(d, dir); if(c>Math.cos(tolDeg*2*Math.PI/180)) best={f:s.f, kind:s.f.lava?'lava':'flash', el:skyNow.moon.el, az:skyNow.moon.az, mag:s.mag, ago:0}; }
   return best;
 }
 // On the dome, within about 9 canvas pixels.

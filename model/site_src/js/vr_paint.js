@@ -255,6 +255,7 @@ function paintVR(){
     skyUploaded=skyNow.gen;
   }
   gl.uniform1f(u.nr, h-1); gl.uniform1f(u.na, w-1);
+  syncMoonTex();
   gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, vrGL.moonTex);
   gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex);
   gl.uniform2f(u.res, c.width, c.height); gl.uniform1f(u.fov, vrFov*Math.PI/180);

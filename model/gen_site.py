@@ -111,6 +111,7 @@ PARTS = [
     'js/satellites.js',
     'js/comets.js',
     'js/dome_bodies.js',
+    'js/moon_surface.js',
     'js/scenery.js',
     'js/shader_terrain.js',
     'js/shader_hit.js',
