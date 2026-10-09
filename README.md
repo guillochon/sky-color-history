@@ -28,6 +28,8 @@ at thirteen moments in its history, from the 30-bar CO2 Hadean to a modern megac
 - `lunar_eclipse.py` - the light inside the Earth's shadow at the Moon for each epoch: rays traced
   through the epoch's air with exact refraction (the 30-bar Hadean traps its lower air), summed
   over the Earth's limb as seen from the Moon (Link's method) -> `eclipse_grid.json` (about a minute)
+- `lunar_inclination.py` - the Moon's orbital tilt in each epoch (moon.js `MOON_INC`), integrated back
+  from today's along the Moon's distance history with the tidal model of Ćuk et al. 2016
 - `gen_report.py`, `gen_site.py`, `make_figs.py`, `make_tex.py` - build the HTML report, the
   interactive site, the PNG figures and the LaTeX source from the JSON data
 

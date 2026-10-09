@@ -37,6 +37,18 @@ const MOON_RE={
   proterozoic22:50.98, archean27thin:47.60, archean27:47.60, archean27vthick:47.60,
   archean38:40.4, hadean40:39.8, hadean44:38.7
 };
+// The orbit's tilt to the ecliptic in degrees (lunar_inclination.py): today's 5.145° taken back
+// along the distances above with the tidal model of Ćuk, Hamilton, Lock & Stewart 2016 (Nature
+// 539, 402). Earth's tides tilt the orbit less as the Moon recedes, and tides raised in the Moon
+// damp it, most strongly near 33 Earth radii, where the Moon's own tilt swings large: so the
+// orbit was a little steeper then, 5.5° at 2.7 Ga and 5.9° at 4.4 Ga (5.8–6.3° for a Moon three
+// times stiffer or more dissipative). The 17–30° and more those papers find for the young
+// Moon belong to before 33 Earth radii, older than any epoch here.
+const MOON_INC_NOW=5.1454;
+const MOON_INC={
+  carbon30:5.18, ordovician466:5.19, snowball07:5.20, proterozoic22:5.37,
+  archean27thin:5.46, archean27:5.46, archean27vthick:5.46, archean38:5.75, hadean40:5.80, hadean44:5.93
+};
 const MOON_R_KM=1737.4, EARTH_R_KM=6378.14;
 // Length of the solar day in hours, from the Moon distances above: the Earth-Moon angular
 // momentum is held fixed, so a closer Moon means a faster-spinning Earth. This reproduces the
@@ -84,13 +96,14 @@ function instantUT(){
 // runs rate times faster, but the node and perigee turn more slowly: the Sun drives them, as
 // (Sun's speed)²/(Moon's speed), so they run 1/rate as fast. The Sun's perturbations of the
 // orbit (evection, variation and the rest) shrink with the same ratio, taken to first order.
-function moonEquatorial(d, rate=1){
+// inc is the orbit's tilt to the ecliptic (MOON_INC).
+function moonEquatorial(d, rate=1, inc=MOON_INC_NOW){
   const ecl=23.4393-3.563e-7*d;
   const ws=282.9404+4.70935e-5*d, Ms=rev(356.0470+0.9856002585*d);
   const dm=DN_NEW0+(d-DN_NEW0)*rate, dp=DN_NEW0+(d-DN_NEW0)/rate, kp=1/rate;
   const Nm=rev(125.1228-0.0529538083*dp), wm=rev(318.0634+0.1643573223*dp);
   const Mm=rev(115.3654+125.1228+318.0634+(13.0649929509-0.0529538083+0.1643573223)*dm-Nm-wm);
-  const e=0.054900, a=60.2666, i=5.1454;
+  const e=0.054900, a=60.2666, i=inc;
   let E=Mm+e*(180/Math.PI)*sind(Mm)*(1+e*cosd(Mm));
   E=E-(E-e*(180/Math.PI)*sind(E)-Mm)/(1-e*cosd(E));
   const xv=a*(cosd(E)-e), yv=a*(Math.sqrt(1-e*e)*sind(E));
@@ -118,12 +131,12 @@ function moonRate(){ return Math.pow(MOON_RE_NOW/(MOON_RE[EP[dIdx].key]||MOON_RE
 function synodic(){ return 360/(13.17639648*moonRate()-0.98564736); }
 function dayOfMs(ms){ return DN_UNIX+ms/86400000; }
 function eqVec(ra, dec){ return [cosd(dec)*cosd(ra), cosd(dec)*sind(ra), sind(dec)]; }
-function geoPair(d){ const eq=moonEquatorial(d, moonRate()), sun=sunEquatorial(d); return {eq, m:eqVec(eq.RA, eq.Dec), s:eqVec(sun.RA, sun.Dec)}; }
+function geoPair(d){ const eq=moonEquatorial(d, moonRate(), MOON_INC[EP[dIdx].key]||MOON_INC_NOW), sun=sunEquatorial(d); return {eq, m:eqVec(eq.RA, eq.Dec), s:eqVec(sun.RA, sun.Dec)}; }
 // Closest geocentric approach of the Moon to that Sun in lunation k (golden-section search
-// within 2.5 days of the mean new Moon), cached per Moon speed.
+// within 2.5 days of the mean new Moon), cached per Moon speed and tilt.
 const lunations=new Map();
 function lunation(k){
-  const id=k+'|'+moonRate(); let L=lunations.get(id); if(L) return L;
+  const id=k+'|'+moonRate()+'|'+(MOON_INC[EP[dIdx].key]||MOON_INC_NOW); let L=lunations.get(id); if(L) return L;
   const f=t=>{ const g=geoPair(t); return -(g.m[0]*g.s[0]+g.m[1]*g.s[1]+g.m[2]*g.s[2]); };
   const gr=(Math.sqrt(5)-1)/2; let a=DN_NEW0+k*synodic()-2.5, b=a+5, c=b-gr*(b-a), e=a+gr*(b-a), fc=f(c), fe=f(e);
   for(let i=0;i<40;i++){
