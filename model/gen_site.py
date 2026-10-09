@@ -207,6 +207,9 @@ html = (page_source().replace('__YREF__', repr(YREF)).replace('__DAY_MODERN__', 
 # Its quotes become single ones, as it sits inside a double-quoted attribute.
 favicon = ' '.join((HERE / 'site_src' / 'document' / 'favicon.svg').read_text(encoding='utf-8').split()).replace('"', "'")
 html = html.replace('__FAVICON__', 'data:image/svg+xml,' + urllib.parse.quote(favicon, safe=" =:/,.-'"))
+# The report's links carry its hash, so a new build is never served from a browser's cache.
+PDF_V = hashlib.sha1((HERE.parent / 'latex' / 'main.pdf').read_bytes()).hexdigest()[:10]
+html = html.replace('href="main.pdf"', f'href="main.pdf?v={PDF_V}"')
 html = html.replace('__EP__', json.dumps(EP, separators=(',',':'))).replace('__DAY__', json.dumps(DAY_META, separators=(',',':')))
 
 
