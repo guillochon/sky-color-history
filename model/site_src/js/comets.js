@@ -129,11 +129,12 @@ function cometYear(key, b){
 }
 // An invented great comet for the ζ Oph sky, the only one not from an orbit catalogue or the random
 // draw. It returns every year, as the supernova shines every year in that sky: perihelion
-// (0.76 AU) on 29 June, then through July it passes 0.5–0.6 AU from Earth, due north in the late
-// evening from 45° (27–33° up at 22:30), its tail rising from the horizon, while the supernova is
-// low in the south-southwest, 125° or more away. Peak magnitude −3. Row: name, designation, q, e,
-// i, Ω, ω, [month, day] of perihelion, peak magnitude.
-const COMETS_FICT={zetaoph:[['The great comet of the ζ Oph sky (invented)', 'invented', 0.7625, 0.997, 28.88, 239.64, 34.01, [6, 29.4], -3]]};
+// (0.77 AU) on 2 July, then through July it passes 0.4–0.6 AU from Earth, in the north-northwest
+// in the late evening from 45° (22–36° up at 22:30), its tail rising clear of the Milky Way (head
+// and tail at least 28° from the galactic plane), while the supernova is low in the
+// south-southwest, 113° or more away. Peak magnitude −3. Row: name, designation, q, e, i, Ω, ω,
+// [month, day (UT)] of perihelion, peak magnitude.
+const COMETS_FICT={zetaoph:[['The great comet of the ζ Oph sky (invented)', 'invented', 0.76572, 0.997, 40.480, 258.08, 14.913, [7, 2.27], -3]]};
 const cometFict={};
 for(const key in COMETS_FICT) cometFict[key]=COMETS_FICT[key].map(([name, desig, q, e, i, om, w, md, peak])=>{
   const c={name, desig, q, e, i, om, w, md, rmin:0, M1:0, real:true}, tp=dayNumber(2026, md[0], Math.floor(md[1]), 24*(md[1]%1))+JD_D0;
