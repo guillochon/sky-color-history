@@ -1,7 +1,8 @@
 # The Color of Earth's Sky Through Time
 
 A spectral radiative-transfer reconstruction of what Earth's sky looked like from the ground
-at thirteen moments in its history, from the 30-bar CO2 Hadean to a modern megacity.
+at eighteen moments in its history, from the 30-bar CO2 Hadean to a modern megacity, and the rest of its
+sky through time: the setting Sun, solar and lunar eclipses, halos, airglow, aurorae, meteors and comets.
 
 ## Contents
 
@@ -30,6 +31,8 @@ at thirteen moments in its history, from the 30-bar CO2 Hadean to a modern megac
   over the Earth's limb as seen from the Moon (Link's method) -> `eclipse_grid.json` (about a minute)
 - `lunar_inclination.py` - the Moon's orbital tilt in each epoch (moon.js `MOON_INC`), integrated back
   from today's along the Moon's distance history with the tidal model of Ćuk et al. 2016
+- `report_sky.py` - the report's part on everything beyond the sky colors (shared by the HTML and LaTeX);
+  `eclipse_report.py` draws its eclipsed-Moon figure and table from `eclipse_grid.json`
 - `gen_report.py`, `gen_site.py`, `make_figs.py`, `make_tex.py` - build the HTML report, the
   interactive site, the PNG figures and the LaTeX source from the JSON data
 
@@ -42,7 +45,7 @@ installs them into `.venv` on the first `uv run`.
 cd model
 uv run run_epochs.py && uv run limb_grid.py && uv run daycycle.py && uv run lunar_eclipse.py
 uv run gen_report.py && uv run gen_site.py && uv run make_figs.py && uv run make_tex.py
-cd ../latex && latexmk -pdf main.tex
+cd ../latex && latexmk -pdf main.tex   # or: tectonic -X compile main.tex
 ```
 
 `make_figs.py` writes to `latex/figures`, or to a folder given as its argument.

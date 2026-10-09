@@ -13,13 +13,14 @@ TEX_REP = {'&': r'\&', '%': r'\%', '#': r'\#', '_': r'\_', '~': r'$\sim$', '≈'
            '₂': r'$_2$', '₃': r'$_3$', '₄': r'$_4$', 'τ': r'$\tau$', 'μ': r'$\mu$', 'λ': r'$\lambda$', 'ω': r'$\omega$',
            '⁻': '^{-', '⁶': '6}', '²': r'$^2$', '³': r'$^3$', '⁴': r'$^4$',
            '−': '$-$', '±': r'$\pm$', 'ζ': r'$\zeta$', 'θ': r'$\theta$', 'ε': r'$\varepsilon$', 'β': r'$\beta$',
-           'ν': r'$\nu$', 'ρ': r'$\rho$', 'ξ': r'$\xi$', 'α': r'$\alpha$'}
+           'ν': r'$\nu$', 'ρ': r'$\rho$', 'ξ': r'$\xi$', 'α': r'$\alpha$',
+           '½': r'$\frac{1}{2}$', '′': r"$'$", '⁺': r'$^+$'}
 
 def tex(s):
     s = html.unescape(s)
     s = re.sub(r'<em>(.*?)</em>', r'\\emph{\1}', s); s = re.sub(r'<i>(.*?)</i>', r'\\emph{\1}', s)
     s = re.sub(r'<[^>]+>', '', s)
-    s = s.replace('⁶⁰', '$^{60}$')
+    s = s.replace('⁶⁰', '$^{60}$').replace('10⁻⁴', r'$10^{-4}$')
     for a, b in TEX_REP.items(): s = s.replace(a, b)
     s = s.replace('$_2$$_2$', '$_{22}$')
     s = re.sub(r'10\^\{-(\d)\}', r'$10^{-\1}$', s)
@@ -86,8 +87,25 @@ for k in order:
 {tex(PROSE[k])}
 """
 
+# Beyond the colors (report_sky.py): the same text as the HTML report, with its figure and tables.
+import report_sky as rs
+def tex_table(label, caption, head, rows, spec):
+    body = '\n'.join(' & '.join(tex(str(c)) for c in r) + r' \\' for r in rows)
+    return (r'\begin{table*}[t]\centering\footnotesize' '\n' r'\caption{' + tex(caption) + r'}\label{' + label + '}\n'
+            r'\rowcolors{2}{rowa}{white}' '\n' r'\begin{tabularx}{\textwidth}{@{}' + spec + r'@{}}\toprule' '\n'
+            + ' & '.join(tex(h) for h in head) + r' \\ \midrule' '\n' + body + '\n' r'\bottomrule\end{tabularx}' '\n' r'\end{table*}' '\n')
+sky_tex = tex(rs.INTRO) + '\n'
+for title, paras in rs.SECTIONS:
+    sky_tex += '\n\\subsection*{' + tex(title) + '}\n' + '\n\n'.join(tex(p) for p in paras).replace('(table below)', r'(Table~\ref{tab:lunar})') + '\n'
+    if title == 'Lunar eclipses':
+        sky_tex += ('\n' r'\begin{figure*}[t]\centering\includegraphics[width=\textwidth]{figures/lunar_eclipse.png}' '\n'
+                    r'\caption{' + tex(rs.FIG_CAPTION) + r'}\label{fig:lunar}\end{figure*}' '\n'
+                    + tex_table('tab:lunar', rs.LUNAR_CAPTION, rs.lunar_head(), rs.lunar_rows(), 'Yrrrrrr'))
+sky_tex += '\n' + tex_table('tab:phenomena', rs.PHENOMENA_CAPTION, rs.PHENOMENA_HEAD, rs.PHENOMENA, 'lp{2.1cm}YrYrr')
+
 NUMBER_WORDS = {13: 'thirteen', 14: 'fourteen', 15: 'fifteen', 16: 'sixteen', 17: 'seventeen', 18: 'eighteen', 19: 'nineteen', 20: 'twenty'}
-main = r"""\documentclass[9pt,twocolumn]{extarticle}
+main = r"""\PassOptionsToPackage{table}{xcolor}
+\documentclass[9pt,twocolumn]{extarticle}
 \usepackage[a4paper,margin=14mm,top=16mm,bottom=16mm,columnsep=7mm]{geometry}
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
@@ -119,24 +137,26 @@ main = r"""\documentclass[9pt,twocolumn]{extarticle}
 \vspace*{-6mm}
 {\color{sky}\fontsize{28}{30}\selectfont\bfseries The color of Earth's sky,\\ 4.4 billion years to today\par}
 \vspace{6pt}
-{\large\color{ink} What the sky looked like from the ground---straight up and at the horizon, at the equator and the poles, at noon and at dusk---at thirteen moments in Earth's history, reconstructed with a spectral radiative-transfer model.\par}
+{\large\color{ink} What the sky looked like from the ground---straight up and at the horizon, at the equator and the poles, at noon and at dusk---at """ + NUMBER_WORDS[len(order)] + r""" moments in Earth's history, reconstructed with a spectral radiative-transfer model; and the rest of its sky, from the green flash and the eclipsed Moon to airglow, aurorae and meteors.\par}
 \vspace{4pt}
-{\small\color{gray} Prepared with Claude (Anthropic) $\cdot$ September 2026\par}
+{\small\color{gray} Prepared with Claude (Anthropic) $\cdot$ October 2026\par}
 \vspace{8pt}
 {\includegraphics[width=\linewidth]{figures/fig01_timeline.png}}
-{\footnotesize\sffamily\textbf{\color{sky}Figure 1.} Mid-latitude noon sky at thirteen epochs, zenith (top) to horizon (bottom), oldest at left. Brightness shown relative to today's clean sky.\par}
+{\footnotesize\sffamily\textbf{\color{sky}Figure 1.} Mid-latitude noon sky at """ + NUMBER_WORDS[len([k for k in order if k not in gr.SAME_AIR])] + r""" epochs, zenith (top) to horizon (bottom), oldest at left. Brightness shown relative to today's clean sky.\par}
 \vspace{10pt}
 \end{@twocolumnfalse}
 ]
 \setcounter{figure}{1}
 
-\begin{tcolorbox}[colback=rowa,colframe=sky,boxrule=0.6pt,arc=1.5pt,left=5pt,right=5pt,top=4pt,bottom=4pt,title=\textbf{Five things the sky did},fonttitle=\bfseries]
+\begin{tcolorbox}[colback=rowa,colframe=sky,boxrule=0.6pt,arc=1.5pt,left=5pt,right=5pt,top=4pt,bottom=4pt,title=\textbf{Seven things the sky did},fonttitle=\bfseries]
 \footnotesize
 \textbf{1.} Under the 30-bar CO$_2$ atmosphere of the early Hadean the sky was a shadowless peach-white glow with no visible Sun.\\
 \textbf{2.} During the hazy Neoarchean the whole dome was cream to apricot, with almost no difference between zenith and horizon.\\
 \textbf{3.} Before the Great Oxidation Event there was no ozone, so every twilight ended in a cream zenith. The first ozone layer turns that zenith pale blue; the deep blue dusk needs a near-modern column.\\
 \textbf{4.} Snowball Earth had the bluest sky in Earth's history; the K--Pg impact winter had no sunsets at all.\\
-\textbf{5.} The zenith-to-horizon color gradient is the single best diagnostic of an atmosphere's state: largest in clean air, gone under haze or soot, reversed under volcanic sulfate.
+\textbf{5.} The zenith-to-horizon color gradient is the single best diagnostic of an atmosphere's state: largest in clean air, gone under haze or soot, reversed under volcanic sulfate.\\
+\textbf{6.} The eclipsed Moon is copper today, orange-rimmed before there was ozone, an even deep red through the Hadean CO$_2$, dark-cored when the Moon was close, and gone under the K--Pg soot, the thick Archean haze or a Tambora veil.\\
+\textbf{7.} Before the Great Oxidation the nights were darker and violet: no oxygen airglow, nitrogen aurorae reaching the mid-latitudes, and meteors with no glowing trains.
 \end{tcolorbox}
 
 \section*{Has this been done before?}
@@ -161,11 +181,13 @@ Epoch & Gas (bar) & O$_3$ (DU) & AOD & Haze & Sulfate & Soot & $T_{\rm eff}$ (K)
 2.7 Ga thin haze & N$_2$ 0.8, CO$_2$ 0.05, CH$_4$ 0.003 & 0 & 0.08 & 0.15 & -- & -- & 5660 & 0.80 \\
 2.7 Ga thick haze & N$_2$ 0.8, CO$_2$ 0.05, CH$_4$ 0.005 & 0 & 0.08 & 0.6 & -- & -- & 5660 & 0.80 \\
 2.7 Ga very thick haze & N$_2$ 0.8, CO$_2$ 0.05, CH$_4$ 0.01 & 0 & 0.08 & 1.5 & -- & -- & 5660 & 0.80 \\
-2.2 Ga post-GOE & N$_2$ 0.8, O$_2$ 0.002, CO$_2$ 0.02 & 150 & 0.10 & -- & -- & -- & 5700 & 0.85 \\
-700 Ma Snowball & N$_2$ 0.78, O$_2$ 0.02, CO$_2$ 0.01 (+dust 0.05) & 250 & 0.02 & -- & -- & -- & 5750 & 0.94 \\
-300 Ma Carboniferous & N$_2$ 0.78, O$_2$ 0.33 & 330 & 0.15 & -- & -- & -- & 5765 & 0.975 \\
+2.2 Ga post-GOE & N$_2$ 0.8, O$_2$ 0.002, CO$_2$ 0.02 & 66 & 0.10 & -- & -- & -- & 5700 & 0.85 \\
+700 Ma Snowball & N$_2$ 0.78, O$_2$ 0.02, CO$_2$ 0.01 (+dust 0.05) & 169 & 0.02 & -- & -- & -- & 5750 & 0.94 \\
+466 Ma Ordovician & N$_2$ 0.78, O$_2$ 0.17, Ar 0.01, CO$_2$ 0.0025 (+dust 0.01) & 291 & 0.10 & -- & -- & -- & 5760 & 0.962 \\
+300 Ma Carboniferous & N$_2$ 0.78, O$_2$ 0.33 & 323 & 0.15 & -- & -- & -- & 5765 & 0.975 \\
 66 Ma impact winter & modern air & 300 & 0.15 & -- & 0.5 & 1.5 & 5772 & 0.995 \\
 1815 volcanic year & modern air & 300 & 0.10 & -- & 0.4 & -- & 5772 & 1.00 \\
+Ozone-hole spring & modern air & 130 & 0.10 & -- & -- & -- & 5772 & 1.00 \\
 Modern, clean & N$_2$ 0.78, O$_2$ 0.21, Ar 0.01 & 300 & 0.10 & -- & -- & -- & 5772 & 1.00 \\
 Modern, polluted & modern air & 300 & 0.60 & -- & -- & -- & 5772 & 1.00 \\ \bottomrule
 \end{tabularx}
@@ -210,6 +232,10 @@ Epoch & Noon zenith & Horizon & Sunset \\ \midrule
 \section*{Epoch by epoch}
 The """ + NUMBER_WORDS[len(order)] + r""" panels that follow are laid out identically so they can be compared at a glance. Each panel begins with the epoch's name and a one-line summary of the atmosphere assumed (Table~\ref{tab:epochs} gives the full parameters). The upper row shows the noon sky dome at three latitudes---the equator, a mid-latitude site and the summer pole---with the zenith at the top of each swatch and the horizon at the bottom, the correlated color temperatures of both printed above, and the Sun's disk drawn in its own color, at its noon elevation, and with a brightness that reflects how much of it survives the atmosphere (where the Sun would not be visible at all, the swatch says so). The two strips beneath trace the sky from the solar horizon across the zenith to the antisolar horizon at two moments: with the Sun sitting on the horizon, and with it $4^\circ$ below, in civil twilight. All swatches are shown at a brightness relative to today's clean sky, so a dim epoch reads as dim; the paragraph after each panel explains what the colors mean and why they arise.
 """ + epoch_blocks + r"""
+
+\Needspace*{12\baselineskip}
+\section*{Beyond the colors}
+""" + sky_tex + r"""
 
 \Needspace*{12\baselineskip}
 \section*{Stars brighter than Sirius}
@@ -262,6 +288,7 @@ bib = r"""@article{arney2016, author={Arney, Giada and Domagal-Goldman, Shawn D.
 @article{richardson2014, author={Richardson, Dean and Jenkins, Robert L. and Wright, John and Maddox, Larry}, title={Absolute-magnitude distributions of supernovae}, journal={Astronomical Journal}, volume={147}, pages={118}, year={2014}}
 @article{thomas2016, author={Thomas, Brian C. and others}, title={Terrestrial effects of nearby supernovae in the early {Pleistocene}}, journal={Astrophysical Journal Letters}, volume={826}, pages={L3}, year={2016}}
 @article{neuhauser2019, author={Neuh{\"a}user, Ralph and Gie{\ss}ler, Frank and Hambaryan, Valeri V.}, title={A nearby recent supernova that ejected the runaway star $\zeta$ {Oph}, the pulsar {PSR B1706-16}, and $^{60}${Fe} found on {Earth}}, journal={Monthly Notices of the Royal Astronomical Society}, year={2019}, doi={10.1093/mnras/stz2629}}
+""" + '\n'.join(r[2] for r in rs.REFS) + r"""
 @article{wyman2013, author={Wyman, Chris and Sloan, Peter-Pike and Shirley, Peter}, title={Simple analytic approximations to the {CIE} {XYZ} color matching functions}, journal={Journal of Computer Graphics Techniques}, volume={2}, pages={1--11}, year={2013}}
 """
 open(f'{L}/refs.bib', 'w', encoding='utf-8').write(bib)

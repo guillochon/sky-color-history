@@ -1,4 +1,4 @@
-import copy, json, numpy as np
+import base64, copy, json, numpy as np
 from pathlib import Path
 from skymodel import XYZ_to_srgb, hexcol
 
@@ -128,7 +128,7 @@ document.querySelectorAll('canvas[data-epoch]').forEach(render);
 </script>
 """
 
-order = ['hadean44','hadean40','archean38','archean27thin','archean27','archean27vthick','proterozoic22','snowball07','carbon30','kpg66','zetaoph','geminga','volcanic','ozonehole','modern','modernpoll','y2100']
+order = ['hadean44','hadean40','archean38','archean27thin','archean27','archean27vthick','proterozoic22','snowball07','ordovician466','carbon30','kpg66','zetaoph','geminga','volcanic','ozonehole','modern','modernpoll','y2100']
 ages = {'hadean44':'4.4 Ga','hadean40':'4.0 Ga','archean38':'3.8 Ga','archean27thin':'2.7 Ga','archean27':'2.7 Ga','archean27vthick':'2.7 Ga','proterozoic22':'2.2 Ga','snowball07':'700 Ma','ordovician466':'466 Ma','carbon30':'300 Ma','kpg66':'66 Ma','zetaoph':'1.78 Ma','geminga':'342 ka','volcanic':'1815','modern':'today','modernpoll':'today','ozonehole':'1980–2000','y2100':'2100'}
 
 hero = ''
@@ -159,6 +159,25 @@ encounter_section = f"""
 <p>{ENC_PROSE[1]}</p>
 """
 
+# The rest of the sky (report_sky.py): the setting Sun, the Moon and eclipses, halos, the night
+# sky, aurorae, meteors, dust and comets, and clouds.
+import report_sky as rs
+import eclipse_report as er
+ECL_PNG = base64.b64encode(er.figure()).decode()
+def _table(head, rows):
+    return '<div class="wrap"><table><tr>'+''.join(f'<th>{h}</th>' for h in head)+'</tr>'+''.join('<tr>'+''.join(f'<td>{c}</td>' for c in r)+'</tr>' for r in rows)+'</table></div>'
+sky_part = f'''
+<h2 class="part" id="beyond">Beyond the colors</h2>
+<p>{rs.INTRO}</p>
+'''
+for title, paras in rs.SECTIONS:
+    sky_part += f'<h3>{title}</h3>\n' + ''.join(f'<p>{p}</p>\n' for p in paras)
+    if title == 'Lunar eclipses':
+        sky_part += (f'<figure class="eclfig"><img src="data:image/png;base64,{ECL_PNG}" alt="The eclipsed Moon at nine epochs, centred in the shadow and at its edge, with the light across the shadow">'
+                     f'<figcaption>{rs.FIG_CAPTION}</figcaption></figure>'
+                     + _table(rs.lunar_head(), rs.lunar_rows()) + f'<p class="tcap">{rs.LUNAR_CAPTION}</p>')
+sky_part += '<h3>The other phenomena, epoch by epoch</h3>' + _table(rs.PHENOMENA_HEAD, rs.PHENOMENA) + f'<p class="tcap">{rs.PHENOMENA_CAPTION}</p>'
+
 sections = ''
 for k in order:
     r = byk[k]
@@ -177,6 +196,7 @@ for k in order:
   <p class="prose">{PROSE[k]}</p>
 </section>'''
 
+SKY_REFS = '\n'.join(f'<p>{r[0]}</p>' for r in rs.REFS)
 html = f'''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>The Color of Earth's Sky Through Time</title>
@@ -230,6 +250,11 @@ td,th{{text-align:left;padding:.35rem .5rem;border-bottom:1px solid var(--rule);
 th{{color:var(--ink2);font-weight:300}}
 .wrap{{overflow-x:auto}}
 .refs{{font-size:.9rem;color:var(--ink2)}}
+h2.part{{font-size:1.9rem;font-weight:300;margin:2.6rem 0 .4rem;border-top:1px solid var(--rule);padding-top:1.4rem}}
+.eclfig{{margin:1rem 0 .6rem;background:#05060a;padding:.5rem}}
+.eclfig img{{width:100%;height:auto;display:block}}
+.eclfig figcaption{{font-size:.88rem;color:#d7dae0;line-height:1.35;margin-top:.4rem}}
+.tcap{{font-size:.88rem;color:var(--ink2);margin-top:-.4rem}}
 .refs p{{margin:.3rem 0}}
 @media (max-width:560px){{
  body{{font-size:17px}} .hero{{height:170px}} .epoch header{{grid-template-columns:1fr}} .epoch .sub{{grid-column:1}}
@@ -238,7 +263,7 @@ th{{color:var(--ink2);font-weight:300}}
 @media print{{ .globe,.domes,.strips,table,.hero{{break-inside:avoid}} h3,.epoch header{{break-after:avoid}} .epoch{{padding-top:1rem}} .globes{{grid-template-columns:repeat(2,1fr)}} .epoch .prose{{orphans:3;widows:3}} }}
 </style></head><body><main>
 <h1>The color of Earth's sky, <em>4.4 billion years to today</em></h1>
-<p class="lede">A first-pass spectral radiative-transfer reconstruction of what the sky looked like from the ground at fifteen moments in Earth's history: straight up and at the horizon, at the equator, mid-latitudes and the poles, at noon, sunset and dusk.</p>
+<p class="lede">A first-pass spectral radiative-transfer reconstruction of what the sky looked like from the ground at eighteen moments in Earth's history, and everything else in its sky: the setting Sun, eclipses of the Sun and Moon, halos, airglow, aurorae and meteors: straight up and at the horizon, at the equator, mid-latitudes and the poles, at noon, sunset and dusk.</p>
 
 <div class="hero">{hero}</div>
 <p class="hero-caption">Mid-latitude noon sky, zenith (top) to horizon (bottom), oldest at left. Brightness is shown relative to today's clean sky. Tap a column to jump to that epoch.</p>
@@ -280,9 +305,10 @@ th{{color:var(--ink2);font-weight:300}}
 
 {limb_section}
 {sections}
+{sky_part}
 {encounter_section}
 <h3>Caveats</h3>
-<p>Paleoatmospheric compositions carry order-of-magnitude uncertainty, and the haze optical properties are taken from Titan-analog tholins; the three haze cases bracket that uncertainty. Aerosol loads for every pre-Cenozoic epoch are educated guesses. The color-matching functions use an analytic fit, and colors are shown without chromatic adaptation, so the tints represent what a modern camera set to daylight balance would record rather than what an adapted observer would "see" (an adapted eye would perceive the hazy Archean sky as nearer to white and the modern sky as bluer than shown). Clouds are omitted throughout. The two-stream multiple-scattering term is approximate for the thickest atmospheres, where a full Monte Carlo treatment would refine the exact tint of the Hadean sky.</p>
+<p>Paleoatmospheric compositions carry order-of-magnitude uncertainty, and the haze optical properties are taken from Titan-analog tholins; the three haze cases bracket that uncertainty. Aerosol loads for every pre-Cenozoic epoch are educated guesses. The color-matching functions use an analytic fit, and colors are shown without chromatic adaptation, so the tints represent what a modern camera set to daylight balance would record rather than what an adapted observer would "see" (an adapted eye would perceive the hazy Archean sky as nearer to white and the modern sky as bluer than shown). Clouds are omitted throughout. The two-stream multiple-scattering term is approximate for the thickest atmospheres, where a full Monte Carlo treatment would refine the exact tint of the Hadean sky. Beyond the colors, the strengths of the ancient airglow, aurorae, coronae, meteor and comet rates and zodiacal dust are estimates set to show the trend, as each section says; the lunar eclipses and the orbit's tilt are computed, and the eclipse shadow assumes today's cloud tops in every epoch.</p>
 
 <h3>Sources consulted (via Valency)</h3>
 <div class="refs">
@@ -310,6 +336,7 @@ th{{color:var(--ink2);font-weight:300}}
 <p>Schönrich R., Binney J., Dehnen W. (2010). Local kinematics and the local standard of rest. <i>Monthly Notices of the Royal Astronomical Society</i> 403, 1829.</p>
 <p>Lawler S.M., Boley A.C., Rein H. (2022). Visibility predictions for near-future satellite megaconstellations. <i>Astronomical Journal</i> 163, 21.</p>
 <p>Boley A.C., Lawler S.M., Rein H. (2026). Rings in the sky: orbital data centres and potential impacts to astronomy and the sky. arXiv:2608.02757.</p>
+{SKY_REFS}
 </div>
 </main></body></html>'''
 

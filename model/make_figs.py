@@ -89,4 +89,9 @@ def globe(k, W=1000):
     ax.text(cx-28, cy-R-14, 'pole', color='white', alpha=.8, fontsize=6)
     fig.savefig(f'{OUT}/globe_{k}.png', facecolor='#05060a', bbox_inches='tight', pad_inches=0.05); plt.close()
 for k in gr.LIMB_ORDER: globe(k)
+
+
+# ---------- The eclipsed Moon (eclipse_report.py) ----------
+import eclipse_report
+eclipse_report.figure(OUT / 'lunar_eclipse.png')
 print(sorted(p.name for p in OUT.iterdir()))
