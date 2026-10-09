@@ -471,7 +471,7 @@ void main(){
       float r=acos(clamp(dot(src, sd), -1.0, 1.0))/sunRad, mu=sqrt(max(0.01, 1.0-r*r));
       vec3 lin=s2lin3(sunCol), c=lin*vec3(${SUN_LD_C.map(v=>v.toFixed(4)).join(', ')});
       c*=max(lin.r, max(lin.g, lin.b))/max(max(c.r, max(c.g, c.b)), 1e-9);
-      skyC=lin2s3(clamp(c*pow(vec3(mu), vec3(${SUN_LD.join(', ')})), 0.0, 1.0));
+      skyC=lin2s3(clamp(c*pow(vec3(mu), vec3(${SUN_LD.map(v=>v.toFixed(4)).join(', ')})), 0.0, 1.0));
     }
     if(moonOn>0.5&&te>-1.2){
       float mA=moonAz*0.01745329252, mZ=(90.0-moonEl)*0.01745329252;
