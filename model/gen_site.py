@@ -42,6 +42,12 @@ def air_atoms(key):
 #      apparent altitudes SUN_APP, twenty bands per altitude, through the mid-latitude air.
 SUN_APP = [0, 0.3, 0.7, 1.2, 2, 3, 5, 8, 14, 30.0]
 REFRAC = {'N2': 298, 'O2': 271, 'Ar': 281, 'CO2': 449, 'CH4': 444, 'H2O': 256}
+def sun_radius(key):
+    """The epoch's solar radius over today's, from its effective temperature and luminosity."""
+    T, L = _ep.BY_KEY.get(key, _ep.BY_KEY['modern'])['sun']
+    return round(L**0.5/(T/5772)**2, 4)
+
+
 def sun_bands(key):
     e = _ep.BY_KEY.get(key, _ep.BY_KEY['modern'])
     k = sum(p*REFRAC[g] for g, p in e['gas'].items())/(0.78*298+0.21*271+0.01*281)
@@ -66,7 +72,7 @@ def sun_bands(key):
 EP = []
 for k in order:
     r = byk[k]
-    EP.append(dict(key=k, name=r['name'], sub=r['sub'].replace('tau(550nm)','τ(550 nm)'), age=ages[k], short=short[k], prose=PROSE[k], air=air_atoms(k), sun=sun_bands(k),
+    EP.append(dict(key=k, name=r['name'], sub=r['sub'].replace('tau(550nm)','τ(550 nm)'), age=ages[k], short=short[k], prose=PROSE[k], air=air_atoms(k), sun=sun_bands(k), teff=_ep.BY_KEY.get(k, _ep.BY_KEY['modern'])['sun'][0], sunR=sun_radius(k),
                    lat={L: dict(z=[v['zenith']['x'], v['zenith']['y'], v['zenith']['Y']], h=[v['horizon']['x'], v['horizon']['y'], v['horizon']['Y']],
                                 zc=int(v['zenith']['cct']), hc=int(v['horizon']['cct'])) for L, v in r['lat'].items()},
                    limb=LIMB[k]))
@@ -143,6 +149,7 @@ PARTS = [
     'js/aurora.js',
     'js/halo.js',
     'js/debris.js',
+    'js/corona.js',
     'js/spectrum.js',
     'js/meteors.js',
     'js/satellites.js',

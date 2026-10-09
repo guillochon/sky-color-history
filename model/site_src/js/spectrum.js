@@ -14,6 +14,9 @@
 //     flames (1850 K).
 //   - The Milky Way: old starlight, as a 4800 K body.
 //   - The aurora: its four emissions at that point, as aurora.js lists their lines.
+//   - In totality, the corona and the chromosphere (corona.js): the electrons' light, sunlight
+//     without the Fraunhofer lines; the dust's, with them; the coronal iron and calcium lines;
+//     and the chromosphere's hydrogen, helium and calcium lines.
 //   - A cloud in front (VR): the light falling on it, over the sky it lets through (cloudLight).
 // Narrow features the 10 nm model does not resolve are drawn on top: the Sun's Fraunhofer lines
 // on everything that is sunlight, and the O2 A and B bands and the 720 nm water band of the air
@@ -53,6 +56,8 @@ const SP_HPS=spNorm(spAdd([1, Float32Array.from(SP_LAM, l=>(0.9*Math.exp(-0.5*((
   [0.4, spLines([[568.8, 0.06], [615.4, 0.05], [498.3, 0.02], [466.5, 0.015]])]));
 const SP_LED=spNorm(Float32Array.from(SP_LAM, l=>(0.13*Math.exp(-0.5*((l-452)/10)**2)/10+Math.exp(-0.5*((l-575)/50)**2)/50)/l));
 const SP_OIL=spNorm(spPlanck(1850)), SP_MW=spNorm(spPlanck(4800));
+// The chromosphere's flash spectrum, by energy: Balmer lines, helium D3, and calcium H and K.
+const SP_CHROMO=spNorm(spLines([[656.3, 1], [486.1, 0.25], [434.0, 0.1], [587.6, 0.15], [393.4, 0.3], [396.8, 0.25]].map(([l, e])=>[l, e*l])));
 // Aurora emissions per kR, with their photopic luminance (aurora.js).
 const SP_AUR=[[[557.7, 1]], [[630.0, 0.76], [636.4, 0.24]], [[391.4, 3.0], [427.8, 1.0], [470.9, 0.28], [423.6, 0.25], [380.5, 0.4], [399.8, 0.2], [405.9, 0.1]],
   [[687.5, .15], [678.9, .22], [670.5, .25], [662.4, .2], [654.5, .12], [646.9, .06], [595, .08], [606, .06]]].map(spLines).map(spNorm);
@@ -172,11 +177,12 @@ function cloudLight(px, key, lat){
 // The light toward true altitude el, azimuth az. disk is 'sun', 'moon' or null; aurora the
 // four emissions there (kR) or null; litHere, on the Moon, how sunlit that point of it is (0–1),
 // and on the Sun how far out from its centre (0–1, for limb darkening);
-// cloudPx the cloud pass's pixel there ({a, rgb}) or null, its cloud in front of the sky. Returns {S (1 nm, cd/m² per nm-ish units), Y (cd/m²),
+// cloudPx the cloud pass's pixel there ({a, rgb}) or null, its cloud in front of the sky; cr how
+// far from the Sun's centre, in drawn solar radii, for the corona (null leaves it out). Returns {S (1 nm, cd/m² per nm-ish units), Y (cd/m²),
 // parts: [[name, Y]], marks: annotations}.
-function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null){
+function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null, cr=null){
   const key=EP[dIdx].key, lat=dLat, cdu=cdPerUnit(), vz=Math.min(90-el, 88), parts=[], marks=[];
-  const S=new Float32Array(SP_N), sunlit=new Float32Array(SP_N);
+  const S=new Float32Array(SP_N), sunlit=new Float32Array(SP_N), coronaEW=[];
   // sun: true for sunlight (it gets the Sun's lines), 'post' for light already through the air.
   const post=new Float32Array(SP_N);
   const add=(name, Y, shape, sun)=>{ if(!(Y>0)) return; parts.push([name, Y]); const T=sun==='post'?post:sun?sunlit:S; for(let i=0;i<SP_N;i++) T[i]+=Y*shape[i]; };
@@ -197,6 +203,18 @@ function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null){
     if(sunSrc.fade>0){ const X=domeXYZ(key, lat, sunSrc.si, sunSrc.st, vz, azr(skyNow.sunAz)); add('sunlit air', X[1]*sunSrc.fade*skyNow.sunVis*skyNow.sunFlux*cdu, spSky(key, lat, skyNow.sza, vz, azr(skyNow.sunAz)), true); }
     const mo=skyNow.moon, mSrc=skySource(90-mo.el, mo.az);
     if(mSrc.fade>0&&skyNow.mScale>0){ const X=domeXYZ(key, lat, mSrc.si, mSrc.st, vz, azr(mo.az)); add('moonlit air', X[1]*mSrc.fade*skyNow.mScale*cdu, spNorm(spSky(key, lat, 90-mo.el, vz, azr(mo.az)).map((v, i)=>v*(0.8+0.0014*(SP_LAM[i]-450)))), true); }
+    // The corona and the chromosphere around the hidden Sun, as far as the drawing shows them.
+    if(disk!=='moon'&&cr!=null&&cr>=1&&skyNow.corona>0){
+      const st=coronaState(key), [K, F]=coronaKF(st, cr), ex=skyNow.corona*st.B*coronaThroughAir(key, el);
+      const sunS=spNorm(spSunDisk(key, lat, skyNow.sza));
+      add('corona, electrons (K)', K*ex, sunS);
+      add('corona, dust (F)', F*ex, spNorm(sunS.map((v, i)=>v*Math.pow(SP_LAM[i]/550, 0.3))), true);
+      // Each line its equivalent width of K's continuum there; against K it falls as the density.
+      const fall=K/coronaKF(st, 1)[0], E=new Float32Array(SP_N);
+      CORONA_LINES.forEach(([l], j)=>{ coronaEW[j]=st.ew[j]*fall; const g=spGauss(l, 0.6), w=coronaEW[j]*sunS[Math.round(l-SP_L0)]/(0.6*2.5066); for(let i=0;i<SP_N;i++) E[i]+=w*g[i]; });
+      add('corona, iron and calcium lines', K*ex*spY(E), spNorm(E));
+      add('chromosphere', CHROMO_B*st.chromo*ex*(1-smooth01(1, 1.06, cr)), SP_CHROMO);
+    }
     // The natural night sky and city light, as nightRows draws them.
     const q=6371/6471, sz=Math.sin(vz*Math.PI/180), f=absZenith(key)*(0.4+0.6*extinction(el, extK(key)))/Math.sqrt(1-q*q*sz*sz);
     const fo=AIRGLOW_O[key]??1, fc=AIRGLOW_CO2[key]||0;
@@ -255,6 +273,8 @@ function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null){
   if(shareHas(', ion tail')>0.08) marks.push({l:425.2, t:'CO⁺', em:true}, {l:391.4, t:'N₂⁺', em:true}, {l:619.4, t:'H₂O⁺', em:true});
   if(share('city')+share('cloud, lit by the city')>0.15){ if(key==='y2100') marks.push({l:452, t:'LED', em:true}); else marks.push({l:589.3, t:'Na (sodium lamps)', em:true}, {l:452, t:'LED', em:true}); }
   if(share('oil')+share('cloud, lit by oil')>0.15) marks.push({l:700, t:'flames, 1850 K', em:true});
+  if(share('corona')>0.3) CORONA_LINES.forEach(([l, , , n], j)=>{ if(coronaEW[j]>0.2) marks.push({l, t:`${n} ${l}`, em:true}); });
+  if(share('chromosphere')>0.2) marks.push({l:656.3, t:'Hα', em:true}, {l:587.6, t:'He I D3', em:true}, {l:486.1, t:'Hβ', em:true}, {l:393.4, t:'Ca II H&K', em:true});
   if(share('aurora, oxygen green')>0.05) marks.push({l:557.7, t:'[O I] 557.7', em:true});
   if(share('aurora, oxygen red')>0.03) marks.push({l:630, t:'[O I] 630', em:true});
   if(share('aurora, nitrogen violet')>0.02) marks.push({l:391.4, t:'N₂⁺ 391', em:true}, {l:427.8, t:'N₂⁺ 428', em:true});
@@ -311,7 +331,7 @@ function spectrumHTML(box, el, az, opts={}){
   if(!spData){ spLoad(); cv.style.display='none'; src.textContent='Loading the spectrum…'; return; }
   if(opts.meteor){ const st=meteorSpectrumTip(opts.meteor); cv.style.display='block'; drawSpectrum(cv, st); src.textContent=st.note; return; }
   if(opts.sn||opts.star){ const s=opts.star, st=opts.sn?snSpectrum(opts.sn):s.star?starSpectrum(s, el):reflectedSpectrum(s); cv.style.display='block'; drawSpectrum(cv, st); src.textContent=st.note; return; }
-  const sp=skySpectrum(el, az, opts.disk||null, opts.aurora||null, opts.disk==='sun'?opts.r||0:opts.lit??1, opts.cloud||null);
+  const sp=skySpectrum(el, az, opts.disk||null, opts.aurora||null, opts.disk==='sun'?opts.r||0:opts.lit??1, opts.cloud||null, opts.cr??null);
   cv.style.display='block'; drawSpectrum(cv, sp);
   const fmt=Y=>Y>=1?Y.toPrecision(3)+' cd/m²':(Y>=1e-3?(Y*1e3).toPrecision(3)+' mcd/m²':skyMagArcsec(Y).toFixed(1)+' mag/arcsec²');
   // The strongest sources, and on the Moon its own light however faint (earthshine against a
@@ -338,7 +358,8 @@ function domeSpectrum(x, y, box){
   const star=disk?null:starNear(horizDir(az, el), 7*90/R);
   if(star){ spectrumHTML(box, star.el, star.az, {star}); return; }
   const st=skyNow.aur, aurora=disk!=='sun'&&st&&st.on&&domeAur.gl?auroraProbe(domeAur.gl, domeAur.store, st, horizDir(az, el)):null;
-  spectrumHTML(box, el, az, {disk, aurora, lit, r:disk==='sun'?at(skyNow.sunAz, 90-skyNow.sza)/sunR:0});
+  const cr=at(skyNow.sunAz, 90-skyNow.sza)/sunR;
+  spectrumHTML(box, el, az, {disk, aurora, lit, r:disk==='sun'?cr:0, cr});
 }
 // How sunlit the Moon is at direction dir, with the disk drawn radDeg degrees in radius, or
 // null off the disk: the surface normal there against the Sun, as the sky shader does.

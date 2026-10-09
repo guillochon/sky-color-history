@@ -11,7 +11,7 @@ uniform vec3 snDir,snCol,snLight,mlDir,mlLight;
 uniform vec3 sunCol,ground,eye;
 // The setting Sun (sunDiskAt).
 uniform float refK, sunOff; uniform vec4 sunTau[50]; uniform vec3 sunW[20]; uniform vec3 sunG; uniform vec4 sunLay[4]; uniform vec4 sunMir;
-uniform float corona;
+uniform float corona, coronaMap[16], coronaRim;
 uniform sampler2D mwTex;
 uniform vec4 toneU; // display curve: k, p, cap, cd/m² per unit r (color.js toneT)
 uniform float rCd,mwOn,mwScale,mwK,mwDB;
@@ -639,12 +639,17 @@ void main(){
       vec2 ring=vec2(cos(pa), sin(pa));
       float streak=vN(ring*3.0+vec2(17.0, 5.0))*0.7+vN(ring*9.0+vec2(3.0, 11.0))*0.3;
       float streamer=(0.25+1.6*streak*streak)*(0.5+0.5*abs(ring.y));
-      float I=(1.0*pow(a, -6.0)+0.9*pow(a, -2.2)*streamer)*(1.0-smoothstep(3.5, 6.5, a));
+      // The epoch's corona as today's at the radius where today's is as bright (corona.js
+      // coronaMap: 16 samples from 1 to 12 radii).
+      float tm=clamp((a-1.0)/11.0*15.0, 0.0, 15.0);
+      int i0=min(int(tm), 14);
+      float am=a>12.0?coronaMap[15]*a/12.0:mix(coronaMap[i0], coronaMap[i0+1], tm-float(i0));
+      float I=(1.0*pow(am, -6.0)+0.9*pow(am, -2.2)*streamer)*(1.0-smoothstep(3.5, 6.5, am))*(1.0-smoothstep(5.0, 12.0, a));
       float prom=smoothstep(0.62, 0.86, vN(ring*7.0+vec2(29.0, 2.0)));
       float rim=1.0-smoothstep(1.0, 1.03+0.07*prom, a);
       float mu=max(sin(max(te, 0.0)*0.01745329252), 0.04);
       vec3 T=exp(-vec3(0.12, 0.22, 0.48)/mu);
-      skyC+=corona*T*(I*vec3(1.0, 0.97, 0.92)+rim*vec3(1.0, 0.3, 0.42)*1.5);
+      skyC+=corona*T*(I*vec3(1.0, 0.97, 0.92)+rim*vec3(1.0, 0.3, 0.42)*1.5*coronaRim);
     }
     if(beads[0].w>0.0 && te>-1.0){
       // Baily's beads and the diamond ring: glare around each piece of photosphere still

@@ -476,10 +476,11 @@ function renderDay(fast){
     dctx.save(); dctx.beginPath(); dctx.arc(cx,cy,R,0,Math.PI*2); dctx.clip();
     dctx.beginPath(); dctx.rect(0,0,W,H); dctx.arc(mx,my,mr,0,Math.PI*2,true); dctx.clip('evenodd');
     if(corona>0){
-      const g=dctx.createRadialGradient(sx,sy,SUNR,sx,sy,SUNR*6);
-      [[0,1],[0.1,0.5],[0.2,0.28],[0.4,0.12],[0.7,0.04],[1,0]].forEach(([t,a])=>g.addColorStop(t, `rgba(255,248,236,${a*corona})`));
-      dctx.fillStyle=g; dctx.beginPath(); dctx.arc(sx,sy,SUNR*6,0,Math.PI*2); dctx.fill();
-      dctx.strokeStyle=`rgba(255,90,120,${0.9*corona})`; dctx.lineWidth=1.5; dctx.beginPath(); dctx.arc(sx,sy,SUNR+0.75,0,Math.PI*2); dctx.stroke();
+      // The epoch's corona, drawn as today's at the radius where today's is as bright (corona.js).
+      const map=coronaMap(ep.key, coronaGain(ep.key, 90-sza)), out=coronaOuter(map), g=dctx.createRadialGradient(sx,sy,SUNR,sx,sy,SUNR*out);
+      for(let i=0;i<=20;i++){ const t=i/20; const a=1+(out-1)*t; g.addColorStop(t, `rgba(255,248,236,${coronaAlpha(coronaRemap(map, a))*(1-smooth01(5, CORONA_MAP_MAX, a))*(i<20)*corona})`); }
+      dctx.fillStyle=g; dctx.beginPath(); dctx.arc(sx,sy,SUNR*out,0,Math.PI*2); dctx.fill();
+      const rimK=coronaRimK(ep.key, coronaGain(ep.key, 90-sza)); dctx.strokeStyle=`rgba(255,90,120,${0.9*corona*Math.min(1, rimK)})`; dctx.lineWidth=1.5*Math.max(1, rimK); dctx.beginPath(); dctx.arc(sx,sy,SUNR+0.75,0,Math.PI*2); dctx.stroke();
     }
     dctx.restore();
   }
@@ -504,7 +505,7 @@ function renderDay(fast){
   const fullPct=r=>{ const p=r*100; return (p<10 ? p.toFixed(1) : Math.round(p))+'%'; };
   const sn=supernovaPlace(LATDEG[dLat]);
   if(!fast) drawSupernovaOnDome(sn);
-  skyNow={colgrid, nr:NR, na:NA, sza, sunAz, sunRGB, sunVis, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE*1.5+35/60*refK(), moon, corona, beads, eclipse, central, rgrid, cityUp:cityUplight(ep.key, Yref, k, p), Yref, toneK:k, toneP:p, rCd:Yref*cdu, gal:mwMap?galacticBasis(LATDEG[dLat]):null, extK:ek, stars:stars.tex, starMarks:stars.marks, starBins:stars.bins, starIdx:stars.idx, starIdxCount:stars.idxCount, sn, moonRel:mScale/MOON_SUN_FULL, mScale, sunFlux, halo:haloVR, ring:ringVR, ecl, comets, aur:auroraState(ep.key, LATDEG[dLat], minutes, rgrid[0]*Yref*cdu), gen:++skyGen};
+  skyNow={colgrid, nr:NR, na:NA, sza, sunAz, sunRGB, sunVis, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE*1.5+35/60*refK(), moon, corona, coronaMap:corona>0?coronaMap(ep.key, coronaGain(ep.key, 90-sza)):null, coronaRim:corona>0?coronaRimK(ep.key, coronaGain(ep.key, 90-sza)):1, beads, eclipse, central, rgrid, cityUp:cityUplight(ep.key, Yref, k, p), Yref, toneK:k, toneP:p, rCd:Yref*cdu, gal:mwMap?galacticBasis(LATDEG[dLat]):null, extK:ek, stars:stars.tex, starMarks:stars.marks, starBins:stars.bins, starIdx:stars.idx, starIdxCount:stars.idxCount, sn, moonRel:mScale/MOON_SUN_FULL, mScale, sunFlux, halo:haloVR, ring:ringVR, ecl, comets, aur:auroraState(ep.key, LATDEG[dLat], minutes, rgrid[0]*Yref*cdu), gen:++skyGen};
   document.getElementById('raur').textContent=auroraReadout(skyNow.aur);
   document.getElementById('rmet').textContent=meteorReadout();
   document.getElementById('rcomet').textContent=cometReadout();

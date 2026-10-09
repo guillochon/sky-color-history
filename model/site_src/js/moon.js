@@ -64,8 +64,10 @@ const MOON_SUN_FULL=Math.pow(10, -0.4*(MOON_V_FULL-MOON_V_SUN));
 function limbH(pa){ return 0.002*Math.sin(7*pa+1.3)+0.00167*Math.sin(12*pa+4.1)+0.00133*Math.sin(19*pa+2.2)+0.001*Math.sin(29*pa+5.0)+0.00083*Math.sin(41*pa+0.7)+0.00067*Math.sin(57*pa+3.3)+0.0005*Math.sin(83*pa+1.9); }
 // Apparent lunar radius at a distance of r Earth radii from the observer.
 function moonRadiusAt(r){ return Math.atan(MOON_R_KM/(r*EARTH_R_KM))*180/Math.PI; }
-// Apparent solar radius for the Sun's mean anomaly M: the mean radius over the Earth-Sun distance in AU.
-function sunRadiusAt(M){ return SUN_RADIUS_DEG/(1.00014-0.01671*cosd(M)-0.00014*cosd(2*M)); }
+// Apparent solar radius for the Sun's mean anomaly M: the mean radius over the Earth-Sun distance in AU,
+// times the epoch's Sun over today's (gen_site.py sun_radius, from its luminosity and temperature:
+// 0.90 at 4.4 Ga, 0.93 at 2.7 Ga, 0.98 at 700 Ma). SUN_RADIUS_DEG stays the drawings' scale.
+function sunRadiusAt(M){ return SUN_RADIUS_DEG*((EP[dIdx]&&EP[dIdx].sunR)||1)/(1.00014-0.01671*cosd(M)-0.00014*cosd(2*M)); }
 function rev(x){ x%=360; return x<0?x+360:x; }
 function sind(x){ return Math.sin(x*Math.PI/180); }
 function cosd(x){ return Math.cos(x*Math.PI/180); }

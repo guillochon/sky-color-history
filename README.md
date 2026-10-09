@@ -30,11 +30,13 @@ at thirteen moments in its history, from the 30-bar CO2 Hadean to a modern megac
 
 Reproduce everything:
 
+The Python dependencies are pinned in `pyproject.toml` and `uv.lock`; [uv](https://docs.astral.sh/uv/)
+installs them into `.venv` on the first `uv run`.
+
 ```
-pip install numpy scipy matplotlib
 cd model
-python run_epochs.py && python limb_grid.py && python daycycle.py
-python gen_report.py && python gen_site.py && python make_figs.py && python make_tex.py
+uv run run_epochs.py && uv run limb_grid.py && uv run daycycle.py
+uv run gen_report.py && uv run gen_site.py && uv run make_figs.py && uv run make_tex.py
 cd ../latex && latexmk -pdf main.tex
 ```
 

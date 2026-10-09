@@ -269,6 +269,7 @@ function paintVR(){
   gl.uniform1f(u.sunOn, skyNow.sunOn?1:0);
   gl.uniform1f(u.sunRad, skyNow.moon.sunRadDeg*DISK_SCALE*Math.PI/180);
   gl.uniform1f(u.corona, skyNow.corona||0);
+  gl.uniform1fv(u.coronaMap, skyNow.coronaMap||coronaMap(EP[dIdx].key)); gl.uniform1f(u.coronaRim, skyNow.coronaRim??1);
   // The night sky: the display curve, the Milky Way (uploaded once it is built), and limits.
   gl.uniform4f(u.toneU, skyNow.toneK, skyNow.toneP, 0.95, TOE_CD);
   gl.uniform1f(u.rCd, skyNow.rCd); gl.uniform1f(u.mwK, skyNow.extK);
