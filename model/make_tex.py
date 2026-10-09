@@ -117,7 +117,7 @@ main = r"""\PassOptionsToPackage{table}{xcolor}
 \usepackage{needspace}
 \usepackage{graphicx,float,booktabs,tabularx,array,amsmath,microtype,titlesec,caption,tcolorbox,longtable}
 \usepackage[table]{xcolor}
-\usepackage[hidelinks]{hyperref}
+\usepackage[colorlinks=true,citecolor=sky,linkcolor=sky,urlcolor=sky]{hyperref}
 \usepackage[round]{natbib}
 \definecolor{sky}{HTML}{2F6FBA}
 \definecolor{dusk}{HTML}{C8562B}
@@ -265,7 +265,6 @@ Epoch & Latitude & Zenith $(x,y)$ & CCT (K) & Horizon $(x,y)$ & CCT (K) & Sun \\
 \end{document}
 """
 
-open(f'{L}/main.tex', 'w', encoding='utf-8').write(main)
 
 bib = r"""@article{arney2016, author={Arney, Giada and Domagal-Goldman, Shawn D. and Meadows, Victoria S. and others}, title={The Pale Orange Dot: The Spectrum and Habitability of Hazy {Archean} {Earth}}, journal={Astrobiology}, volume={16}, pages={873--899}, year={2016}}
 @article{catling2020, author={Catling, David C. and Zahnle, Kevin J.}, title={The {Archean} atmosphere}, journal={Science Advances}, volume={6}, pages={eaax1420}, year={2020}}
@@ -296,3 +295,39 @@ bib = r"""@article{arney2016, author={Arney, Giada and Domagal-Goldman, Shawn D.
 """
 open(f'{L}/refs.bib', 'w', encoding='utf-8').write(bib)
 print('ok')
+
+# Citations in the text link to their entry in the references. The wording is kept as written
+# ("Sharp, Lloyd & Silverman 1966", "Cooke et al. (2021)") and wrapped in a link to hyperref's
+# anchor for the entry (cite.<key>), so natbib does not rewrite it.
+ACCENTS = {r"\'": '́', r'\"': '̈', r'\~': '̃', r'\v': '̌', r'\`': '̀'}
+def bib_text(x):
+    import unicodedata
+    x = re.sub(r'\{?\\([\'"~`v])\{?([A-Za-z])\}?\}?', lambda m: m.group(2)+ACCENTS['\\'+m.group(1)], x)
+    x = x.replace('{\\ss}', 'ß').replace('\\ss', 'ß')
+    return unicodedata.normalize('NFC', x.replace('{', '').replace('}', ''))
+def cite_forms(entry):
+    key = re.match(r'@\w+\{([^,]+),', entry).group(1)
+    au = re.search(r'author=\{(.*?)\},\s*(title|journal|year)', entry)
+    yr = re.search(r'year=\{(\d{4})\}', entry)
+    if not au or not yr: return key, [], None
+    names = [a.strip() for a in bib_text(au.group(1)).split(' and ')]
+    if names[0].startswith('Gaia'): return key, [], None
+    sur = [n.split(',')[0].strip() if ',' in n else n.split()[-1] for n in names if n != 'others']
+    etal = 'others' in names or len(sur) > 3
+    forms = []
+    if len(sur) >= 3 or etal: forms.append(sur[0] + ' et al.')
+    if len(sur) == 1 and not etal: forms.append(sur[0])
+    if len(sur) == 2 and not etal: forms += [sur[0] + r' \& ' + sur[1], sur[0] + ' and ' + sur[1]]
+    if len(sur) == 3 and not etal: forms += [sur[0] + ', ' + sur[1] + r' \& ' + sur[2], sur[0] + ', ' + sur[1] + ', and ' + sur[2], sur[0] + ', ' + sur[1] + ' and ' + sur[2]]
+    return key, forms, yr.group(1)
+def linkify(body, bibtex):
+    for entry in re.findall(r'@\w+\{.*?\}\s*(?=\n@|\Z)', bibtex, re.S):
+        key, forms, year = cite_forms(entry)
+        for f in sorted(forms, key=len, reverse=True):
+            pat = r'(?<![\w{])(' + re.escape(f) + r' (?:\(' + year + r'\)|' + year + r'))(?![\d}])'
+            body = re.sub(pat, lambda m: r'\hyperlink{cite.' + key + '}{' + m.group(1) + '}', body)
+    return body
+head, rest = main.split(r'\begin{document}', 1)
+body, tail = rest.split(r'\bibliography{refs}', 1)
+main = head + r'\begin{document}' + linkify(body, bib) + r'\bibliography{refs}' + tail
+open(f'{L}/main.tex', 'w', encoding='utf-8').write(main)
