@@ -31,7 +31,7 @@ function renderGlobe(ep){
 }
 let tPos=11, tIdx=11;
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
-let refreshGlobeTip=()=>{}, refreshDomeTip=()=>{};
+let refreshGlobeTip=()=>{}, refreshDomeTip=()=>{}, refreshBarTip=()=>{}, refreshNoonTip=()=>{};
 function drawGlobeAt(pos){ // blend between neighboring epochs
   const i=Math.floor(pos), t=pos-i; const a=renderGlobe(EP[i]);
   gctx.globalAlpha=1; gctx.drawImage(a,0,0);
@@ -79,7 +79,8 @@ function showEpoch(pos){
   more.hidden=fits; box.classList.toggle('fits', fits);
   const domes=document.getElementById('tdomes'); domes.innerHTML='';
   for(const L of ['Equator','Mid-latitude','Polar summer']){ const v=ep.lat[L]; const zc=hex(tone(xyY2XYZ(v.z),YREF)), hc=hex(tone(xyY2XYZ(v.h),YREF));
-    domes.insertAdjacentHTML('beforeend',`<figure><div class="sky" style="background:linear-gradient(${zc},${hc})"></div><figcaption>${L}<small>zenith ${v.zc.toLocaleString()} K · horizon ${v.hc.toLocaleString()} K</small></figcaption></figure>`); }
+    domes.insertAdjacentHTML('beforeend',`<figure><div class="sky" data-lat="${L}" data-zc="${zc}" data-hc="${hc}" style="background:linear-gradient(${zc},${hc})"></div><figcaption>${L}<small>zenith ${v.zc.toLocaleString()} K · horizon ${v.hc.toLocaleString()} K</small></figcaption></figure>`); }
+  refreshNoonTip();
   document.querySelectorAll('#ttrack .tick').forEach((t,j)=>{ const on=j===i; t.classList.toggle('on',on); if(on) t.setAttribute('aria-current','true'); else t.removeAttribute('aria-current'); });
 }
 document.getElementById('tmore').addEventListener('click', e=>{

@@ -496,7 +496,8 @@ function renderDay(fast){
   // swatch bar along the sun's vertical
   const bar=document.getElementById('hbar'); bar.innerHTML='';
   const pts=[[88,0],[75,0],[60,0],[45,0],[30,0],[15,0],[0,0],[15,180],[30,180],[45,180],[60,180],[75,180],[88,180]];
-  for(const [vz,azr] of pts){ const X=sumAt(vz, sunAz+azr); const i=document.createElement('i'); i.style.background=hex(tone(X,Yref,k,p,0.95)); i.title=`${vz}° from zenith, ${azr?'away from':'toward'} the Sun`; bar.appendChild(i); }
+  for(const [vz,azr] of pts){ const X=sumAt(vz, sunAz+azr); const i=document.createElement('i'); i.dataset.hex=hex(tone(X,Yref,k,p,0.95)); i.style.background=i.dataset.hex; i.dataset.vz=vz; i.dataset.azr=azr; i.setAttribute('aria-label',`${vz}° from zenith, ${azr?'away from':'toward'} the Sun`); bar.appendChild(i); }
+  refreshBarTip();
   markHour();
   paintDomeAurora();
   refreshDomeTip();

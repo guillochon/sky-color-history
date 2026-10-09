@@ -74,7 +74,7 @@ function spLoad(){
     const n=new DataView(buf).getUint32(0, true), head=JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 4, n)));
     spData={...head, bytes:new Uint8Array(buf, 4+n), nl:head.lam.length, slots:head.vz.length*head.az.length+1};
     // Redraw whichever tooltip is waiting on them, without waiting for the pointer to move.
-    refreshDomeTip(); refreshGlobeTip(); refreshVRTip();
+    refreshDomeTip(); refreshGlobeTip(); refreshVRTip(); refreshBarTip(); refreshNoonTip();
   }).catch(()=>{ spLoading=null; });
   return spLoading;
 }
@@ -488,4 +488,36 @@ function starSpectrum(s, el){
   const note=`${s.star[7]||'A star'} · ${cls==='O'||cls==='A'?'an':'a'} ${cls} star, ${Math.round(T/50)*50} K · V ${s.mag.toFixed(1)} above the air, `
     +`${m.toFixed(1)} through ${X.toFixed(1)} airmass${X>=1.05?'es':''} of it, whose imprint is left in`;
   return {S, Y:1, parts:[], marks, note};
+}
+// The swatch bar under the dome: swatch sw is the sky vz° from the zenith toward the Sun's
+// azimuth, or away from it.
+function barSpectrumTip(sw, box){
+  if(!skyNow) return;
+  const vz=+sw.dataset.vz, az=(skyNow.sunAz+(+sw.dataset.azr)+360)%360;
+  spectrumHTML(box, 90-vz, az);
+}
+// The noon skies (run_epochs.py): the Sun 15°, 45° and 75° from the zenith, the gradient running
+// from the zenith at the top to the horizon 90° round from the Sun at the bottom. Height f (0 at
+// the top, 1 at the bottom) is taken as the view zenith angle 88f; the model's spectra there,
+// with the Sun's lines and the air's O2 and water bands along the light's path.
+const NOON_SZA={'Equator':15, 'Mid-latitude':45, 'Polar summer':75};
+function noonSpectrum(key, L, f){
+  const sza=NOON_SZA[L], vz=88*Math.max(0, Math.min(1, f)), S=spSky(key, L==='Polar summer'?'Polar':L, sza, vz, 90);
+  const X=Math.min(spAirmass(90-vz)+spAirmass(90-sza)*0.5, 40), o2=(SP_O2[key]??1)*X, h2o=(SP_H2O[key]??1)*X;
+  for(let i=0;i<SP_N;i++) S[i]*=SP_FRAUN_T[i]*Math.exp(-SP_TAU_O2[i]*o2-SP_TAU_H2O[i]*h2o);
+  const marks=[{l:393.4, t:'Ca II H&K'}, {l:486.1, t:'Hβ'}, {l:517.3, t:'Mg b'}, {l:656.3, t:'Hα'}];
+  if((!(key in SP_O2)||SP_O2[key]>=0.01)&&key!=='proterozoic22') marks.unshift({a:500, b:680, t:'O₃ Chappuis', band:true});
+  if(key.startsWith('archean27')) marks.unshift({a:380, b:480, t:'organic haze', band:true});
+  if(key==='kpg66') marks.unshift({a:380, b:780, t:'soot dims all colours', band:true, quiet:true});
+  if(o2>0.05) marks.push({l:760.5, t:'O₂ A'}, {l:687.5, t:'O₂ B'});
+  if(SP_TAU_H2O[345]*h2o>0.15) marks.push({l:725, t:'H₂O'});
+  return {S, Y:1, parts:[], marks, vz, sza};
+}
+function noonSpectrumTip(sky, f, box){
+  let cv=box.querySelector('canvas.spc'), src=box.querySelector('.spsrc');
+  if(!cv){ cv=document.createElement('canvas'); cv.className='spc'; src=document.createElement('div'); src.className='spsrc'; box.append(cv, src); }
+  if(!spData){ spLoad(); cv.style.display='none'; src.textContent='Loading the spectrum…'; return; }
+  const L=sky.dataset.lat, sp=noonSpectrum(EP[tIdx].key, L, f), el=Math.round(90-sp.vz);
+  cv.style.display='block'; drawSpectrum(cv, sp);
+  src.textContent=`${el>=89?'The zenith':el+'° above the horizon'}, 90° round from the Sun (${90-sp.sza}° up): sunlight scattered by the air`;
 }
