@@ -174,6 +174,7 @@ window.addEventListener('wheel', e=>{
 window.addEventListener('mousemove', e=>{ if(!vrOn) return; if(vrInspect){ vrInspectAt=[e.clientX, e.clientY]; if(!vrPin) refreshVRTip(); if(!vrEdgeRAF) vrEdgeRAF=requestAnimationFrame(edgeScroll); return; } if(!e.movementX&&!e.movementY) return; lookVR(e.movementX, e.movementY); });
 window.addEventListener('pointerdown', e=>{ if(!vrOn) return; pokeVRMusic(); if(vrInspect){ if(e.button===0) pinVRTip(e.clientX, e.clientY); return; } if(document.pointerLockElement===vrc) return; vrRelock=true;
   const root=document.getElementById('vr'); if(!document.fullscreenElement&&root.requestFullscreen){ const p=root.requestFullscreen(); if(p&&p.catch) p.catch(()=>{}); }
+  if(document.getElementById('vrload').textContent===VR_FS_BACK) hideVRLoad();
   lockLook(); setTimeout(()=>{ vrRelock=false; }, 400); });
 let vrTX=0, vrTY=0;
 vrc.addEventListener('touchstart', e=>{ const t=e.touches[0]; vrTX=t.clientX; vrTY=t.clientY; }, {passive:true});
@@ -196,12 +197,15 @@ function vrLeaveUnlessAway(stillLost){
     exitVR();
   }, 250);
 }
+const VR_FS_BACK='Click to go back to full screen';
 document.addEventListener('fullscreenchange', ()=>{
   if(!vrOn) return;
-  // Where the page can't hold Esc (see vrHoldEsc), Esc in inspect leaves full screen instead: that
-  // ends inspect and keeps VR, and the next click brings the full screen back.
-  if(!document.fullscreenElement&&(vrInspect||performance.now()-vrInspectLeftAt<400)){ if(vrInspect) setInspect(false, true); return; }
+  // Where the page can't hold Esc (Firefox and Safari have no keyboard lock; see vrHoldEsc), Esc in
+  // inspect leaves full screen, and only a click may ask for it again: that Esc ends inspect and
+  // keeps VR, and says so, and the next click brings the full screen back.
+  if(!document.fullscreenElement&&(vrInspect||performance.now()-vrInspectLeftAt<400)){ if(vrInspect) setInspect(false, true); showVRLoad(VR_FS_BACK); return; }
   if(!document.fullscreenElement){ vrLeaveUnlessAway(()=>!document.fullscreenElement); return; }
+  if(document.getElementById('vrload').textContent===VR_FS_BACK) hideVRLoad();
   vrHoldEsc(true);
   if(vrInspect) return;
   vrRelock=true; lockLook(); setTimeout(()=>{ vrRelock=false; }, 400);
