@@ -212,7 +212,7 @@ function paintMoonSprite(moon, sunAz, sunEl){
   }
   sctx.putImageData(img,0,0);
 }
-function drawMoonOnDome(moon, sunAz, sunEl){
+function drawMoonOnDome(moon, sunAz, sunEl, lu){
   if(!moonReady||moon.el<-moon.radDeg) return;
   const W=dome.width, H=dome.height, {cx, cy, R, z}=domeView();
   const rr=R*(90-moon.el)/90, a=moon.az*Math.PI/180, mx=cx+rr*Math.sin(a), my=cy-rr*Math.cos(a);
@@ -222,6 +222,7 @@ function drawMoonOnDome(moon, sunAz, sunEl){
   let az2=Math.atan2(step[0], step[1])*180/Math.PI; if(az2<0) az2+=360;
   const rr2=R*(90-el2)/90, p1x=cx+rr2*Math.sin(az2*Math.PI/180), p1y=cy-rr2*Math.cos(az2*Math.PI/180);
   paintMoonSprite(moon, sunAz, sunEl);
+  const ef=[1, 1, 1];
   // Same veil as the VR sky: extinct the Moon (blue first) and add it onto the
   // air already drawn, so a bright sky hides the photograph.
   const spr=moonSprite.getContext('2d',{willReadFrequently:true}).getImageData(0,0,96,96).data;
@@ -245,6 +246,8 @@ function drawMoonOnDome(moon, sunAz, sunEl){
     const qx=x-mx, qy=y-my, lx=qx*ca+qy*sa, ly=-qx*sa+qy*ca, u=lx/rad, v=-ly/rad;
     if(u*u+v*v>1) continue;
     samp(u,v); const lit=s[3]/255, wlit=0.06+0.94*lit;
+    // In the Earth's shadow, its light (in linear terms) on the photograph's.
+    if(lu){ lunarFactor(lu, u, v, ef); for(let q=0;q<3;q++) s[q]=255*Math.pow(Math.pow(s[q]/255, 2.2)*ef[q], 1/2.2); }
     const el=90*(1-Math.hypot(dx,dy)/R), mu=Math.max(Math.sin(Math.max(el,0)*Math.PI/180), 0.04);
     const Tr=Math.exp(-0.12/mu), Tg=Math.exp(-0.22/mu), Tb=Math.exp(-0.48/mu);
     const o=((y-y0)*bw+(x-x0))*4;

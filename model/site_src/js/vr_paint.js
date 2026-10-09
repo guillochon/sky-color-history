@@ -273,6 +273,19 @@ function paintVR(){
   gl.uniform1f(u.moonAz, skyNow.moon.az); gl.uniform1f(u.moonEl, skyNow.moon.el);
   gl.uniform1f(u.moonRad, skyNow.moon.rad*DISK_SCALE); gl.uniform1f(u.moonOn, skyNow.moon.on?1:0);
   gl.uniform1f(u.latRad, LATDEG[dLat]*Math.PI/180);
+  // The lunar eclipse's shadow table, sent once per epoch, and its place on the disk.
+  // The table changes as the Moon moves through the shadow. Unit 6 also holds the clouds' 3D
+  // noise, on its own target, so the table is bound each time.
+  const lu=skyNow.lunar;
+  gl.activeTexture(gl.TEXTURE6); gl.bindTexture(gl.TEXTURE_2D, vrGL.eclTex);
+  if(lu&&vrGL.eclLut!==lu.lut){
+    const b=new Uint8Array(LUN_LUT_N*4);
+    for(let i=0;i<LUN_LUT_N;i++){ for(let q=0;q<3;q++) b[i*4+q]=linToByte(lu.lut[i*3+q]); b[i*4+3]=255; }
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, LUN_LUT_N, 1, gl.RGBA, gl.UNSIGNED_BYTE, b);
+    vrGL.eclLut=lu.lut;
+  }
+  gl.activeTexture(gl.TEXTURE0);
+  gl.uniform4f(u.eclU, lu?lu.c[0]:0, lu?lu.c[1]:0, lu?lu.k:0, lu?1:0);
   gl.uniform1f(u.sunOn, skyNow.sunOn?1:0);
   gl.uniform1f(u.sunRad, skyNow.moon.sunRadDeg*DISK_SCALE*Math.PI/180);
   gl.uniform1f(u.corona, skyNow.corona||0);

@@ -21,6 +21,10 @@ uniform sampler2D aurTex; uniform float aurOn;
 // Ice halos (halo.js): x the Sun's and y the Moon's halo luminance over the sky reference per
 // unit of haloAt, with their colours as linear RGB of unit luminance.
 uniform vec2 haloK; uniform vec3 haloSunLin, haloMoonLin;
+// A lunar eclipse (lunar_eclipse.js): the shadow's light along its radius (linear, sRGB-coded),
+// and where its axis meets the Moon's disk (xy, in the disk's radii), the scale from disk radii
+// to the table's span (z), and whether the Moon is in the penumbra at all (w).
+uniform sampler2D eclTex; uniform vec4 eclU;
 ${HALO_GLSL}
 // The Ordovician ring and the meteors (debris.js, meteors.js).
 ${RING_GLSL}
@@ -580,6 +584,10 @@ void main(){
         float mu=max(sin(max(te,0.0)*0.01745329252), 0.04);
         vec3 T=exp(-vec3(0.12, 0.22, 0.48)/mu);
         vec3 moonC=alb*(0.06+0.94*lit)*T;
+        if(eclU.w>0.5){
+          float t=length(vec2(x, y)-eclU.xy)*eclU.z;
+          if(t<1.0) moonC=lin2s3(s2lin3(moonC)*s2lin3(texture(eclTex, vec2((t*${LUN_LUT_N-1}.0+0.5)/${LUN_LUT_N}.0, 0.5)).rgb));
+        }
         float skyY=dot(skyC, vec3(0.2126, 0.7152, 0.0722));
         skyC+=moonC*(1.0-smoothstep(0.0, 1.15, skyY));
         }

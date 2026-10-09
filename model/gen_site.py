@@ -74,10 +74,18 @@ def sun_bands(key):
         T = band(lam_w*np.exp(-tau)).sum(1)/band(lam_w).sum(1)
         t += [float('%.4g' % v) for v in -np.log(np.maximum(T, 1e-300))]
     return dict(k=round(min(k, 3.0), 3), w=w, t=t)
+# The light in the Earth's shadow at the Moon (lunar_eclipse.py): per lateral distance from the
+# shadow's axis (Earth radii, 0 to rhoMax), its luminance and linear sRGB over the uneclipsed
+# Moon's, and every fourth row's spectrum (log10, 380-780 nm by 10) for the spectrum tooltip.
+# Epochs with the same shadow give the key of the one that carries it.
+SHADOW = json.loads((HERE / 'eclipse_grid.json').read_text(encoding='utf-8'))['epochs']
+def shadow(k):
+    s = SHADOW[k]
+    return s if isinstance(s, str) else dict(D=s['D'], rhoMax=s['rhoMax'], Y=s['Y'], rgb=s['rgb'], sp=s['sp'][::4])
 EP = []
 for k in order:
     r = byk[k]
-    EP.append(dict(key=k, name=r['name'], sub=r['sub'].replace('tau(550nm)','τ(550 nm)'), age=ages[k], short=short[k], prose=PROSE[k], air=air_atoms(k), sun=sun_bands(epoch(k)['key']), teff=epoch(k)['sun'][0], sunR=sun_radius(k),
+    EP.append(dict(key=k, name=r['name'], sub=r['sub'].replace('tau(550nm)','τ(550 nm)'), age=ages[k], short=short[k], prose=PROSE[k], air=air_atoms(k), sun=sun_bands(epoch(k)['key']), teff=epoch(k)['sun'][0], sunR=sun_radius(k), shadow=shadow(k),
                    lat={L: dict(z=[v['zenith']['x'], v['zenith']['y'], v['zenith']['Y']], h=[v['horizon']['x'], v['horizon']['y'], v['horizon']['Y']],
                                 zc=int(v['zenith']['cct']), hc=int(v['horizon']['cct'])) for L, v in r['lat'].items()},
                    limb=LIMB[k]))
@@ -167,6 +175,7 @@ PARTS = [
     'js/satellites.js',
     'js/comets.js',
     'js/dome_bodies.js',
+    'js/lunar_eclipse.js',
     'js/moon_surface.js',
     'js/scenery.js',
     'js/shader_terrain.js',

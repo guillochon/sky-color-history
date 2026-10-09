@@ -54,8 +54,8 @@ function vrRestoreGL(gl){
 // Uniform locations, texture units, and fixed values for a sky program (boot or full).
 function setupSkyProg(gl, prog){
   gl.useProgram(prog);
-  const u=uniformLocs(gl, prog, ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','eye','nr','na','sunMu','showScn','mtnSnow','moonAz','moonEl','moonRad','moonOn','latRad','starPx','cloudCov','cloudScale','cloudDrift','cloudOn','clockH','pondN','snowCover','waterT','snOn','snDir','snCol','snLight','mlDir','mlLight','corona','coronaMap[0]','coronaRim','toneU','rCd','mwOn','mwScale','mwK','mwDB','galX','galY','galZ','aurOn','haloK','haloSunLin','haloMoonLin','ringU','ringV','ringP','ringLin','metA[0]','metB[0]','metC[0]','metN','metFlash','cometH[0]','cometK[0]','cometS[0]','cometI[0]','cometN','cometComa','cometDust','cometIon','beads[0]','refK','sunOff','sunTau[0]','sunW[0]','sunG','sunLay[0]','sunMir','pond[0]','gridN','roadN','grid[0]','road[0]','obj[0]','kind[0]']);
-  bindSamplers(gl, prog, [['sky',0],['moonMap',1],['starMap',3],['starBin',4],['starIdx',5],['weather',7],['hitInfo',10],['hitNrm',11],['noiseTex',12],['mwTex',13],['aurTex',9]]);
+  const u=uniformLocs(gl, prog, ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','eye','nr','na','sunMu','showScn','mtnSnow','moonAz','moonEl','moonRad','moonOn','latRad','starPx','cloudCov','cloudScale','cloudDrift','cloudOn','clockH','pondN','snowCover','waterT','snOn','snDir','snCol','snLight','mlDir','mlLight','corona','coronaMap[0]','coronaRim','toneU','rCd','mwOn','mwScale','mwK','mwDB','galX','galY','galZ','aurOn','haloK','haloSunLin','haloMoonLin','eclU','ringU','ringV','ringP','ringLin','metA[0]','metB[0]','metC[0]','metN','metFlash','cometH[0]','cometK[0]','cometS[0]','cometI[0]','cometN','cometComa','cometDust','cometIon','beads[0]','refK','sunOff','sunTau[0]','sunW[0]','sunG','sunLay[0]','sunMir','pond[0]','gridN','roadN','grid[0]','road[0]','obj[0]','kind[0]']);
+  bindSamplers(gl, prog, [['sky',0],['moonMap',1],['starMap',3],['starBin',4],['starIdx',5],['weather',7],['hitInfo',10],['hitNrm',11],['noiseTex',12],['mwTex',13],['aurTex',9],['eclTex',6]]);
   gl.uniform1f(u.fov, vrFov*Math.PI/180);
   gl.uniform1f(u.sunRad, SUN_RADIUS_DEG*DISK_SCALE*Math.PI/180);
   return u;
@@ -113,8 +113,12 @@ function setupVR(gl, vs, prog, skyJob, cloudJobs){
   gl.activeTexture(gl.TEXTURE5); gl.bindTexture(gl.TEXTURE_2D, starIdxTex);
   texParams(gl, gl.NEAREST, gl.NEAREST, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 1024, 32, 0, gl.RGBA, gl.FLOAT, new Float32Array(1024*32*4));
+  const eclTex=gl.createTexture();
+  gl.activeTexture(gl.TEXTURE6); gl.bindTexture(gl.TEXTURE_2D, eclTex);
+  texParams(gl, gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, LUN_LUT_N, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(LUN_LUT_N*4).fill(255));
   gl.activeTexture(gl.TEXTURE0);
-  vrGL={gl,u,tex,prog,buf,moonTex,starTex,starBinTex,starIdxTex,noiseTex,starUploaded:-1,
+  vrGL={gl,u,tex,prog,buf,moonTex,eclTex,eclLut:null,starTex,starBinTex,starIdxTex,noiseTex,starUploaded:-1,
     vs, hits:{}, hitFbo:gl.createFramebuffer(), hitFloat:!!gl.getExtension('EXT_color_buffer_float')};
   // Stand-in hit buffers that say "nothing here, unshadowed" until the hit pass runs.
   const noHit=px=>{ const t=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);

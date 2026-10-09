@@ -79,6 +79,9 @@ function toggleVRMusic(){
   pokeVRMusic(); applyMusicGain();
 }
 let vrEntry=0;
+// Where to look on entering, in place of toward the Sun: applied once the view is open, which the
+// first time waits for the shaders.
+let vrEntryLook=null;
 function enterVR(fromLink){
   const root=document.getElementById('vr'); root.classList.add('on'); root.setAttribute('aria-hidden','false');
   document.body.style.overflow='hidden';
@@ -92,6 +95,7 @@ function enterVR(fromLink){
   const open=ok=>{
     if(!vrOn||entry!==vrEntry) return;
     if(!ok){
+      vrEntryLook=null;
       hideVRLoad();
       vrOn=false; vrRelock=false;
       root.classList.remove('on','locked'); root.setAttribute('aria-hidden','true');
@@ -101,6 +105,7 @@ function enterVR(fromLink){
       return;
     }
     const g=sunGeom(LATDEG[dLat], minutes); vrYaw=g.az; const elev=90-g.sza; vrPitch=Math.max(-8, Math.min(15, elev-8));
+    if(vrEntryLook){ vrEntryLook(); vrEntryLook=null; }
     sizeVR(); root.tabIndex=-1; root.focus();
     if(!dayPlaying){ dayPlaying=true; if(minutes>=DAYMIN){ minutes-=DAYMIN; shiftMoonDate(1); } hplay.textContent='Pause'; hplay.setAttribute('aria-pressed','true'); }
     if(!nav){
@@ -236,11 +241,14 @@ document.addEventListener('keydown',e=>{
     if(e.key==='ArrowDown'||e.key==='['){ e.preventDefault(); stepEpoch(-1); return; }
     if(k==='e'&&!e.repeat){ e.preventDefault(); jumpNextEclipse(false); return; }
     if(k==='t'&&!e.repeat){ e.preventDefault(); jumpNextEclipse(true); return; }
+    if(k==='u'&&!e.repeat){ e.preventDefault(); jumpNextLunarEclipse(false); return; }
+    if(k==='b'&&!e.repeat){ e.preventDefault(); jumpNextLunarEclipse(true); return; }
     if((k==='1'||k==='2'||k==='3')&&!e.repeat){ e.preventDefault(); setPlaySpeed(SPEED_KEYS[k]); return; }
     return;
   }
   // The page has VR's keys for time and eras: space plays or pauses the day, ← and → step it by
-  // five minutes, ↑ and ↓ (or [ and ]) change era, e and t jump to the next eclipse. Not while
+  // five minutes, ↑ and ↓ (or [ and ]) change era, e and t jump to the next eclipse, u and b to the next
+  // lunar one. Not while
   // typing, or on a control that uses the key itself; with a modifier, the browser's own.
   const t=document.activeElement, tag=t&&t.tagName;
   if(e.ctrlKey||e.metaKey||e.altKey||tag==='INPUT'||tag==='SELECT'||tag==='TEXTAREA'||(t&&t.isContentEditable)) return;
@@ -249,6 +257,7 @@ document.addEventListener('keydown',e=>{
   const act={' ':()=>{ if(!e.repeat) hplay.click(); }, ArrowRight:()=>stepMinutes(5), ArrowLeft:()=>stepMinutes(-5),
     ArrowUp:()=>stepEpoch(1), ']':()=>stepEpoch(1), ArrowDown:()=>stepEpoch(-1), '[':()=>stepEpoch(-1),
     e:()=>{ if(!e.repeat) jumpNextEclipse(false); }, t:()=>{ if(!e.repeat) jumpNextEclipse(true); },
+    u:()=>{ if(!e.repeat) jumpNextLunarEclipse(false); }, b:()=>{ if(!e.repeat) jumpNextLunarEclipse(true); },
     1:()=>setPlaySpeed('real'), 2:()=>setPlaySpeed('default'), 3:()=>setPlaySpeed('fast')}[k];
   if(act){ e.preventDefault(); act(); }
 });
@@ -278,6 +287,7 @@ document.querySelectorAll('.vrpad button, .vrplay').forEach(b=>{
     else if(act==='era') stepEpoch(+b.dataset.dir);
     else if(act==='eclipse') jumpNextEclipse(false);
     else if(act==='central') jumpNextEclipse(true);
+    else if(act==='lunar') jumpNextLunarEclipse(false);
     syncVRPad();
   });
 });
@@ -350,6 +360,7 @@ function vrProbe(cx, cy, throughCloud){
   }
   const sep=(bAz, bEl)=>Math.acos(Math.max(-1, Math.min(1, vdot(d, horizDir(bAz, apparentEl(bEl))))))*180/Math.PI, mo=skyNow.moon;
   P.lit=!P.cloud&&mo.on?moonLitAt(horizDir(az, el), mo.radDeg*DISK_SCALE):null;
+  P.moonXY=P.lit!=null?moonDiskXY(horizDir(az, el), mo.radDeg*DISK_SCALE):null;
   P.disk=P.cloud?null:(P.lit!=null?'moon':(skyNow.sunOn&&skyNow.sunVis>0.01&&sep(skyNow.sunAz, 90-skyNow.sza)<mo.sunRadDeg*DISK_SCALE?'sun':null));
   P.cr=sep(skyNow.sunAz, 90-skyNow.sza)/(mo.sunRadDeg*DISK_SCALE);
   if(P.disk==='sun') P.r=P.cr;
@@ -434,7 +445,7 @@ function refreshVRTip(){
     if(P.meteor) spectrumHTML(box, P.meteor.el, P.meteor.az, {meteor:P.meteor});
     else if(sn) spectrumHTML(box, sn.el, sn.az, {sn});
     else if(star) spectrumHTML(box, star.el, star.az, {star});
-    else spectrumHTML(box, el, az, {disk, aurora, cloud:P.cloudPx, lit, r:P.r, cr:P.cr});
+    else spectrumHTML(box, el, az, {disk, aurora, cloud:P.cloudPx, lit, r:P.r, cr:P.cr, moonXY:P.moonXY});
   }
   tip.style.display='block';
   placeVRTip(cx, cy, true);

@@ -1,7 +1,8 @@
 // Moments: cards on the landing page, oldest first, that open the VR view at a chosen sky. Each sets the epoch,
 // latitude, date and clock time, then where to look: toward the Sun (the default), a direction
-// (look: [azimuth, elevation]), or the supernova (look: 'sn'). The eclipse card finds the next total
-// eclipse from today with the Sun up, as the t key does but passing over annular ones. Moments
+// (look: [azimuth, elevation]), the supernova (look: 'sn') or the Moon (look: 'moon'). The eclipse
+// card finds the next total eclipse from today with the Sun up, as the t key does but passing over
+// annular ones, and the lunar one the next total lunar eclipse with the Moon up, as b does. Moments
 // that show one feature (clear: the eclipse, the supernova, an aurora, the Milky Way, the
 // satellites) open with clouds off, and the visitor's own setting returns on leaving VR; c or the
 // pad during the moment makes that the setting.
@@ -16,9 +17,11 @@ const MOMENTS=[
   {epoch:'volcanic', date:'2026-07-08', t:1380, look:[180, 32], title:'A town night in 1815', sub:'Oil lamps light the streets but barely touch the sky', art:'stars'},
   {epoch:'modern', date:'2026-07-08', t:1380, look:[180, 32], title:'A city night, today', sub:'Sodium and LED glow hides all but the brightest stars', art:'city'},
   {epoch:'modern', date:null, eclipse:true, clear:true, title:'The next total eclipse', sub:'The corona, Baily’s beads, and a sunset all round the horizon', art:'eclipse'},
+  {epoch:'modern', date:null, lunar:true, look:'moon', clear:true, title:'The next total lunar eclipse', sub:'A copper Moon, lit by every sunrise and sunset on Earth', art:'lunar'},
   {epoch:'y2100', date:'2026-03-20', t:1180, look:[300, 28], clear:true, title:'Satellites at dusk, 2100', sub:'Megaconstellations and orbital datacenters still in sunlight', art:'sats'},
 ];
 const MOMENT_ART={
+  lunar:'<defs><radialGradient id="mblood" cx=".35" cy=".3"><stop offset="0" stop-color="#b8653a"/><stop offset=".75" stop-color="#6e2a17"/><stop offset="1" stop-color="#4a1c12"/></radialGradient></defs><circle cx="60" cy="34" r="13" fill="url(#mblood)"/>',
   eclipse:'<defs><radialGradient id="mglow"><stop offset=".5" stop-color="#f4ecd8" stop-opacity=".6"/><stop offset="1" stop-color="#f4ecd8" stop-opacity="0"/></radialGradient></defs><circle cx="60" cy="38" r="26" fill="url(#mglow)"/><circle cx="60" cy="38" r="14.5" fill="none" stroke="#fbf3e0" stroke-width="1.6"/><circle cx="60" cy="38" r="13.6" fill="#05070c"/>',
   nova:'<g stroke="#f6f1ff" stroke-linecap="round"><path d="M60 22v32M44 38h32" stroke-width="1.6"/><path d="M50 28l20 20M70 28L50 48" stroke-width=".8" opacity=".7"/></g><circle cx="60" cy="38" r="3.2" fill="#fff"/>',
   galaxy:'<path d="M-10 70 C30 40 70 30 130 6" stroke="#cfc4a6" stroke-width="22" fill="none" opacity=".18"/><path d="M-10 70 C30 40 70 30 130 6" stroke="#e8dfc6" stroke-width="7" fill="none" opacity=".22"/>',
@@ -38,7 +41,7 @@ function momentGradient(m){
     const v=EP.find(e=>e.key===m.epoch).lat['Mid-latitude'];
     return `linear-gradient(${hex(tone(xyY2XYZ(v.z), YREF))}, ${hex(tone(xyY2XYZ(v.h), YREF))})`;
   }
-  return {aurora:'linear-gradient(#06050f, #151027)', eclipse:'linear-gradient(#0f1a2e, #3a3442)', nova:'linear-gradient(#05060c, #141a2c)', galaxy:'linear-gradient(#06070b, #121521)',
+  return {aurora:'linear-gradient(#06050f, #151027)', eclipse:'linear-gradient(#0f1a2e, #3a3442)', lunar:'linear-gradient(#05060c, #161625)', nova:'linear-gradient(#05060c, #141a2c)', galaxy:'linear-gradient(#06070b, #121521)',
     city:'linear-gradient(#2a1f17, #6b4527)', sats:'linear-gradient(#0c0b0f, #2e2620)', meteors:'linear-gradient(#07070c, #1d1a1c)', stars:'linear-gradient(#05060a, #10131c)'}[m.art];
 }
 function starsSVG(seed){
@@ -55,16 +58,20 @@ function openMoment(m){
   dLat='Mid-latitude';
   document.querySelectorAll('[data-lat]').forEach(x=>x.setAttribute('aria-pressed', x.dataset.lat===dLat?'true':'false'));
   document.getElementById('moonDate').value=m.date||localISODate(new Date());
-  minutes=m.eclipse?0:m.t; hslider.value=String(minutes);
+  minutes=m.eclipse||m.lunar?0:m.t; hslider.value=String(minutes);
   renderDay();
   if(m.eclipse) jumpNextEclipse(true, true);
+  if(m.lunar) jumpNextLunarEclipse(true);
   if(momentClouds!==null) vrClouds=momentClouds;
   momentClouds=m.clear?vrClouds:null;
   if(m.clear) vrClouds=false;
+  vrEntryLook=()=>{
+    if(m.look==='moon') lookAtMoon();
+    else if(m.look==='sn'){ const sn=supernovaPlace(LATDEG[dLat]); if(sn){ vrYaw=sn.az; vrPitch=Math.max(5, Math.min(60, sn.el-12)); } }
+    else if(m.look){ vrYaw=m.look[0]; vrPitch=m.look[1]; }
+  };
   enterVR(false);
   syncVRPad();
-  if(m.look==='sn'){ const sn=supernovaPlace(LATDEG[dLat]); if(sn){ vrYaw=sn.az; vrPitch=Math.max(5, Math.min(60, sn.el-12)); } }
-  else if(m.look){ vrYaw=m.look[0]; vrPitch=m.look[1]; }
   paintVR();
 }
 (function(){

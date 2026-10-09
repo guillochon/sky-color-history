@@ -197,7 +197,7 @@ function cloudLight(px, key, lat){
 // cloudPx the cloud pass's pixel there ({a, rgb}) or null, its cloud in front of the sky; cr how
 // far from the Sun's centre, in drawn solar radii, for the corona (null leaves it out). Returns {S (1 nm, cd/m² per nm-ish units), Y (cd/m²),
 // parts: [[name, Y]], marks: annotations}.
-function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null, cr=null){
+function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null, cr=null, moonXY=null){
   const key=EP[dIdx].key, lat=dLat, cdu=cdPerUnit(), vz=Math.min(90-el, 88), parts=[], marks=[];
   const S=new Float32Array(SP_N), sunlit=new Float32Array(SP_N), coronaEW=[];
   // sun: true for sunlight (it gets the Sun's lines), 'post' for light already through the air.
@@ -214,7 +214,14 @@ function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null, cr=null){
       const mo=skyNow.moon, frac=Math.max(moonLit(mo, skyNow.sunAz, 90-skyNow.sza), 0.02);
       const day=2500*(skyNow.moonRel||0)/frac/Math.pow(mo.radDeg/0.259, 2)*extinction(el, extK(key));
       const red=spSunDisk(key, lat, 90-mo.el).map((v, i)=>v*SP_MOON_RED[i]);
-      add('the Moon, sunlit', day*litHere, spNorm(red), true);
+      // In the Earth's shadow its light is the shadow's there (lunar_eclipse.js), over the disk's
+      // mean that moonRel already carries.
+      const lu=skyNow.lunar, inShadow=lu&&moonXY;
+      if(inShadow){
+        const T=lunarSpectrumAt(lu, moonXY[0], moonXY[1], SP_LAM), sh=shadowRec(lu.key);
+        const Yh=shadowY(sh, Math.hypot(moonXY[0]-lu.c[0], moonXY[1]-lu.c[1])*MOON_ER);
+        add(Yh<0.98?'the Moon, in the Earth’s shadow':'the Moon, sunlit', day/Math.max(lu.Ymean, 1e-30)*Yh*litHere, spNorm(red.map((v, i)=>v*T[i])), true);
+      }else add('the Moon, sunlit', day*litHere, spNorm(red), true);
       add('the Moon, earthshine', day*2e-4*(1-frac)*(1-litHere), spNorm(red.map((v, i)=>v*550/SP_LAM[i])), true);
     }
     if(sunSrc.fade>0){ const X=domeXYZ(key, lat, sunSrc.si, sunSrc.st, vz, azr(skyNow.sunAz)); add('sunlit air', X[1]*sunSrc.fade*skyNow.sunVis*skyNow.sunFlux*cdu, spSky(key, lat, skyNow.sza, vz, azr(skyNow.sunAz)), true); }
@@ -359,7 +366,7 @@ function spectrumHTML(box, el, az, opts={}){
   if(!spReady(box)) return;
   if(opts.meteor){ const st=meteorSpectrumTip(opts.meteor); spShow(box, st, st.note); return; }
   if(opts.sn||opts.star){ const s=opts.star, st=opts.sn?snSpectrum(opts.sn):s.star?starSpectrum(s, el):reflectedSpectrum(s); spShow(box, st, st.note); return; }
-  const sp=skySpectrum(el, az, opts.disk||null, opts.aurora||null, opts.disk==='sun'?opts.r||0:opts.lit??1, opts.cloud||null, opts.cr??null);
+  const sp=skySpectrum(el, az, opts.disk||null, opts.aurora||null, opts.disk==='sun'?opts.r||0:opts.lit??1, opts.cloud||null, opts.cr??null, opts.moonXY||null);
   const fmt=Y=>Y>=1?Y.toPrecision(3)+' cd/m²':(Y>=1e-3?(Y*1e3).toPrecision(3)+' mcd/m²':skyMagArcsec(Y).toFixed(1)+' mag/arcsec²');
   // The strongest sources, and on the Moon its own light however faint (earthshine against a
   // day or twilight sky is well under a percent).
@@ -376,7 +383,7 @@ function domeSpectrum(x, y, box){
   let az=Math.atan2(dx, -dy)*180/Math.PI; if(az<0) az+=360;
   const el=90-90*r/R, at=(bAz, bEl)=>{ const rr=R*(90-bEl)/90, a=bAz*Math.PI/180; return Math.hypot(x-(cx+rr*Math.sin(a)), y-(cy-rr*Math.cos(a))); };
   const mo=skyNow.moon, sunR=DOME_DISK*z*mo.sunRadDeg/SUN_RADIUS_DEG;
-  const lit=mo.on&&mo.el>-mo.radDeg?moonLitAt(horizDir(az, el), DOME_DISK*z*mo.radDeg/SUN_RADIUS_DEG*90/R):null;
+  const mR=DOME_DISK*z*mo.radDeg/SUN_RADIUS_DEG*90/R, lit=mo.on&&mo.el>-mo.radDeg?moonLitAt(horizDir(az, el), mR):null;
   const disk=lit!=null?'moon':(skyNow.sunOn&&skyNow.sunVis>0.01&&at(skyNow.sunAz, 90-skyNow.sza)<sunR?'sun':null);
   const met=meteorNearDome(x, y);
   if(met){ spectrumHTML(box, met.el, met.az, {meteor:met}); return; }
@@ -386,7 +393,13 @@ function domeSpectrum(x, y, box){
   if(star){ spectrumHTML(box, star.el, star.az, {star}); return; }
   const st=skyNow.aur, aurora=disk!=='sun'&&st&&st.on&&domeAur.gl?auroraProbe(domeAur.gl, domeAur.store, st, horizDir(az, el)):null;
   const cr=at(skyNow.sunAz, 90-skyNow.sza)/sunR;
-  spectrumHTML(box, el, az, {disk, aurora, lit, r:disk==='sun'?cr:0, cr});
+  spectrumHTML(box, el, az, {disk, aurora, lit, r:disk==='sun'?cr:0, cr, moonXY:lit!=null?moonDiskXY(horizDir(az, el), mR):null});
+}
+// Where direction dir falls on the Moon's disk drawn radDeg degrees in radius, in its radii
+// along east and north.
+function moonDiskXY(dir, radDeg){
+  const b=moonBasis(skyNow.moon), s=Math.sin(radDeg*Math.PI/180);
+  return [vdot(dir, b.east)/s, vdot(dir, b.north)/s];
 }
 // How sunlit the Moon is at direction dir, with the disk drawn radDeg degrees in radius, or
 // null off the disk: the surface normal there against the Sun, as the sky shader does.

@@ -25,6 +25,9 @@ at thirteen moments in its history, from the 30-bar CO2 Hadean to a modern megac
 - `limb_grid.py` - limb and disk color grids for the globe renderings -> `limb_all.json`
 - `daycycle.py` - whole-sky dome at 34 solar zenith angles (1° from the horizon through 20° below it), three surface types, all epochs
   -> `daycycle.json` (about 20 seconds from scratch on a 14-core machine; a later run only fills angles the file does not already have)
+- `lunar_eclipse.py` - the light inside the Earth's shadow at the Moon for each epoch: rays traced
+  through the epoch's air with exact refraction (the 30-bar Hadean traps its lower air), summed
+  over the Earth's limb as seen from the Moon (Link's method) -> `eclipse_grid.json` (about a minute)
 - `gen_report.py`, `gen_site.py`, `make_figs.py`, `make_tex.py` - build the HTML report, the
   interactive site, the PNG figures and the LaTeX source from the JSON data
 
@@ -35,7 +38,7 @@ installs them into `.venv` on the first `uv run`.
 
 ```
 cd model
-uv run run_epochs.py && uv run limb_grid.py && uv run daycycle.py
+uv run run_epochs.py && uv run limb_grid.py && uv run daycycle.py && uv run lunar_eclipse.py
 uv run gen_report.py && uv run gen_site.py && uv run make_figs.py && uv run make_tex.py
 cd ../latex && latexmk -pdf main.tex
 ```

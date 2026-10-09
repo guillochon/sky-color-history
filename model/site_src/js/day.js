@@ -302,7 +302,9 @@ function renderDay(fast){
   const sunSrc=skySource(sza, sunAz);
   const moon=lunarPlace(LATDEG[dLat]);
   const moonSrc=skySource(90-moon.el, moon.az);
-  const mScale=moonSkyScale(moon, sunAz, 90-sza)*sunFlux;
+  // In a lunar eclipse (lunar_eclipse.js) the moonlight falls with the disk's mean light.
+  const lunar=lunarEclipseNow(moon);
+  const mScale=moonSkyScale(moon, sunAz, 90-sza)*sunFlux*(lunar?lunar.Ymean:1);
   const si=sunSrc.si, st=sunSrc.st, past=sunSrc.past;
   const NR=DOME_NR, NA=DOME_NA, NC=NA+1, NG=(NR+1)*NC;
   const addField=(X, src, scale, vz, comp)=>{
@@ -489,7 +491,7 @@ function renderDay(fast){
     }
     dctx.restore();
   }
-  if(!fast) drawMoonOnDome(moon, sunAz, 90-sza);
+  if(!fast) drawMoonOnDome(moon, sunAz, 90-sza, lunar);
   if(!fast && sunUpPix && beadW>0){
     // The dome is too coarse for separate beads; the brightest stands for them.
     const bAz=Math.atan2(beadDir[0], beadDir[1]), bZ=90-Math.asin(beadDir[2])*180/Math.PI, br=R*bZ/90, bx=cx+br*Math.sin(bAz), by=cy-br*Math.cos(bAz);
@@ -507,15 +509,17 @@ function renderDay(fast){
     }else eclipse=`partial eclipse · ${cover>0.99?(Math.floor(cover*1000)/10).toFixed(1):Math.round(cover*100)}% covered`;
   }
   // Brightness as a share of the full Moon: a crescent is only a few percent.
-  const fullPct=r=>{ const p=r*100; return (p<10 ? p.toFixed(1) : Math.round(p))+'%'; };
+  // In a lunar eclipse it can be far less, so small shares keep one figure, and the readout gives
+  // the Moon's magnitude.
+  const fullPct=r=>{ const p=r*100; return (p<1e-3 ? 'under 0.001' : p<0.1 ? p.toPrecision(1) : p<10 ? p.toFixed(1) : Math.round(p))+'%'; };
   const sn=supernovaPlace(LATDEG[dLat]);
   if(!fast) drawSupernovaOnDome(sn);
-  skyNow={colgrid, nr:NR, na:NA, sza, sunAz, sunRGB, sunVis, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE*1.5+35/60*refK(), moon, corona, coronaMap:cMap, coronaRim:cRim, beads, eclipse, central, rgrid, cityUp:cityUplight(ep.key, Yref, k, p), Yref, toneK:k, toneP:p, rCd:Yref*cdu, gal:mwMap?galacticBasis(LATDEG[dLat]):null, extK:ek, stars:stars.tex, starMarks:stars.marks, starBins:stars.bins, starIdx:stars.idx, starIdxCount:stars.idxCount, sn, moonRel:mScale/MOON_SUN_FULL, mScale, sunFlux, halo:haloVR, ring:ringVR, ecl, comets, aur:auroraState(ep.key, LATDEG[dLat], minutes, rgrid[0]*Yref*cdu), gen:++skyGen};
+  skyNow={colgrid, nr:NR, na:NA, sza, sunAz, sunRGB, sunVis, lunar, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE*1.5+35/60*refK(), moon, corona, coronaMap:cMap, coronaRim:cRim, beads, eclipse:eclipse||(lunar&&moon.on?lunar.text:''), central, rgrid, cityUp:cityUplight(ep.key, Yref, k, p), Yref, toneK:k, toneP:p, rCd:Yref*cdu, gal:mwMap?galacticBasis(LATDEG[dLat]):null, extK:ek, stars:stars.tex, starMarks:stars.marks, starBins:stars.bins, starIdx:stars.idx, starIdxCount:stars.idxCount, sn, moonRel:mScale/MOON_SUN_FULL, mScale, sunFlux, halo:haloVR, ring:ringVR, ecl, comets, aur:auroraState(ep.key, LATDEG[dLat], minutes, rgrid[0]*Yref*cdu), gen:++skyGen};
   document.getElementById('raur').textContent=auroraReadout(skyNow.aur);
   document.getElementById('rmet').textContent=meteorReadout();
   document.getElementById('rcomet').textContent=cometReadout();
   metKick();
-  document.getElementById('rmoon').textContent = (moon.el<-moon.radDeg ? 'below horizon' : moon.el.toFixed(1)+'°')+' · '+Math.round(moonLit(moon, sunAz, 90-sza)*100)+'% lit · '+fullPct(mScale/MOON_SUN_FULL)+' of full';
+  document.getElementById('rmoon').textContent = (moon.el<-moon.radDeg ? 'below horizon' : moon.el.toFixed(1)+'°')+' · '+Math.round(moonLit(moon, sunAz, 90-sza)*100)+'% lit · '+fullPct(mScale/MOON_SUN_FULL)+' of full'+(lunar?' · '+(MOON_V_SUN-2.5*Math.log10(Math.max(mScale, 1e-40))).toFixed(1)+' mag · '+lunar.text:'');
   if(vrOn) paintVR();
   if(fast) return;
   // compass + rim
@@ -623,10 +627,13 @@ function setPlaySpeed(s){
 }
 document.querySelectorAll('[data-speed]').forEach(b=>b.addEventListener('click', ()=>setPlaySpeed(b.dataset.speed)));
 // Play slows tenfold as the Sun goes from 85% to 99% covered and through an annular phase, so
-// totality and the ring last long enough to watch.
+// totality and the ring last long enough to watch; lunar eclipses slow it too.
 function eclipseSlow(){
-  if(!skyNow||!skyNow.sunOn) return 1;
-  return 1-0.9*Math.max(skyNow.central?1:0, smooth01(0.85, 0.99, 1-(skyNow.sunVis==null?1:skyNow.sunVis)));
+  if(!skyNow) return 1;
+  // A lunar eclipse slows threefold through the partial phase and tenfold through totality.
+  const lu=skyNow.lunar&&skyNow.moon.on?(skyNow.lunar.total?1:skyNow.lunar.umbral?0.75:0):0;
+  if(!skyNow.sunOn) return 1-0.9*lu;
+  return 1-0.9*Math.max(skyNow.central?1:0, smooth01(0.85, 0.99, 1-(skyNow.sunVis==null?1:skyNow.sunVis)), lu);
 }
 function adoptPlayRate(){
   if(playRAF){ cancelAnimationFrame(playRAF); playRAF=0; }
