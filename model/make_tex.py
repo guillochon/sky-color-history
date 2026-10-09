@@ -62,6 +62,7 @@ table = '\n'.join(' & '.join(tex(c) for c in row) + r' \\' for row in rows)
 # data appendix table
 data_rows = ''
 for k in order:
+    if k in gr.SAME_AIR: continue      # the supernova epochs and 2100 have today's air, so today's rows
     r = byk[k]
     for Lname in ['Equator','Mid-latitude','Polar summer']:
         d = r['lat'][Lname]
@@ -256,7 +257,7 @@ The """ + NUMBER_WORDS[len(order)] + r""" panels that follow are laid out identi
 \scriptsize
 \rowcolors{2}{rowa}{white}
 \begin{longtable}{@{}llllllr@{}}
-\caption{CIE 1931 chromaticity $(x,y)$ and correlated color temperature of the noon zenith and horizon sky, and direct-Sun brightness relative to the modern equatorial Sun.}\\ \toprule
+\caption{CIE 1931 chromaticity $(x,y)$ and correlated color temperature of the noon zenith and horizon sky, and direct-Sun brightness relative to the modern equatorial Sun. The supernova epochs and the Year 2100 have today's clean air and share its rows.}\\ \toprule
 Epoch & Latitude & Zenith $(x,y)$ & CCT (K) & Horizon $(x,y)$ & CCT (K) & Sun \\ \midrule \endfirsthead
 \toprule Epoch & Latitude & Zenith $(x,y)$ & CCT (K) & Horizon $(x,y)$ & CCT (K) & Sun \\ \midrule \endhead
 """ + data_rows + r"""\bottomrule
