@@ -1,5 +1,5 @@
-// Meteors, in real time: each one a meteoroid entering the air along a straight path, drawn as it
-// would be seen from the ground, whatever the page's clock is doing.
+// Meteors: each one a meteoroid entering the air along a straight path, drawn as it would be seen
+// from the ground, tied to the sky's time (metBin) so a moment always has the same ones.
 //
 // Today (dark site, naked eye): about 8 sporadic meteors an hour averaged over the night, 2–5 in
 // the evening and about 10 before dawn, when the apex of the Earth's motion is up (Dubietis & Arlt
@@ -64,13 +64,18 @@ const MET_PERCEPT=3.4;                    // the limit for meteors, this much br
 const MET_Q1=128, MET_VIS_TODAY=11;
 // Cumulative number with absolute magnitude ≤ M, relative to M ≤ 1.
 function metCum(E, M){ return M>=1?Math.pow(E.rf, M-1):Math.pow(E.rb, M-1); }
-function metDrawM(E, Mcut, U){
-  const n=U*metCum(E, Mcut);
+// Magnitude between lo and hi (lo may be −Infinity) from uniform U.
+function metDrawM(E, lo, hi, U){
+  const c0=lo===-Infinity?0:metCum(E, lo), n=c0+U*(metCum(E, hi)-c0);
   return n>=1?1+Math.log(n)/Math.log(E.rf):1+Math.log(n)/Math.log(E.rb);
 }
 // Mass in grams from absolute magnitude and speed (Jacchia, Verniani & Briggs 1967).
 function metMass(M, v){ return Math.pow(10, (55.34-8.75*Math.log10(v*1e5)-M)/2.25); }
-function metRand(){ return Math.random(); }
+// Every random draw comes from metRng, seeded per second of sky time (metBin), so the same
+// moment always has the same meteors.
+let metRng=Math.random;
+function metRand(){ return metRng(); }
+function metHash(s){ let h=2166136261; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h, 16777619); } return h>>>0; }
 function metGauss(){ let u=0, v=0; while(u===0) u=metRand(); while(v===0) v=metRand(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
 // A direction near d, scattered by about sd degrees.
 function metScatter(d, sd){
@@ -99,8 +104,7 @@ function metHeights(M, v, dh){
 }
 // The observer is at the origin of the horizon frame (x east, y north, z up), Earth's centre at
 // (0, 0, −R). A meteor runs from B along unit u for L km.
-let metSeq=0;
-function metMake(E, F, Mcut, ctx){
+function metMake(E, F, lo, hi, ctx){
   const src=metPick(E.mix), rad=metRadiant(src, F);
   // Where: uniform over the disc of ground radius MET_D.
   const sg=MET_D*Math.sqrt(metRand()), az=2*Math.PI*metRand(), th=sg/MET_RE;
@@ -108,7 +112,7 @@ function metMake(E, F, Mcut, ctx){
   // Flux through the local horizontal goes as the sine of the radiant's height there.
   const sinH=vdot(rad.d, n);
   if(!(sinH>0.02) || metRand()>sinH) return null;
-  const M=metDrawM(E, Mcut, metRand());
+  const M=metDrawM(E, lo, hi, metRand());
   return metPath(M, rad.v, rad.d, n, E, ctx, src);
 }
 function metPath(M, v, radDir, n, E, ctx, src){
@@ -129,7 +133,7 @@ function metPath(M, v, radDir, n, E, ctx, src){
   const air=ctx.air, o2=air.O2||0;
   // Persistent trains need the air's oxygen and ozone (FeO and Na chemiluminescence).
   const tr=(o2>0.001&&((v>35&&M<-1)||M<-4)&&metRand()<0.75)?Math.min(150, 2*Math.pow(10, 0.13*(-M-1)))*Math.min(1, Math.sqrt(o2/0.21)):0;
-  return {id:++metSeq, t0:ctx.now, T, B, u, L, v, M, mass, diam:Math.cbrt(6*mass/(Math.PI*rho)), rho, hb, he, src, flares, train:tr,
+  return {id:0, t0:0, T, B, u, L, v, M, mass, diam:Math.cbrt(6*mass/(Math.PI*rho)), rho, hb, he, src, flares, train:tr,
     wake:Math.min(1.2, 0.08+0.04*Math.max(0, -M)), tint:metTint(v, ctx.key, src==='ring')};
 }
 // Light curve: rises to its peak 65% of the way along, then falls, with any flares on top.
@@ -208,61 +212,77 @@ function metVisible(m, L){ const lim=nakedEyeLimit(L)-MET_PERCEPT; return 1-smoo
 // they come with the epoch's rate, and a closer Moon makes each brighter.
 const FLASH_Q10=0.5, FLASH_R=2.5;
 // The engine: active meteors, those just gone (for the tooltip), and the clock.
-const MET={list:[], gone:[], flashes:[], now:0, last:0, raf:0, timer:0, key:null, hover:null, ptr:null, vis:0, rate:0};
-function metCtx(){
-  const ep=EP[dIdx], key=ep.key, k=extK(key);
-  if(!skyNow) return null;
-  // The darkest sky above the horizon sets the faintest meteor worth making.
-  let rMin=Infinity; const g0=skyNow.rgrid, nc=skyNow.na+1;
-  for(let c=0;c<g0.length-nc;c++) if(g0[c]<rMin) rMin=g0[c];
-  const mShow=nakedEyeLimit(rMin*skyNow.rCd)-MET_PERCEPT+1.0;
-  return {key, k, mShow, air:ep.air||{O:0.21, N:0.79, C:0, O2:0.21}, now:MET.now, lat:LATDEG[dLat]};
+// The engine. Sky time T is in seconds (the page's day number times 86,400). The meteors of each
+// second of it, [b, b+1), come from a generator seeded by the epoch, the latitude and b, in two
+// streams: ordinary meteors (absolute magnitude above −1), looked back over the last 60 s for any
+// still glowing, and the bright ones, rarer but with trains that can last minutes, over 160 s.
+// Scrubbing back to a moment brings back its meteors. While the clock is paused the sky's time
+// keeps running from the moment shown (MET.live), so meteors go on falling; moving the clock
+// starts it again from there. In play the clock jumps minutes per frame, so each frame is a
+// snapshot of whatever is in the air then.
+const MET={list:[], gone:[], flashes:[], now:0, live:0, Tpage:0, state:'', last:0, raf:0, timer:0, hover:null, ptr:null, cache:new Map(), dark:{}};
+const MET_SPLIT=-1, MET_LOOK=[60, 160];
+// The faintest meteor worth making, for the darkest sky the epoch has (no Moon, no Sun): its zenith
+// limit for meteors, and the faintest absolute magnitude that could reach it from overhead.
+function metDark(key){
+  if(MET.dark[key]) return MET.dark[key];
+  const k=extK(key), z=zodiK(key);
+  const L=nightNatural(key)[1]*absZenith(key)+(SKYGLOW[key]?SKYGLOW[key][0]:0)+(z>1?(z-1)*60*S10_CD:0);
+  const mShow=nakedEyeLimit(L)-MET_PERCEPT+1.0;
+  return MET.dark[key]={mShow, Mcut:Math.min(8, mShow+0.5-(k-0.25)), lim:nakedEyeLimit(L)};
 }
-// Spawn the meteors of dt seconds.
-function metSpawn(dt){
-  const ctx=metCtx(); if(!ctx) return;
-  const E=metEpoch(ctx.key), F=eclipticFrame(ctx.lat);
-  MET.frame=F;
-  // The faintest absolute magnitude that could show: at 100 km, overhead, through the air.
-  const Mcut=Math.min(8, ctx.mShow+0.5-(ctx.k-0.25));
-  const lam=MET_Q1*E.F*metCum(E, Mcut)*dt/3600;
-  let n=lam<30?metPoisson(lam):Math.max(0, Math.round(lam+Math.sqrt(lam)*metGauss()));
-  n=Math.min(n, 400);
-  for(let i=0;i<n;i++){ const m=metMake(E, F, Mcut, ctx); if(m) MET.list.push(m); }
-  // Ring debris, at the equator only: very slow, nearly horizontal, from the west.
-  if(E.ring&&Math.abs(ctx.lat)<1&&ringOf(ctx.key)){
-    const lr=MET_Q1*E.F*E.ring*metCum(E, Mcut)*dt/3600;
-    for(let i=metPoisson(Math.min(lr, 30));i>0;i--){
-      const M=metDrawM(E, Mcut, metRand()), sg=MET_D*Math.sqrt(metRand()), az=2*Math.PI*metRand(), th=sg/MET_RE;
-      const nn=[Math.sin(th)*Math.sin(az), Math.sin(th)*Math.cos(az), Math.cos(th)];
-      // Eastward along the ring plane, dipping 1–4° into the air: the radiant is to the west.
-      const east=vnorm(vcross(F.pole, nn)), dip=(1+3*metRand())*Math.PI/180;
-      const u=vnorm(vadd(vscale(east, Math.cos(dip)), vscale(nn, -Math.sin(dip)), [0, 0, 0]));
-      const m=metPath(M, 7.6+0.6*metRand(), vscale(u, -1), nn, E, ctx, 'ring');
-      if(m) MET.list.push(m);
+// The ecliptic frame at sky time T: the page's clock moved by T − Tpage seconds (a minute of the
+// clock is dayHours × 2.5 s).
+function metFrameAt(T){
+  const save=minutes;
+  minutes=save+(T-MET.Tpage)/(dayHours()*2.5);
+  try{ return eclipticFrame(LATDEG[dLat]); } finally{ minutes=save; }
+}
+function metPoisson(l){ if(!(l>0)) return 0; if(l>40) return Math.max(0, Math.round(l+Math.sqrt(l)*metGauss())); let n=0, p=Math.exp(-l), s=p; const u=metRand(); while(u>s&&n<200){ n++; p*=l/n; s+=p; } return n; }
+// The meteors (and lunar flashes) of second b in stream s, made once and kept.
+function metBin(s, b){
+  const ep=EP[dIdx], key=ep.key, id=key+'|'+dLat+'|'+s+'|'+b;
+  let got=MET.cache.get(id);
+  if(got) return got;
+  got={met:[], fl:[]};
+  const E=metEpoch(key), D=metDark(key), lo=s?-Infinity:MET_SPLIT, hi=s?Math.min(MET_SPLIT, D.Mcut):D.Mcut;
+  metRng=mulberry32(metHash(id));
+  try{
+    if(hi>lo||s){
+      const F=metFrameAt(b), ctx={key, k:extK(key), mShow:D.mShow, air:ep.air||{O:0.21, N:0.79, C:0, O2:0.21}};
+      const rate=MET_Q1*E.F*(metCum(E, hi)-(s?0:metCum(E, lo)))/3600;
+      const keep=(m, i)=>{ if(m){ m.t0=b+metRand(); m.id=id+'|'+i; got.met.push(m); } };
+      const n=Math.min(metPoisson(rate), 2000);
+      for(let i=0;i<n;i++) keep(metMake(E, F, lo, hi, ctx), i);
+      // Ring debris, at the equator only: very slow, nearly horizontal, from the west.
+      if(E.ring&&dLat==='Equator'&&ringOf(key)){
+        const nr=metPoisson(rate*E.ring);
+        for(let i=0;i<nr;i++){
+          const M=metDrawM(E, lo, hi, metRand()), sg=MET_D*Math.sqrt(metRand()), az=2*Math.PI*metRand(), th=sg/MET_RE;
+          const nn=[Math.sin(th)*Math.sin(az), Math.sin(th)*Math.cos(az), Math.cos(th)];
+          // Eastward along the ring plane, dipping 1–4° into the air: the radiant is to the west.
+          const east=vnorm(vcross(F.pole, nn)), dip=(1+3*metRand())*Math.PI/180;
+          const u=vnorm(vadd(vscale(east, Math.cos(dip)), vscale(nn, -Math.sin(dip)), [0, 0, 0]));
+          keep(metPath(M, 7.6+0.6*metRand(), vscale(u, -1), nn, E, ctx, 'ring'), 'r'+i);
+        }
+      }
+      if(E.flash&&!s) flashBin(got, b, E, key, D, id);
     }
-  }
-  if(E.flash) flashSpawn(dt, E, ctx);
+  }finally{ metRng=Math.random; }
+  MET.cache.set(id, got);
+  return got;
 }
-function metPoisson(l){ if(!(l>0)) return 0; let n=0, p=Math.exp(-l), s=p; const u=metRand(); while(u>s&&n<200){ n++; p*=l/n; s+=p; } return n; }
-function flashSpawn(dt, E, ctx){
-  const mo=skyNow.moon;
-  if(!mo||mo.el<1) return;
-  const lit=moonLit(mo, skyNow.sunAz, 90-skyNow.sza);
-  if(lit>0.85) return;
+// Lunar flashes of second b, anywhere on the disc; the lit part of the Moon, or a Moon below the
+// horizon, hides them when they are drawn.
+function flashBin(got, b, E, key, D, id){
   // A closer Moon: the same impacts look brighter by 5 log of the distance ratio.
-  const dm=5*Math.log10((MOON_RE[ctx.key]||MOON_RE_NOW)/MOON_RE_NOW);
-  const Ls=skyRAt(skyNow.rgrid, mo.el, mo.az)*skyNow.rCd, mlim=nakedEyeLimit(Ls)-1+0.6;
-  const mc=Math.min(10, mlim-dm+0.5-(ctx.k-0.25));
-  const lam=FLASH_Q10*E.F*(1-lit)*Math.pow(FLASH_R, mc-10)*dt/3600;
-  for(let i=metPoisson(Math.min(lam, 20));i>0;i--){
+  const dm=5*Math.log10((MOON_RE[key]||MOON_RE_NOW)/MOON_RE_NOW);
+  const mc=Math.min(10, D.lim-1+0.6-dm+0.5-(extK(key)-0.25));
+  const n=metPoisson(FLASH_Q10*E.F*Math.pow(FLASH_R, mc-10)/3600);
+  for(let i=0;i<n;i++){
     const mag=10+Math.log(metRand()*Math.pow(FLASH_R, mc-10))/Math.log(FLASH_R)+dm;
-    // A spot on the night side of the disc.
-    for(let t=0;t<12;t++){
-      const x=2*metRand()-1, y=2*metRand()-1; if(x*x+y*y>0.9) continue;
-      MET.flashes.push({id:++metSeq, t0:ctx.now, T:0.08+0.25*Math.pow(10, -0.2*(mag-5))*metRand()+0.05, x, y, mag, temp:2200+2200*metRand(), kind:'flash'});
-      break;
-    }
+    let x=0, y=0; do{ x=2*metRand()-1; y=2*metRand()-1; }while(x*x+y*y>0.9);
+    got.fl.push({id:id+'|f'+i, t0:b+metRand(), T:0.08+0.25*Math.pow(10, -0.2*(mag-5))*metRand()+0.05, x, y, mag, temp:2200+2200*metRand(), kind:'flash'});
   }
 }
 // A flash's direction: (x, y) on the disc in the Moon's east/north basis, for a disc radDeg wide.
@@ -271,16 +291,26 @@ function flashDir(f, radDeg){
   return vnorm(vadd(b.md, vscale(b.east, f.x*s), vscale(b.north, f.y*s)));
 }
 function flashLit(f, radDeg){ const l=moonLitAt(flashDir(f, radDeg), radDeg); return l==null?1:l; }
-// One step of the clock: advance, spawn, retire.
+// One step: the sky time now, and what is in the air at it.
 function metTick(now){
-  const dt=Math.min(0.25, Math.max(0, (now-MET.last)/1000)); MET.last=now; MET.now+=dt;
-  const key=EP[dIdx].key;
-  if(MET.key!==key){ MET.key=key; MET.list.length=0; MET.flashes.length=0; MET.gone.length=0; }
-  if(dt>0) metSpawn(dt);
-  const t=MET.now;
-  MET.list=MET.list.filter(m=>{ const end=m.t0+m.T+Math.max(m.wake, m.train); if(t<=end) return true; MET.gone.push(m); return false; });
-  MET.gone=MET.gone.filter(m=>t-(m.t0+m.T)<3);
-  MET.flashes=MET.flashes.filter(f=>t<f.t0+f.T+0.4);
+  const dt=Math.min(0.25, Math.max(0, (now-MET.last)/1000)); MET.last=now;
+  const state=EP[dIdx].key+'|'+dLat+'|'+document.getElementById('moonDate').value+'|'+minutes;
+  if(state!==MET.state){ MET.state=state; MET.live=0; } else if(!dayPlaying) MET.live+=dt;
+  MET.Tpage=astroDay()*86400;
+  const t=MET.now=MET.Tpage+MET.live, list=[], gone=[], flashes=[];
+  for(let s=0;s<2;s++) for(let b=Math.floor(t-MET_LOOK[s]);b<=Math.floor(t);b++){
+    const got=metBin(s, b);
+    for(const m of got.met){
+      if(m.t0>t) continue;
+      const end=m.t0+m.T;
+      if(t<=end+Math.max(m.wake, m.train)) list.push(m);
+      if(t>end&&t-end<3) gone.push(m);
+    }
+    for(const f of got.fl) if(f.t0<=t&&t<f.t0+f.T+0.4) flashes.push(f);
+  }
+  MET.list=list; MET.gone=gone; MET.flashes=flashes;
+  // Keep about the last few minutes' seconds, wherever the clock has been.
+  if(MET.cache.size>3000){ const lo=t-400, hi=t+400; for(const [k, v] of MET.cache){ const b=+k.slice(k.lastIndexOf('|')+1); if(b<lo||b>hi) MET.cache.delete(k); } if(MET.cache.size>3000) MET.cache.clear(); }
 }
 // What is lit now, in the horizon frame, for both views: streaks (head, a wake behind it, with
 // display colour and size), trains and flashes. pxScale turns display pixels into the view's.
