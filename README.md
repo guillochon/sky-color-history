@@ -42,6 +42,9 @@ cd ../latex && latexmk -pdf main.tex
 
 `make_figs.py` writes to `latex/figures`, or to a folder given as its argument.
 
+`deploy/deploy.sh` copies the built `site/` to earthsky.astrocrash.net with rsync (files not in `site/`
+are removed from the server); `deploy/deploy.sh -n` is a dry run.
+
 `gen_site.py` writes `site/index.html`, one day-cycle file per epoch in `site/day`, and gzip
 copies of the page and the data for nginx's `gzip_static`. With Node installed it minifies the
 page's script with terser (fetched by `npx`); without it the script is left as it is.
