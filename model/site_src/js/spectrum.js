@@ -14,6 +14,7 @@
 //     flames (1850 K).
 //   - The Milky Way: old starlight, as a 4800 K body.
 //   - The aurora: its four emissions at that point, as aurora.js lists their lines.
+//   - A cloud in front (VR): the light falling on it, over the sky it lets through (cloudLight).
 // Narrow features the 10 nm model does not resolve are drawn on top: the Sun's Fraunhofer lines
 // on everything that is sunlight, and the O2 A and B bands and the 720 nm water band of the air
 // along the way, scaled by each epoch's O2 and water. Too narrow to move the colour; drawn so
@@ -108,13 +109,71 @@ function spTo1nm(lg){
   return out;
 }
 function spAirmass(el){ return airmass(Math.max(el, 0)); }
+// A cloud is a near-grey scatterer, so its light is the light that falls on it. The cloud pass
+// lights it in display-linear light, with the sky's own drawn colours as its skylight (0.45 of
+// the zenith, 0.55 of the sky 36° up opposite the Sun). Its pixel (premultiplied, display-encoded,
+// with a soft shoulder over 0.6) over that skylight, times the skylight's cd/m², is its luminance:
+// linear, where taking it back through the display curve would not be (the curve is nearly flat
+// through twilight). Its spectrum is the mix of the lights that can reach it (that same skylight,
+// direct sunlight while it can reach a cloud, moonlight, and the city's light from below) whose
+// colour matches the drawn one, by non-negative least squares on linear RGB.
+function spRGB(S){
+  let X=0, Y=0, Z=0;
+  for(let i=0;i<SP_N;i++){ X+=S[i]*SP_CMF[i][0]; Y+=S[i]*SP_CMF[i][1]; Z+=S[i]*SP_CMF[i][2]; }
+  return M.map(r=>(r[0]*X+r[1]*Y+r[2]*Z)/Y);
+}
+// Least squares for the columns cols of A (3 rows) against u, or null if singular.
+function spLSQ(A, cols, u){
+  const m=cols.length, G=cols.map(i=>cols.map(j=>A[i][0]*A[j][0]+A[i][1]*A[j][1]+A[i][2]*A[j][2]).concat([A[i][0]*u[0]+A[i][1]*u[1]+A[i][2]*u[2]]));
+  for(let c=0;c<m;c++){
+    let piv=c; for(let r=c+1;r<m;r++) if(Math.abs(G[r][c])>Math.abs(G[piv][c])) piv=r;
+    if(Math.abs(G[piv][c])<1e-12) return null;
+    [G[c], G[piv]]=[G[piv], G[c]];
+    for(let r=0;r<m;r++) if(r!==c){ const f=G[r][c]/G[c][c]; for(let k=c;k<=m;k++) G[r][k]-=f*G[c][k]; }
+  }
+  return G.map((row, c)=>row[m]/row[c]);
+}
+function cloudLight(px, key, lat){
+  const a=px.a;
+  if(!(a>0.02)) return null;
+  const un=v=>{ let c=Math.pow(Math.max(v/a, 0), 2.2); if(c>0.6) c=0.6-0.4*Math.log(Math.max(1e-4, 1-(c-0.6)/0.4)); return c; };
+  const rgb=px.rgb.map(un), t=0.2126*rgb[0]+0.7152*rgb[1]+0.0722*rgb[2];
+  if(!(t>0)) return null;
+  const k=skyNow.toneK, p=skyNow.toneP, sza=skyNow.sza, mo=skyNow.moon, antiAz=(skyNow.sunAz+180)%360;
+  const rZ=skyRAt(skyNow.rgrid, 90, 0), rM=skyRAt(skyNow.rgrid, 36, antiAz);
+  const tRef=0.45*toneT(rZ, k, p, 0.95)+0.55*toneT(rM, k, p, 0.95);
+  if(!(tRef>0)) return null;
+  const zen=skySpectrum(90, 0), mid=skySpectrum(36, antiAz), Y=t/tRef*(0.45*zen.Y+0.55*mid.Y);
+  const lights=[['cloud, lit by the sky', spNorm(spAdd([0.45, zen.S], [0.55, mid.S])), 'post']];
+  // Direct sunlight reaches a cloud a few km up until the Sun is about 3° down.
+  if(skyNow.sunVis>0&&sza<93) lights.push(['cloud, sunlit', spNorm(spSunDisk(key, lat, Math.min(sza, 89))), true]);
+  if(sza>=90&&mo.el>0&&skyNow.mScale>0) lights.push(['cloud, moonlit', spNorm(spSunDisk(key, lat, 90-mo.el).map((v, i)=>v*(0.8+0.0014*(SP_LAM[i]-450)))), true]);
+  if(sza>=90&&SKYGLOW[key]) lights.push([key==='volcanic'?'cloud, lit by oil lamps':'cloud, lit by the city', spGlow(key), false]);
+  if(!lights.length) return null;
+  const A=lights.map(l=>spRGB(l[1])), u=rgb.map(v=>v/t), n=lights.length;
+  let best=null, bestR=Infinity;
+  for(let mask=1;mask<(1<<n);mask++){
+    const cols=[]; for(let i=0;i<n;i++) if(mask&(1<<i)) cols.push(i);
+    if(cols.length>3) continue;
+    const w=spLSQ(A, cols, u);
+    if(!w||w.some(v=>v<0)) continue;
+    let r=0; for(let c=0;c<3;c++){ let s=-u[c]; cols.forEach((i, j)=>{ s+=w[j]*A[i][c]; }); r+=s*s; }
+    if(r<bestR-1e-12){ bestR=r; best=cols.map((i, j)=>[i, w[j]]); }
+  }
+  if(!best) best=[[0, 1]];
+  const sum=best.reduce((s, [, w])=>s+w, 0)||1;
+  return {a, Y, comps:best.map(([i, w])=>[lights[i][0], w/sum, lights[i][1], lights[i][2]])};
+}
 // The light toward true altitude el, azimuth az. disk is 'sun', 'moon' or null; aurora the
-// four emissions there (kR) or null; litHere, on the Moon, how sunlit that point of it is (0–1). Returns {S (1 nm, cd/m² per nm-ish units), Y (cd/m²),
+// four emissions there (kR) or null; litHere, on the Moon, how sunlit that point of it is (0–1);
+// cloudPx the cloud pass's pixel there ({a, rgb}) or null, its cloud in front of the sky. Returns {S (1 nm, cd/m² per nm-ish units), Y (cd/m²),
 // parts: [[name, Y]], marks: annotations}.
-function skySpectrum(el, az, disk, aurora, litHere=1){
+function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null){
   const key=EP[dIdx].key, lat=dLat, cdu=cdPerUnit(), vz=Math.min(90-el, 88), parts=[], marks=[];
   const S=new Float32Array(SP_N), sunlit=new Float32Array(SP_N);
-  const add=(name, Y, shape, sun)=>{ if(!(Y>0)) return; parts.push([name, Y]); const T=sun?sunlit:S; for(let i=0;i<SP_N;i++) T[i]+=Y*shape[i]; };
+  // sun: true for sunlight (it gets the Sun's lines), 'post' for light already through the air.
+  const post=new Float32Array(SP_N);
+  const add=(name, Y, shape, sun)=>{ if(!(Y>0)) return; parts.push([name, Y]); const T=sun==='post'?post:sun?sunlit:S; for(let i=0;i<SP_N;i++) T[i]+=Y*shape[i]; };
   const sunSrc=skySource(skyNow.sza, skyNow.sunAz), azr=a=>{ let d=Math.abs(az-a)%360; return d>180?360-d:d; };
   if(disk==='sun') add('Sun’s disk', 1, spNorm(spSunDisk(key, lat, skyNow.sza)), true);
   else{
@@ -143,15 +202,23 @@ function skySpectrum(el, az, disk, aurora, litHere=1){
     if(mwMap&&skyNow.gal){ const L=mwAt(skyNow.gal, horizDir(az, el))*extinction(el, extK(key))*extZenith(key); add('Milky Way', L, SP_MW); }
     if(aurora) aurora.forEach((I, k)=>add(['aurora, oxygen green', 'aurora, oxygen red', 'aurora, nitrogen violet', 'aurora, nitrogen red'][k], I*SP_AUR_Y[k], SP_AUR[k]));
   }
+  // A cloud in front: its own light, over what of the sky shows through it.
+  const cl=cloudPx&&disk!=='sun'?cloudLight(cloudPx, key, lat):null;
+  if(cl){
+    const f=1-cl.a;
+    for(let i=0;i<SP_N;i++){ S[i]*=f; sunlit[i]*=f; }
+    for(const p of parts) p[1]*=f;
+    for(const [name, w, shape, sun] of cl.comps) add(name, cl.a*cl.Y*w, shape, sun);
+  }
   // Air along the way.
   const X=Math.min(spAirmass(el)+(disk==='sun'?0:(sunSrc.fade>0?spAirmass(90-skyNow.sza)*0.5:0)), 40), o2=(SP_O2[key]??1)*X, h2o=(SP_H2O[key]??1)*X;
-  for(let i=0;i<SP_N;i++){ const T=Math.exp(-SP_TAU_O2[i]*o2-SP_TAU_H2O[i]*h2o); S[i]=(S[i]+sunlit[i]*SP_FRAUN_T[i])*T; }
+  for(let i=0;i<SP_N;i++){ const T=Math.exp(-SP_TAU_O2[i]*o2-SP_TAU_H2O[i]*h2o); S[i]=(S[i]+sunlit[i]*SP_FRAUN_T[i])*T+post[i]; }
   const Y=parts.reduce((s, p)=>s+p[1], 0);
   // What to label: the strongest sources' own features.
   const share=n=>parts.filter(p=>p[0].startsWith(n)).reduce((s, p)=>s+p[1], 0)/Math.max(Y, 1e-30);
-  const sun=share('sunlit')+share('moonlit')+share('Sun')+share('the Moon')+share('zodiacal');
+  const sun=share('sunlit')+share('moonlit')+share('Sun')+share('the Moon')+share('zodiacal')+share('cloud, sunlit')+share('cloud, lit by the sky')+share('cloud, moonlit');
   const ozone=!(key in SP_O2)||SP_O2[key]>=0.01;
-  if(share('sunlit')+share('moonlit')>0.3){
+  if(share('sunlit')+share('moonlit')+share('cloud, lit by the sky')>0.3){
     if(ozone&&key!=='proterozoic22') marks.push({a:500, b:680, t:'O₃ Chappuis', band:true});
     if(key.startsWith('archean27')) marks.push({a:380, b:480, t:'organic haze', band:true});
     if(key==='kpg66') marks.push({a:380, b:780, t:'soot dims all colours', band:true, quiet:true});
@@ -161,8 +228,8 @@ function skySpectrum(el, az, disk, aurora, litHere=1){
   if(SP_TAU_H2O[345]*h2o>0.15) marks.push({l:725, t:'H₂O'});
   if(share('airglow')>0.1){ marks.push({l:557.7, t:'[O I] 557.7', em:true}, {l:589.3, t:'Na D', em:true}, {l:630, t:'[O I] 630', em:true}, {l:735, t:'OH', em:true}); }
   if(share('violet')>0.1) marks.push({l:450, t:'O₂ Herzberg II', em:true});
-  if(share('city')>0.15){ if(key==='y2100') marks.push({l:452, t:'LED', em:true}); else marks.push({l:589.3, t:'Na (sodium lamps)', em:true}, {l:452, t:'LED', em:true}); }
-  if(share('oil')>0.15) marks.push({l:700, t:'flames, 1850 K', em:true});
+  if(share('city')+share('cloud, lit by the city')>0.15){ if(key==='y2100') marks.push({l:452, t:'LED', em:true}); else marks.push({l:589.3, t:'Na (sodium lamps)', em:true}, {l:452, t:'LED', em:true}); }
+  if(share('oil')+share('cloud, lit by oil')>0.15) marks.push({l:700, t:'flames, 1850 K', em:true});
   if(share('aurora, oxygen green')>0.05) marks.push({l:557.7, t:'[O I] 557.7', em:true});
   if(share('aurora, oxygen red')>0.03) marks.push({l:630, t:'[O I] 630', em:true});
   if(share('aurora, nitrogen violet')>0.02) marks.push({l:391.4, t:'N₂⁺ 391', em:true}, {l:427.8, t:'N₂⁺ 428', em:true});
@@ -218,7 +285,7 @@ function spectrumHTML(box, el, az, opts={}){
   if(opts.note){ cv.style.display='none'; src.textContent=opts.note; return; }
   if(!spData){ spLoad(); cv.style.display='none'; src.textContent='Loading the spectrum…'; return; }
   if(opts.sn||opts.star){ const s=opts.star, st=opts.sn?snSpectrum(opts.sn):s.star?starSpectrum(s, el):reflectedSpectrum(s); cv.style.display='block'; drawSpectrum(cv, st); src.textContent=st.note; return; }
-  const sp=skySpectrum(el, az, opts.disk||null, opts.aurora||null, opts.lit??1);
+  const sp=skySpectrum(el, az, opts.disk||null, opts.aurora||null, opts.lit??1, opts.cloud||null);
   cv.style.display='block'; drawSpectrum(cv, sp);
   const fmt=Y=>Y>=1?Y.toPrecision(3)+' cd/m²':(Y>=1e-3?(Y*1e3).toPrecision(3)+' mcd/m²':skyMagArcsec(Y).toFixed(1)+' mag/arcsec²');
   // The strongest sources, and on the Moon its own light however faint (earthshine against a
@@ -227,7 +294,7 @@ function spectrumHTML(box, el, az, opts={}){
   const keep=new Set(ranked.filter(isMoon).concat(ranked.filter(p=>!isMoon(p))).slice(0, 4));
   const top=ranked.filter(p=>keep.has(p)).map(p=>{ const f=100*p[1]/sp.Y; return `${p[0]} ${f<1?'<1':Math.round(f)}%`; });
   src.textContent=opts.disk==='sun'?'The Sun’s disk: sunlight through the air'
-    :fmt(sp.Y)+' · '+top.join(' · ')+(opts.cloud?' · behind the cloud':'');
+    :fmt(sp.Y)+' · '+top.join(' · ');
 }
 // The dome's tooltip: the direction under canvas pixel (x, y), and whether it is on the Sun or Moon.
 function domeSpectrum(x, y, box){

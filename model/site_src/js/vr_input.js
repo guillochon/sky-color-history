@@ -337,7 +337,10 @@ function vrProbe(cx, cy, throughCloud){
   const P={x, y, d, app, el, az};
   const hit=vrScenery&&vrGL.hitInfo&&vrGL.hitMRT?vrReadPixel(vrGL.hitFbo, x, y, true):null;
   if(app<0||(hit&&hit[0]>0)){ P.ground=true; return P; }
-  if(vrClouds&&vrGL.accumFbo&&vrGL.cw&&!throughCloud){ const a=vrReadPixel(vrGL.accumFbo, Math.floor(x*vrGL.cw/c.width), Math.floor(y*vrGL.ch/c.height), !!vrGL.cloudHDR); P.cloud=!!a&&(vrGL.cloudHDR?a[3]:a[3]/255)>0.35; }
+  if(vrClouds&&vrGL.accumFbo&&vrGL.cw&&!throughCloud){
+    const a=vrReadPixel(vrGL.accumFbo, Math.floor(x*vrGL.cw/c.width), Math.floor(y*vrGL.ch/c.height), !!vrGL.cloudHDR), s=vrGL.cloudHDR?1:1/255;
+    if(a){ P.cloudPx={a:a[3]*s, rgb:[a[0]*s, a[1]*s, a[2]*s]}; P.cloud=P.cloudPx.a>0.35; }
+  }
   const sep=(bAz, bEl)=>Math.acos(Math.max(-1, Math.min(1, vdot(d, horizDir(bAz, apparentEl(bEl))))))*180/Math.PI, mo=skyNow.moon;
   P.lit=!P.cloud&&mo.on?moonLitAt(horizDir(az, el), mo.radDeg*DISK_SCALE):null;
   P.disk=P.cloud?null:(P.lit!=null?'moon':(skyNow.sunOn&&skyNow.sunVis>0.01&&sep(skyNow.sunAz, 90-skyNow.sza)<mo.sunRadDeg*DISK_SCALE?'sun':null));
@@ -413,12 +416,12 @@ function refreshVRTip(){
   const box=tip.querySelector('.spbox');
   if(P.ground) spectrumHTML(box, el, az, {note:'Ground and scenery are not part of the model, so they have no spectrum.'});
   else {
-    const {sn, star, disk, cloud, lit}=P;
+    const {sn, star, disk, lit}=P;
     let aurora=null;
     if(!star&&disk!=='sun'&&skyNow.aur&&skyNow.aur.on){ aurora=auroraProbe(gl, vrGL.aurStore||(vrGL.aurStore={}), skyNow.aur, horizDir(az, el)); vrRestoreGL(gl); }
     if(sn) spectrumHTML(box, sn.el, sn.az, {sn});
     else if(star) spectrumHTML(box, star.el, star.az, {star});
-    else spectrumHTML(box, el, az, {disk, aurora, cloud, lit});
+    else spectrumHTML(box, el, az, {disk, aurora, cloud:P.cloudPx, lit});
   }
   tip.style.display='block';
   placeVRTip(cx, cy);
