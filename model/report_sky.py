@@ -244,11 +244,12 @@ LUNAR_CAPTION = ("Lunar eclipses by epoch. The umbra's diameter is in Moon width
                  "page's own over a hundred years of dates (2000–2100), so they carry a few percent of noise from the "
                  "eclipse cycles. Orbit tilt from lunar_inclination.py.")
 
-FIG_CAPTION = ("The Moon in the Earth's shadow at nine epochs. Top: centered in the shadow, with its V magnitude. "
-               "Middle: just inside the umbra's edge, where today's ozone leaves a cool gray-blue edge and the "
-               "ozone-free Archean and Hadean edges are orange. Each Moon is drawn as the page draws it, for an eye "
-               "adapted to its brightest part, on today's lunar surface. Bottom: the light across the shadow, against "
-               "the full Moon, with distance in units of each epoch's umbral radius.")
+FIG_CAPTION = ("The Moon in the Earth's shadow at nine epochs, on today's lunar surface. Top: centered in the shadow, "
+               "with its V magnitude, each drawn as the page draws it, for an eye adapted to that Moon's brightest part. "
+               "Middle: just inside the umbra, its limb at 0.95 of the umbral radius, all at one exposure so their light "
+               "compares: today's ozone leaves a cool gray-blue edge, the ozone-free Archean and Hadean edges are orange, "
+               "and under the Tambora veil, the thick haze and the K–Pg soot the umbra is dark to its edge. Bottom: the "
+               "light across the shadow, against the full Moon, with distance in units of each epoch's umbral radius.")
 
 REFS = [
 ("García Muñoz A. et al. (2012). Glancing views of the Earth: from a lunar eclipse to an exoplanetary transit. <i>Astrophysical Journal</i> 755, 103.", "garciamunoz2012", "@article{garciamunoz2012, author={Garc{\\'i}a Mu{\\~n}oz, A. and Zapatero Osorio, M. R. and Barrena, R. and Monta{\\~n}{\\'e}s-Rodr{\\'i}guez, P. and Mart{\\'i}n, E. L. and Pall{\\'e}, E.}, title={Glancing views of the {Earth}: from a lunar eclipse to an exoplanetary transit}, journal={Astrophysical Journal}, volume={755}, pages={103}, year={2012}}"),

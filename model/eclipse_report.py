@@ -92,14 +92,15 @@ def _moon_albedo(N):
     return u, v, a/np.percentile(a[u*u+v*v < 0.9], 99)
 
 
-def _disk(key, cx, N, u, v, alb):
-    """The Moon drawn as the page draws it, with the shadow's axis at (cx, 0) in Moon radii: the
-    shadow's light for an eye adapted to the brightest part of the disk (lunar_eclipse.js)."""
+def _disk(key, cx, N, u, v, alb, A=None):
+    """The Moon with the shadow's axis at (cx, 0) in Moon radii, drawn as the page draws it: the
+    shadow's light for an eye adapted to A, by default the brightest part of the disk
+    (lunar_eclipse.js)."""
     r = rec(key)
     rho = np.hypot(u-cx, v)*MOON_ER
     Y, rgb = shadow_at(r, rho)
     inside = u*u+v*v <= 1
-    A = Y[inside].max()
+    if A is None: A = Y[inside].max()
     cy = np.maximum(0.2126*rgb[..., 0]+0.7152*rgb[..., 1]+0.0722*rgb[..., 2], 1e-30)
     g = np.minimum(1, A**0.25*(Y/A)**0.6)
     lin = rgb/cy[..., None]*g[..., None]
@@ -108,6 +109,14 @@ def _disk(key, cx, N, u, v, alb):
     s = np.where(lin <= 0.0031308, 12.92*lin, 1.055*np.clip(lin, 0, None)**(1/2.4)-0.055)
     out = np.zeros((N, N, 4)); out[..., :3] = np.clip(s, 0, 1); out[..., 3] = inside
     return out
+
+
+# The second row's Moons sit just inside each epoch's own umbra, the limb at this share of its radius.
+EDGE = 0.95
+
+
+def edge_cx(key):
+    return EDGE*umbra(key)/MOON_ER-1.0
 
 
 FIG_KEYS = ['modern', 'carbon30', 'snowball07', 'proterozoic22', 'archean38', 'hadean44', 'volcanic', 'archean27', 'kpg66']
@@ -120,16 +129,19 @@ def figure(path=None):
     BG = '#05060a'
     fig = plt.figure(figsize=(9.6, 5.6), dpi=170); fig.patch.set_facecolor(BG)
     gs = fig.add_gridspec(3, len(FIG_KEYS), height_ratios=[1, 1, 1.25], hspace=0.42, wspace=0.08, left=0.06, right=0.99, top=0.93, bottom=0.09)
+    # The second row shares one exposure, the brightest point on any of its Moons, so their light
+    # can be compared; the first is each Moon as an eye adapted to it sees it.
+    A_edge = max(shadow_at(rec(k), EDGE*umbra(k))[0] for k in FIG_KEYS)
     for j, key in enumerate(FIG_KEYS):
         Ym, V, sb = central(key)
-        for row, cx in enumerate([0.0, (umbra(key))/MOON_ER-1.0]):
-            ax = fig.add_subplot(gs[row, j]); ax.imshow(_disk(key, cx, N, u, v, alb), interpolation='bilinear'); ax.axis('off')
+        for row, (cx, A) in enumerate([(0.0, None), (edge_cx(key), A_edge)]):
+            ax = fig.add_subplot(gs[row, j]); ax.imshow(_disk(key, cx, N, u, v, alb, A), interpolation='bilinear'); ax.axis('off')
             if row == 0:
                 ax.set_title(LABEL[key].replace(' (', '\n(').replace(' thick', '\nthick').replace(' impact', '\nimpact').replace(' Snowball', '\nSnowball'),
                              fontsize=7, color='white', pad=3, linespacing=1.0)
                 ax.text(0.5, -0.08, 'V %+.1f' % V if V < 10 else 'invisible', transform=ax.transAxes, ha='center', va='top', fontsize=6.5, color='#c9ccd2')
     fig.text(0.008, 0.80, 'centred in\nthe shadow', color='#c9ccd2', fontsize=7, va='center', rotation=90, ha='left', linespacing=1.0)
-    fig.text(0.008, 0.535, 'at the umbra\'s\nedge', color='#c9ccd2', fontsize=7, va='center', rotation=90, ha='left', linespacing=1.0)
+    fig.text(0.008, 0.535, 'inside the\numbra\'s edge', color='#c9ccd2', fontsize=7, va='center', rotation=90, ha='left', linespacing=1.0)
     ax = fig.add_subplot(gs[2, :]); ax.set_facecolor(BG)
     cols = {'modern': '#e8a46a', 'snowball07': '#7fb2e5', 'proterozoic22': '#b9d98b', 'archean38': '#f07a4a', 'hadean44': '#d6453a', 'volcanic': '#9a9aa6', 'archean27': '#a5743d'}
     for key, c in cols.items():
