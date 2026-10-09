@@ -168,11 +168,11 @@ window.addEventListener('wheel', e=>{
     let dAz=wAz-az; dAz-=360*Math.round(dAz/360);
     vrYaw=((vrYaw+dAz)%360+360)%360; vrPitch=Math.max(-80, Math.min(85, vrPitch+wEl-el));
   }
-  if(vrInspect&&vrInspectAt) refreshVRTip();
+  if(vrInspect&&(vrInspectAt||vrPin)) refreshVRTip();
   requestVR();
 }, {passive:false});
-window.addEventListener('mousemove', e=>{ if(!vrOn) return; if(vrInspect){ vrInspectAt=[e.clientX, e.clientY]; refreshVRTip(); if(!vrEdgeRAF) vrEdgeRAF=requestAnimationFrame(edgeScroll); return; } if(!e.movementX&&!e.movementY) return; lookVR(e.movementX, e.movementY); });
-window.addEventListener('pointerdown', ()=>{ if(!vrOn) return; pokeVRMusic(); if(vrInspect||document.pointerLockElement===vrc) return; vrRelock=true;
+window.addEventListener('mousemove', e=>{ if(!vrOn) return; if(vrInspect){ vrInspectAt=[e.clientX, e.clientY]; if(!vrPin) refreshVRTip(); if(!vrEdgeRAF) vrEdgeRAF=requestAnimationFrame(edgeScroll); return; } if(!e.movementX&&!e.movementY) return; lookVR(e.movementX, e.movementY); });
+window.addEventListener('pointerdown', e=>{ if(!vrOn) return; pokeVRMusic(); if(vrInspect){ if(e.button===0) pinVRTip(e.clientX, e.clientY); return; } if(document.pointerLockElement===vrc) return; vrRelock=true;
   const root=document.getElementById('vr'); if(!document.fullscreenElement&&root.requestFullscreen){ const p=root.requestFullscreen(); if(p&&p.catch) p.catch(()=>{}); }
   lockLook(); setTimeout(()=>{ vrRelock=false; }, 400); });
 let vrTX=0, vrTY=0;
@@ -278,15 +278,15 @@ document.querySelectorAll('.vrpad button, .vrplay').forEach(b=>{
 });
 syncVRPad();
 // Inspect (q): the camera holds still, the pointer comes back, and a tooltip under it gives the
-// pixel's colour and the spectrum of the sky in that direction.
+// pixel's colour and the spectrum of the sky in that direction; a click pins it (pinVRTip).
 // Esc leaves inspect first, then VR. In full screen the browser takes Esc for itself, so inspect
 // holds it with the keyboard lock where there is one (Chrome, Edge); elsewhere see fullscreenchange.
 let vrInspect=false, vrInspectAt=null, vrInspectTimer=0, vrInspectLeftAt=-1e9, vrEdgeRAF=0, vrEdgeT=0;
 function setInspect(on, leaving){
-  vrInspect=on; vrInspectAt=null;
+  vrInspect=on; vrInspectAt=null; vrPin=null;
   if(!on) vrInspectLeftAt=performance.now();
   document.getElementById('vr').classList.toggle('inspect', on);
-  document.getElementById('vrtip').style.display='none';
+  hideVRTip();
   clearInterval(vrInspectTimer); vrInspectTimer=0;
   cancelAnimationFrame(vrEdgeRAF); vrEdgeRAF=0; vrEdgeT=0;
   const kb=navigator.keyboard;
@@ -314,7 +314,7 @@ function edgeScroll(t){
   vrEdgeRAF=requestAnimationFrame(edgeScroll);
 }
 // A pointer that leaves the window stops the turning.
-document.addEventListener('mouseout', e=>{ if(vrInspect&&!e.relatedTarget){ vrInspectAt=null; document.getElementById('vrtip').style.display='none'; } });
+document.addEventListener('mouseout', e=>{ if(vrInspect&&!e.relatedTarget){ vrInspectAt=null; if(!vrPin) hideVRTip(); } });
 // One pixel of a framebuffer as numbers, or null.
 function vrReadPixel(fb, x, y, float){
   const gl=vrGL.gl;
@@ -325,33 +325,95 @@ function vrReadPixel(fb, x, y, float){
   gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
   return gl.getError()?null:px;
 }
-function refreshVRTip(){
-  const tip=document.getElementById('vrtip');
-  if(!vrOn||!vrInspect||!vrInspectAt||!vrGL||!skyNow){ tip.style.display='none'; return; }
-  const gl=vrGL.gl, c=gl.canvas, [cx, cy]=vrInspectAt, W=window.innerWidth, H=window.innerHeight;
+// What lies under page point (cx, cy): the view ray, the pixel, and the Sun, Moon, supernova,
+// star or planet there, or the bare sky, cloud or ground. With throughCloud, a body behind a
+// cloud still counts.
+function vrProbe(cx, cy, throughCloud){
+  const gl=vrGL.gl, c=gl.canvas, W=window.innerWidth, H=Math.max(window.innerHeight, 1);
   const x=Math.min(c.width-1, Math.max(0, Math.floor(cx*c.width/W))), y=Math.min(c.height-1, Math.max(0, c.height-1-Math.floor(cy*c.height/H)));
-  // The view ray under the pointer, as the sky shader builds it.
-  const fy=Math.tan(vrFov*Math.PI/360), fx=fy*c.width/c.height, u=((cx/W)*2-1)*fx, v=(1-(cy/H)*2)*fy;
-  const yaw=vrYaw*Math.PI/180, pitch=vrPitch*Math.PI/180, cp=Math.cos(pitch), sp=Math.sin(pitch), cyw=Math.cos(yaw), syw=Math.sin(yaw);
-  const d=vnorm([syw*cp+u*cyw-v*syw*sp, cyw*cp-u*syw-v*cyw*sp, sp+v*cp]);
+  const d=vrRayAt(cx, cy, vrYaw, vrPitch);
   const app=Math.asin(Math.max(-1, Math.min(1, d[2])))*180/Math.PI, el=trueAltDeg(app);
   let az=Math.atan2(d[0], d[1])*180/Math.PI; if(az<0) az+=360;
-  const col=vrReadPixel(null, x, y, false);
+  const P={x, y, d, app, el, az};
+  const hit=vrScenery&&vrGL.hitInfo&&vrGL.hitMRT?vrReadPixel(vrGL.hitFbo, x, y, true):null;
+  if(app<0||(hit&&hit[0]>0)){ P.ground=true; return P; }
+  if(vrClouds&&vrGL.accumFbo&&vrGL.cw&&!throughCloud){ const a=vrReadPixel(vrGL.accumFbo, Math.floor(x*vrGL.cw/c.width), Math.floor(y*vrGL.ch/c.height), !!vrGL.cloudHDR); P.cloud=!!a&&(vrGL.cloudHDR?a[3]:a[3]/255)>0.35; }
+  const sep=(bAz, bEl)=>Math.acos(Math.max(-1, Math.min(1, vdot(d, horizDir(bAz, apparentEl(bEl))))))*180/Math.PI, mo=skyNow.moon;
+  P.lit=!P.cloud&&mo.on?moonLitAt(horizDir(az, el), mo.radDeg*DISK_SCALE):null;
+  P.disk=P.cloud?null:(P.lit!=null?'moon':(skyNow.sunOn&&skyNow.sunVis>0.01&&sep(skyNow.sunAz, 90-skyNow.sza)<mo.sunRadDeg*DISK_SCALE?'sun':null));
+  // Within about 18 page pixels of a star, twice that of the supernova and its glare.
+  P.sn=P.cloud||P.disk?null:snNear(horizDir(az, el), 36*vrFov/H);
+  P.star=P.cloud||P.disk||P.sn?null:starNear(horizDir(az, el), 18*vrFov/H);
+  return P;
+}
+// A click in inspect pins the tooltip to what was under it. The sky keeps its direction; the Sun
+// and Moon keep the clicked spot on their disks, and a star, planet, satellite or supernova is
+// followed as it moves. Another click pins it to whatever is there instead.
+let vrPin=null;
+function pinVRTip(cx, cy){
+  if(!vrGL||!skyNow) return;
+  const P=vrProbe(cx, cy, true), s=P.star;
+  const onDisk=(b, d)=>({ox:vdot(d, b.east), oy:vdot(d, b.north)});
+  if(P.sn) vrPin={kind:'sn'};
+  else if(s&&(s.star||s.planet)) vrPin={kind:'mark', star:s.star, planet:s.planet};
+  else if(s) vrPin={kind:'sat', az:s.az, el:s.el};
+  else if(P.disk==='moon') vrPin={kind:'moon', ...onDisk(moonBasis(skyNow.moon), horizDir(P.az, P.el))};
+  else if(P.disk==='sun') vrPin={kind:'sun', ...onDisk(vrSunBasis(), P.d)};
+  else vrPin={kind:'sky', d:P.d};
+  refreshVRTip();
+}
+function vrSunBasis(){ return moonBasis({az:skyNow.sunAz, el:apparentEl(90-skyNow.sza)}); }
+// Page point of a view-frame direction (as vrRayAt's), or null off the view.
+function vrPointOf(d){
+  const W=window.innerWidth, H=Math.max(window.innerHeight, 1), fy=Math.tan(vrFov*Math.PI/360), fx=fy*W/H;
+  const yaw=vrYaw*Math.PI/180, pitch=vrPitch*Math.PI/180, cp=Math.cos(pitch), sp=Math.sin(pitch), cyw=Math.cos(yaw), syw=Math.sin(yaw);
+  const depth=d[0]*syw*cp+d[1]*cyw*cp+d[2]*sp;
+  if(depth<0.02) return null;
+  const u=(d[0]*cyw-d[1]*syw)/depth/fx, v=(-d[0]*syw*sp-d[1]*cyw*sp+d[2]*cp)/depth/fy;
+  const cx=(u+1)/2*W, cy=(1-v)/2*H;
+  return cx>=0&&cx<W&&cy>=0&&cy<H?[cx, cy]:null;
+}
+// The same for a direction given by azimuth and true altitude.
+function vrPointAt(az, el){ return vrPointOf(horizDir(az, apparentEl(el))); }
+// Where the pinned thing is on the page now, or null when it is out of view, set or gone.
+function vrPinPoint(){
+  const p=vrPin;
+  if(!p||!skyNow) return null;
+  const fromDisk=(b, trueFrame)=>{
+    const d=vnorm(vadd(b.md, vscale(b.east, p.ox), vscale(b.north, p.oy)));
+    return trueFrame?vrPointAt(Math.atan2(d[0], d[1])*180/Math.PI, Math.asin(Math.max(-1, Math.min(1, d[2])))*180/Math.PI):vrPointOf(d);
+  };
+  if(p.kind==='sky') return vrPointOf(p.d);
+  if(p.kind==='sun') return skyNow.sunOn?fromDisk(vrSunBasis(), false):null;
+  if(p.kind==='moon') return skyNow.moon.on?fromDisk(moonBasis(skyNow.moon), true):null;
+  if(p.kind==='sn'){ const sn=skyNow.sn; return sn&&sn.el>0?vrPointAt(sn.az, sn.el):null; }
+  const marks=skyNow.starMarks||[];
+  let m=null;
+  if(p.kind==='mark') m=marks.find(s=>p.star?s.star===p.star:s.planet===p.planet)||null;
+  else{
+    // A satellite has no name to find it by: the nearest one to where it was last.
+    let best=Math.cos(10*Math.PI/180);
+    const was=horizDir(p.az, p.el);
+    for(const s of marks){ if(s.star||s.planet) continue; const c=vdot(was, horizDir(s.az, s.el)); if(c>best){ best=c; m=s; } }
+    if(m){ p.az=m.az; p.el=m.el; }
+  }
+  return m&&m.el>0?vrPointAt(m.az, m.el):null;
+}
+function hideVRTip(){ document.getElementById('vrtip').style.display='none'; document.getElementById('vrpin').style.display='none'; }
+function refreshVRTip(){
+  const tip=document.getElementById('vrtip');
+  const at=vrOn&&vrInspect&&vrGL&&skyNow?(vrPin?vrPinPoint():vrInspectAt):null;
+  if(!at){ hideVRTip(); return; }
+  const gl=vrGL.gl, [cx, cy]=at, P=vrProbe(cx, cy), {el, az, app}=P;
+  const col=vrReadPixel(null, P.x, P.y, false);
   if(!col) return;
   const cur=hex([col[0], col[1], col[2]]);
   if(!tip.querySelector('.tline')) tip.innerHTML='<span class="tline"></span><div class="spbox"></div>';
   tip.querySelector('.tline').innerHTML=`<i style="background:${cur}"></i>${cur} · ${app.toFixed(1)}° up, ${Math.round(az)}°`;
   const box=tip.querySelector('.spbox');
-  const hit=vrScenery&&vrGL.hitInfo&&vrGL.hitMRT?vrReadPixel(vrGL.hitFbo, x, y, true):null;
-  if(app<0||(hit&&hit[0]>0)) spectrumHTML(box, el, az, {note:'Ground and scenery are not part of the model, so they have no spectrum.'});
+  if(P.ground) spectrumHTML(box, el, az, {note:'Ground and scenery are not part of the model, so they have no spectrum.'});
   else {
-    let cloud=false;
-    if(vrClouds&&vrGL.accumFbo&&vrGL.cw){ const a=vrReadPixel(vrGL.accumFbo, Math.floor(x*vrGL.cw/c.width), Math.floor(y*vrGL.ch/c.height), !!vrGL.cloudHDR); cloud=!!a&&(vrGL.cloudHDR?a[3]:a[3]/255)>0.35; }
-    const sep=(bAz, bEl)=>Math.acos(Math.max(-1, Math.min(1, vdot(d, horizDir(bAz, apparentEl(bEl))))))*180/Math.PI, mo=skyNow.moon;
-    const lit=!cloud&&mo.on?moonLitAt(horizDir(az, el), mo.radDeg*DISK_SCALE):null;
-    const disk=cloud?null:(lit!=null?'moon':(skyNow.sunOn&&skyNow.sunVis>0.01&&sep(skyNow.sunAz, 90-skyNow.sza)<mo.sunRadDeg*DISK_SCALE?'sun':null));
-    // Within about 18 page pixels of a star, twice that of the supernova and its glare.
-    const sn=cloud||disk?null:snNear(horizDir(az, el), 36*vrFov/H), star=cloud||disk||sn?null:starNear(horizDir(az, el), 18*vrFov/H);
+    const {sn, star, disk, cloud, lit}=P;
     let aurora=null;
     if(!star&&disk!=='sun'&&skyNow.aur&&skyNow.aur.on){ aurora=auroraProbe(gl, vrGL.aurStore||(vrGL.aurStore={}), skyNow.aur, horizDir(az, el)); vrRestoreGL(gl); }
     if(sn) spectrumHTML(box, sn.el, sn.az, {sn});
@@ -359,10 +421,23 @@ function refreshVRTip(){
     else spectrumHTML(box, el, az, {disk, aurora, cloud, lit});
   }
   tip.style.display='block';
+  placeVRTip(cx, cy);
+}
+function placeVRTip(cx, cy){
+  const tip=document.getElementById('vrtip'), mark=document.getElementById('vrpin'), W=window.innerWidth, H=window.innerHeight;
   const w=tip.offsetWidth, h=tip.offsetHeight;
   tip.style.left=Math.min(cx+16, W-w-8)+(cx+16+w>W-8?-(w+32):0)+'px';
   tip.style.top=Math.max(8, Math.min(H-h-8, cy-h/2))+'px';
   tip.style.transform='none';
+  mark.style.display=vrPin?'block':'none';
+  if(vrPin){ mark.style.left=cx+'px'; mark.style.top=cy+'px'; }
+}
+// Each frame, a pinned tooltip moves with what it is pinned to; its spectrum follows every 250 ms.
+function followVRPin(){
+  if(!vrOn||!vrInspect||!vrPin) return;
+  const at=vrPinPoint();
+  if(!at){ hideVRTip(); return; }
+  if(document.getElementById('vrtip').style.display==='none') refreshVRTip(); else placeVRTip(at[0], at[1]);
 }
 // Apparent altitude (degrees) to true (Bennett 1982), as the sky shader's trueAlt.
 function trueAltDeg(a){ return a>80?a:a-1/Math.tan((a+7.31/(a+4.4))*Math.PI/180)/60; }

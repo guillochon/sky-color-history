@@ -482,6 +482,7 @@ function paintVR(){
   setText(hud.clock, (document.getElementById('moonDate').value||'')+' · '+hh+':'+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0')+' · '+(dayPlaying?'playing':'paused')+(Math.abs(vrFov-60)>0.5?' · '+Math.round(vrFov)+'° view':'')+(skyNow.eclipse?' · '+skyNow.eclipse:'')+(vrClouds&&vrGL.field?' · clouds '+Math.round(vrGL.field.cov*100)+'%':'')+(vrNote?' · '+vrNote:''));
   placeBodyMarks();
   drawVRLabels();
+  followVRPin();
   syncVRLink(false);
   // Water and magma move in real time, so keep painting at about 30 fps while one is in view.
   if(!vrGL.poolTimer && movingPoolInView()) vrGL.poolTimer=setTimeout(()=>{ vrGL.poolTimer=0; requestVR(); }, 33);
