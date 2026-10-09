@@ -5,6 +5,22 @@ let vrFov=60; // VR vertical field of view in degrees: twice the angle a desktop
 const VR_FOV_MIN=10, VR_FOV_MAX=90;
 const DISK_SCALE=4; // Sun and Moon are drawn at four times their angular size
 const DOME_DISK=11; // fisheye solar radius in pixels, half the previous enlargement
+// Limb darkening: toward its edge the Sun is seen through higher, cooler photosphere, so the edge is
+// dimmer and redder than the centre. Hestroffer & Magnan 1998 (A&A 333, 338) fit the intensity at
+// mu (the cosine of the angle from the line of sight to the surface normal there) as mu^alpha, with
+// alpha=-0.023+0.292/lambda (µm). In linear sRGB that is mu^SUN_LD per channel, to under 1% for a
+// Sun of 5,560 to 5,772 K and any epoch's air, which only multiplies the spectrum. The model's direct
+// sunlight is the whole disk's, mean over centre (alpha+2)/2, so the centre is a little bluer still.
+function sunLimbAlpha(lam){ return -0.023+292/lam; }
+const SUN_LD=[0.434, 0.513, 0.641], SUN_LD_C=SUN_LD.map(a=>(a+2)/(SUN_LD[1]+2));
+// mu at fraction r of the disk's radius, held at 0.1 at the very edge (about what its last pixel averages).
+function limbMu(r){ return Math.sqrt(Math.max(0.01, 1-r*r)); }
+// The disk's drawn colour (sRGB bytes, the whole disk's) at fraction r of its radius, as sRGB bytes;
+// the centre keeps the drawn colour's brightest channel.
+function sunLimbRGB(rgb, r){
+  const lin=rgb.map(v=>SRGB_LIN[Math.round(v)]), c=lin.map((v, i)=>v*SUN_LD_C[i]), k=Math.max(...lin)/Math.max(...c, 1e-9), mu=limbMu(r);
+  return c.map((v, i)=>linToByte(v*k*Math.pow(mu, SUN_LD[i])));
+}
 // Sæmundsson 1986: true altitude (degrees) to apparent altitude. Matches Bennett in the shader.
 function apparentEl(h){ if(h>80) return h; const u=h+10.3/(h+5.11); if(u<0.25) return h; return h+(1.02/Math.tan(u*Math.PI/180))/60; }
 // Mean Earth-Moon distance in Earth radii. Younger than 3.2 Ga the values are

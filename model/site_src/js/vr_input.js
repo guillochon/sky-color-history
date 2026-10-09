@@ -348,6 +348,7 @@ function vrProbe(cx, cy, throughCloud){
   const sep=(bAz, bEl)=>Math.acos(Math.max(-1, Math.min(1, vdot(d, horizDir(bAz, apparentEl(bEl))))))*180/Math.PI, mo=skyNow.moon;
   P.lit=!P.cloud&&mo.on?moonLitAt(horizDir(az, el), mo.radDeg*DISK_SCALE):null;
   P.disk=P.cloud?null:(P.lit!=null?'moon':(skyNow.sunOn&&skyNow.sunVis>0.01&&sep(skyNow.sunAz, 90-skyNow.sza)<mo.sunRadDeg*DISK_SCALE?'sun':null));
+  if(P.disk==='sun') P.r=sep(skyNow.sunAz, 90-skyNow.sza)/(mo.sunRadDeg*DISK_SCALE);
   // Within about 18 page pixels of a star, twice that of the supernova and its glare.
   P.sn=P.cloud||P.disk?null:snNear(horizDir(az, el), 36*vrFov/H);
   P.star=P.cloud||P.disk||P.sn?null:starNear(horizDir(az, el), 18*vrFov/H);
@@ -425,7 +426,7 @@ function refreshVRTip(){
     if(!star&&disk!=='sun'&&skyNow.aur&&skyNow.aur.on){ aurora=auroraProbe(gl, vrGL.aurStore||(vrGL.aurStore={}), skyNow.aur, horizDir(az, el)); vrRestoreGL(gl); }
     if(sn) spectrumHTML(box, sn.el, sn.az, {sn});
     else if(star) spectrumHTML(box, star.el, star.az, {star});
-    else spectrumHTML(box, el, az, {disk, aurora, cloud:P.cloudPx, lit});
+    else spectrumHTML(box, el, az, {disk, aurora, cloud:P.cloudPx, lit, r:P.r});
   }
   tip.style.display='block';
   placeVRTip(cx, cy);

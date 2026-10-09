@@ -170,7 +170,8 @@ function cloudLight(px, key, lat){
   return {a, Y, comps:best.map(([i], j)=>[lights[i][0], Ys[j]/Y, lights[i][1], lights[i][2]])};
 }
 // The light toward true altitude el, azimuth az. disk is 'sun', 'moon' or null; aurora the
-// four emissions there (kR) or null; litHere, on the Moon, how sunlit that point of it is (0–1);
+// four emissions there (kR) or null; litHere, on the Moon, how sunlit that point of it is (0–1),
+// and on the Sun how far out from its centre (0–1, for limb darkening);
 // cloudPx the cloud pass's pixel there ({a, rgb}) or null, its cloud in front of the sky. Returns {S (1 nm, cd/m² per nm-ish units), Y (cd/m²),
 // parts: [[name, Y]], marks: annotations}.
 function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null){
@@ -180,7 +181,7 @@ function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null){
   const post=new Float32Array(SP_N);
   const add=(name, Y, shape, sun)=>{ if(!(Y>0)) return; parts.push([name, Y]); const T=sun==='post'?post:sun?sunlit:S; for(let i=0;i<SP_N;i++) T[i]+=Y*shape[i]; };
   const sunSrc=skySource(skyNow.sza, skyNow.sunAz), azr=a=>{ let d=Math.abs(az-a)%360; return d>180?360-d:d; };
-  if(disk==='sun') add('Sun’s disk', 1, spNorm(spSunDisk(key, lat, skyNow.sza)), true);
+  if(disk==='sun'){ const mu=limbMu(litHere); add('Sun’s disk', 1, spNorm(spSunDisk(key, lat, skyNow.sza).map((v, i)=>{ const a=sunLimbAlpha(SP_LAM[i]); return v*(a+2)/2*Math.pow(mu, a); })), true); }
   else{
     if(disk==='moon'){
       // The Moon's surface: its brightness per lit area (the full Moon's 2,500 cd/m², by the
@@ -290,7 +291,7 @@ function spectrumHTML(box, el, az, opts={}){
   if(opts.note){ cv.style.display='none'; src.textContent=opts.note; return; }
   if(!spData){ spLoad(); cv.style.display='none'; src.textContent='Loading the spectrum…'; return; }
   if(opts.sn||opts.star){ const s=opts.star, st=opts.sn?snSpectrum(opts.sn):s.star?starSpectrum(s, el):reflectedSpectrum(s); cv.style.display='block'; drawSpectrum(cv, st); src.textContent=st.note; return; }
-  const sp=skySpectrum(el, az, opts.disk||null, opts.aurora||null, opts.lit??1, opts.cloud||null);
+  const sp=skySpectrum(el, az, opts.disk||null, opts.aurora||null, opts.disk==='sun'?opts.r||0:opts.lit??1, opts.cloud||null);
   cv.style.display='block'; drawSpectrum(cv, sp);
   const fmt=Y=>Y>=1?Y.toPrecision(3)+' cd/m²':(Y>=1e-3?(Y*1e3).toPrecision(3)+' mcd/m²':skyMagArcsec(Y).toFixed(1)+' mag/arcsec²');
   // The strongest sources, and on the Moon its own light however faint (earthshine against a
@@ -298,7 +299,7 @@ function spectrumHTML(box, el, az, opts={}){
   const isMoon=p=>p[0].startsWith('the Moon'), ranked=sp.parts.slice().sort((a, b)=>b[1]-a[1]).filter(p=>isMoon(p)||p[1]>sp.Y*0.02);
   const keep=new Set(ranked.filter(isMoon).concat(ranked.filter(p=>!isMoon(p))).slice(0, 4));
   const top=ranked.filter(p=>keep.has(p)).map(p=>{ const f=100*p[1]/sp.Y; return `${p[0]} ${f<1?'<1':Math.round(f)}%`; });
-  src.textContent=opts.disk==='sun'?'The Sun’s disk: sunlight through the air'
+  src.textContent=opts.disk==='sun'?(opts.r>0.5?'The Sun’s disk near its edge, dimmer and redder (limb darkening): sunlight through the air':'The Sun’s disk: sunlight through the air')
     :fmt(sp.Y)+' · '+top.join(' · ');
 }
 // The dome's tooltip: the direction under canvas pixel (x, y), and whether it is on the Sun or Moon.
@@ -315,7 +316,7 @@ function domeSpectrum(x, y, box){
   const star=disk?null:starNear(horizDir(az, el), 7*90/R);
   if(star){ spectrumHTML(box, star.el, star.az, {star}); return; }
   const st=skyNow.aur, aurora=disk!=='sun'&&st&&st.on&&domeAur.gl?auroraProbe(domeAur.gl, domeAur.store, st, horizDir(az, el)):null;
-  spectrumHTML(box, el, az, {disk, aurora, lit});
+  spectrumHTML(box, el, az, {disk, aurora, lit, r:disk==='sun'?at(skyNow.sunAz, 90-skyNow.sza)/sunR:0});
 }
 // How sunlit the Moon is at direction dir, with the disk drawn radDeg degrees in radius, or
 // null off the disk: the surface normal there against the Sun, as the sky shader does.

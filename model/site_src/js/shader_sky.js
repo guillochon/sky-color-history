@@ -466,7 +466,13 @@ void main(){
     bool inSun=sunOn>0.5&&te>-1.0&&dot(src,sd)>cos(sunRad);
     bool onBody=inSun;
     vec3 skyBase=skyC;
-    if(inSun) skyC=sunCol;
+    if(inSun){
+      // Limb darkening (moon.js sunLimbRGB): dimmer and redder toward the edge.
+      float r=acos(clamp(dot(src, sd), -1.0, 1.0))/sunRad, mu=sqrt(max(0.01, 1.0-r*r));
+      vec3 lin=s2lin3(sunCol), c=lin*vec3(${SUN_LD_C.map(v=>v.toFixed(4)).join(', ')});
+      c*=max(lin.r, max(lin.g, lin.b))/max(max(c.r, max(c.g, c.b)), 1e-9);
+      skyC=lin2s3(clamp(c*pow(vec3(mu), vec3(${SUN_LD.join(', ')})), 0.0, 1.0));
+    }
     if(moonOn>0.5&&te>-1.2){
       float mA=moonAz*0.01745329252, mZ=(90.0-moonEl)*0.01745329252;
       vec3 md=normalize(vec3(sin(mA)*sin(mZ), cos(mA)*sin(mZ), cos(mZ)));
