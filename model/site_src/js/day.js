@@ -595,6 +595,20 @@ function markHour(){ buildTicks(); const ticks=[...htrack.querySelectorAll('.tic
 const aurBtn=document.getElementById('aurstorm'); aurBtn.addEventListener('click',()=>{ aurStorm=!aurStorm; aurBtn.setAttribute('aria-pressed',aurStorm); requestRender(); });
 const expo=document.getElementById('expo'); expo.addEventListener('click',()=>{ autoExpo=!autoExpo; expo.setAttribute('aria-pressed',autoExpo); requestRender(); });
 let dayPlaying=false, playRAF=0, playStamp=0; const hplay=document.getElementById('hplay');
+// Play speed: 'real' runs the sky's clock at one second per second; 'default' is the pace below;
+// 'fast' is five times that. Keys 1, 2 and 3.
+let playSpeed='default';
+const SPEED_X={default:1, fast:5};
+// Clock minutes per real second at real time: a minute of the clock is dayHours × 2.5 s.
+function realMinPerSec(){ return 1/(dayHours()*2.5); }
+function setPlaySpeed(s){
+  if(!(s==='real'||s==='default'||s==='fast')) return;
+  playSpeed=s;
+  document.querySelectorAll('[data-speed]').forEach(b=>b.setAttribute('aria-pressed', b.dataset.speed===s?'true':'false'));
+  adoptPlayRate();
+  if(vrOn) requestVR();
+}
+document.querySelectorAll('[data-speed]').forEach(b=>b.addEventListener('click', ()=>setPlaySpeed(b.dataset.speed)));
 // Play slows tenfold as the Sun goes from 85% to 99% covered and through an annular phase, so
 // totality and the ring last long enough to watch.
 function eclipseSlow(){
@@ -613,7 +627,7 @@ function adoptPlayRate(){
       playRAF=requestAnimationFrame(frame);
       let dt=(now-playStamp)/1000; playStamp=now; if(dt>0.05) dt=0.05;
       stepWalk(dt);
-      minutes+=dt*(2.5/0.06)/5*eclipseSlow()*24/dayHours();
+      minutes+=playSpeed==='real'?dt*realMinPerSec():dt*(2.5/0.06)/5*eclipseSlow()*24/dayHours()*SPEED_X[playSpeed];
       while(minutes>=DAYMIN){ minutes-=DAYMIN; shiftMoonDate(1); }
       hslider.value=minutes; renderDay(true);
     };
@@ -626,9 +640,18 @@ function adoptPlayRate(){
       if(!dayPlaying||vrOn) return;
       playRAF=requestAnimationFrame(frame);
       if(!domeOnScreen){ playStamp=now; return; }
-      const dt=now-playStamp; if(dt<60) return;
+      const dt=now-playStamp;
+      if(playSpeed==='real'){
+        // Real time: the clock moves every frame (the meteors follow it), the sky is redrawn each
+        // second, as it barely changes in between.
+        minutes+=Math.min(dt, 1000)/1000*realMinPerSec(); playStamp=now;
+        while(minutes>=DAYMIN){ minutes-=DAYMIN; shiftMoonDate(1); }
+        if(now-(adoptPlayRate.drawn||0)>=1000){ adoptPlayRate.drawn=now; hslider.value=minutes; renderDay(); }
+        return;
+      }
+      if(dt<60) return;
       playStamp=now;
-      minutes+=2.5*Math.min(dt/60, 4)*eclipseSlow()*24/dayHours();
+      minutes+=2.5*Math.min(dt/60, 4)*eclipseSlow()*24/dayHours()*SPEED_X[playSpeed];
       while(minutes>=DAYMIN){ minutes-=DAYMIN; shiftMoonDate(1); }
       hslider.value=minutes; renderDay();
     };

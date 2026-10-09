@@ -236,6 +236,7 @@ document.addEventListener('keydown',e=>{
     if(e.key==='ArrowDown'||e.key==='['){ e.preventDefault(); stepEpoch(-1); return; }
     if(k==='e'&&!e.repeat){ e.preventDefault(); jumpNextEclipse(false); return; }
     if(k==='t'&&!e.repeat){ e.preventDefault(); jumpNextEclipse(true); return; }
+    if((k==='1'||k==='2'||k==='3')&&!e.repeat){ e.preventDefault(); setPlaySpeed(SPEED_KEYS[k]); return; }
     return;
   }
   // The page has VR's keys for time and eras: space plays or pauses the day, ← and → step it by
@@ -247,9 +248,11 @@ document.addEventListener('keydown',e=>{
   const k=e.key.length===1?e.key.toLowerCase():e.key;
   const act={' ':()=>{ if(!e.repeat) hplay.click(); }, ArrowRight:()=>stepMinutes(5), ArrowLeft:()=>stepMinutes(-5),
     ArrowUp:()=>stepEpoch(1), ']':()=>stepEpoch(1), ArrowDown:()=>stepEpoch(-1), '[':()=>stepEpoch(-1),
-    e:()=>{ if(!e.repeat) jumpNextEclipse(false); }, t:()=>{ if(!e.repeat) jumpNextEclipse(true); }}[k];
+    e:()=>{ if(!e.repeat) jumpNextEclipse(false); }, t:()=>{ if(!e.repeat) jumpNextEclipse(true); },
+    1:()=>setPlaySpeed('real'), 2:()=>setPlaySpeed('default'), 3:()=>setPlaySpeed('fast')}[k];
   if(act){ e.preventDefault(); act(); }
 });
+const SPEED_KEYS={1:'real', 2:'default', 3:'fast'};
 function syncVRPad(){
   const set=(id,on)=>{ const b=document.getElementById(id); if(b) b.setAttribute('aria-pressed', on?'true':'false'); };
   set('vrpad-scenery', vrScenery);
