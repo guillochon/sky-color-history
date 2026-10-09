@@ -405,6 +405,8 @@ function renderDay(fast){
     haloVR={k:new Float32Array([hs.k, hm.k]), sun:new Float32Array(hs.lin), moon:new Float32Array(hm.lin)};
   }
   const haloOn=!fast && halos.length>0;
+  // Comets (comets.js), per pixel on the dome.
+  const comets=cometsNow(ep.key, LATDEG[dLat]), cometOn=!fast&&comets.length>0;
   // The ring, per pixel on the dome; for VR its constants.
   const ringPw=Math.PI/180*90/R, ringOn=!fast&&!!ringR;
   const ringVR=ringR?{R:ringR, P:ecl.pole, k:1.27e5*ringR.sunL*sunFlux*ringR.alb/(4*Math.PI)/(Yref*cdu)*absZenith(ep.key)}:null;
@@ -412,6 +414,7 @@ function renderDay(fast){
     if(!geo.img) geo.img=dctx.createImageData(W,H);
     const img=geo.img, px=img.data, cell=geo.px.cell, ptr=geo.px.tr, pta=geo.px.ta, C2=NC*3;
     const rctx=ringOn?{dir:domePixelDirs(geo), v:[0, 0, 0], R:ringR, s:sunDir, P:ecl.pole, pw:ringPw, sunFlux, k:ekD, extZ:absZenith(ep.key), rCd:Yref*cdu, rgrid, NC, T:toneLUT(k, p)}:null;
+    const cctx=cometOn?{dir:domePixelDirs(geo), v:[0, 0, 0], L:[0, 0, 0], o:{}, list:comets, pw:Math.PI/180*90/R, k:ekD, extZ:absZenith(ep.key), rCd:Yref*cdu, rgrid, NC, T:toneLUT(k, p)}:null;
     const hctx=haloOn?{dir:domePixelDirs(geo), rgrid, NC, T:toneLUT(k, p), v:[0, 0, 0], w:[0, 0, 0], L:[0, 0, 0]}:null;
     for(let y=0, j=0;y<H;y++) for(let x=0;x<W;x++,j++){
       const o=j*4, c=cell[j];
@@ -424,6 +427,7 @@ function renderDay(fast){
         if(b>0){ const a=mwA[bi]; for(let q=0;q<3;q++) px[o+q]=linToByte(SRGB_LIN[Math.round(px[o+q])]*a+MW_LIN[q]*b); }
       }
       if(ringOn) domeRingPixel(px, o, j, c, tr, ta, rctx);
+      if(cometOn) domeCometPixel(px, o, j, c, tr, ta, cctx);
       if(haloOn) domeHaloPixel(px, o, j, c, tr, ta, halos, hctx);
     }
     dctx.putImageData(img,0,0);
@@ -445,6 +449,8 @@ function renderDay(fast){
   const SUNR=DOME_DISK*z*moon.sunRadDeg/SUN_RADIUS_DEG, rr=R*sza/90, a=sunAz*Math.PI/180, sx=cx+rr*Math.sin(a), sy=cy-rr*Math.cos(a);
   const sunRGB=tone(sXd, sXd[1], 0.95,0.4,0.98);
   const stars=placeStars(LATDEG[dLat]);
+  // Comet heads join the stars as points (their coma and tails are drawn per pixel above).
+  for(const C of comets){ if(C.el<0) continue; const sh=pointDisplay(cometHeadMag(C)); stars.marks.push({az:C.az, el:C.el, mag:cometHeadMag(C), px:sh.px, rgb:starTint(5200).map(v=>Math.min(2.4, v)*Math.min(1, 0.62*Math.sqrt(Math.pow(10, -0.4*(cometHeadMag(C)-STAR_VANCHOR))))), comet:C}); }
   if(!fast) drawStarsOnDome(stars.marks, rgrid, Yref*cdu, ep.key);
   const sunUpPix=!fast && rr-SUNR<R && sunRelD>3e-4;
   if(sunUpPix){
@@ -498,9 +504,10 @@ function renderDay(fast){
   const fullPct=r=>{ const p=r*100; return (p<10 ? p.toFixed(1) : Math.round(p))+'%'; };
   const sn=supernovaPlace(LATDEG[dLat]);
   if(!fast) drawSupernovaOnDome(sn);
-  skyNow={colgrid, nr:NR, na:NA, sza, sunAz, sunRGB, sunVis, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE+35/60, moon, corona, beads, eclipse, central, rgrid, cityUp:cityUplight(ep.key, Yref, k, p), Yref, toneK:k, toneP:p, rCd:Yref*cdu, gal:mwMap?galacticBasis(LATDEG[dLat]):null, extK:ek, stars:stars.tex, starMarks:stars.marks, starBins:stars.bins, starIdx:stars.idx, starIdxCount:stars.idxCount, sn, moonRel:mScale/MOON_SUN_FULL, mScale, sunFlux, halo:haloVR, ring:ringVR, ecl, aur:auroraState(ep.key, LATDEG[dLat], minutes, rgrid[0]*Yref*cdu), gen:++skyGen};
+  skyNow={colgrid, nr:NR, na:NA, sza, sunAz, sunRGB, sunVis, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE+35/60, moon, corona, beads, eclipse, central, rgrid, cityUp:cityUplight(ep.key, Yref, k, p), Yref, toneK:k, toneP:p, rCd:Yref*cdu, gal:mwMap?galacticBasis(LATDEG[dLat]):null, extK:ek, stars:stars.tex, starMarks:stars.marks, starBins:stars.bins, starIdx:stars.idx, starIdxCount:stars.idxCount, sn, moonRel:mScale/MOON_SUN_FULL, mScale, sunFlux, halo:haloVR, ring:ringVR, ecl, comets, aur:auroraState(ep.key, LATDEG[dLat], minutes, rgrid[0]*Yref*cdu), gen:++skyGen};
   document.getElementById('raur').textContent=auroraReadout(skyNow.aur);
   document.getElementById('rmet').textContent=meteorReadout();
+  document.getElementById('rcomet').textContent=cometReadout();
   metKick();
   document.getElementById('rmoon').textContent = (moon.el<-moon.radDeg ? 'below horizon' : moon.el.toFixed(1)+'°')+' · '+Math.round(moonLit(moon, sunAz, 90-sza)*100)+'% lit · '+fullPct(mScale/MOON_SUN_FULL)+' of full';
   if(vrOn) paintVR();

@@ -203,6 +203,14 @@ function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null){
     add('zodiacal light and stars', (1-AIRGLOW_SHARE)*NIGHT_NATURAL*f, SP_SUN5772, true);
     // Debris (debris.js): the extra zodiacal light, the ring, and the ring's light in the air.
     if(skyNow.ecl&&zodiK(key)>1) add(`zodiacal light, ${zodiK(key)}× today’s`, zodiExtra(key, horizDir(az, el), skyNow.ecl)*absZenith(key)*(0.4+0.6*extinction(el, extK(key))), SP_SUN5772, true);
+    // Comets: each part's light here, with its own spectrum.
+    for(const C of skyNow.comets||[]){
+      const pc=cometAt(C, horizDir(az, el), Math.PI/180*90/domeView().R, {}), ex=extinction(el, extK(key))*absZenith(key), nm=C.c.name;
+      add(`${nm}, coma dust`, pc.coma*(1-C.gas)*ex, SP_COMET_DUST, true);
+      add(`${nm}, coma gas`, pc.coma*C.gas*ex, cometGasSpectrum(C.sodium));
+      add(`${nm}, dust tail`, pc.dust*ex, SP_COMET_DUST, true);
+      add(`${nm}, ion tail`, pc.ion*ex, SP_COMET_ION);
+    }
     const rg=skyNow.ring;
     if(rg){
       const sd=horizDir(skyNow.sunAz, 90-skyNow.sza), pw=Math.PI/180*90/domeView().R;
@@ -242,6 +250,9 @@ function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null){
   if(SP_TAU_H2O[345]*h2o>0.15) marks.push({l:725, t:'H₂O'});
   if(share('airglow')>0.1){ marks.push({l:557.7, t:'[O I] 557.7', em:true}, {l:589.3, t:'Na D', em:true}, {l:630, t:'[O I] 630', em:true}, {l:735, t:'OH', em:true}); }
   if(share('violet')>0.1) marks.push({l:450, t:'O₂ Herzberg II', em:true});
+  const shareHas=s=>parts.filter(p=>p[0].includes(s)).reduce((a, p)=>a+p[1], 0)/Math.max(Y, 1e-30);
+  if(shareHas(', coma gas')>0.08){ marks.push({l:516.5, t:'C₂ Swan', em:true}, {l:473.7, t:'C₂', em:true}, {l:563.5, t:'C₂', em:true}, {l:405, t:'C₃', em:true}, {l:388.3, t:'CN', em:true}); if((skyNow.comets||[]).some(C=>C.sodium)) marks.push({l:589.3, t:'Na D', em:true}); }
+  if(shareHas(', ion tail')>0.08) marks.push({l:425.2, t:'CO⁺', em:true}, {l:391.4, t:'N₂⁺', em:true}, {l:619.4, t:'H₂O⁺', em:true});
   if(share('city')+share('cloud, lit by the city')>0.15){ if(key==='y2100') marks.push({l:452, t:'LED', em:true}); else marks.push({l:589.3, t:'Na (sodium lamps)', em:true}, {l:452, t:'LED', em:true}); }
   if(share('oil')+share('cloud, lit by oil')>0.15) marks.push({l:700, t:'flames, 1850 K', em:true});
   if(share('aurora, oxygen green')>0.05) marks.push({l:557.7, t:'[O I] 557.7', em:true});
@@ -386,6 +397,7 @@ function starNear(dir, tolDeg){
   const key=EP[dIdx].key;
   let best=null, bestC=Math.cos(tolDeg*Math.PI/180);
   for(const s of skyNow.starMarks){
+    if(s.comet) continue;
     const c=vdot(dir, horizDir(s.az, s.el)); if(c<bestC) continue;
     const m=starThroughAir(s.mag, s.el, key), dim=Math.pow(10, -0.2*(m-s.mag));
     if(starVisible(m, skyRAt(skyNow.rgrid, s.el, s.az)*skyNow.rCd)*dim<0.3) continue;

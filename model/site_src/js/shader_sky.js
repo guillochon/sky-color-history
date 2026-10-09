@@ -23,6 +23,7 @@ ${HALO_GLSL}
 // The Ordovician ring and the meteors (debris.js, meteors.js).
 ${RING_GLSL}
 ${MET_GLSL}
+${COMET_GLSL}
 ${TONE_GLSL}
 ${AUR_MIX_GLSL}
 // Naked-eye limiting magnitude against a sky of L cd/m² (color.js nakedEyeLimit).
@@ -553,6 +554,14 @@ void main(){
       if(rR>rBg*0.003){
         float rNew=rBg+rR, tBg=toneT(rBg), tNew=toneT(rNew);
         skyC=lin2s3(clamp(s2lin3(skyC)*(tBg>0.0?(tNew/tBg)*(rBg/rNew):0.0)+ringLin*(tNew/rNew*rR), 0.0, 1.0));
+      }
+    }
+    if(cometN>0.5 && !onBody && te>-0.5){
+      vec3 Lc=cometsAt(src, 1.2*fy/res.y)*extinctionAt(max(te, 0.0), mwK);
+      float rC=dot(Lc, vec3(0.2126, 0.7152, 0.0722));
+      if(rC>rBg*0.003){
+        float rNew=rBg+rC, tBg=toneT(rBg), tNew=toneT(rNew);
+        skyC=lin2s3(clamp(s2lin3(skyC)*(tBg>0.0?(tNew/tBg)*(rBg/rNew):0.0)+Lc*(tNew/rNew), 0.0, 1.0));
       }
     }
     if(aurOn>0.5 && !onBody && te>-0.5) skyC=auroraMix(skyC, rBg, texture(aurTex, gl_FragCoord.xy/res)*0.001);

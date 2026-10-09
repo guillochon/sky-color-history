@@ -109,6 +109,7 @@ PARTS = [
     'js/spectrum.js',
     'js/meteors.js',
     'js/satellites.js',
+    'js/comets.js',
     'js/dome_bodies.js',
     'js/scenery.js',
     'js/shader_terrain.js',

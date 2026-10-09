@@ -392,6 +392,10 @@ function paintVR(){
   const mu=metUniforms();
   gl.uniform1f(u.metN, mu.n); gl.uniform3fv(u.metFlash, mu.flash||[0, 0, 0]);
   if(mu.n){ gl.uniform4fv(u.metA, mu.A); gl.uniform4fv(u.metB, mu.B); gl.uniform4fv(u.metC, mu.C); }
+  // Comets (comets.js).
+  const cu=cometUniforms();
+  gl.uniform1f(u.cometN, cu.n);
+  if(cu.n){ const cl=cometLin(); gl.uniform4fv(u.cometH, cu.H); gl.uniform4fv(u.cometK, cu.K); gl.uniform4fv(u.cometS, cu.S); gl.uniform4fv(u.cometI, cu.I); gl.uniform3fv(u.cometComa, cl.coma); gl.uniform3fv(u.cometDust, cl.dust); gl.uniform3fv(u.cometIon, cl.ion); }
   gl.activeTexture(gl.TEXTURE10); gl.bindTexture(gl.TEXTURE_2D, vrGL.hitInfo||vrGL.noHitInfo); gl.activeTexture(gl.TEXTURE11); gl.bindTexture(gl.TEXTURE_2D, vrGL.hitInfo?vrGL.hitNrm:vrGL.noHitNrm); gl.activeTexture(gl.TEXTURE0);
   // ensureHitTarget binds new hit textures on the active unit, which can be the sky's.
   gl.bindTexture(gl.TEXTURE_2D, tex);

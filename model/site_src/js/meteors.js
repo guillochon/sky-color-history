@@ -429,6 +429,12 @@ function metUniforms(){
     else if(s.kind===1){ for(let i=0;i<s.pts.length-1;i+=2) put(s.pts[Math.min(i+2, s.pts.length-1)], s.pts[i], s.px*pxRad*0.6, 1, s.rgb, s.amp*0.7); }
     else{ const rad=skyNow.moon.radDeg*DISK_SCALE; if(flashLit(s.f, rad)<=0.1){ const d=flashDir(s.f, rad); put(d, d, s.px*pxRad, 2, s.rgb, s.amp); } }
   }
+  // Comet heads (comets.js), as stars are drawn: kind 3, a point hidden by the Sun and Moon.
+  for(const C of (skyNow.comets||[])){
+    if(C.el<0) continue;
+    const m=starThroughAir(cometHeadMag(C), C.el, EP[dIdx].key), vis=starVisible(m, skyRAt(skyNow.rgrid, C.el, C.az)*skyNow.rCd), d=pointDisplay(m);
+    if(vis>0.02) put(C.dir, C.dir, d.px*pxRad, 3, starTint(5200).map(v=>Math.min(2.4, v)), Math.min(1, 0.62*Math.sqrt(Math.pow(10, -0.4*(m-STAR_VANCHOR))))*vis);
+  }
   return {A, B, C, n, flash:metFlash(flash, flashRGB)};
 }
 const MET_GLSL=`
@@ -440,14 +446,14 @@ vec3 meteorsAt(vec3 c, vec3 src, bool onBody){
   for(int i=0;i<${MET_GL};i++){
     if(float(i)>=metN) break;
     vec4 A=metA[i], B=metB[i];
-    if(onBody && B.w<1.5) continue;
+    if(onBody && abs(B.w-2.0)>0.5) continue;
     vec3 ht=A.xyz-B.xyz; float L2=dot(ht, ht), s=L2>1e-12?clamp(dot(src-B.xyz, ht)/L2, 0.0, 1.0):1.0;
     vec3 dq=src-(B.xyz+ht*s); float d2=dot(dq, dq), sg=A.w, I;
     if(B.w<0.5){
       float w=sg*(0.35+0.4*s); I=0.9*s*s*exp(-0.5*d2/(w*w));
       vec3 dh=src-A.xyz; I+=exp(-0.5*dot(dh, dh)/(sg*sg*2.56));
     }else if(B.w<1.5) I=0.85*exp(-0.5*d2/(sg*sg));
-    else { vec3 dh=src-A.xyz; I=exp(-0.5*dot(dh, dh)/(sg*sg*1.96)); }
+    else { vec3 dh=src-A.xyz; I=exp(-0.5*dot(dh, dh)/(sg*sg*(B.w>2.5?1.0:1.96))); }
     c+=metC[i].rgb*I;
   }
   return c;
