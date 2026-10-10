@@ -10,11 +10,12 @@
 // colour composites reaching into the ultraviolet and infrared; and each scaled to the same mean
 // brightness. In one image (surfaces.webp) of 512-pixel tiles, eight to a row: Mercury's and
 // Mars's 4096 x 2048 maps as the first 32 each, then each moon's 1024 x 512 as two. Fetched the first time the
-// walk-around view is drawn, and put after the nebulae's tiles in their texture array.
+// walk-around view draws one of them as a disk of a few pixels (vr_paint.js uploadBodies), and put
+// after the nebulae's tiles in their texture array.
 const SURF_IMG='__SURF_IMG__', SURF_LAYERS=76, SURF_MAP={Mercury:0, Mars:1, Io:2, Europa:3, Ganymede:4, Tethys:5, Dione:6, Rhea:7};
 let surfImg=null, surfAsked=false;
 function syncSurfTex(gl){
-  if(!surfAsked){
+  if(!surfAsked&&vrGL.surfWanted){
     surfAsked=true;
     const img=new Image();
     img.onload=()=>{ surfImg=img; requestVR(); };

@@ -30,6 +30,20 @@ function whenLinked(gl, list, done){
 // which can freeze the browser for seconds. paintVR puts up a note before that draw.
 const vrSlow=new Map();
 function markSlow(job, prog, label){ if(prog && job.cold) vrSlow.set(prog, label); }
+// The sky program with the close-up detail (shader_sky.js VRFS), compiled the first time the view
+// wants it and then put in place of the one drawing; its first draw may stall, under a note.
+function wantDetail(gl){
+  if(!vrGL||vrGL.detailJob) return;
+  const job=vrGL.detailJob=glProgramAsync(gl, vrGL.vs, VRFS);
+  whenLinked(gl, [job], dp=>{
+    if(!dp||!vrGL) return;
+    const old=vrGL.prog;
+    vrGL.u=setupSkyProg(gl, dp); vrGL.prog=dp; vrGL.detailOn=true; gl.deleteProgram(old);
+    markSlow(job, dp, 'the close-up detail');
+    skyUploaded=-1;
+    vrRestoreGL(gl); requestVR();
+  });
+}
 // Run fn once the browser has put the current frame on screen, so a note shown just before
 // stays up through a stall that follows.
 function afterPaint(fn){
@@ -85,7 +99,7 @@ function initVR(ready){
   const vs=gl&&glShader(gl, gl.VERTEX_SHADER, '#version 300 es\nin vec2 a;void main(){gl_Position=vec4(a,0.0,1.0);}');
   if(!vs){ ready(false); return; }
   const boot=glProgramAsync(gl, vs, VRFS_BOOT);
-  const skyJob=glProgramAsync(gl, vs, VRFS);
+  const skyJob=glProgramAsync(gl, vs, VRFS_MAIN);
   const cloudJobs=[CLOUDFS, COMPFS, TEMPFS, NOISEFS].map(src=>glProgramAsync(gl, vs, src));
   vrBoot=[ready];
   whenLinked(gl, [boot], prog=>{
@@ -149,6 +163,8 @@ function setupVR(gl, vs, prog, skyJob, cloudJobs){
   vrRestoreGL(gl);
   whenLinked(gl, [skyJob], fp=>{
     if(!fp||!vrGL) return;
+    // The detail program got there first: it has everything this one has.
+    if(vrGL.detailOn){ gl.deleteProgram(fp); return; }
     const boot=vrGL.prog;
     vrGL.u=setupSkyProg(gl, fp); vrGL.prog=fp; gl.deleteProgram(boot);
     skyUploaded=-1;

@@ -1,9 +1,12 @@
 const VRFS_SRC=`#version 300 es
 precision highp float;
-// VRFS_BOOT sets these to 0: sky and plain ground only, and none of the close-up detail (the
-// Sun's photosphere, Jupiter's clouds, the surface maps, planets' disks: they show as points),
-// which compiles fast enough to show while the full program compiles in the background.
+// Three programs (keepLoops below): VRFS_BOOT, all three off, compiles in a couple of seconds and
+// shows the sky (planets as points) while the others compile; VRFS_MAIN adds the scenery and the
+// planets' disks; VRFS, the close-up detail (the Sun's photosphere, Jupiter's clouds and Red Spot,
+// the surface maps), is compiled only once the view zooms in on one of them, as it takes several
+// times as long (vr_init.js wantDetail).
 #define SCENERY 1
+#define DISKS 1
 #define DETAIL 1
 // Random values in red (vN); the first row's green, blue and alpha hold the lunar eclipse's table.
 uniform sampler2D noiseTex;
@@ -1240,11 +1243,11 @@ void main(){
         if(fine){ vec4 S=bodyS[b]; dd=axR*(fuv.x-S.x)+axU*((fuv.y-S.y)*S.z); }
         float d2=dot(dd, dd);
         if(d2>reach*reach) continue;
-        float rPx=P.w/pxA, diskK=DETAIL==1?smoothstep(1.0, 3.0, rPx):0.0, vis=1.0-smoothstep(lim-0.8, lim+0.2, L.w+dm-moonGain);
+        float rPx=P.w/pxA, diskK=DISKS==1?smoothstep(1.0, 3.0, rPx):0.0, vis=1.0-smoothstep(lim-0.8, lim+0.2, L.w+dm-moonGain);
         // src less its part along the body, from the offset: src-P.xyz*dot(src, P.xyz) is the same.
         vec3 o=(dd-P.xyz*dot(dd, P.xyz))/sin(P.w), x; float t;
         if(inSun){
-          if(DETAIL==0) continue;
+          if(DISKS==0) continue;
           vec4 dk=bodyDisk(o, P.xyz, N.xyz, L.xyz, kind, rPx, C.rgb, bodyM[b], x, t);
           skyC=mix(skyC, skyBase, dk.a*min(rPx, 1.0));
           continue;
@@ -1296,4 +1299,5 @@ function keepLoops(src){
   return src.replace(/for\(int (\w+)=0;\1<([0-9]+);\1\+\+\)/g, (m, v, n)=>+n>=4?`for(int ${v}=0;${v}<${n}+loopZero;${v}++)`:m)
     .replace('precision highp float;', 'precision highp float;\nuniform int loopZero;');
 }
-const VRFS=keepLoops(VRFS_SRC), VRFS_BOOT=VRFS.replace('#define SCENERY 1', '#define SCENERY 0').replace('#define DETAIL 1', '#define DETAIL 0');
+const VRFS=keepLoops(VRFS_SRC), VRFS_MAIN=VRFS.replace('#define DETAIL 1', '#define DETAIL 0');
+const VRFS_BOOT=VRFS_MAIN.replace('#define SCENERY 1', '#define SCENERY 0').replace('#define DISKS 1', '#define DISKS 0');

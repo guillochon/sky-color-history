@@ -346,7 +346,7 @@ function paintVR(){
   // A program compiled from scratch can stall the browser on its first draw. Put up a note,
   // let it reach the screen, then draw.
   pickHit(vrGL.gl);
-  const firsts=[vrScenery&&vrGL.hitProg, vrScenery&&vrGL.townProg, vrClouds&&vrGL.cloudProg].filter(p=>p&&vrSlow.has(p));
+  const firsts=[vrScenery&&vrGL.hitProg, vrScenery&&vrGL.townProg, vrClouds&&vrGL.cloudProg, vrGL.prog].filter(p=>p&&vrSlow.has(p));
   if(firsts.length){
     if(vrGL.note==='waiting') return;
     if(vrGL.note!=='shown'){
@@ -404,6 +404,12 @@ function paintVR(){
   gl.uniform1f(u.sunRad, skyNow.moon.sunRadDeg*DISK_SCALE*Math.PI/180);
   // The photosphere's spots and faculae, once the day's map is made.
   const sunPx=skyNow.moon.sunRadDeg*DISK_SCALE*Math.PI/180/(2*Math.tan(vrFov*Math.PI/360)/c.height);
+  // The photosphere's detail shows once the Sun is drawn several hundred pixels in radius and is in view.
+  if(sunPx>600&&skyNow.sunOn){
+    const yw=vrYaw*Math.PI/180, pt=vrPitch*Math.PI/180, sd=horizDir(skyNow.sunAz, 90-skyNow.sza);
+    const cosA=sd[0]*Math.sin(yw)*Math.cos(pt)+sd[1]*Math.cos(yw)*Math.cos(pt)+sd[2]*Math.sin(pt);
+    if(Math.acos(Math.min(1, cosA))<vrFov*Math.PI/180*Math.max(1, c.width/Math.max(c.height, 1))+skyNow.moon.sunRadDeg*DISK_SCALE*Math.PI/180) wantDetail(gl);
+  }
   const sm=syncSunTex(sunPx), so=sm&&sunOrientation(sm.A.key, astroDay()), sT=astroDay();
   gl.uniform4f(u.sunOri, so?so.P:0, so?so.B0:0, so?so.phase:0, so?1:0);
   gl.uniform4f(u.sunDrift, sm?sT-sm.A.D:0, sm&&sm.B?sT-sm.B.D:0, sm&&sm.B?sm.f:0, sT-3650*Math.floor(sT/3650));
@@ -772,6 +778,11 @@ function uploadBodies(gl, u){
   const fwd=[Math.sin(yw)*Math.cos(pt), Math.cos(yw)*Math.cos(pt), Math.sin(pt)];
   const onScreen=b=>b.dir[0]*fwd[0]+b.dir[1]*fwd[1]+b.dir[2]*fwd[2]>Math.cos(Math.min(edge+b.rad*DISK_SCALE*2.3+0.03, Math.PI));
   const list=(skyNow.bodies||[]).filter(onScreen).slice(0, BODY_MAX), {P, C, L, N, S, Mr}=BODY_U;
+  // Close enough for detail: Jupiter's clouds past a couple of dozen pixels' radius, a map's past a
+  // few (which also fetches the maps, surfaces.js).
+  const radPx=b=>b.rad*DISK_SCALE/(2*fy/Math.max(c.height, 1));
+  if(list.some(b=>b.kind===3&&radPx(b)>20)) wantDetail(gl);
+  if(list.some(b=>b.map!=null&&radPx(b)>5)){ vrGL.surfWanted=true; wantDetail(gl); }
   const cp=Math.cos(pt), sp=Math.sin(pt), cy=Math.cos(yw), sy=Math.sin(yw);
   list.forEach((b, i)=>{
     const o=i*4;
