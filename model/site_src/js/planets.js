@@ -55,9 +55,9 @@ const PLANET_BODY=[
 ];
 const PL_AU_KM=149597870.7, LIGHT_DAY_AU=1/173.1446;
 // Each planet's prime meridian, W at J2000 and its rate (degrees, degrees a day; IAU WGCCRE 2015),
-// for those drawn with longitudes: Mercury's, and Jupiter's System II (the clouds' and the Red
+// for those drawn with longitudes: Mercury's, Mars's, and Jupiter's System II (the clouds' and the Red
 // Spot's), not the IAU's System III.
-const PLANET_W=[[329.5988, 6.1385108], null, null, [43.3, 870.270], null, null, null];
+const PLANET_W=[[329.5988, 6.1385108], null, [176.630, 350.89198226], [43.3, 870.270], null, null, null];
 // The major moons of Jupiter and Saturn: name, host (index in PLANETS), radius (km), absolute
 // magnitude H, orbit radius (km), mean longitude at J2000 TDB (degrees, in the host's equator
 // from its ascending node on the J2000 equator), mean motion (degrees a day) and a tint. Fit to JPL

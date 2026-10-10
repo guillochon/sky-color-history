@@ -1,21 +1,31 @@
-"""The airless bodies' surface maps for the walk-around view -> site/surfaces.webp (surfaces.js).
+"""The rocky bodies' surface maps for the walk-around view -> site/surfaces.webp (surfaces.js).
 
 Sources, all public domain (NASA/USGS; Cassini maps NASA/JPL-Caltech/SSI/LPI):
   Mercury   USGS MESSENGER MDIS MD3 colour mosaic, 665 m (796 MB GeoTIFF), downsampled to 4096 px:
             https://planetarymaps.usgs.gov/mosaic/Mercury_MESSENGER_MDIS_Basemap_MD3Color_Mosaic_Global_665m.tif
+  Mars      USGS Viking colour mosaic, 925 m (798 MB GeoTIFF), downsampled to 4096 px:
+            https://planetarymaps.usgs.gov/mosaic/Mars_Viking_ClrMosaic_global_925m.tif
   Io        USGS Galileo SSI / Voyager colour-merged 1 km mosaic, 1024 px JPG
   Europa    USGS Voyager / Galileo SSI 500 m mosaic, 1024 px JPG (nothing south of 83 S: filled)
   Ganymede  USGS Voyager / Galileo SSI colour mosaic 1.4 km, 1024 px JPG
   Tethys, Dione, Rhea  Cassini colour maps PIA18439, PIA18434, PIA18438 (Wikimedia 3840 px copies)
   Callisto is left out: its mosaic has nothing south of about 60 S over a third of its longitudes.
-Usage: python surfaces.py <download dir with io/io.jpg, europa/europa.jpg, ...> <mercury 4096x2048 png>
-       <out webp> <preview dir>
+Each map is turned so its left edge is longitude 0 (east to the right), its no-data pixels are
+filled from round about (push-pull over a pyramid, wrapping in longitude), its colour is toned
+down toward true colour by a factor per body, and it is scaled to a mean luminance of 0.45
+(cosine-weighted; the shader brings it to 0.8). In an atlas of 512-pixel tiles, eight to a row:
+Mercury, then Mars, 4096 x 2048 (8 x 4 tiles each), then each moon's 1024 x 512 as two tiles.
+
+Usage: python surfaces.py <download dir with io/io.jpg, europa/europa.jpg, ...>
+       <mercury 4096x2048 png> <mars 4096x2048 png> <out webp> <preview dir>
+(the 4096 px pngs are box-downsampled from the GeoTIFFs)
+"""
 import sys
 import numpy as np
 from PIL import Image
 Image.MAX_IMAGE_PIXELS = None
 
-dl, merc, out, prev = sys.argv[1:5]
+dl, merc, mars, out, prev = sys.argv[1:6]
 # name, file, left-edge longitude, saturation kept, tint for a grayscale map
 BODIES = [
     ('io', f'{dl}/io/io.jpg', 180, 0.55, None),
@@ -98,13 +108,15 @@ def process(a, gray, left, sat, tint, size, name):
     return np.clip(a, 0, 1)
 
 
-atlas = np.zeros((3072, 4096, 3), dtype=np.float32)
+atlas = np.zeros((5120, 4096, 3), dtype=np.float32)
 m, _ = load(merc, (4096, 2048))
 atlas[:2048] = process(m, False, 180, 0.35, None, (4096, 2048), 'mercury')
+m, _ = load(mars, (4096, 2048))
+atlas[2048:4096] = process(m, False, 180, 0.7, None, (4096, 2048), 'mars')
 for k, (name, path, left, sat, tint) in enumerate(BODIES):
     a, gray = load(path, None)
     p = process(a, gray, left, sat, tint, (1024, 512), name)
-    t = 32 + 2 * k
+    t = 64 + 2 * k
     for half in range(2):
         ti = t + half
         ty, tx = ti // 8, ti % 8
@@ -112,5 +124,5 @@ for k, (name, path, left, sat, tint) in enumerate(BODIES):
     Image.fromarray((p * 255 + 0.5).astype(np.uint8)).resize((768, 384), Image.LANCZOS).save(f'{prev}/{name}_out.png')
 img = Image.fromarray((atlas * 255 + 0.5).astype(np.uint8))
 img.save(out, 'WEBP', quality=88, method=6)
-img.resize((1024, 768), Image.LANCZOS).save(f'{prev}/atlas.png')
+img.resize((1024, 1280), Image.LANCZOS).save(f'{prev}/atlas.png')
 Image.fromarray((atlas[:2048] * 255 + 0.5).astype(np.uint8)).resize((768, 384), Image.LANCZOS).save(f'{prev}/mercury_out.png')

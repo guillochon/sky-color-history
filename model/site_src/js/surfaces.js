@@ -1,5 +1,5 @@
-// The airless bodies' surfaces, from spacecraft maps (all public domain): Mercury from MESSENGER's
-// MDIS MD3 colour mosaic (1000, 750 and 430 nm; USGS), Io from Galileo's colour over the Galileo
+// The rocky bodies' surfaces, from spacecraft maps (all public domain): Mercury from MESSENGER's
+// MDIS MD3 colour mosaic (1000, 750 and 430 nm; USGS), Mars from Viking's colour mosaic (USGS), Io from Galileo's colour over the Galileo
 // and Voyager mosaic, Europa from the Galileo and Voyager mosaic (grey, in Europa's tint), Ganymede
 // from the Galileo and Voyager colour mosaic (all USGS Astrogeology), and Tethys, Dione and Rhea
 // from Cassini's colour maps (PIA18439, PIA18434, PIA18438; NASA/JPL-Caltech/SSI/LPI). Callisto has
@@ -8,10 +8,10 @@
 // moons' faces the host), east to the right; the few gaps (Europa south of 83°S, slivers at other
 // poles) filled from round about; the colours toned toward true colour, the Cassini and USGS
 // colour composites reaching into the ultraviolet and infrared; and each scaled to the same mean
-// brightness. In one image (surfaces.webp) of 512-pixel tiles, eight to a row: Mercury's
-// 4096 x 2048 map as the first 32, then each moon's 1024 x 512 as two. Fetched the first time the
+// brightness. In one image (surfaces.webp) of 512-pixel tiles, eight to a row: Mercury's and
+// Mars's 4096 x 2048 maps as the first 32 each, then each moon's 1024 x 512 as two. Fetched the first time the
 // walk-around view is drawn, and put after the nebulae's tiles in their texture array.
-const SURF_IMG='__SURF_IMG__', SURF_LAYERS=44, SURF_MAP={Mercury:0, Io:1, Europa:2, Ganymede:3, Tethys:4, Dione:5, Rhea:6};
+const SURF_IMG='__SURF_IMG__', SURF_LAYERS=76, SURF_MAP={Mercury:0, Mars:1, Io:2, Europa:3, Ganymede:4, Tethys:5, Dione:6, Rhea:7};
 let surfImg=null, surfAsked=false;
 function syncSurfTex(gl){
   if(!surfAsked){
@@ -41,7 +41,8 @@ const SURF_GLSL=`
 vec3 surfAt(int m, float lon, float lat, float lod){
   float u=fract(lon/360.0), v=clamp((90.0-lat)/180.0, 0.0, 1.0);
   float layer, s, t;
-  if(m==0){ float x=min(u*8.0, 7.9999), y=min(v*4.0, 3.9999); layer=floor(y)*8.0+floor(x); s=fract(x); t=fract(y); lod+=3.0; }
-  else { float x=min(u*2.0, 1.9999); layer=32.0+float(m-1)*2.0+floor(x); s=fract(x); t=v; lod+=1.0; }
-  return textureLod(dsoTex, vec3(s, t, ${DSO.objects.length}.0+layer), max(lod, 0.0)).rgb*1.78;
+  if(m<=1){ float x=min(u*8.0, 7.9999), y=min(v*4.0, 3.9999); layer=float(m)*32.0+floor(y)*8.0+floor(x); s=fract(x); t=fract(y); lod+=3.0; }
+  else { float x=min(u*2.0, 1.9999); layer=64.0+float(m-2)*2.0+floor(x); s=fract(x); t=v; lod+=1.0; }
+  // Mars's disk is drawn brighter (planets.js BODY_GAIN); its map a little darker to match.
+  return textureLod(dsoTex, vec3(s, t, ${DSO.objects.length}.0+layer), max(lod, 0.0)).rgb*(m==1?1.3:1.78);
 }`;
