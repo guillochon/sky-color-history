@@ -597,5 +597,7 @@ function uploadBodies(gl, u){
     if(n>=SHADOW_MAX) return;
     BODY_U.M.set(s.m, n*4); BODY_U.M[n*4+3]=i; BODY_U.K[n*4]=s.rm; BODY_U.K[n*4+1]=s.a; n++;
   } });
+  const jg=(list.find(b=>b.kind===3)||{}).grs;
+  gl.uniform3fv(u.grsDir, jg?jg.dir:[1, 0, 0]); gl.uniform4f(u.grsAB, jg?jg.L:0, jg?jg.W:0, GRS_LAT, jg?jg.k:0);
   gl.uniform4fv(u.shadowM, BODY_U.M); gl.uniform4fv(u.shadowK, BODY_U.K); gl.uniform1f(u.shadowCnt, n);
 }

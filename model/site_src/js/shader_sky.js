@@ -60,6 +60,10 @@ uniform vec4 bodyP[${BODY_MAX}], bodyC[${BODY_MAX}], bodyL[${BODY_MAX}], bodyN[$
 // Moons' shadows that may fall on their planets (planets.js moonShadow): M the moon's place about
 // its planet in the planet's radii and w the planet's index among the bodies; K x the moon's radius
 // in the planet's, y the Sun's angular radius there.
+// Jupiter's Great Red Spot (planets.js grsAt): its longitude's direction in Jupiter's equator, and
+// x its length (degrees of longitude), y width (latitude), z centre latitude, w how red
+// it is; x is 0 when there is none.
+uniform vec3 grsDir; uniform vec4 grsAB;
 uniform vec4 shadowM[${SHADOW_MAX}], shadowK[${SHADOW_MAX}]; uniform float shadowCnt;
 float limbH(float pa){ return 0.002*sin(7.0*pa+1.3)+0.00167*sin(12.0*pa+4.1)+0.00133*sin(19.0*pa+2.2)+0.001*sin(29.0*pa+5.0)+0.00083*sin(41.0*pa+0.7)+0.00067*sin(57.0*pa+3.3)+0.0005*sin(83.0*pa+1.9); } // moon.js limbH
 uniform vec4 obj[12];
@@ -249,6 +253,14 @@ vec3 bodyAlbedo(int kind, float lat, vec3 tint){
   if(kind==4) return mix(mix(vec3(0.93, 0.85, 0.64), vec3(0.78, 0.68, 0.50), 0.5*(bandOf(lat, 18.0, 32.0, 3.0)+bandOf(lat, -32.0, -18.0, 3.0))), vec3(0.70, 0.70, 0.64), smoothstep(55.0, 75.0, abs(lat)));
   return tint/max(max(tint.r, tint.g), max(tint.b, 1e-4))*0.85;
 }
+// The Red Spot at normal nrm (planets.js grsPaint): the pale hollow it pushes into the belt, then
+// the spot, a little paler at its middle.
+vec3 grsPaint(vec3 c, vec3 nrm, vec3 n, float lat){
+  vec3 a=normalize(nrm-n*dot(nrm, n)), d=normalize(grsDir-n*dot(grsDir, n));
+  float dl=atan(dot(cross(d, a), n), dot(d, a))*57.2957795, e=length(vec2(dl/(0.5*grsAB.x), (lat-grsAB.z)/(0.5*grsAB.y)));
+  c=mix(c, vec3(0.95, 0.91, 0.82), 0.85*(1.0-smoothstep(1.2, 1.45, e)));
+  return mix(c, vec3(0.80, 0.42, 0.30), grsAB.w*(1.0-smoothstep(0.8, 1.0, e))*(0.85+0.15*smoothstep(0.0, 0.7, e)));
+}
 const float BODY_FLAT[8]=float[8](${BODY_FLAT.map(v=>v.toFixed(5)).join(', ')});
 // How bright each kind's disk is drawn, after its albedo, and its Minnaert k (planets.js BODY_GAIN, BODY_MINN).
 const float BODY_GAIN[8]=float[8](${BODY_GAIN.map(v=>v.toFixed(2)).join(', ')}), BODY_MINN[8]=float[8](${BODY_MINN.map(v=>v.toFixed(2)).join(', ')});
@@ -267,7 +279,10 @@ vec4 bodyDisk(vec3 o, vec3 v, vec3 n, vec3 L, int kind, float rPx, vec3 tint, ou
   vec3 nrm=normalize(x+(1.0/((1.0-f)*(1.0-f))-1.0)*dot(x, n)*n);
   float mu0=dot(nrm, L), mu=max(dot(nrm, -v), 0.05), w=1.5/max(rPx, 1.0);
   float km=BODY_MINN[kind], lit=smoothstep(-w, w, mu0)*min(pow(max(mu0, 0.0)+0.01, km)*pow(mu, km-1.0), 1.3);
-  return vec4(bodyAlbedo(kind, asin(clamp(dot(nrm, n), -1.0, 1.0))*57.2957795, tint)*lit*BODY_GAIN[kind], cov);
+  float lat=asin(clamp(dot(nrm, n), -1.0, 1.0))*57.2957795;
+  vec3 alb=bodyAlbedo(kind, lat, tint);
+  if(kind==3 && grsAB.x>0.0) alb=grsPaint(alb, nrm, n, lat);
+  return vec4(alb*lit*BODY_GAIN[kind], cov);
 }
 // Saturn's rings at r planet radii, w the radial blur: brightness (x) and opacity (y) of the C ring,
 // the B ring (brightest in its outer half), the Cassini division and the A ring.

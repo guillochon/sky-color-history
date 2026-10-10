@@ -555,8 +555,9 @@ function reflectedSpectrum(s){
   // In an epoch before history, where it was on its orbit that day is unknown; Saturn's rings may
   // be younger than the epoch.
   const ring=s.planet==='Saturn'&&s.ageMa>=RINGS_DEBATED_MA?(s.rings?' · its rings may be younger than this (100–400 Myr by Cassini’s measures, still argued)':' · drawn without rings, which are thought to be at most a few hundred Myr old'):'';
+  const spot=s.planet!=='Jupiter'?'':s.grs?` · the Great Red Spot, ${(s.grs.L*1.154).toFixed(0)},000 km long, at ${s.grs.lon.toFixed(0)}° (System II)${s.grs.held?', held at its size of the 2040s: what it does next is not known':''}`:s.unknown?' · no Great Red Spot drawn: storms like it come and go over centuries':' · no Great Red Spot: it was first seen for sure in 1831';
   const where=s.unknown?' · its place on its orbit this day cannot be known: drawn at one picked at random for the epoch':'';
-  const note=`${s.planet?s.planet+(s.host?`, a moon of ${s.host}`:''):'A satellite'}${size} · ${s.planet==='Saturn'&&!s.rings?'sunlight off its yellower haze, with methane bands':r.note}${ring}${where} · V ${s.mag.toFixed(1)} above the air, ${m.toFixed(1)} through ${X.toFixed(1)} airmass${X>=1.05?'es':''}`;
+  const note=`${s.planet?s.planet+(s.host?`, a moon of ${s.host}`:''):'A satellite'}${size} · ${s.planet==='Saturn'&&!s.rings?'sunlight off its yellower haze, with methane bands':r.note}${ring}${spot}${where} · V ${s.mag.toFixed(1)} above the air, ${m.toFixed(1)} through ${X.toFixed(1)} airmass${X>=1.05?'es':''}`;
   return {S, Y:1, parts:[], marks, note};
 }
 // The supernova, if it is up within tolDeg of dir.

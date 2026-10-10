@@ -126,6 +126,32 @@ function planetPhases(key){
   const rand=mulberry32(h>>>0), planets=PLANETS.map(()=>rand()*360), jup=rand()*360;
   return P[key]={planets, moons:PLANET_MOONS.map(m=>m[1]===3?jup:rand()*360)};
 }
+// Jupiter's Great Red Spot, from its first sure sighting in 1831 (Schwabe; Cassini's "permanent
+// spot" of 1665-1713 may have been another storm) on. Its System II longitude (degrees, unwrapped)
+// by year, from Project Pluto's table (grs_lon.txt: Peek's The Planet Jupiter for 1831-1952,
+// JUPOS since), every half year or more, then drifting on 16 degrees a year. Its size, in degrees
+// of longitude and latitude: Simon et al. (2018) fit 405.0-0.1939 Y and 107.2-0.0483 Y from 1979;
+// before, it shrank 0.114 degrees a year (1943-1979, Beebe & Youngblood) from about 35 degrees
+// long in the 1880s, its width near today's. The fits meet, a round spot 8.4 degrees across, in
+// 2045, and it is held there: whether it shrinks on, steadies or fades is not known. Its red was
+// deepest in 1879-1882 and has deepened again since 2014. Centred at 22.4 degrees south.
+const GRS_LON=[1831.63,3308,1832.72,3220,1840.37,2816,1845.83,2549,1850.20,2345,1851.29,2297,1852.38,2246,1855.66,2109,1856.75,2075,1857.84,2046,1858.94,2014,1860.03,1996,1863.30,1849,1864.40,1782,1867.67,1607,1869.86,1485,1873.13,1304,1876.41,1117,1878.59,976,1880.78,848,1884.05,755,1887.33,733,1889.51,714,1891.70,714,1892.79,716,1893.88,718,1894.97,720,1896.07,727,1897.16,735,1898.25,742,1899.34,751,1900.44,760,1901.53,766,1902.62,762,1903.71,754,1904.80,745,1905.90,748,1906.99,738,1908.08,743,1909.17,737,1910.26,728,1911.36,688,1912.45,664,1913.54,621,1914.63,564,1915.72,533,1916.82,490,1917.91,439,1919.00,370,1920.09,322,1921.19,284,1922.28,256,1923.37,230,1924.46,172,1925.55,90,1926.65,21,1927.74,-16,1928.83,-45,1929.92,-76,1931.02,-103,1932.11,-131,1933.20,-157,1934.29,-180,1935.38,-201,1936.47,-218,1937.57,-221,1938.66,-213,1939.75,-194,1940.84,-187,1941.94,-191,1943.03,-188,1944.12,-177,1945.21,-148,1946.30,-143,1947.40,-130,1948.49,-126,1949.58,-119,1950.67,-110,1951.77,-104,1952.86,-89,1957.28,-52,1962.67,14,1964.73,18,1966.02,22,1967.20,28,1968.16,27,1969.34,21,1970.30,19,1971.03,16,1971.70,7,1972.44,-1,1973.79,7,1974.40,14,1975.08,29,1975.87,45,1976.77,41,1978.29,55,1979.80,61,1980.37,58,1980.93,53,1982.00,54,1983.57,39,1984.42,28,1986.50,19,1987.83,14,1988.83,16,1989.83,30,1990.92,27,1991.42,32,1992.08,34,1993.08,38,1994.25,40,1995.33,42,1996.50,51,1997.33,62,1998.83,64,1999.92,66,2000.75,74,2001.33,76,2001.83,77,2003.00,80,2003.67,84,2004.75,94,2006.17,104,2007.33,114,2008.17,121,2009.54,138,2010.77,156,2011.58,168,2012.58,182,2013.75,202,2014.25,212,2015.00,226,2015.92,236,2016.67,253,2017.58,276,2018.25,288,2018.83,296,2019.33,309,2019.83,320,2020.58,339,2021.25,357,2021.92,365,2022.83,386,2024.00,410,2024.75,421,2025.92,439];
+const GRS_LAT=-22.4;
+// The year whose Red Spot an epoch shows: the year it stands for, keeping the page date's time of
+// year, or for today's skies the page date's own.
+const GRS_YEAR={volcanic:1815, ozonehole:1990, y2100:2100};
+function grsAt(Y){
+  if(!(Y>=1831.6)) return null;
+  const T=GRS_LON, n=T.length/2;
+  let lon;
+  if(Y>=T[2*n-2]) lon=T[2*n-1]+16*(Y-T[2*n-2]);
+  else { let k=0; while(T[2*k+2]<=Y) k++; lon=T[2*k+1]+(T[2*k+3]-T[2*k+1])*(Y-T[2*k])/(T[2*k+2]-T[2*k]); }
+  let L, W;
+  if(Y>=1979){ const y=Math.min(Y, 2045.3); L=405.0-0.1939*y; W=107.2-0.0483*y; }
+  else { W=11.62; L=Y>=1943?21.26+0.114*(1979-Y):Y>=1880?25.36+(35-25.36)*(1943-Y)/63:35; }
+  const k=0.7+0.3*Math.max(smooth01(1876, 1879, Y)*(1-smooth01(1882, 1886, Y)), smooth01(2012, 2017, Y));
+  return {lon:((lon%360)+360)%360, L, W, k, held:Y>2045.3};
+}
 // Whether a moon is hidden behind its host's drawn disk, in the view showing.
 function markHidden(s){ return !!s.host&&s.behind&&s.rho<(vrOn?DISK_SCALE:bodyScale(dome)); }
 // Write the planets and their moons into the marks and the walk-around view's bodies. Positions
@@ -150,9 +176,20 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
     const mag=planetMag(name, r, d, i, ringSinB)+dimMag;
     const p=horiz(q);
     const radDeg=Math.atan(Rkm/(d*PL_AU_KM))*180/Math.PI, show=planetDisplay(mag, tint);
-    const body={dir:p.dir, rad:radDeg*Math.PI/180, light:vnorm(horiz(eq(h.map(v=>-v))).dir), pole:horiz(pole).dir, kind:k, px:show.px, rgb:show.rgb, mag, front:d<R, shadows:[], rings:ringed};
+    // The Red Spot, in the epochs with a calendar, where the light now arriving left it: its
+    // longitude's direction in the planet's equator (System II turns 870.270 degrees a day from
+    // 43.3 at J2000; a place at west longitude lon is W-lon on from the equator's node).
+    let grs=null;
+    if(name==='Jupiter'&&!phases){
+      const Yp=2000+(tD-d*LIGHT_DAY_AU)/365.25, s=grsAt(GRS_YEAR[epochKey]!=null?GRS_YEAR[epochKey]+Yp-Math.floor(Yp):Yp);
+      if(s){
+        const ax=equatorAxes(pra, pdec), w=(43.3+870.270*(tD-d*LIGHT_DAY_AU)-s.lon)*Math.PI/180;
+        grs={...s, dir:horiz(vadd(vscale(ax.i, Math.cos(w)), vscale(ax.j, Math.sin(w)), [0, 0, 0])).dir};
+      }
+    }
+    const body={grs, dir:p.dir, rad:radDeg*Math.PI/180, light:vnorm(horiz(eq(h.map(v=>-v))).dir), pole:horiz(pole).dir, kind:k, px:show.px, rgb:show.rgb, mag, front:d<R, shadows:[], rings:ringed};
     if(p.alt>0){
-      marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb, planet:name, mag, ra:p.ra, dec:p.dec, radDeg, lit:(1+Math.cos(i*Math.PI/180))/2, body, kind:k, rings:ringed, unknown:!!phases, ageMa});
+      marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb, planet:name, mag, ra:p.ra, dec:p.dec, radDeg, lit:(1+Math.cos(i*Math.PI/180))/2, body, kind:k, rings:ringed, unknown:!!phases, ageMa, grs});
       bodies.push(body);
     }
     // Its moons, where the light now arriving left them, and the Sun's way from the host.
@@ -211,6 +248,14 @@ function bodyAlbedo(kind, lat, tint){
   if(kind===4) return mix3(mix3([0.93, 0.85, 0.64], [0.78, 0.68, 0.50], 0.5*(bandOf(lat, 18, 32, 3)+bandOf(lat, -32, -18, 3))), [0.70, 0.70, 0.64], smooth01(55, 75, Math.abs(lat)));
   const m=Math.max(...tint, 1e-4); return tint.map(c=>c/m*0.85);
 }
+// The Red Spot on Jupiter at surface normal nrm (pole n, planetographic latitude lat): the pale
+// hollow it pushes into the South Equatorial Belt, and the spot itself.
+function grsPaint(c, g, nrm, n, lat){
+  const a=vnorm(vadd(nrm, vscale(n, -vdot(nrm, n)), [0, 0, 0])), d=vnorm(vadd(g.dir, vscale(n, -vdot(g.dir, n)), [0, 0, 0]));
+  const dl=Math.atan2(vdot(vcross(d, a), n), vdot(d, a))*180/Math.PI, e=Math.hypot(dl/(g.L/2), (lat-GRS_LAT)/(g.W/2));
+  c=mix3(c, [0.95, 0.91, 0.82], 0.85*(1-smooth01(1.2, 1.45, e)));
+  return mix3(c, [0.80, 0.42, 0.30], g.k*(1-smooth01(0.8, 1.0, e))*(0.85+0.15*smooth01(0.0, 0.7, e)));
+}
 function saturnRing(r, w){
   const s=(e0, e1)=>smooth01(e0-w, e0+w, r)-smooth01(e1-w, e1+w, r);
   const C=s(1.239, 1.527), B=s(1.527, 1.951), D=s(1.951, 2.025), A=s(2.025, 2.267);
@@ -236,7 +281,10 @@ function bodyPixel(b, src, rad, rPx){
     const xn=vdot(x, n), nrm=vnorm(x.map((c, i)=>c+(1/((1-f)*(1-f))-1)*xn*n[i]));
     const mu0=vdot(nrm, L), mu=Math.max(-vdot(nrm, v), 0.05), w=1.5/Math.max(rPx, 1);
     const km=BODY_MINN[b.kind], lit=smooth01(-w, w, mu0)*Math.min(Math.pow(Math.max(mu0, 0)+0.01, km)*Math.pow(mu, km-1), 1.3);
-    dc=bodyAlbedo(b.kind, Math.asin(Math.max(-1, Math.min(1, vdot(nrm, n))))*180/Math.PI, b.tint).map(c=>c*lit*cov*BODY_GAIN[b.kind]);
+    const lat=Math.asin(Math.max(-1, Math.min(1, vdot(nrm, n))))*180/Math.PI;
+    let alb=bodyAlbedo(b.kind, lat, b.tint);
+    if(b.grs) alb=grsPaint(alb, b.grs, nrm, n, lat);
+    dc=alb.map(c=>c*lit*cov*BODY_GAIN[b.kind]);
     for(const s of b.shadows||[]){ const sh=moonShadow(x, s, L, rPx); dc=dc.map(c=>c*sh); }
   }
   if(b.kind===4&&b.rings&&Math.abs(vnK)>1e-4){
