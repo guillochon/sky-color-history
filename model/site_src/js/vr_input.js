@@ -554,11 +554,14 @@ function fillVRTip(tip, cx, cy){
   }
   return true;
 }
+// The hover tooltip takes the side of the pointer that overlaps the pinned tooltips least, as a
+// new pin's does, keeping its last side while that does as well, so it does not flit about.
+let vrHoverSide=0;
 function placeVRHoverTip(cx, cy){
-  const tip=document.getElementById('vrtip'), W=window.innerWidth, H=window.innerHeight, w=tip.offsetWidth, h=tip.offsetHeight;
-  tip.style.left=Math.min(cx+16, W-w-8)+(cx+16+w>W-8?-(w+32):0)+'px';
-  tip.style.top=Math.max(8, Math.min(H-h-8, cy-h/2))+'px';
-  tip.style.transform='none';
+  const tip=document.getElementById('vrtip'), w=tip.offsetWidth, h=tip.offsetHeight;
+  vrHoverSide=vrBestSide(w, h, [cx, cy], null, vrHoverSide);
+  const [x, y]=pinBox(vrHoverSide, w, h, cx, cy);
+  tip.style.left=x+'px'; tip.style.top=y+'px'; tip.style.transform='none';
 }
 // A pinned tooltip's box beside its pin at page point (cx, cy): to the right, left, above, below,
 // or at a corner (side 0-7), kept on the page.
@@ -570,23 +573,24 @@ function pinBox(side, w, h, cx, cy){
   return [x, y, w, h];
 }
 // The side that overlaps the other pinned tooltips (and their pins) least, the first such in order.
-function vrPinSide(p, at){
+function vrPinSide(p, at){ return vrBestSide(p.size[0], p.size[1], at, p, -1); }
+// The same for a w by h box at page point at, beside every pinned tooltip but skip; side keep wins
+// any tie it is in.
+function vrBestSide(w, h, at, skip, keep){
   const others=[];
   for(const o of vrPins){
-    if(o===p||o.tip.style.display==='none') continue;
+    if(o===skip||o.tip.style.display==='none') continue;
     others.push([parseFloat(o.tip.style.left), parseFloat(o.tip.style.top), o.size[0], o.size[1]]);
     const m=parseFloat(o.mark.style.left), n=parseFloat(o.mark.style.top);
     others.push([m-10, n-10, 20, 20]);
   }
   const lap=(a, b)=>Math.max(0, Math.min(a[0]+a[2], b[0]+b[2])-Math.max(a[0], b[0]))*Math.max(0, Math.min(a[1]+a[3], b[1]+b[3])-Math.max(a[1], b[1]));
+  const mine=[at[0]-10, at[1]-10, 20, 20];
+  // Its own point under its box counts too, as clamping to the page can push the box over it.
+  const cost=s=>{ const box=pinBox(s, w, h, at[0], at[1]); return others.reduce((t, o)=>t+lap(box, o), 0)+lap(box, mine); };
   let best=0, bestLap=Infinity;
-  for(let s=0;s<VR_PIN_SIDES.length;s++){
-    const box=pinBox(s, p.size[0], p.size[1], at[0], at[1]), mine=[at[0]-10, at[1]-10, 20, 20];
-    // Its own pin under its box counts too, as clamping to the page can push the box over it.
-    const L=others.reduce((t, o)=>t+lap(box, o), 0)+lap(box, mine);
-    if(L<bestLap-0.5){ bestLap=L; best=s; }
-  }
-  return best;
+  for(let s=0;s<VR_PIN_SIDES.length;s++){ const L=cost(s); if(L<bestLap-0.5){ bestLap=L; best=s; } }
+  return keep>=0&&cost(keep)<=bestLap+0.5?keep:best;
 }
 function placePin(p, at){
   const [x, y]=pinBox(p.side, p.size[0], p.size[1], at[0], at[1]);
