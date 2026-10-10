@@ -11,7 +11,7 @@
 // EPOCH_YEAR): year 0 (2000 underneath) for the older skies, 1815 and 2100 for theirs.
 const MOMENTS=[
   {epoch:'hadean44', date:'2000-02-36', t:1015, title:'A Hadean evening, 4.4 Ga', sub:'Thirty bars of CO₂ under a young, faint Sun', art:'day'},
-  {epoch:'archean38', date:'2000-01-38', t:1410, look:[0, 22], clear:true, title:'Aurora over the young Earth, 3.8 Ga', sub:'Violet and pink: nitrogen glowing in air with no oxygen', art:'aurora'},
+  {epoch:'archean38', date:'2000-01-38', t:1410, look:[0, 30], clear:true, aurora:true, title:'Aurora over the young Earth, 3.8 Ga', sub:'All night under the young Sun’s stronger wind: nitrogen glowing violet and pink in air with no oxygen', art:'aurora'},
   {epoch:'archean27', date:'2000-03-07', t:913, title:'Archean afternoon, 2.7 Ga', sub:'A pale orange organic haze, like Titan’s', art:'day'},
   {epoch:'ordovician466', date:'2000-10-09', t:1324, look:[200, 18], clear:true, title:'Meteor storm and ring, 466 Ma', sub:'A shattered asteroid’s fragments, and perhaps a ring across the sky', art:'meteors'},
   {epoch:'carbon30', date:'2000-06-31', t:1417, look:[180, 32], clear:true, title:'The Milky Way, 300 Ma', sub:'No city lights, and stars no one has catalogued', art:'galaxy'},
@@ -58,11 +58,12 @@ function starsSVG(seed){
     s+=`<circle cx="${(a*120).toFixed(1)}" cy="${(b*60).toFixed(1)}" r="${(0.3+0.9*(x/233280)**3).toFixed(2)}" fill="#fff" opacity="${(0.4+0.6*x/233280).toFixed(2)}"/>`; }
   return s;
 }
-// The visitor's cloud setting while a clear moment has them off, to restore on leaving VR.
+// The visitor's cloud setting while a clear moment has them off, to restore on leaving VR. The
+// aurora moment's active night (aurActive) ends on leaving VR too.
 let momentClouds=null;
 function openMoment(m){
   setEpoch(EP.findIndex(e=>e.key===m.epoch));
-  aurStorm=false; aurBtn.setAttribute('aria-pressed', 'false');
+  aurStorm=false; aurBtn.setAttribute('aria-pressed', 'false'); aurActive=!!m.aurora;
   dLat='Mid-latitude';
   document.querySelectorAll('[data-lat]').forEach(x=>x.setAttribute('aria-pressed', x.dataset.lat===dLat?'true':'false'));
   document.getElementById('moonDate').value=m.date||localISODate(new Date());

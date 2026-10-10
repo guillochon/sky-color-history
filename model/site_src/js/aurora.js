@@ -111,7 +111,10 @@ function aurSubstorm(n, t, kh, rise=6){
 // overhead near 40° magnetic latitude: the oval as for Kp 11, past the top of the Kp scale (Kp 7
 // above the night's, at most); three times the energy; substorms one after another; and the red
 // line strong, as low-energy electrons pour in at the oval's equatorward edge.
-let aurStorm=false;
+// An active night (the young Earth's aurora moment, while it is open): the night's oval, half a
+// Kp wider, twice the energy, and substorms one after another as in a great storm, so the arcs
+// stay bright and keep breaking up all night rather than for half an hour round midnight.
+let aurStorm=false, aurActive=false;
 function auroraState(key, latDeg, clockMin, zenithCd){
   // The southern oval is the northern one mirrored (the magnetic poles taken at the geographic
   // ones), so a southern sky is worked out at the northern latitude and drawn with north and
@@ -123,6 +126,7 @@ function auroraState(key, latDeg, clockMin, zenithCd){
   const night=j=>aurHashI(n-1, j, seed)*(1-w)+aurHashI(n, j, seed)*w;
   let kp=Math.max(0, kp0+(night(3)-0.5)*2), drive=drive0*(0.7+0.6*night(4));
   if(aurStorm){ kp=Math.min(11, kp+7); drive*=3; }
+  else if(aurActive){ kp=Math.min(11, kp+0.5); drive*=2; }
   const [cm, cn, wm, wn]=aurOvalToday(kp), e=[cm-wm, cm+wm, cn-wn, cn+wn].map(l=>aurScaleLat(l, rmp));
   const mid=(e[0]+e[1])/2, noon=(e[2]+e[3])/2, hwm=(e[1]-e[0])/2, hwn=(e[3]-e[2])/2;
   // Centre A+B·cos θ and half-width W0+W1·cos θ, θ the magnetic local time from noon.
@@ -138,7 +142,7 @@ function auroraState(key, latDeg, clockMin, zenithCd){
   if(zenithCd>2){ st.why='bright'; return st; }
   st.on=true;
   st.sub=aurSubstorm(n, x*1440, seed); st.spread=aurSubstorm(n, x*1440, seed, 20);
-  if(aurStorm){ const b=0.6+0.3*Math.sin((n+x)*1440/23); st.sub=Math.max(st.sub, b); st.spread=Math.max(st.spread, b); }
+  if(aurStorm||aurActive){ const b=0.6+0.3*Math.sin((n+x)*1440/23); st.sub=Math.max(st.sub, b); st.spread=Math.max(st.spread, b); }
   st.red=aurStorm?5:1;
   st.iv=AUR_IV*drive; st.diff=AUR_DIFF*drive*(1+st.sub);
   st.spec=[fO*AUR_RATIO[0], fO*AUR_RATIO[1], fN*AUR_RATIO[2], fN*(1+0.3*(1-Math.min(fO, 1)))*AUR_RATIO[3]];
