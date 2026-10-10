@@ -298,6 +298,15 @@ const glv=v=>v.map(x=>x.toExponential(4)).join(', ');
 // 105 km above it (quenched below), in a wider sheet since O(1D) lives 110 s. In sunlight, high up, N2+ scatters sunlight resonantly and the blue gains up
 // to fourfold. The day-side cusp is mostly red. Pulsating patches flicker in the morning diffuse
 // aurora.
+// The patches' value noise hashes its lattice points. The VR pass (AUR_HASHTEX) reads the hash
+// from a texture made once by this same function on the GPU (aurHashTex, lattice x and y from
+// −512), so it gets the same values without working them out at every step.
+const AUR_HASH_GLSL=`float aurHash(vec2 p){ vec3 q=fract(vec3(p.xyx)*vec3(0.1031, 0.1030, 0.0973)); q+=dot(q, q.yzx+33.33); return fract((q.x+q.y)*q.z); }`;
+const AUR_HASHFS=`#version 300 es
+precision highp float;
+${AUR_HASH_GLSL}
+out vec4 o;
+void main(){ o=vec4(aurHash(floor(gl_FragCoord.xy)-512.0), 0.0, 0.0, 1.0); }`;
 const AUR_GLSL=`
 ${AIRMASS_GLSL}
 uniform sampler2D aurArcs; uniform sampler2D aurRays;
@@ -320,9 +329,15 @@ float aurSheet(float d0, float d1, float L, float sg){
   float k=0.70710678/sg;
   return L/dd*sg*1.25331414*(aurErf(d1*k)-aurErf(d0*k));
 }
-float aurHash(vec2 p){ vec3 q=fract(vec3(p.xyx)*vec3(0.1031, 0.1030, 0.0973)); q+=dot(q, q.yzx+33.33); return fract((q.x+q.y)*q.z); }
+${AUR_HASH_GLSL}
+#ifdef AUR_HASHTEX
+uniform sampler2D aurHashTex;
+float aurNoise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f); ivec2 c=ivec2(i)+512;
+  return mix(mix(texelFetch(aurHashTex, c, 0).r, texelFetch(aurHashTex, c+ivec2(1, 0), 0).r, f.x), mix(texelFetch(aurHashTex, c+ivec2(0, 1), 0).r, texelFetch(aurHashTex, c+ivec2(1, 1), 0).r, f.x), f.y); }
+#else
 float aurNoise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
   return mix(mix(aurHash(i), aurHash(i+vec2(1.0, 0.0)), f.x), mix(aurHash(i+vec2(0.0, 1.0)), aurHash(i+vec2(1.0, 1.0)), f.x), f.y); }
+#endif
 float aurCirc(float a, float b){ return mod(a-b+36.0, 24.0)-12.0; }
 const float AUR_FR[4]=float[4](${AUR_ARC.map(a=>a[0].toFixed(2)).join(', ')});
 // Arc i at point P (Earth-centred km; ax the axis, m0 the meridian here): the signed distance
@@ -374,16 +389,17 @@ vec4 auroraSpecies(vec3 rd, float pxAng){
     float h=80.0+340.0*pow(float(k)/float(NS), 1.8);
     float t=-AUR_RE*rd.z+sqrt(b2+(2.0*AUR_RE+h)*h);
     vec3 P=vec3(rd.xy*t, AUR_RE+rd.z*t), n=P/(AUR_RE+h);
-    float latR=asin(clamp(dot(n, ax), -1.0, 1.0)), lat=latR*57.2957795;
+    // The latitude's sine and cosine give its tangent and the km in a degree of longitude.
+    float sL=clamp(dot(n, ax), -1.0, 1.0), cL=sqrt(max(1.0-sL*sL, 0.0)), latR=asin(sL), lat=latR*57.2957795;
     vec3 pp=n-ax*dot(n, ax);
     float lonD=atan(pp.x, dot(pp, m0))*57.2957795, mlt=aurMlt0+lonD/15.0;
-    float th=(mlt-12.0)*0.261799388, lc=aurA+aurB*cos(th), dlc=-aurB*sin(th)*0.0174532925;
-    float hw=aurW0+aurW1*cos(th), dhw=-aurW1*sin(th)*0.0174532925;
+    float th=(mlt-12.0)*0.261799388, cth=cos(th), sth=sin(th), lc=aurA+aurB*cth, dlc=-aurB*sth*0.0174532925;
+    float hw=aurW0+aurW1*cth, dhw=-aurW1*sth*0.0174532925;
     float L=t-tPrev, hm=0.5*(h+hPrev);
-    float kmLon=AUR_KMD*max(cos(latR), 0.02);
+    float kmLon=AUR_KMD*max(cL, 0.02);
     // The foot of this point's field line, at 110 km.
-    float latF=lat+(h-110.0)/(2.0*tan(max(latR, 0.05))*AUR_KMD);
-    float cusp=exp(-0.5*pow(aurCirc(mlt, 12.0)/2.2, 2.0));
+    float latF=lat+(h-110.0)/(2.0*(latR>0.05?sL/cL:0.0500417)*AUR_KMD); // tan(max(latR, 0.05))
+    float acq=aurCirc(mlt, 12.0)/2.2, cusp=exp(-0.5*acq*acq);
     float sKm=mlt*aurRayK;
     // A pixel's footprint along the arc, longer where the view runs along it, sets the rays' blur.
     float lodR=log2(max(t*pxAng/(0.5*max(length(cross(rd, normalize(cross(ax, n)))), 0.03)), 1.0));
@@ -416,7 +432,7 @@ vec4 auroraSpecies(vec3 rd, float pxAng){
         float e=smoothstep(hb-3.0, hb+2.0, hx);
         float pg=e*exp(-z/hg)/hg, pb=e*exp(-z/(1.7*hg))/(1.7*hg);
         float p1=smoothstep(hb-9.0, hb-3.0, hx)*exp(-max(hx-hb+5.0, 0.0)/7.0)/7.0;
-        float hr=hb+105.0, pr=(hx<hr?exp(-pow((hx-hr)/38.0, 2.0)):exp(-(hx-hr)/95.0))/129.0;
+        float hr=hb+105.0, hxq=(hx-hr)/38.0, pr=(hx<hr?exp(-hxq*hxq):exp(-(hx-hr)/95.0))/129.0;
         float bb=a.b*aurIv;
         I.x+=wG*bb*ray*pg*(1.0-0.75*cusp);
         I.z+=wG*bb*ray*pb*(1.0+3.0*sunUp);
@@ -429,9 +445,9 @@ vec4 auroraSpecies(vec3 rd, float pxAng){
       // Diffuse aurora equatorward of the arcs, flickering in patches toward dawn, and the red
       // glow over the whole oval.
       float dl=latF-lc;
-      float gd=exp(-0.5*pow((dl+0.65*hw)/(0.3*hw), 2.0));
+      float gq=(dl+0.65*hw)/(0.3*hw), gd=exp(-0.5*gq*gq);
       if(gd>0.003){
-        float wM=exp(-0.5*pow(aurCirc(mlt, 3.5)/2.5, 2.0));
+        float wq=aurCirc(mlt, 3.5)/2.5, wM=exp(-0.5*wq*wq);
         if(wM>0.01){
           vec2 q=vec2(lonD*kmLon, latF*AUR_KMD);
           float pat=smoothstep(0.55, 0.75, aurNoise(q/45.0)), ph=aurNoise(q/120.0+7.3);
@@ -442,8 +458,8 @@ vec4 auroraSpecies(vec3 rd, float pxAng){
         I.x+=L*aurDiff*gd*pg;
         I.z+=L*aurDiff*gd*pg*(1.0+3.0*sunUp);
       }
-      float gr=exp(-0.5*pow(dl/(0.7*hw), 2.0));
-      float hr=240.0+40.0*cusp, pr=(hm<hr?exp(-pow((hm-hr)/38.0, 2.0)):exp(-(hm-hr)/95.0))/129.0;
+      float grq=dl/(0.7*hw), gr=exp(-0.5*grq*grq);
+      float hr=240.0+40.0*cusp, hrq=(hm-hr)/38.0, pr=(hm<hr?exp(-hrq*hrq):exp(-(hm-hr)/95.0))/129.0;
       I.y+=L*aurDiff*0.35*aurRed*gr*pr*(1.0+2.0*cusp);
     }
     tPrev=t; hPrev=h; sPrev=sKm;
@@ -460,6 +476,7 @@ vec4 auroraLight(vec3 rd, float pxAng){
 // The VR pass: the aurora for each pixel of a reduced-size target, in cd/m² times 1000.
 const AURFS=`#version 300 es
 precision highp float;
+#define AUR_HASHTEX 1
 uniform vec2 res; uniform float yaw, pitch, fov;
 ${AUR_GLSL}
 ${VIEW_RAY_GLSL}

@@ -669,6 +669,7 @@ function drawAuroraVR(gl, st, c){
   gl.useProgram(vrGL.aurProg);
   gl.activeTexture(gl.TEXTURE14); auroraTextures(gl, vrGL.aurStore, f);
   gl.activeTexture(gl.TEXTURE15); gl.bindTexture(gl.TEXTURE_2D, vrGL.aurStore.aurRays);
+  gl.activeTexture(gl.TEXTURE13); gl.bindTexture(gl.TEXTURE_2D, vrGL.aurHashTex);
   gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.aurFbo); gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
   gl.viewport(0, 0, w, h);
   gl.uniform2f(au.res, w, h); gl.uniform1f(au.fov, vrFov*Math.PI/180);
@@ -678,6 +679,8 @@ function drawAuroraVR(gl, st, c){
   gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.drawBuffers([gl.BACK]); gl.viewport(0, 0, c.width, c.height);
   gl.useProgram(vrGL.prog);
   gl.activeTexture(gl.TEXTURE9); gl.bindTexture(gl.TEXTURE_2D, vrGL.aurTex);
+  // Unit 13 held the aurora's hash lattice; the sky pass reads the Milky Way there.
+  gl.activeTexture(gl.TEXTURE13); gl.bindTexture(gl.TEXTURE_2D, vrGL.mwTex||null);
   gl.activeTexture(gl.TEXTURE0);
 }
 // The planets and moons (planets.js placePlanets) into the sky shader's bodies, at the Sun's and

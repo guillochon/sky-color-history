@@ -45,6 +45,19 @@ function ensureWeather(gl){
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 256, 256, 0, gl.RGBA, gl.UNSIGNED_BYTE, makeWeather(256));
   return vrGL.weather=weather;
 }
+// The aurora's hash lattice (aurora.js AUR_HASHFS), 1024 points each way from −512, drawn once.
+function makeAurHashTex(gl, hp){
+  const t=gl.createTexture(), fb=gl.createFramebuffer();
+  gl.activeTexture(gl.TEXTURE13); gl.bindTexture(gl.TEXTURE_2D, t);
+  texParams(gl, gl.NEAREST, gl.NEAREST, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, 1024, 1024, 0, gl.RED, gl.FLOAT, null);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fb); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+  gl.drawBuffers([gl.COLOR_ATTACHMENT0]); gl.viewport(0, 0, 1024, 1024); gl.useProgram(hp); gl.drawArrays(gl.TRIANGLES, 0, 6);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.deleteFramebuffer(fb); gl.deleteProgram(hp);
+  // Unit 13 is the Milky Way's for the sky pass.
+  gl.bindTexture(gl.TEXTURE_2D, vrGL.mwTex||null); gl.activeTexture(gl.TEXTURE0);
+  return t;
+}
 // Leave the context as paintVR expects it after setting up a program.
 function vrRestoreGL(gl){
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -145,10 +158,12 @@ function setupVR(gl, vs, prog, skyJob, cloudJobs){
   const hk=hitKeys(EP[dIdx].key);
   compileHit(gl, hk.land); compileHit(gl, hk.shadow); if(hk.town) compileHit(gl, hk.town);
   // The aurora pass needs a float target.
-  if(vrGL.hitFloat) whenLinked(gl, [glProgramAsync(gl, vs, AURFS)], ap=>{
-    if(!ap||!vrGL) return;
+  if(vrGL.hitFloat) whenLinked(gl, [glProgramAsync(gl, vs, AURFS), glProgramAsync(gl, vs, AUR_HASHFS)], (ap, hp)=>{
+    if(!ap||!hp||!vrGL) return;
+    vrGL.aurHashTex=makeAurHashTex(gl, hp);
     vrGL.aurProg=ap; vrGL.au=auroraUniforms(gl, ap, 14, 15);
     uniformLocs(gl, ap, ['res','yaw','pitch','fov'], vrGL.au);
+    bindSamplers(gl, ap, [['aurHashTex', 13]]);
     vrGL.aurFbo=gl.createFramebuffer(); vrGL.aurStore={};
     vrRestoreGL(gl); requestVR();
   });
