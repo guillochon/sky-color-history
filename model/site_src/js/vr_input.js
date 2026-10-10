@@ -85,7 +85,7 @@ let vrEntryLook=null;
 function enterVR(fromLink){
   const root=document.getElementById('vr'); root.classList.add('on'); root.setAttribute('aria-hidden','false');
   document.body.style.overflow='hidden';
-  vrOn=true; vrLockedOnce=false; vrX=0; vrY=0; vrHeld.clear();
+  vrOn=true; vrLockedOnce=false; vrX=0; vrY=0; vrHeld.clear(); endStick();
   // Lock before any shader work. A long link used to expire the click, so the pointer never captured and yaw stopped at the window edge.
   vrRelock=true; lockLook();
   const fsNow=root.requestFullscreen?root.requestFullscreen():null; if(fsNow&&fsNow.catch) fsNow.catch(()=>{});
@@ -128,7 +128,7 @@ function lockLook(){
   const p=document.getElementById('vrc').requestPointerLock(); if(p&&p.catch) p.catch(()=>{});
 }
 function exitVR(){
-  if(!vrOn) return; if(momentClouds!==null){ vrClouds=momentClouds; momentClouds=null; } aurActive=false; hideVRLoad(); if(vrGL&&vrGL.note) vrGL.note=''; if(vrInspect) setInspect(false, true); clearVRPins(); hideVRTip(); clearInterval(vrInspectTimer); vrInspectTimer=0; vrHoldEsc(false); vrOn=false; stopVRMusic(); vrRelock=false; vrLinkKey=''; vrHeld.clear(); document.getElementById('sunmark').hidden=true; document.getElementById('moonmark').hidden=true; document.getElementById('snmark').hidden=true; if(vrWalk){ cancelAnimationFrame(vrWalk); vrWalk=0; }
+  if(!vrOn) return; if(momentClouds!==null){ vrClouds=momentClouds; momentClouds=null; } aurActive=false; hideVRLoad(); if(vrGL&&vrGL.note) vrGL.note=''; if(vrInspect) setInspect(false, true); clearVRPins(); hideVRTip(); clearInterval(vrInspectTimer); vrInspectTimer=0; vrHoldEsc(false); vrOn=false; stopVRMusic(); vrRelock=false; vrLinkKey=''; vrHeld.clear(); endStick(); document.getElementById('sunmark').hidden=true; document.getElementById('moonmark').hidden=true; document.getElementById('snmark').hidden=true; if(vrWalk){ cancelAnimationFrame(vrWalk); vrWalk=0; }
   if(!vrNav) clearVRLink();
   const root=document.getElementById('vr'); root.classList.remove('on','locked'); root.setAttribute('aria-hidden','true');
   document.body.style.overflow='';
@@ -156,17 +156,13 @@ function vrRayAt(cx, cy, yawDeg, pitchDeg){
   const yaw=yawDeg*Math.PI/180, pitch=pitchDeg*Math.PI/180, cp=Math.cos(pitch), sp=Math.sin(pitch), cyw=Math.cos(yaw), syw=Math.sin(yaw);
   return vnorm([syw*cp+u*cyw-v*syw*sp, cyw*cp-u*syw-v*cyw*sp, sp+v*cp]);
 }
-// The scroll wheel zooms between a 0.008° and a 90° field of view, by the same factor per notch,
-// about the pointer: the sky under it stays under it. With the look locked the pointer is the
-// middle of the view.
-window.addEventListener('wheel', e=>{
-  if(!vrOn) return;
-  e.preventDefault();
-  const px=e.deltaMode===1?e.deltaY*33:e.deltaMode===2?e.deltaY*400:e.deltaY;
-  const locked=document.pointerLockElement===vrc||!!vrLockPin, cx=locked?window.innerWidth/2:e.clientX, cy=locked?window.innerHeight/2:e.clientY;
+// Zoom between a 0.008° and a 90° field of view about page point (cx, cy): the sky under that
+// point stays under it. The wheel uses the same factor per notch. A pinch uses the fingers'
+// spread. With the look locked the wheel's point is the middle of the view.
+function zoomVRAbout(factor, cx, cy){
+  if(!(factor>0)||factor===1) return;
   const want=vrRayAt(cx, cy, vrYaw, vrPitch), azEl=d=>[Math.atan2(d[0], d[1])*180/Math.PI, Math.asin(Math.max(-1, Math.min(1, d[2])))*180/Math.PI];
-  vrFov=Math.max(VR_FOV_MIN, Math.min(VR_FOV_MAX, vrFov*Math.exp(px*0.0015)));
-  // Turn the view until the ray under the pointer is the one that was there.
+  vrFov=Math.max(VR_FOV_MIN, Math.min(VR_FOV_MAX, vrFov*factor));
   const [wAz, wEl]=azEl(want);
   for(let i=0;i<6;i++){
     const [az, el]=azEl(vrRayAt(cx, cy, vrYaw, vrPitch));
@@ -175,14 +171,53 @@ window.addEventListener('wheel', e=>{
   }
   if(vrPins.length||(vrInspect&&vrInspectAt)) refreshVRTip();
   requestVR();
+}
+window.addEventListener('wheel', e=>{
+  if(!vrOn) return;
+  e.preventDefault();
+  const px=e.deltaMode===1?e.deltaY*33:e.deltaMode===2?e.deltaY*400:e.deltaY;
+  const locked=document.pointerLockElement===vrc||!!vrLockPin, cx=locked?window.innerWidth/2:e.clientX, cy=locked?window.innerHeight/2:e.clientY;
+  zoomVRAbout(Math.exp(px*0.0015), cx, cy);
 }, {passive:false});
 window.addEventListener('mousemove', e=>{ if(!vrOn) return; if(vrInspect){ vrInspectAt=[e.clientX, e.clientY]; vrOverPin=!!(e.target.closest&&e.target.closest('.vrpintip')); if(vrOverPin) hideVRHoverTip(); else askVRHoverTip(); if(!vrEdgeRAF) vrEdgeRAF=requestAnimationFrame(edgeScroll); return; } if(!e.movementX&&!e.movementY) return; lookVR(e.movementX, e.movementY); });
 window.addEventListener('pointerdown', e=>{ if(!vrOn) return; pokeVRMusic(); if(e.target.closest&&e.target.closest('.vrpintip')) return; if(vrInspect){ if(e.button===0) pinVRTip(e.clientX, e.clientY); return; } if(document.pointerLockElement===vrc) return; vrRelock=true;
   const root=document.getElementById('vr'); if(!document.fullscreenElement&&root.requestFullscreen){ const p=root.requestFullscreen(); if(p&&p.catch) p.catch(()=>{}); }
   lockLook(); setTimeout(()=>{ vrRelock=false; }, 400); });
-let vrTX=0, vrTY=0;
-vrc.addEventListener('touchstart', e=>{ const t=e.touches[0]; vrTX=t.clientX; vrTY=t.clientY; }, {passive:true});
-vrc.addEventListener('touchmove', e=>{ if(!vrOn) return; const t=e.touches[0]; lookVR(t.clientX-vrTX, t.clientY-vrTY); vrTX=t.clientX; vrTY=t.clientY; e.preventDefault(); }, {passive:false});
+let vrTX=0, vrTY=0, vrPinch=null;
+function pinchSpan(touches){
+  const a=touches[0], b=touches[1];
+  return {d:Math.hypot(b.clientX-a.clientX, b.clientY-a.clientY), x:(a.clientX+b.clientX)/2, y:(a.clientY+b.clientY)/2};
+}
+// One finger turns the view. Two fingers pinch to zoom about the point between them, and sliding
+// both turns the view the way one finger does. Spreading the fingers narrows the field.
+vrc.addEventListener('touchstart', e=>{
+  if(e.touches.length>=2) vrPinch=pinchSpan(e.touches);
+  else { vrPinch=null; const t=e.touches[0]; vrTX=t.clientX; vrTY=t.clientY; }
+}, {passive:true});
+vrc.addEventListener('touchmove', e=>{
+  if(!vrOn) return;
+  e.preventDefault();
+  if(e.touches.length>=2){
+    const p=pinchSpan(e.touches);
+    if(vrPinch){
+      lookVR(p.x-vrPinch.x, p.y-vrPinch.y);
+      if(vrPinch.d>12&&p.d>12) zoomVRAbout(Math.max(0.5, Math.min(2, vrPinch.d/p.d)), p.x, p.y);
+    }
+    vrPinch=p;
+    return;
+  }
+  vrPinch=null;
+  const t=e.touches[0];
+  lookVR(t.clientX-vrTX, t.clientY-vrTY);
+  vrTX=t.clientX; vrTY=t.clientY;
+}, {passive:false});
+vrc.addEventListener('touchend', e=>{
+  if(e.touches.length>=2) vrPinch=pinchSpan(e.touches);
+  else if(e.touches.length===1){ vrPinch=null; vrTX=e.touches[0].clientX; vrTY=e.touches[0].clientY; }
+  else vrPinch=null;
+}, {passive:true});
+vrc.addEventListener('touchcancel', ()=>{ vrPinch=null; }, {passive:true});
+['gesturestart','gesturechange'].forEach(n=>document.addEventListener(n, e=>{ if(vrOn) e.preventDefault(); }, {passive:false}));
 window.addEventListener('resize', ()=>{ if(vrOn){ sizeVR(); requestVR(); } });
 // A screenshot (PrintScreen, Win+Shift+S, Cmd+Shift+3/4/5) takes the focus or the OS keys, and
 // the browser drops the pointer lock, and sometimes the full screen, with it. That is not the
@@ -221,7 +256,7 @@ document.addEventListener('pointerlockchange', ()=>{
   vrLeaveUnlessAway(()=>document.pointerLockElement!==vrc&&!vrInspect);
 });
 document.addEventListener('keyup',e=>{ if(e.key==='Shift') vrHeld.delete('shift'); else vrHeld.delete(e.key.length===1?e.key.toLowerCase():e.key); });
-window.addEventListener('blur',()=>vrHeld.clear());
+window.addEventListener('blur',()=>{ vrHeld.clear(); endStick(); });
 document.addEventListener('keydown',e=>{
   if(vrOn){
     pokeVRMusic();
@@ -271,12 +306,21 @@ function syncVRPad(){
   set('vrpad-clouds', vrClouds);
   set('vrpad-labels', vrLabels);
   set('vrpad-music', !musicMuted);
+  set('vrpad-run', vrRun);
+  const walk=document.getElementById('vrwalk');
+  if(walk) walk.classList.toggle('fast', vrRun);
   const play=document.getElementById('vrpad-play');
   if(play){ play.setAttribute('aria-pressed', dayPlaying?'true':'false'); play.setAttribute('aria-label', dayPlaying?'Pause':'Play'); }
+  const ui=document.getElementById('vrpad-ui');
+  if(ui){
+    const shown=!document.getElementById('vr').classList.contains('ui-off');
+    ui.setAttribute('aria-pressed', shown?'true':'false');
+    ui.setAttribute('aria-label', shown?'Hide controls':'Show controls');
+  }
   const el=document.getElementById('vrmusiclabel');
   if(el) el.textContent=musicMuted?'muted':'music';
 }
-document.querySelectorAll('.vrpad button, .vrplay').forEach(b=>{
+document.querySelectorAll('.vrpad button, .vrplay, .vrwalk button, #vrpad-ui').forEach(b=>{
   b.addEventListener('pointerdown', e=>e.stopPropagation());
   b.addEventListener('click', e=>{
     e.preventDefault(); e.stopPropagation();
@@ -291,9 +335,51 @@ document.querySelectorAll('.vrpad button, .vrplay').forEach(b=>{
     else if(act==='eclipse') jumpNextEclipse(false);
     else if(act==='central') jumpNextEclipse(true);
     else if(act==='lunar') jumpNextLunarEclipse(false);
+    else if(act==='run') vrRun=!vrRun;
+    else if(act==='ui'){ document.getElementById('vr').classList.toggle('ui-off'); if(document.getElementById('vr').classList.contains('ui-off')) endStick(); }
     syncVRPad();
   });
 });
+// Drag on the stick walks: up is forward, and how far it is pushed sets the pace. The run
+// button, handled with the other pad buttons, matches Shift.
+let vrStickId=null;
+function endStick(){
+  const stick=document.getElementById('vrstick');
+  if(stick&&vrStickId!==null){ try{ stick.releasePointerCapture(vrStickId); }catch(err){} }
+  vrStickId=null; vrMove=null;
+  if(stick) stick.classList.remove('drag');
+  const knob=document.getElementById('vrstick-knob');
+  if(knob) knob.style.transform='';
+  if(stick){ stick.setAttribute('aria-valuenow','0'); stick.setAttribute('aria-valuetext','Still'); }
+}
+function moveStick(e){
+  const stick=document.getElementById('vrstick'), knob=document.getElementById('vrstick-knob');
+  const b=stick.getBoundingClientRect(), max=b.width*0.36;
+  if(!(max>8)){ vrMove=null; return; }
+  let dx=e.clientX-(b.left+b.width/2), dy=e.clientY-(b.top+b.height/2), len=Math.hypot(dx, dy);
+  if(len>max){ dx*=max/len; dy*=max/len; }
+  knob.style.transform=`translate(${dx}px, ${dy}px)`;
+  const dead=max*0.16, mag=len<=dead?0:Math.min(1, (Math.min(len, max)-dead)/(max-dead));
+  if(!mag){ vrMove=null; stick.setAttribute('aria-valuenow','0'); stick.setAttribute('aria-valuetext','Still'); return; }
+  const clen=Math.hypot(dx, dy)||1;
+  vrMove={f:-dy/clen*mag, s:dx/clen*mag};
+  stick.setAttribute('aria-valuenow', mag.toFixed(2));
+  stick.setAttribute('aria-valuetext', vrRun?'Running':'Walking');
+  if(!dayPlaying) pumpWalk();
+}
+const vrStick=document.getElementById('vrstick');
+vrStick.addEventListener('pointerdown', e=>{
+  if((e.button!==0&&e.button!==undefined)||vrStickId!==null) return;
+  e.preventDefault(); e.stopPropagation();
+  pokeVRMusic();
+  vrStick.setPointerCapture(e.pointerId);
+  vrStickId=e.pointerId;
+  vrStick.classList.add('drag');
+  moveStick(e);
+});
+vrStick.addEventListener('pointermove', e=>{ if(e.pointerId!==vrStickId) return; moveStick(e); });
+vrStick.addEventListener('pointerup', e=>{ if(e.pointerId===vrStickId) endStick(); });
+vrStick.addEventListener('pointercancel', e=>{ if(e.pointerId===vrStickId) endStick(); });
 syncVRPad();
 // Inspect (q): the camera holds still, the pointer comes back, and a tooltip under it gives the
 // pixel's colour and the spectrum of the sky in that direction; each click pins one (pinVRTip).

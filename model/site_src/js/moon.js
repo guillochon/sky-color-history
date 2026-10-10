@@ -1,6 +1,6 @@
 /* ---------- first-person view of the day sky ---------- */
 const SUN_RADIUS_DEG=0.2666; // mean solar angular radius: IAU radius over one astronomical unit
-let vrFov=60; // VR vertical field of view in degrees: twice the angle a desktop monitor fills; the scroll wheel zooms it
+let vrFov=60; // VR vertical field of view in degrees: twice the angle a desktop monitor fills; the scroll wheel or a pinch zooms it
 // Down to 0.008° (29 arcseconds), where Titan's drawn disk is about a tenth of the view and the
 // Galilean moons' a fifth; past 0.4° the drawn Sun is already finer than its spot map.
 const VR_FOV_MIN=0.008, VR_FOV_MAX=90;

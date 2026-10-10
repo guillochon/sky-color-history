@@ -6,3 +6,4 @@ const LAND={ // stand-in surface color, not from the radiative-transfer model
 };
 let skyNow=null, skyGen=0, skyUploaded=-1, vrNote='', vrOn=false, vrYaw=0, vrPitch=8, vrX=0, vrY=0, vrScenery=true, vrClouds=true, cloudScroll=0, cloudMinPrev=null, vrRelock=false, vrGL=null, vrRAF=0, vrWalk=0, vrWalkStamp=0, vrNav=false, vrLinkKey='';
 const vrHeld=new Set();
+let vrMove=null, vrRun=false; // on-screen stick: {f, s} in -1..1, and its run toggle

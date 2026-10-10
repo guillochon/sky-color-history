@@ -219,14 +219,18 @@ function andList(a){ return a.length<2?a.join(''):a.slice(0, -1).join(', ')+' an
 function requestVR(){ if(!vrOn||vrRAF) return; vrRAF=requestAnimationFrame(()=>{ vrRAF=0; paintVR(); }); }
 // A view locked on a pin (vrLockPin) turns only with what it is locked on.
 function lookVR(dx, dy){ if(vrLockPin) return; const deg=vrFov/Math.max(window.innerHeight,1); vrYaw=(vrYaw+dx*deg)%360; if(vrYaw<0) vrYaw+=360; vrPitch=Math.max(-80, Math.min(85, vrPitch-dy*deg)); requestVR(); }
-function walking(){ return vrHeld.has('w')||vrHeld.has('a')||vrHeld.has('s')||vrHeld.has('d'); }
+function walking(){ return vrMove||vrHeld.has('w')||vrHeld.has('a')||vrHeld.has('s')||vrHeld.has('d'); }
 function stepWalk(dt){
   if(dt>0.05) dt=0.05;
   let f=0, s=0;
+  // The stick's deflection scales the pace, up to the keyboard's walk; past the dead zone a full
+  // push is the same speed as W, and the run button matches Shift.
+  if(vrMove){ f+=vrMove.f; s+=vrMove.s; }
   if(vrHeld.has('w')) f++; if(vrHeld.has('s')) f--; if(vrHeld.has('d')) s++; if(vrHeld.has('a')) s--;
-  if(!f&&!s) return;
-  const yaw=vrYaw*Math.PI/180, sp=(vrHeld.has('shift')?120:24)*dt, inv=Math.hypot(f,s);
-  const east=(Math.sin(yaw)*f+Math.cos(yaw)*s)/inv*sp, north=(Math.cos(yaw)*f-Math.sin(yaw)*s)/inv*sp;
+  const inv=Math.hypot(f, s);
+  if(!inv) return;
+  const yaw=vrYaw*Math.PI/180, sp=((vrHeld.has('shift')||vrRun)?120:24)*dt*Math.min(1, inv)/inv;
+  const east=(Math.sin(yaw)*f+Math.cos(yaw)*s)*sp, north=(Math.cos(yaw)*f-Math.sin(yaw)*s)*sp;
   // Buildings and trunks stop the walker; hills and massifs are climbed (eyeZ follows the land).
   const sc=sceneFor(EP[dIdx].key);
   const hit=(x,y)=>vrScenery&&townSolid(sc, x, y, 0.4);
