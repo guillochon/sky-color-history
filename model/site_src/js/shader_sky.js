@@ -195,7 +195,7 @@ vec3 sunSurface(vec2 q, float pxR){
   float X=q.x*cP-q.y*sP, Y=q.x*sP+q.y*cP, Z=sqrt(max(0.0, 1.0-X*X-Y*Y));
   float lat=asin(clamp(Y*cB+Z*sB, -1.0, 1.0)), cmd=atan(-X, Z*cB-Y*sB);
   float lon=fract(cmd/6.28318530718-sunOri.z);
-  float lod=log2(max(1.0, ${(4096/(2*Math.PI)).toFixed(1)}*pxR/sqrt(max(Z, 0.04))));
+  float lod=log2(max(1.0, float(textureSize(sunMap, 0).x)/6.28318530718*pxR/sqrt(max(Z, 0.04))));
   vec4 t=textureLod(sunMap, vec2(lon, lat/3.14159265+0.5), lod);
   float w=1.0-Z, fac=t.a, c=9.48*Z*w*w*w;
   if(pxR<0.012){

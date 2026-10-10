@@ -1,6 +1,7 @@
 /* ---------- the Sun's face: sunspots and faculae through time ---------- */
-// The photosphere is drawn from a map in heliographic coordinates, 4096 by 2048 texels (about
-// 1,070 km each), made fresh for each epoch and day and turned with the Sun's rotation. The
+// The photosphere is drawn from a map in heliographic coordinates, made fresh for each epoch and
+// day and turned with the Sun's rotation: a 1024-texel placeholder with plain spots while the disk
+// is small, and the full 4096 by 2048 (about 1,070 km a texel) once it is drawn large. The
 // first-person sky projects it onto the disk in the shader (sunSurface); the dome samples it here.
 //
 // How much of the Sun is spotted follows its age. Young solar analogs are spotted over 1 to 10%
@@ -309,12 +310,21 @@ function sunspotLib(){
     return teff-T;
   }
 
+  // A spot's placeholder: its umbra at the core's temperature and a uniform penumbra.
+  function spotDTPlain(sp, x, y, teff){
+    const c=Math.cos(sp.ang), s=Math.sin(sp.ang), u=(x*c+y*s)/sp.el, v=-x*s+y*c, r=Math.sqrt(u*u+v*v)/sp.rho;
+    if(sp.pore) return r<0.85?sp.dTpore:0;
+    return r<sp.q?teff-sp.Tcore-150:r<1?380:0;
+  }
   // The map for an epoch and day, with its mip levels (each halving the last) for the dome.
-  const SUN_MAP_W=4096, SUN_MAP_H=2048;
-  function buildSunMap(key, D, teff){
+  // W texels round the equator: 4096 (about 1,070 km each) for the full map. Narrower maps are
+  // placeholders for a small disk: the same spots and plages, but each spot a plain umbra in a
+  // plain penumbra, with no filaments, dots or bridges to compute.
+  function buildSunMap(key, D, teff, W=4096){
     const a=sunAct(key), lut=spotLUT(teff);
     FAC_PER_GROUP=a.fac;
-    const W=SUN_MAP_W, H=SUN_MAP_H, px=new Uint8Array(W*H*4);
+    const H=W/2, px=new Uint8Array(W*H*4), sc=W/4096, detail=W>=4096;
+    const capRows=Math.max(1, Math.round(2*sc)), plSt=Math.max(1, Math.round(3*sc));
     new Uint32Array(px.buffer).fill(0x00ffffff);
     const groups=spotGroups(key, D), d2r=Math.PI/180;
     const rowLat=j=>-90+(j+0.5)*180/H, colLon=i=>(i+0.5)*360/W;
@@ -346,15 +356,15 @@ function sunspotLib(){
       const cov=spotCoverage(key, D).cover, Acap=a.cap*cov*2e6/2, lb=Math.asin(Math.max(0.3, 1-Acap/0.7e6))*180/Math.PI;
       for(const hs of [1, -1]){
         const j0=hs>0?Math.floor((lb-14+90)/180*H):0, j1=hs>0?H-1:Math.ceil((-lb+14+90)/180*H);
-        for(let j=j0;j<=j1;j+=2){
-          const la=rowLat(j), cl=Math.cos(la*d2r), stride=Math.max(2, Math.min(64, Math.floor(1.2/Math.max(cl, 1e-3))));
+        for(let j=j0;j<=j1;j+=capRows){
+          const la=rowLat(j), cl=Math.cos(la*d2r), stride=Math.max(capRows, Math.min(64, Math.floor(1.2*sc/Math.max(cl, 1e-3))));
           for(let i=0;i<W;i+=stride){
             const lo=colLon(i)*d2r+diffRot(80)*D*d2r, x=cl*Math.cos(lo), y=cl*Math.sin(lo), z=hs*Math.sin(la*d2r);
             const sh=D/90+hs*3.3, edge=lb+6*(tileN(x*2+sh, y*2+hs)-0.5)*2-12*smooth01(0.62, 0.8, tileN(x*1.2+1.7, y*1.2+sh*0.5));
             const h=hs*la-edge; if(h<-2) continue;
             const por=tileR(x*14+sh*0.3, y*14+2.1), dT=h<0?380*(1+h/2):h<1.5?400+(1000*h/1.5)*por:500+900*smooth01(0.35, 0.6, por);
             const k=Math.min(300, Math.round(dT/10)), I=[lut[k*3], lut[k*3+1], lut[k*3+2]];
-            for(let b=0;b<2&&j+b<H;b++) for(let s=0;s<stride&&i+s<W;s++) setDT(((j+b)*W+i+s)*4, I, 1);
+            for(let b=0;b<capRows&&j+b<H;b++) for(let s=0;s<stride&&i+s<W;s++) setDT(((j+b)*W+i+s)*4, I, 1);
           }
         }
       }
@@ -374,8 +384,8 @@ function sunspotLib(){
         const n=tileR(x/rr*3+sd%61, y/rr*3+sd%53), f=k*(1-smooth01(0.5, 1.4+0.5*n, d))*smooth01(0.38, 0.62, n+0.15*(1-d));
         if(f<=0) return;
         const v=Math.round(255*Math.min(1, f));
-        for(let b=0;b<3&&j+b<H;b++) for(let c=0;c<stc;c++){ const q=((j+b)*W+((ii+c)%W+W)%W)*4+3; if(px[q]<v) px[q]=v; }
-      }, 3);
+        for(let b=0;b<plSt&&j+b<H;b++) for(let c=0;c<stc;c++){ const q=((j+b)*W+((ii+c)%W+W)%W)*4+3; if(px[q]<v) px[q]=v; }
+      }, plSt);
     }
     // Spots, supersampled 2×2 where they are, darkest wins where they overlap; each clears faculae
     // from itself and its moat (the ring of outflow round a mature spot, free of magnetic elements).
@@ -393,7 +403,7 @@ function sunspotLib(){
           I[0]=I[1]=I[2]=0;
           for(let k=0;k<4;k++){
             if(k===2&&spread<60) break;
-            const dT=spotDT(sp, x+SUB[k][0]*wx, y+SUB[k][1]*tex, teff), q=Math.min(300, Math.round(dT/10))*3;
+            const dT=(detail?spotDT:spotDTPlain)(sp, x+SUB[k][0]*wx, y+SUB[k][1]*tex, teff), q=Math.min(300, Math.round(dT/10))*3;
             I[0]+=lut[q]; I[1]+=lut[q+1]; I[2]+=lut[q+2]; if(dT>0) c++; n++;
             if(last>=0) spread=Math.abs(dT-last); last=dT;
           }
@@ -403,7 +413,7 @@ function sunspotLib(){
       });
     }
     const levels=[{w:W, h:H, px}];
-    for(let n=1;n<=8;n++){
+    for(let n=1;levels[n-1].w>16;n++){
       const s=levels[n-1], w=s.w>>1, h=s.h>>1, p=new Uint8Array(w*h*4);
       for(let j=0;j<h;j++) for(let i=0;i<w;i++) for(let q=0;q<4;q++){
         const a=((2*j)*s.w+2*i)*4+q, b=a+s.w*4;
@@ -413,41 +423,58 @@ function sunspotLib(){
     }
     return {key, D, W, H, px, levels};
   }
-  return {sunAct, spotCoverage, spotGroups, buildSunMap, planckRatio, SUN_MAP_W};
+  return {sunAct, spotCoverage, spotGroups, buildSunMap, planckRatio};
 }
-const SS=sunspotLib(), SUN_MAP_W=SS.SUN_MAP_W;
-// The map for the epoch and day shown, made in a worker. sunMap returns it, or null until it is
-// ready (the epoch's previous day's map meanwhile); each new map redraws the page.
-let sunMapCur=null, sunWant=null, sunBusy=false, sunWorker;
+const SS=sunspotLib();
+// The maps for the epoch and day shown, made in a worker: first the placeholder (SUN_LO texels
+// round), then the full map (SUN_HI) once a disk more than SUN_HI_PX pixels in radius asks for it.
+// sunMap(rad) returns the best one ready for a disk of rad pixels, or the epoch's previous day's
+// placeholder meanwhile, or null; each new map redraws the page.
+const SUN_LO=1024, SUN_HI=4096, SUN_HI_PX=150;
+let sunMaps={lo:null, hi:null}, sunQueue=[], sunBusy=false, sunGenN=0, sunWorker;
 function sunMapDay(){ return Math.floor(astroDay()); }
-function sunMap(){
-  const ep=EP[dIdx], key=ep.key, D=sunMapDay();
-  if(sunMapCur&&sunMapCur.key===key&&sunMapCur.D===D) return sunMapCur;
-  if(!sunWant||sunWant.key!==key||sunWant.D!==D){ sunWant={key, D, teff:ep.teff||5772}; if(!sunBusy) startSunJob(); }
-  return sunMapCur&&sunMapCur.key===key?sunMapCur:null;
+function sunMap(rad=0){
+  const ep=EP[dIdx], key=ep.key, D=sunMapDay(), at=m=>m&&m.key===key&&m.D===D;
+  const lo=sunMaps.lo, hi=sunMaps.hi, wantHi=rad>SUN_HI_PX;
+  if(!at(lo)) requestSunMap(key, D, ep.teff||5772, SUN_LO);
+  if(wantHi&&!at(hi)) requestSunMap(key, D, ep.teff||5772, SUN_HI);
+  if(wantHi&&at(hi)) return hi;
+  if(at(lo)) return lo;
+  return lo&&lo.key===key?lo:null;
+}
+function requestSunMap(key, D, teff, W){
+  if(sunQueue.some(q=>q.key===key&&q.D===D&&q.W===W)) return;
+  // Requests for another epoch or day are stale.
+  sunQueue=sunQueue.filter(q=>q.key===key&&q.D===D&&!q.sent);
+  sunQueue.push({key, D, teff, W}); sunQueue.sort((a, b)=>a.W-b.W);
+  pumpSunJobs();
 }
 function sunWorkerGet(){
   if(sunWorker!==undefined) return sunWorker;
   try{
     const src=`const sunspotLib=${sunspotLib.toString()};const SS=sunspotLib();`+
-      'onmessage=e=>{const w=e.data, m=SS.buildSunMap(w.key, w.D, w.teff); postMessage(m, m.levels.map(l=>l.px.buffer));};';
+      'onmessage=e=>{const w=e.data, m=SS.buildSunMap(w.key, w.D, w.teff, w.W); postMessage(m, m.levels.map(l=>l.px.buffer));};';
     sunWorker=new Worker(URL.createObjectURL(new Blob([src], {type:'text/javascript'})));
   }catch(e){ sunWorker=null; }
   return sunWorker;
 }
-function startSunJob(){
-  const w=sunWant; sunBusy=true;
+function pumpSunJobs(){
+  if(sunBusy||!sunQueue.length) return;
+  const w=sunQueue[0]; w.sent=true; sunBusy=true;
   const done=m=>{
-    sunBusy=false; sunMapCur={...m, gen:(sunMapCur?sunMapCur.gen:0)+1};
-    if(sunWant&&(sunWant.key!==m.key||sunWant.D!==m.D)) startSunJob(); else sunWant=null;
+    sunBusy=false; sunQueue=sunQueue.filter(q=>q!==w);
+    m={...m, gen:++sunGenN};
+    if(m.W>=SUN_HI) sunMaps.hi=m;
+    else{ sunMaps.lo=m; if(sunMaps.hi&&(sunMaps.hi.key!==m.key||sunMaps.hi.D!==m.D)) sunMaps.hi=null; }
+    pumpSunJobs();
     renderDay(); if(vrOn) paintVR();
   };
   const wk=sunWorkerGet();
   if(wk){
     wk.onmessage=e=>done(e.data);
-    wk.onerror=()=>{ sunWorker=null; done(SS.buildSunMap(w.key, w.D, w.teff)); };
-    wk.postMessage(w);
-  }else setTimeout(()=>done(SS.buildSunMap(w.key, w.D, w.teff)), 0);
+    wk.onerror=()=>{ sunWorker=null; done(SS.buildSunMap(w.key, w.D, w.teff, w.W)); };
+    wk.postMessage({key:w.key, D:w.D, teff:w.teff, W:w.W});
+  }else setTimeout(()=>done(SS.buildSunMap(w.key, w.D, w.teff, w.W)), 0);
 }
 // Orientation at day number d: the position angle P of the Sun's north pole from celestial north
 // (toward east) and B0, the latitude of the disk's centre (Meeus, Astronomical Algorithms ch. 29;
@@ -490,7 +517,7 @@ function sunSurfaceAt(m, o, u, v, n, out){
 // inside the Moon (moonC: x, y, radius) or outside the dome are left alone.
 function drawSunSurfaceOnDome(sx, sy, rad, az, el, moonC){
   if(rad<4) return;
-  const m=sunMap(); if(!m) return;
+  const m=sunMap(rad); if(!m) return;
   const o=sunOrientation(m.key, astroDay());
   const {cx, cy, R}=domeView(), W=dome.width, H=dome.height;
   const x0=Math.max(0, Math.floor(sx-rad-1)), y0=Math.max(0, Math.floor(sy-rad-1)), x1=Math.min(W-1, Math.ceil(sx+rad+1)), y1=Math.min(H-1, Math.ceil(sy+rad+1));
@@ -498,7 +525,7 @@ function drawSunSurfaceOnDome(sx, sy, rad, az, el, moonC){
   const b=moonBasis({az, el}), step=vnorm(vadd(b.md, vscale(b.north, 0.02), [0, 0, 0]));
   const el2=Math.asin(Math.max(-1, Math.min(1, step[2])))*180/Math.PI, az2=Math.atan2(step[0], step[1]), rr2=R*(90-el2)/90;
   const ang=Math.atan2(cx+rr2*Math.sin(az2)-sx, -(cy-rr2*Math.cos(az2)-sy));
-  const n=Math.max(0, Math.min(8, Math.round(Math.log2(SUN_MAP_W/(2*Math.PI)/rad)))), ca=Math.cos(ang), sa=Math.sin(ang);
+  const n=Math.max(0, Math.min(8, Math.round(Math.log2(m.W/(2*Math.PI)/rad)))), ca=Math.cos(ang), sa=Math.sin(ang);
   const bw=x1-x0+1, bh=y1-y0+1, img=dctx.getImageData(x0, y0, bw, bh), px=img.data, f=[1, 1, 1];
   for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++){
     const dx=x-cx, dy=y-cy; if(dx*dx+dy*dy>R*R) continue;
@@ -511,10 +538,11 @@ function drawSunSurfaceOnDome(sx, sy, rad, az, el, moonC){
   }
   dctx.putImageData(img, x0, y0);
 }
-// The walk-around view's copy of the map, sent when a new one is made; the map, or null.
-function syncSunTex(){
+// The walk-around view's copy of the map for a disk of rad pixels, sent when it changes; the map,
+// or null.
+function syncSunTex(rad){
   if(!vrGL||!vrGL.sunTex) return null;
-  const m=sunMap(); if(!m) return null;
+  const m=sunMap(rad); if(!m) return null;
   if(vrGL.sunGen===m.gen) return m;
   const gl=vrGL.gl; gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, vrGL.sunTex);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, m.W, m.H, 0, gl.RGBA, gl.UNSIGNED_BYTE, m.px);
