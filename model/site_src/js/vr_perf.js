@@ -80,8 +80,19 @@ function perfTick(now){
     PERF.frames.push({dt, cpu, total:t, paints:PERF.paints}); if(PERF.frames.length>PERF_N) PERF.frames.shift();
   }else PERF.idle++;
   PERF.paints=0;
-  perfCollect();
+  perfCollect(); perfCheckTimer();
   if(now-PERF.shown>250){ PERF.shown=now; perfDraw(); }
+}
+// ANGLE on Metal (Chrome on a Mac) answers every timer query with about the whole command
+// buffer's time, so the passes add up to several frames. Seen over 30 paints, switch to
+// gl.finish() brackets and say why.
+function perfCheckTimer(){
+  if(!PERF.ext||PERF.gpu.length<30||PERF.frames.length<30) return;
+  const g=perfStat(PERF.gpu.map(x=>x.total)).avg, f=perfStat(PERF.frames.map(x=>x.dt).filter(d=>d>0));
+  if(!f||g<=1.5*f.avg) return;
+  for(const p of PERF.pending) for(const x of p) PERF.pool.push(x.q);
+  PERF.pending=[]; PERF.gpu=[]; PERF.ext=null; PERF.sync=true;
+  PERF.switched='timer queries summed to '+(g/f.avg).toFixed(1)+'× the frame time';
 }
 function perfStat(xs){
   if(!xs.length) return null;
@@ -98,7 +109,7 @@ function perfReport(){
   for(const k of PERF_GPU){ const st=perfStat(G.map(g=>g[k]||0)); if(st&&st.max>0) gpu[k]=st; }
   const dts=F.map(f=>f.dt).filter(d=>d>0);
   return {
-    gpuTimer:PERF.ext?'EXT_disjoint_timer_query_webgl2':'gl.finish() brackets (approximate)',
+    gpuTimer:PERF.ext?'EXT_disjoint_timer_query_webgl2':'gl.finish() brackets (approximate)'+(PERF.switched?', switched: '+PERF.switched:''),
     canvas:c?[c.width, c.height]:null, dpr:window.devicePixelRatio||1,
     epoch:EP[dIdx].key, lat:dLat, fov:vrFov, scenery:vrScenery, clouds:vrClouds, labels:vrLabels, playing:dayPlaying,
     frames:F.length, idleFrames:PERF.idle, frameMs:perfStat(dts), cpuTotal:perfStat(F.map(f=>f.total)), gpuTotal:perfStat(G.map(g=>g.total)),
@@ -127,6 +138,7 @@ function perfDraw(){
   L.push('VR perf · '+(fm?(1000/fm.avg).toFixed(0)+' fps · frame '+fm.avg.toFixed(1)+' ms (p95 '+fm.p95.toFixed(1)+')':'waiting for frames'));
   L.push('canvas '+(r.canvas?r.canvas.join('×'):'?')+' @'+r.dpr+'x · '+r.frames+' painted / '+r.idleFrames+' idle frames');
   L.push('GPU: '+(PERF.ext?'timer queries':'gl.finish() brackets, approximate'));
+  if(PERF.switched) L.push('  (switched: '+PERF.switched+')');
   L.push('');
   L.push('GPU per paint     avg     p95  share');
   const gt=r.gpuTotal?r.gpuTotal.avg:0;
