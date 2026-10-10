@@ -160,6 +160,7 @@ PARTS = [
     'js/moon.js',
     'js/sunset.js',
     'js/calendar.js',
+    'js/sunspots.js',
     'js/stars_catalog.js',
     'js/stars_epochs.js',
     'js/constellations.js',

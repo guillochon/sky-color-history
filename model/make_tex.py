@@ -100,6 +100,8 @@ def tex_table(label, caption, head, rows, spec):
 sky_tex = tex(rs.INTRO) + '\n'
 for title, paras in rs.SECTIONS:
     sky_tex += '\n\\subsection*{' + tex(title) + '}\n' + '\n\n'.join(tex(p) for p in paras).replace('(table below)', r'(Table~\ref{tab:lunar})') + '\n'
+    if title == 'Sunspots':
+        sky_tex += '\n' + tex_table('tab:sunspots', rs.SUNSPOT_CAPTION, rs.SUNSPOT_HEAD, rs.SUNSPOT, 'p{2.3cm}rrrYrr')
     if title == 'Lunar eclipses':
         sky_tex += ('\n' r'\begin{figure*}[t]\centering\includegraphics[width=\textwidth]{figures/lunar_eclipse.png}' '\n'
                     r'\caption{' + tex(rs.FIG_CAPTION) + r'}\label{fig:lunar}\end{figure*}' '\n'

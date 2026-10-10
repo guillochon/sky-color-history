@@ -1,12 +1,12 @@
-"""The report's part on everything the interactive site adds to the sky colors: the setting Sun,
-the Moon and both kinds of eclipse, halos, the night sky and airglow, aurorae, meteors, dust and
-comets, and clouds. gen_report.py renders it as HTML and make_tex.py as LaTeX, from the same text.
+"""The report's part on everything the interactive site adds to the sky colors: the setting Sun and
+its spots, the Moon and both kinds of eclipse, halos, the night sky and airglow, aurorae, meteors,
+dust and comets, and clouds. gen_report.py renders it as HTML and make_tex.py as LaTeX, from the same text.
 The numbers come from the site's code (model/site_src/js) and the model scripts named in each
 section; the per-epoch values in PHENOMENA are copied from those files."""
 import eclipse_report as er
 
 INTRO = ("The colors above are the radiative-transfer model's. The interactive site builds more on the same atmospheres: "
-         "the setting Sun bent and dimmed band by band, moonlight, solar and lunar eclipses, ice halos, the night sky's "
+         "the setting Sun bent and dimmed band by band, its spots and faculae through time, moonlight, solar and lunar eclipses, ice halos, the night sky's "
          "own light, aurorae, meteors, and the dust and comets of each era. This part describes each, how it follows the "
          "epoch's air, and which numbers are measured and which are estimates. The lunar eclipses are a result in their own "
          "right: Earth's transmission spectrum has been computed through geological time as a transiting exoplanet would "
@@ -39,6 +39,42 @@ SECTIONS = [
 "These mirage statistics are illustrative. The disk is also darker and redder toward its edge (limb darkening, "
 "Hestroffer &amp; Magnan 1998): the air only multiplies the Sun's light, so the darkening is the same under every sky."]],
 
+['Sunspots', [
+"The Sun's disk carries its spots and faculae, drawn from a map of the whole photosphere made for each epoch and "
+"day and turned with the Sun's rotation. How spotted the Sun was follows its age. Young solar analogs are spotted "
+"over 1 to 10% of their surface, the coverage falling roughly as the inverse square root of age (Morris 2020) and "
+"much faster once the rotation period passes about 15 days (Nichols-Fleming &amp; Blackman 2020). Stars more "
+"active than Rossby number one, the Sun before about 2.5 Gyr, dim when they are active: dark spots dominate their "
+"variability. Older, quieter stars like today's Sun brighten with activity, dominated by bright faculae (Shapiro "
+"et al. 2014; Reinhold et al. 2019), because spot area grows faster with activity than facular area does (Nemec "
+"et al. 2022). The Sun's rotation follows the slow-rotator sequence it most likely took (Gallet &amp; Bouvier "
+"2013): 4.9 days at 4.4 Ga, 16 at 2.7 Ga, 23 at 700 Ma.",
+"Fast rotators carry spots at high latitudes and large cool polar caps, as Doppler images of young solar analogs "
+"show (Barnes et al. 2005), so the Hadean and early Archean Suns have their spots between 10° and 72° and caps "
+"round the poles. A regular cycle sets in at a few hundred million years (Katsova 2020); from 2.7 Ga the spots "
+"emerge in a butterfly pattern, from mid-latitudes toward the equator over each cycle (Hathaway 2011), on cycles "
+"lengthening from 8 to 11 years. On Gregorian dates the modern epochs follow the real cycles, each cycle's sunspot "
+"number from the SILSO record with the shape of Hathaway, Wilson &amp; Reichmann (1994): the 1815 volcanic year "
+"falls in the Dalton Minimum and dates in the Maunder Minimum are all but spotless. Beyond the record a sixth of "
+"the time is a grand minimum, as over the Holocene (Usoskin, Solanki &amp; Kovaltsov 2007).",
+"Each active region is a bipolar group: a large, round leading spot ahead in the rotation and nearer the equator "
+"(Joy's law), a following polarity broken into smaller spots, often with partial penumbrae, and pores between. "
+"Peak areas are lognormal (Baumann &amp; Solanki 2005); a group grows in days and decays linearly, faster the "
+"smaller it is, and drifts with the latitude's rotation (Snodgrass 1983). The spots have the structure seen in "
+"white light (Solanki 2003; Borrero &amp; Ichimoto 2011): an umbra of 3,700 to 4,600 K, darker the larger it is, "
+"sprinkled with umbral dots and crossed in the larger spots by granular light bridges; a penumbra of radial "
+"filaments 150 to 650 K below the photosphere, with bright grains at their inner ends and a ragged, comb-like outer "
+"edge; and round the region, faculae that show only toward the limb, cleared from a moat round each mature spot, "
+"over the faint network of the supergranulation. Intensities are Planck ratios at the color channels' wavelengths, "
+"so spots are redder as well as darker. The disk is drawn as a white-light photograph is shown, with umbrae "
+"near-black and penumbrae mid-gray. The first-person view zooms to 0.4°, where the disk fills the view at about the "
+"map's resolution of 1,000 km.",
+"A spot about an arcminute across, some 500 millionths of the hemisphere, is the smallest the eye can see unaided "
+"through a haze or a filter (Vaquero 2007). Today one is on the disk about one day in 25, mostly near solar "
+"maximum; in the Proterozoic every other day; in the Archean and Hadean always, about 23 at once at 4.4 Ga. Spots "
+"then take about 3% off the Sun's light, and they gather toward the poles, darkening the top and bottom of the "
+"disk. The young Sun's shape does not change visibly: rotating in 5 days flattens it by only 0.02%, and even a "
+"1-day rotation by 0.5%, 5 arcseconds on a 32-arcminute disk."]],
 ['Moonlight and the Moon', [
 "Moonlight is the same sky model with the Moon in place of the Sun, scaled by the lunar phase (the Allen phase law "
 "with the opposition surge, as in Krisciunas &amp; Schaefer 1991) and by the inverse square of the Earth–Moon "
@@ -201,6 +237,26 @@ SECTIONS = [
 "more cirrus in the volcanic year."]],
 ]
 
+# Sunspots by epoch, from the site's spot model (sunspots.js SUN_ACT; coverage ranges and naked-eye
+# counts from its groups, sampled weekly over three cycles, or 1996-2026 on the real ones).
+SUNSPOT_HEAD = ['Epoch', 'Sun’s age', 'Rotation', 'Spot coverage', 'Spots emerge at', 'Cycle', 'Days with a naked-eye spot']
+SUNSPOT = [
+['4.4 Ga Hadean', '0.17 Gyr', '4.9 d', '8% (6–10%)', '20–72°; polar caps above 74°', 'none', 'all (about 23 at once)'],
+['4.0 Ga Hadean', '0.57 Gyr', '9.0 d', '4% (2.9–5.3%)', '15–65°; caps above 81°', 'about 5 yr, shallow', 'all (about 14)'],
+['3.8 Ga Archean', '0.77 Gyr', '10.4 d', '3% (1.9–4.3%)', '10–60°; caps above 85°', 'about 6 yr', 'all (about 11)'],
+['2.7 Ga Archean', '1.87 Gyr', '16 d', '1% (0.3–1.8%)', 'from 40° toward the equator', '8 yr', '83%'],
+['2.2 Ga post-GOE', '2.37 Gyr', '18 d', '0.5% (0.1–1.0%)', 'from 34°', '9 yr', '50%'],
+['700 Ma Snowball', '3.87 Gyr', '23 d', '0.25% (0.02–0.5%)', 'from 30°', '10.5 yr', '20%'],
+['466 Ma Ordovician', '4.10 Gyr', '24 d', '0.20% (0.01–0.4%)', 'from 29°', '10.8 yr', '18%'],
+['300 Ma Carboniferous', '4.27 Gyr', '25 d', '0.17% (0.01–0.4%)', 'from 28°', '11 yr', '12%'],
+['66 Ma impact winter', '4.50 Gyr', '25 d', '0.14% (0.01–0.3%)', 'from 28°', '11 yr', '8%'],
+['1815, today and 2100', '4.57 Gyr', '25.4 d', '0.09% (0.01–0.19%)', 'from 28°', 'the real cycles', '4%'],
+]
+SUNSPOT_CAPTION = ("Sunspots by epoch, from the site's spot model. Coverage is the share of the surface in spots and their "
+                   "penumbrae: the mean, and the 5–95% range over the cycle or the young Sun's irregular swings. A "
+                   "naked-eye spot is one over about 500 millionths of the hemisphere, an arcminute across, on the visible "
+                   "disk; the modern row is 1996–2026 on the real cycles. Rotation is the equator's sidereal period.")
+
 # Other phenomena by epoch (values from the site: sunset.js and gen_site.py sun_bands for refraction,
 # day.js AIRGLOW_O/AIRGLOW_CO2 and EXT_K, aurora.js AURORA_EPOCH, meteors.js MET_EPOCH, debris.js ZODI).
 PHENOMENA_HEAD = ['Epoch', 'Refraction', 'Airglow', 'Starlight extinction (mag/airmass)', 'Aurora', 'Meteors', 'Zodiacal light']
@@ -290,4 +346,20 @@ REFS = [
 ("Nesvorný D. et al. (2010). Cometary origin of the zodiacal cloud and carbonaceous micrometeorites. <i>Astrophysical Journal</i> 713, 816.", "nesvorny2010", "@article{nesvorny2010, author={Nesvorn{\\'y}, David and others}, title={Cometary origin of the zodiacal cloud and carbonaceous micrometeorites}, journal={Astrophysical Journal}, volume={713}, pages={816--836}, year={2010}}"),
 ("Tomkins A.G., Martin E.L., Cawood P.A. (2024). Evidence suggesting that Earth had a ring in the Ordovician. <i>Earth and Planetary Science Letters</i> 646, 118991.", "tomkins2024", "@article{tomkins2024, author={Tomkins, Andrew G. and Martin, Erin L. and Cawood, Peter A.}, title={Evidence suggesting that {Earth} had a ring in the {Ordovician}}, journal={Earth and Planetary Science Letters}, volume={646}, pages={118991}, year={2024}}"),
 ("Kaib N.A. &amp; Raymond S.N. (2026). A potential signature of HD 7977's passage among observed long-period comet orbits. <i>Planetary Science Journal</i>, doi:10.3847/PSJ/ae7a65.", "kaib2026", "@article{kaib2026, author={Kaib, Nathan A. and Raymond, Sean N.}, title={A potential signature of {HD 7977}'s passage among observed long-period comet orbits}, journal={Planetary Science Journal}, year={2026}, doi={10.3847/PSJ/ae7a65}}"),
+('Morris B.M. (2020). A relationship between stellar age and spot coverage. <i>Astrophysical Journal</i> 893, 67.', 'morris2020', '@article{morris2020, author={Morris, Brett M.}, title={A relationship between stellar age and spot coverage}, journal={Astrophysical Journal}, volume={893}, pages={67}, year={2020}, doi={10.3847/1538-4357/ab79a0}}'),
+('Nichols-Fleming F. &amp; Blackman E.G. (2020). Determination of starspot covering fraction as a function of stellar age from observational data. <i>MNRAS</i> 491, 2706.', 'nicholsfleming2020', '@article{nicholsfleming2020, author={Nichols-Fleming, Fiona and Blackman, Eric G.}, title={Determination of starspot covering fraction as a function of stellar age from observational data}, journal={Monthly Notices of the Royal Astronomical Society}, volume={491}, pages={2706--2717}, year={2020}, doi={10.1093/mnras/stz3197}}'),
+('Shapiro A.I. et al. (2014). The variability of Sun-like stars: reproducing observed photometric trends. <i>Astronomy &amp; Astrophysics</i> 569, A38.', 'shapiro2014', '@article{shapiro2014, author={Shapiro, A. I. and others}, title={The variability of {Sun}-like stars: reproducing observed photometric trends}, journal={Astronomy \\& Astrophysics}, volume={569}, pages={A38}, year={2014}, doi={10.1051/0004-6361/201323086}}'),
+('Reinhold T., Bell K.J., Kuszlewicz J., Hekker S., Shapiro A.I. (2019). Transition from spot to faculae domination: an alternate explanation for the dearth of intermediate Kepler rotation periods. <i>Astronomy &amp; Astrophysics</i> 621, A21.', 'reinhold2019', '@article{reinhold2019, author={Reinhold, T. and Bell, K. J. and Kuszlewicz, J. and Hekker, S. and Shapiro, A. I.}, title={Transition from spot to faculae domination: an alternate explanation for the dearth of intermediate {Kepler} rotation periods}, journal={Astronomy \\& Astrophysics}, volume={621}, pages={A21}, year={2019}, doi={10.1051/0004-6361/201833754}}'),
+('Nemec N.-E. et al. (2022). Faculae cancel out on the surfaces of active Suns. <i>Astrophysical Journal Letters</i> 934, L23.', 'nemec2022', '@article{nemec2022, author={Nemec, N.-E. and others}, title={Faculae cancel out on the surfaces of active {Suns}}, journal={Astrophysical Journal Letters}, volume={934}, pages={L23}, year={2022}, doi={10.3847/2041-8213/ac8155}}'),
+('Gallet F. &amp; Bouvier J. (2013). Improved angular momentum evolution model for solar-like stars. <i>Astronomy &amp; Astrophysics</i> 556, A36.', 'gallet2013', "@article{gallet2013, author={Gallet, Florian and Bouvier, J{\\'e}r{\\^o}me}, title={Improved angular momentum evolution model for solar-like stars}, journal={Astronomy \\& Astrophysics}, volume={556}, pages={A36}, year={2013}, doi={10.1051/0004-6361/201321302}}"),
+('Barnes J.R. et al. (2005). The dependence of differential rotation on temperature and rotation. <i>MNRAS</i> 357, L1.', 'barnes2005', '@article{barnes2005, author={Barnes, J. R. and others}, title={The dependence of differential rotation on temperature and rotation}, journal={Monthly Notices of the Royal Astronomical Society}, volume={357}, pages={L1--L5}, year={2005}, doi={10.1111/j.1745-3933.2005.08587.x}}'),
+('Katsova M.M. (2020). The evolution of the solar-stellar activity. <i>Journal of Atmospheric and Solar-Terrestrial Physics</i>, doi:10.1016/j.jastp.2020.105456.', 'katsova2020', '@article{katsova2020, author={Katsova, Maria}, title={The evolution of the solar-stellar activity}, journal={Journal of Atmospheric and Solar-Terrestrial Physics}, year={2020}, doi={10.1016/j.jastp.2020.105456}}'),
+('Hathaway D.H. (2011). A standard law for the equatorward drift of the sunspot zones. <i>Solar Physics</i> 273, 221.', 'hathaway2011', '@article{hathaway2011, author={Hathaway, David H.}, title={A standard law for the equatorward drift of the sunspot zones}, journal={Solar Physics}, volume={273}, pages={221--230}, year={2011}}'),
+('Hathaway D.H., Wilson R.M., Reichmann E.J. (1994). The shape of the sunspot cycle. <i>Solar Physics</i> 151, 177.', 'hathaway1994', '@article{hathaway1994, author={Hathaway, David H. and Wilson, Robert M. and Reichmann, Edwin J.}, title={The shape of the sunspot cycle}, journal={Solar Physics}, volume={151}, pages={177--190}, year={1994}}'),
+('Usoskin I.G., Solanki S.K., Kovaltsov G.A. (2007). Grand minima and maxima of solar activity: new observational constraints. <i>Astronomy &amp; Astrophysics</i> 471, 301.', 'usoskin2007', '@article{usoskin2007, author={Usoskin, I. G. and Solanki, S. K. and Kovaltsov, G. A.}, title={Grand minima and maxima of solar activity: new observational constraints}, journal={Astronomy \\& Astrophysics}, volume={471}, pages={301--309}, year={2007}}'),
+('Baumann I. &amp; Solanki S.K. (2005). On the size distribution of sunspot groups in the Greenwich sunspot record 1874–1976. <i>Astronomy &amp; Astrophysics</i> 443, 1061.', 'baumann2005', '@article{baumann2005, author={Baumann, I. and Solanki, S. K.}, title={On the size distribution of sunspot groups in the {Greenwich} sunspot record 1874--1976}, journal={Astronomy \\& Astrophysics}, volume={443}, pages={1061--1066}, year={2005}}'),
+('Snodgrass H.B. (1983). Magnetic rotation of the solar photosphere. <i>Astrophysical Journal</i> 270, 288.', 'snodgrass1983', '@article{snodgrass1983, author={Snodgrass, Herschel B.}, title={Magnetic rotation of the solar photosphere}, journal={Astrophysical Journal}, volume={270}, pages={288--299}, year={1983}}'),
+('Solanki S.K. (2003). Sunspots: an overview. <i>Astronomy &amp; Astrophysics Review</i> 11, 153.', 'solanki2003', '@article{solanki2003, author={Solanki, Sami K.}, title={Sunspots: an overview}, journal={Astronomy and Astrophysics Review}, volume={11}, pages={153--286}, year={2003}}'),
+('Borrero J.M. &amp; Ichimoto K. (2011). Magnetic structure of sunspots. <i>Living Reviews in Solar Physics</i> 8, 4.', 'borrero2011', '@article{borrero2011, author={Borrero, Juan M. and Ichimoto, Kiyoshi}, title={Magnetic structure of sunspots}, journal={Living Reviews in Solar Physics}, volume={8}, pages={4}, year={2011}}'),
+('Vaquero J.M. (2007). Historical sunspot observations: a review. <i>Advances in Space Research</i> 40, 929.', 'vaquero2007', '@article{vaquero2007, author={Vaquero, J. M.}, title={Historical sunspot observations: a review}, journal={Advances in Space Research}, volume={40}, pages={929--941}, year={2007}, doi={10.1016/j.asr.2007.01.087}}'),
 ]

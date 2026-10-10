@@ -12,6 +12,10 @@ uniform vec3 sunCol,ground,eye;
 // The setting Sun (sunDiskAt).
 uniform float refK, sunOff; uniform vec4 sunTau[50]; uniform vec3 sunW[20]; uniform vec3 sunG; uniform vec4 sunLay[4]; uniform vec4 sunMir;
 uniform float corona, coronaMap[16], coronaRim;
+// The photosphere's spots and faculae (sunspots.js): its heliographic map, and x the position angle
+// of the Sun's north pole from celestial north, y the latitude of the disk's centre (B0), z the
+// rotation phase in turns, w whether the map is ready.
+uniform sampler2D sunMap; uniform vec4 sunOri;
 uniform sampler2D mwTex;
 uniform vec4 toneU; // display curve: k, p, cap, cd/m² per unit r (color.js toneT)
 uniform float rCd,mwOn,mwScale,mwK,mwDB;
@@ -143,10 +147,11 @@ float trueAlt(float app){ return app-refK*bennett(app); } // apparent altitude (
 // mirage's mirror line (sunMir) the rays come up off the warm surface layer, so the disk there
 // is an inverted, squeezed image of the rays above. sunG takes band light to linear sRGB, so the
 // disk's middle is sunCol. xyz is the band light reaching this ray, w its
-// fraction of the disk's radius in the nearest image.
+// fraction of the disk's radius in the nearest image, and off the ray's offset from the Sun's
+// centre in that image.
 const float SUN_DISP[20]=float[20](${SUN_DISP.join(', ')});
 const float SUN_APPS[10]=float[10](${SUN_APP.map(v=>v.toFixed(1)).join(', ')});
-vec4 sunDiskAt(float comp, float app, vec3 sd, float rd){
+vec4 sunDiskAt(float comp, float app, vec3 sd, float rd, out vec3 off){
   float ap=app+sunMir.w*(0.6*sin(comp*1432.4+waterT*2.1)+0.4*sin(comp*3610.0-waterT*3.3))*exp(-max(app, 0.0)/rd);
   float extra=0.0;
   if(sunMir.x>0.0 && ap<sunMir.x){ ap=sunMir.x+(sunMir.x-ap)*sunMir.y; extra=sunMir.z; }
@@ -162,10 +167,11 @@ vec4 sunDiskAt(float comp, float app, vec3 sd, float rd){
   float a=clamp(app, 0.0, 30.0), f; int i=0;
   for(int k=1;k<9;k++) if(a>SUN_APPS[k]) i=k;
   f=(a-SUN_APPS[i])/(SUN_APPS[i+1]-SUN_APPS[i]);
-  vec3 P=vec3(0.0); float r=2.0;
+  vec3 P=vec3(0.0); float r=2.0; off=vec3(0.0);
   for(int b=0;b<20;b++){
     float te=(ap-(1.0+dispX*(SUN_DISP[b]-1.0))*bend)*0.01745329252, ct=cos(te);
-    float d=acos(clamp(dot(vec3(sin(comp)*ct, cos(comp)*ct, sin(te)), sd), -1.0, 1.0));
+    vec3 rv=vec3(sin(comp)*ct, cos(comp)*ct, sin(te));
+    float d=acos(clamp(dot(rv, sd), -1.0, 1.0));
     // Each image's edge is spread over the gap to the next band's (or a pixel), so the rim is a
     // gradient rather than ten steps.
     float gap=max(dispX*abs(SUN_DISP[b]-SUN_DISP[min(b+1, 19)])*bend*0.01745329252, px);
@@ -174,9 +180,41 @@ vec4 sunDiskAt(float comp, float app, vec3 sd, float rd){
     int k0=i*20+b, k1=k0+20;
     float t=mix(sunTau[k0/4][k0%4], sunTau[k1/4][k1%4], f);
     P+=sunW[b]*exp(-t-(t+sunOff)*extra)*cov;
-    r=min(r, d/sunRad);
+    if(d/sunRad<r){ r=d/sunRad; off=rv-sd*dot(rv, sd); }
   }
   return vec4(P, r);
+}
+// The photosphere at q (disk radii, x toward celestial east, y north) as multipliers of linear
+// R, G, B, pxR disk radii to a pixel (sunspots.js sunSurfaceAt): the map's spots raised to the
+// display's gamma, as a white-light photograph is shown, plus faculae, brightest near mu 1/4.
+// Once the disk is large enough, the network of the supergranulation (cells about 30 Mm across,
+// bright at their edges) shows toward the limb too.
+vec3 h33(vec3 p){ p=fract(p*vec3(0.1031, 0.1030, 0.0973)); p+=dot(p, p.yxz+33.33); return fract((p.xxy+p.yxx)*p.zyx); }
+vec3 sunSurface(vec2 q, float pxR){
+  float cP=cos(sunOri.x), sP=sin(sunOri.x), cB=cos(sunOri.y), sB=sin(sunOri.y);
+  float X=q.x*cP-q.y*sP, Y=q.x*sP+q.y*cP, Z=sqrt(max(0.0, 1.0-X*X-Y*Y));
+  float lat=asin(clamp(Y*cB+Z*sB, -1.0, 1.0)), cmd=atan(-X, Z*cB-Y*sB);
+  float lon=fract(cmd/6.28318530718-sunOri.z);
+  float lod=log2(max(1.0, ${(4096/(2*Math.PI)).toFixed(1)}*pxR/sqrt(max(Z, 0.04))));
+  vec4 t=textureLod(sunMap, vec2(lon, lat/3.14159265+0.5), lod);
+  float w=1.0-Z, fac=t.a, c=9.48*Z*w*w*w;
+  if(pxR<0.012){
+    float cl=cos(lat), la=lon*6.28318530718;
+    vec3 p=vec3(cl*cos(la), cl*sin(la), sin(lat))*23.0, ip=floor(p);
+    float f1=8.0, f2=8.0;
+    for(int k=0;k<27;k++){
+      vec3 g=ip+vec3(float(k%3)-1.0, float((k/3)%3)-1.0, float(k/9)-1.0), d=g+h33(g)-p;
+      float e=dot(d, d);
+      if(e<f1){ f2=f1; f1=e; } else if(e<f2) f2=e;
+    }
+    // Bright along the cell edges, broken into patches (the network is a chain of small
+    // magnetic elements, not a continuous line).
+    vec3 pp=p*2.7, ip2=floor(pp), fp=fract(pp); fp=fp*fp*(3.0-2.0*fp);
+    float clump=mix(mix(mix(h33(ip2).x, h33(ip2+vec3(1,0,0)).x, fp.x), mix(h33(ip2+vec3(0,1,0)).x, h33(ip2+vec3(1,1,0)).x, fp.x), fp.y),
+                    mix(mix(h33(ip2+vec3(0,0,1)).x, h33(ip2+vec3(1,0,1)).x, fp.x), mix(h33(ip2+vec3(0,1,1)).x, h33(ip2+vec3(1,1,1)).x, fp.x), fp.y), fp.z);
+    fac=max(fac, 0.3*(1.0-smoothstep(0.0, 0.45, sqrt(f2)-sqrt(f1)))*smoothstep(0.35, 0.75, clump)*smoothstep(0.012, 0.006, pxR));
+  }
+  return pow(t.rgb, vec3(2.2))+fac*c*vec3(0.10, 0.13, 0.18);
 }
 int starCubeCell(vec3 d){
   float ax=abs(d.x), ay=abs(d.y), az=abs(d.z);
@@ -529,9 +567,9 @@ void main(){
     float rBg=pow(10.0, skyT.a*${LOGR_SPAN.toFixed(1)}+${LOGR_LO.toFixed(1)});
     float te=trueAlt(elevDeg), teR=te*0.01745329252, cth=cos(teR);
     vec3 src=vec3(sin(comp)*cth, cos(comp)*cth, sin(teR));
-    bool inSun=false; float sunR=2.0; vec3 sunP=vec3(0.0);
+    bool inSun=false; float sunR=2.0; vec3 sunP=vec3(0.0), sunOffV=vec3(0.0);
     if(sunOn>0.5&&te>-1.5&&dot(src,sd)>cos(sunRad*2.5+0.03)){
-      vec4 sk=sunDiskAt(comp, elevDeg, sd, sunRad*57.2957795);
+      vec4 sk=sunDiskAt(comp, elevDeg, sd, sunRad*57.2957795, sunOffV);
       inSun=sk.x+sk.y+sk.z!=0.0; sunR=min(sk.w, 1.0); sunP=max(sk.rgb, vec3(0.0));
     }
     bool onBody=inSun;
@@ -555,6 +593,16 @@ void main(){
       // fainter than the sky (the violet one, all but gone in the air) disappears into it.
       vec3 dsk=clamp(c*pow(vec3(mu), vec3(${SUN_LD.map(v=>v.toFixed(4)).join(', ')})), 0.0, 1.0), sl=s2lin3(skyBase);
       float op=clamp((dot(dsk, vec3(0.2126, 0.7152, 0.0722))/max(dot(sl, vec3(0.2126, 0.7152, 0.0722)), 1e-6)-0.1)*3.0, 0.0, 1.0);
+      // Spots and faculae, placed on the image the ray sees (squeezed by refraction low down),
+      // with the Sun's north from celestial north. The disk's opacity stays the unspotted disk's:
+      // an umbra is dark against the photosphere but still far brighter than the sky.
+      if(sunOri.w>0.5){
+        vec3 ncpS=vec3(0.0, cos(latRad), sin(latRad)), nS=ncpS-sd*dot(ncpS, sd);
+        nS=dot(nS, nS)<1e-8?vec3(1.0, 0.0, 0.0):normalize(nS);
+        vec2 q=vec2(dot(sunOffV, normalize(cross(nS, sd))), dot(sunOffV, nS))/sin(sunRad);
+        float ql=length(q); if(ql>0.998) q*=0.998/ql;
+        dsk=clamp(dsk*sunSurface(q, 2.0*tan(fov*0.5)/res.y/sunRad), 0.0, 1.0);
+      }
       skyC=lin2s3(mix(sl, dsk, op));
     }
     if(moonOn>0.5&&te>-1.2){

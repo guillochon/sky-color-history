@@ -470,6 +470,9 @@ function renderDay(fast){
     const g=dctx.createRadialGradient(sx,sy,0,sx,sy,SUNR);
     for(const r of [0, 0.3, 0.5, 0.65, 0.75, 0.83, 0.89, 0.93, 0.96, 0.98, 1]) g.addColorStop(r, hex(sunLimbRGB(sunRGB, r)));
     dctx.globalAlpha=1; dctx.fillStyle=g; dctx.beginPath(); dctx.arc(sx,sy,SUNR,0,Math.PI*2); dctx.fill(); dctx.restore();
+    // Its spots and faculae, where the Moon isn't in front.
+    const mrr=R*(90-moon.el)/90, ma=moon.az*Math.PI/180;
+    drawSunSurfaceOnDome(sx, sy, SUNR, sunAz, 90-sza, moon.el>-moon.radDeg?[cx+mrr*Math.sin(ma), cy-mrr*Math.cos(ma), moon.radDeg*(DOME_DISK*z/SUN_RADIUS_DEG)]:null);
   }
   // Corona, pink chromosphere, and the diamond ring: the corona shows once less than about 3% of
   // the drawn photosphere is left (Sun's inner corona is about a millionth of the disk, near the

@@ -172,6 +172,8 @@ sky_part = f'''
 '''
 for title, paras in rs.SECTIONS:
     sky_part += f'<h3>{title}</h3>\n' + ''.join(f'<p>{p}</p>\n' for p in paras)
+    if title == 'Sunspots':
+        sky_part += _table(rs.SUNSPOT_HEAD, rs.SUNSPOT) + f'<p class="tcap">{rs.SUNSPOT_CAPTION}</p>'
     if title == 'Lunar eclipses':
         sky_part += (f'<figure class="eclfig"><img src="data:image/png;base64,{ECL_PNG}" alt="The eclipsed Moon at nine epochs, centred in the shadow and at its edge, with the light across the shadow">'
                      f'<figcaption>{rs.FIG_CAPTION}</figcaption></figure>'

@@ -288,6 +288,10 @@ function paintVR(){
   gl.uniform4f(u.eclU, lu?lu.c[0]:0, lu?lu.c[1]:0, lu?lu.k:0, lu?1:0);
   gl.uniform1f(u.sunOn, skyNow.sunOn?1:0);
   gl.uniform1f(u.sunRad, skyNow.moon.sunRadDeg*DISK_SCALE*Math.PI/180);
+  // The photosphere's spots and faculae, once the day's map is made.
+  const sm=syncSunTex(), so=sm&&sunOrientation(sm.key, astroDay());
+  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, vrGL.sunTex); gl.activeTexture(gl.TEXTURE0);
+  gl.uniform4f(u.sunOri, so?so.P:0, so?so.B0:0, so?so.phase:0, so?1:0);
   gl.uniform1f(u.corona, skyNow.corona||0);
   gl.uniform1fv(u.coronaMap, skyNow.coronaMap||coronaMap(EP[dIdx].key)); gl.uniform1f(u.coronaRim, skyNow.coronaRim??1);
   // The night sky: the display curve, the Milky Way (uploaded once it is built), and limits.
@@ -528,7 +532,7 @@ function paintVR(){
   const hud=vrGL.hud||(vrGL.hud={place:document.getElementById('vrplace'), note:document.querySelector('.vrnote'), clock:document.getElementById('vrclock'), date:document.getElementById('moonDate')});
   setText(hud.place, EP[dIdx].name+' · '+lat);
   setText(hud.note, vrCaption());
-  setText(hud.clock, (hud.date.value||'')+' · '+hh+':'+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0')+' · '+(dayPlaying?(playSpeed==='real'?'playing in real time':playSpeed==='fast'?'playing fast':'playing'):'paused')+(Math.abs(vrFov-60)>0.5?' · '+Math.round(vrFov)+'° view':'')+(skyNow.eclipse?' · '+skyNow.eclipse:'')+(vrClouds&&vrGL.field?' · clouds '+Math.round(vrGL.field.cov*100)+'%':'')+(vrNote?' · '+vrNote:''));
+  setText(hud.clock, (hud.date.value||'')+' · '+hh+':'+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0')+' · '+(dayPlaying?(playSpeed==='real'?'playing in real time':playSpeed==='fast'?'playing fast':'playing'):'paused')+(Math.abs(vrFov-60)>0.5?' · '+(vrFov<9.95?vrFov.toFixed(1):Math.round(vrFov))+'° view':'')+(skyNow.eclipse?' · '+skyNow.eclipse:'')+(vrClouds&&vrGL.field?' · clouds '+Math.round(vrGL.field.cov*100)+'%':'')+(vrNote?' · '+vrNote:''));
   placeBodyMarks();
   drawVRLabels();
   followVRPin();
