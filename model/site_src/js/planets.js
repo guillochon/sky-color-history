@@ -1,9 +1,10 @@
-// The five naked-eye planets, placed for the selected date and clock time like the Moon. Orbits
+// The planets, the five naked-eye ones and Uranus and Neptune, placed for the selected date and clock time like the Moon. Orbits
 // are JPL's approximate Keplerian elements (Standish, "Approximate Positions of the Planets",
 // table 1, J2000 ecliptic, valid 1800-2050), with the Earth-Moon barycentre standing in for
 // the Earth. Older epochs reuse today's orbits on the selected date, as the Moon does, since
 // where the planets were on a day millions of years ago cannot be known. Magnitudes follow
-// Meeus (Astronomical Algorithms), including Saturn's ring tilt. Each is drawn as a disk of its
+// Meeus (Astronomical Algorithms), including Saturn's ring tilt; Uranus's and Neptune's follow
+// Mallama & Hilton (2018). Each is drawn as a disk of its
 // true angular size, enlarged as the Sun and Moon are, lit from the Sun's side, so the inner
 // planets' phases show once the view is zoomed in far enough; Jupiter's and Saturn's major moons
 // are placed about them.
@@ -15,6 +16,8 @@ const PLANETS=[
   ['Mars', [1.52371034, 0.09339410, 1.84969142, -4.55343205, -23.94362959, 49.55953891], [0.00001847, 0.00007882, -0.00813131, 19140.30268499, 0.44441088, -0.29257343], [1.0, 0.68, 0.48]],
   ['Jupiter', [5.20288700, 0.04838624, 1.30439695, 34.39644051, 14.72847983, 100.47390909], [-0.00011607, -0.00013253, -0.00183714, 3034.74612775, 0.21252668, 0.20469106], [1.0, 0.95, 0.86]],
   ['Saturn', [9.53667594, 0.05386179, 2.48599187, 49.95424423, 92.59887831, 113.66242448], [-0.00125060, -0.00050991, 0.00193609, 1222.49362201, -0.41897216, -0.28867794], [1.0, 0.92, 0.72]],
+  ['Uranus', [19.18916464, 0.04725744, 0.77263783, 313.23810451, 170.95427630, 74.01692503], [-0.00196176, -0.00004397, -0.00242939, 428.48202785, 0.40805281, 0.04240589], [0.80, 0.95, 1.0]],
+  ['Neptune', [30.06992276, 0.00859048, 1.77004347, -55.12002969, 44.96476227, 131.78422574], [0.00026291, 0.00005105, 0.00035372, 218.45945325, -0.32241464, -0.00508664], [0.66, 0.80, 1.0]],
 ];
 const PLANET_EARTH=[[1.00000261, 0.01671123, -0.00001531, 100.46457166, 102.93768193, 0.0], [0.00000562, -0.00004392, -0.01294668, 35999.37244981, 0.32327364, 0.0]];
 const PLANET_N=PLANETS.length;
@@ -35,6 +38,8 @@ function planetMag(name, r, d, i, ringSinB){
   if(name==='Venus') return -4.40+base+0.0009*i+0.000239*i*i-0.00000065*i*i*i;
   if(name==='Mars') return -1.52+base+0.016*i;
   if(name==='Jupiter') return -9.40+base+0.005*i;
+  if(name==='Uranus') return -7.11+base+0.00009*i;
+  if(name==='Neptune') return -7.00+base;
   return -8.88+base+0.044*i-2.60*ringSinB+1.25*ringSinB*ringSinB;
 }
 // Each planet's equatorial radius (km), flattening, north pole (J2000 RA, Dec; IAU WGCCRE 2015)
@@ -45,6 +50,8 @@ const PLANET_BODY=[
   [3396.19, 0.00589, 317.681, 52.887],
   [71492, 0.06487, 268.0566, 64.4953],
   [60268, 0.09796, 40.589, 83.537],
+  [25559, 0.02293, 257.311, -15.175],
+  [24764, 0.0171, 299.36, 43.46],
 ];
 const PL_AU_KM=149597870.7, LIGHT_DAY_AU=1/173.1446;
 // The major moons of Jupiter and Saturn: name, host (index in PLANETS), radius (km), absolute
@@ -93,11 +100,12 @@ function planetDisplay(mag, tint){ const d=magDisplay(mag, 200); return {px:d.px
 // walk-around view, and on the dome its drawn Sun over the true one.
 function bodyScale(dome){ return dome?(DOME_DISK/(dome.width*0.46))*90/SUN_RADIUS_DEG:DISK_SCALE; }
 // Zooming in stands for looking through binoculars or a telescope: the moons, fainter than the
-// naked-eye limit or lost in their planet's glare, show as the view narrows, by 2.5 magnitudes
+// naked-eye limit or lost in their planet's glare, and the faint outer planets, show as the view narrows, by 2.5 magnitudes
 // for each tenfold zoom past the walk-around view's usual 60 degrees, or the dome's full view.
 function moonGain(){ return vrOn?2.5*Math.log10(Math.max(1, 60/vrFov)):2.5*Math.log10(Math.max(1, domeZoom.z)); }
-// A mark's magnitude for whether it shows: a moon's less the zoom's gain.
-function markMag(s){ return s.host?s.mag-moonGain():s.mag; }
+// A mark's magnitude for whether it shows: a moon's, Uranus's or Neptune's less the zoom's gain
+// (Uranus is at the naked-eye limit, Neptune well past it).
+function markMag(s){ return s.host||s.kind>=5?s.mag-moonGain():s.mag; }
 // The epochs before history, and their ages in Myr. On any day of one of them, where each planet and
 // moon was on its orbit cannot be known: the Solar System is chaotic, its uncertainties growing
 // tenfold every ~10 Myr (Laskar 1989), and an epoch's age is uncertain by far more than any orbital
@@ -171,7 +179,7 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
       if(!(mp.alt>0)) return;
       const mmag=m[3]+5*Math.log10(r*dm)+0.02*i+dimMag, ms=planetDisplay(mmag, m[7]);
       const mark={az:mp.az, el:mp.alt, px:ms.px, rgb:ms.rgb, planet:m[0], host:name, mag:mmag, ra:mp.ra, dec:mp.dec, radDeg:Math.atan(m[2]/(dm*PL_AU_KM))*180/Math.PI, lit:(1+Math.cos(i*Math.PI/180))/2, behind:along>0, rho, tint:m[7], unknown:!!phases};
-      mark.body={dir:mp.dir, rad:mark.radDeg*Math.PI/180, light:body.light, pole:body.pole, kind:5, px:ms.px, rgb:ms.rgb, mag:mmag, front:false, tint:m[7], mark};
+      mark.body={dir:mp.dir, rad:mark.radDeg*Math.PI/180, light:body.light, pole:body.pole, kind:BODY_MOON, px:ms.px, rgb:ms.rgb, mag:mmag, front:false, tint:m[7], mark};
       marks.push(mark);
       if(!(mark.behind&&rho<DISK_SCALE)) bodies.push(mark.body);
     });
@@ -180,13 +188,14 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
 // The dome's version of the sky shader's bodyDisk, bodyAlbedo and saturnRing: the colour (before the
 // air, times its coverage) of body b where the view ray is src, drawn rad radians across its radius
 // and rPx pixels.
-const BODY_FLAT=[0, 0, 0.00589, 0.06487, 0.09796, 0];
+// The kinds of body: the planets in order (0-6), then any moon.
+const BODY_MOON=7, BODY_FLAT=PLANET_BODY.map(b=>b[1]).concat([0]);
 // How bright each kind's disk is drawn, after its albedo: Venus's clouds, lit nearer the Sun,
 // are several times brighter per area than the Moon's ground, Saturn's dimmer.
-const BODY_GAIN=[1.6, 2.0, 1.2, 1.0, 0.9, 1.0];
+const BODY_GAIN=[1.6, 2.0, 1.2, 1.0, 0.9, 1.0, 1.0, 1.0];
 // Each kind's Minnaert k: near 0.5 a disk as bright to its limb as the Moon's, and a crescent
-// bright (rock, and Venus's clouds, which scatter forward); near 0.9 the gas giants' darker limbs.
-const BODY_MINN=[0.6, 0.55, 0.7, 0.9, 0.9, 0.6];
+// bright (rock, and Venus's clouds, which scatter forward); near 0.9 the giants' darker limbs.
+const BODY_MINN=[0.6, 0.55, 0.7, 0.9, 0.9, 0.85, 0.85, 0.6];
 function bandOf(lat, a, b, w){ return smooth01(a-w, a+w, lat)-smooth01(b-w, b+w, lat); }
 const mix3=(a, b, t)=>a.map((v, i)=>v+(b[i]-v)*t);
 function bodyAlbedo(kind, lat, tint){
@@ -197,6 +206,8 @@ function bodyAlbedo(kind, lat, tint){
     const belt=bandOf(lat, 7, 18, 1.5)+bandOf(lat, -21, -8, 1.5)+0.55*(bandOf(lat, 24, 31, 1.5)+bandOf(lat, -33, -26, 1.5))+0.3*(bandOf(lat, 36, 42, 2)+bandOf(lat, -44, -38, 2));
     return mix3(mix3([0.95, 0.91, 0.82], [0.70, 0.53, 0.40], Math.min(1, Math.max(0, belt))), [0.62, 0.60, 0.58], smooth01(45, 70, Math.abs(lat)));
   }
+  if(kind===5) return mix3([0.58, 0.84, 0.92], [0.70, 0.88, 0.92], smooth01(50, 80, Math.abs(lat)));
+  if(kind===6) return mix3([0.50, 0.66, 0.95], [0.40, 0.55, 0.90], bandOf(lat, -30, -15, 4));
   if(kind===4) return mix3(mix3([0.93, 0.85, 0.64], [0.78, 0.68, 0.50], 0.5*(bandOf(lat, 18, 32, 3)+bandOf(lat, -32, -18, 3))), [0.70, 0.70, 0.64], smooth01(55, 75, Math.abs(lat)));
   const m=Math.max(...tint, 1e-4); return tint.map(c=>c/m*0.85);
 }

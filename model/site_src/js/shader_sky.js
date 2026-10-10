@@ -54,8 +54,8 @@ float extinctionAt(float el, float k){
 uniform vec4 beads[6];
 // The planets and their moons (planets.js): per body, P its direction and drawn radius (radians),
 // C the colour of its point and that point's size (as a star's), L the way to the Sun from it and
-// its magnitude, N its north pole and its kind (0-4 Mercury to Saturn, 5 a moon), plus 8 when it
-// is nearer than the Sun and 16 when Saturn has no rings. moonGain is what zooming in adds to the moons' limit (planets.js moonGain).
+// its magnitude, N its north pole and its kind (0-6 Mercury to Neptune, 7 a moon), plus 8 when it
+// is nearer than the Sun and 16 when Saturn has no rings. moonGain is what zooming in adds to the limit for the moons, Uranus and Neptune (planets.js moonGain).
 uniform vec4 bodyP[${BODY_MAX}], bodyC[${BODY_MAX}], bodyL[${BODY_MAX}], bodyN[${BODY_MAX}]; uniform float bodyCnt, moonGain;
 // Moons' shadows that may fall on their planets (planets.js moonShadow): M the moon's place about
 // its planet in the planet's radii and w the planet's index among the bodies; K x the moon's radius
@@ -233,7 +233,8 @@ vec3 sunSurface(vec2 q, float pxR){
 }
 // A planet's cloud tops or ground at planetographic latitude lat (degrees): Mercury's grey rock,
 // Venus's clouds, Mars's ochre with its darker south and polar caps, Jupiter's belts and zones,
-// Saturn's fainter bands; a moon in its own tint.
+// Saturn's fainter bands, Uranus's pale cyan (paler toward the poles), Neptune's blue with a
+// darker southern band; a moon in its own tint.
 float bandOf(float lat, float a, float b, float w){ return smoothstep(a-w, a+w, lat)-smoothstep(b-w, b+w, lat); }
 vec3 bodyAlbedo(int kind, float lat, vec3 tint){
   if(kind==0) return vec3(0.66, 0.62, 0.57);
@@ -243,12 +244,14 @@ vec3 bodyAlbedo(int kind, float lat, vec3 tint){
     float belt=bandOf(lat, 7.0, 18.0, 1.5)+bandOf(lat, -21.0, -8.0, 1.5)+0.55*(bandOf(lat, 24.0, 31.0, 1.5)+bandOf(lat, -33.0, -26.0, 1.5))+0.3*(bandOf(lat, 36.0, 42.0, 2.0)+bandOf(lat, -44.0, -38.0, 2.0));
     return mix(mix(vec3(0.95, 0.91, 0.82), vec3(0.70, 0.53, 0.40), clamp(belt, 0.0, 1.0)), vec3(0.62, 0.60, 0.58), smoothstep(45.0, 70.0, abs(lat)));
   }
+  if(kind==5) return mix(vec3(0.58, 0.84, 0.92), vec3(0.70, 0.88, 0.92), smoothstep(50.0, 80.0, abs(lat)));
+  if(kind==6) return mix(vec3(0.50, 0.66, 0.95), vec3(0.40, 0.55, 0.90), bandOf(lat, -30.0, -15.0, 4.0));
   if(kind==4) return mix(mix(vec3(0.93, 0.85, 0.64), vec3(0.78, 0.68, 0.50), 0.5*(bandOf(lat, 18.0, 32.0, 3.0)+bandOf(lat, -32.0, -18.0, 3.0))), vec3(0.70, 0.70, 0.64), smoothstep(55.0, 75.0, abs(lat)));
   return tint/max(max(tint.r, tint.g), max(tint.b, 1e-4))*0.85;
 }
-const float BODY_FLAT[6]=float[6](0.0, 0.0, 0.00589, 0.06487, 0.09796, 0.0);
+const float BODY_FLAT[8]=float[8](${BODY_FLAT.map(v=>v.toFixed(5)).join(', ')});
 // How bright each kind's disk is drawn, after its albedo, and its Minnaert k (planets.js BODY_GAIN, BODY_MINN).
-const float BODY_GAIN[6]=float[6](${BODY_GAIN.map(v=>v.toFixed(2)).join(', ')}), BODY_MINN[6]=float[6](${BODY_MINN.map(v=>v.toFixed(2)).join(', ')});
+const float BODY_GAIN[8]=float[8](${BODY_GAIN.map(v=>v.toFixed(2)).join(', ')}), BODY_MINN[8]=float[8](${BODY_MINN.map(v=>v.toFixed(2)).join(', ')});
 // A body's disk where the view ray is o (the offset across the sky, in drawn radii) and the line of
 // sight v: its lit colour (rgb) and coverage (a), the surface point x and how far along v it lies
 // (t, toward the observer negative). The disk is the flattened spheroid about pole n, lit from L,
@@ -825,7 +828,7 @@ void main(){
         float sig=max(C.w*starPx, sigMin), reach=max(P.w*(ringed?2.3:1.0)+2.0*pxA, 4.0*sig);
         vec3 dd=src-P.xyz; float d2=dot(dd, dd);
         if(d2>reach*reach) continue;
-        float rPx=P.w/pxA, diskK=smoothstep(1.0, 3.0, rPx), vis=1.0-smoothstep(lim-0.8, lim+0.2, L.w+dm-(kind==5?moonGain:0.0));
+        float rPx=P.w/pxA, diskK=smoothstep(1.0, 3.0, rPx), vis=1.0-smoothstep(lim-0.8, lim+0.2, L.w+dm-(kind>=5?moonGain:0.0));
         vec3 o=(src-P.xyz*dot(src, P.xyz))/sin(P.w), x; float t;
         if(inSun){
           vec4 dk=bodyDisk(o, P.xyz, N.xyz, L.xyz, kind, rPx, C.rgb, x, t);

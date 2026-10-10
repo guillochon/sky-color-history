@@ -526,6 +526,8 @@ const REFL={
   Mars:{n:[[380, 0.15], [450, 0.2], [500, 0.27], [550, 0.45], [600, 0.76], [650, 0.9], [700, 0.96], [780, 1]], note:'sunlight off iron-oxide dust, dark in the blue', band:[400, 560, 'Fe³⁺']},
   Jupiter:{n:[[380, 0.6], [450, 0.75], [500, 0.85], [550, 0.94], [600, 1], [780, 1]], ch4:[[543, 0.06, 3], [619, 0.18, 4], [727, 0.42, 5]], note:'sunlight off ammonia clouds, with the bands of the methane above them'},
   Saturn:{n:[[380, 0.45], [450, 0.6], [500, 0.75], [550, 0.9], [600, 1], [780, 1]], ch4:[[543, 0.06, 3], [619, 0.2, 4], [727, 0.48, 5]], note:'sunlight off its yellower haze and its rings, with methane bands'},
+  Uranus:{n:[[380, 0.85], [450, 0.95], [500, 1], [550, 0.95], [600, 0.62], [650, 0.45], [700, 0.3], [780, 0.12]], ch4:[[543, 0.25, 4], [619, 0.5, 6], [727, 0.75, 8]], note:'sunlight off its haze and clouds, the red taken out by the methane above them'},
+  Neptune:{n:[[380, 0.9], [450, 1], [500, 0.97], [550, 0.82], [600, 0.5], [650, 0.33], [700, 0.2], [780, 0.08]], ch4:[[543, 0.3, 4], [619, 0.6, 6], [727, 0.8, 8]], note:'sunlight off its clouds through more methane than Uranus has, bluer still'},
   Io:{n:[[380, 0.3], [450, 0.45], [500, 0.75], [550, 0.9], [600, 0.97], [780, 1]], note:'sunlight off sulfur and its frosts, dark in the violet'},
   Europa:{n:[[380, 0.7], [450, 0.82], [550, 0.95], [780, 1]], note:'sunlight off water ice, a little reddened'},
   Ganymede:{n:[[380, 0.72], [500, 0.85], [600, 0.95], [780, 1]], note:'sunlight off ice and dark rock'},
