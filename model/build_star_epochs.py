@@ -255,8 +255,10 @@ print('wrote', path)
 # ---- Constellation figures: Stellarium's modern sky culture (skycultures/modern/index.json, ----
 # lines as chains of Hipparcos numbers), matched to the catalogue through XHIP's HD numbers.
 # Each vertex is placed today and moved to the supernova epochs as its star is. An epoch whose
-# figures have moved too far to be recognised gets none: the median change of a line's length
-# is printed for each, and the page draws only the epochs in CON_EPOCHS.
+# figures have moved too far to be traced gets none: the median change of a line's length is
+# printed for each, and the page draws only the epochs in CON_EPOCHS. Geminga's figures, 342,000
+# years back, are badly stretched (their lines change by about 1.3 times their length) but still
+# drawn, so the drift of the familiar shapes shows; ζ Oph's, 1.8 Myr back, are not.
 by_hd = {s['hd']: s for s in stars if s['hd']}
 sky = json.loads((DATA / 'stelcon' / 'index.json').read_text(encoding='utf-8'))
 verts, vindex, figures, dropped = [], {}, [], 0
@@ -294,7 +296,7 @@ def line_change(pos0, pos1):
 
 
 now = [(s['ra'], s['dec']) for s in verts]
-con_pos, CON_MAX = {}, 0.25          # the median line stretched or shrunk by more than a quarter
+con_pos, CON_MAX = {}, 2.0           # the median line stretched or shrunk by more than twice its length
 for key, years in EPOCHS.items():
     pos = [at_epoch(s, years)[:2] for s in verts]
     change = line_change(now, pos)

@@ -76,10 +76,10 @@ function placeBodyMarks(){
   }
 }
 // Labels (l): a name beside each star, planet, satellite and supernova that shows. The faintest
-// labelled grows with the zoom, from about V 0.4 across 90° to every point (V 6.5) by 10°, and
-// a label that would overlap a brighter one's is left out, as is one on a point cloud hides. With
-// them, the constellation figures and names, wherever the epoch's stars still make them
-// (constellations.js).
+// labelled grows with the zoom, from about V 1.6 across 90° and V 3 at the usual 60° to every
+// point (V 6.5) by 20°, and a label that would overlap a brighter one's is left out, as is one
+// on a point cloud hides. With them, the constellation figures and names, wherever the epoch's
+// stars still make them (constellations.js).
 let vrLabels=false, vrLabelsDrawn=false;
 const CON_PLACES={};
 // The figures' vertices for the epoch, as right ascension and declination of date, or null.
@@ -132,7 +132,7 @@ function drawVRLabels(){
   vrLabelsDrawn=!!on;
   if(!on) return;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const lim=1.5+6.5*Math.log10(60/vrFov), key=EP[dIdx].key, pts=[];
+  const lim=3+8*Math.log10(60/vrFov), key=EP[dIdx].key, pts=[];
   // The view's projection, as projectBody, for a direction at true altitude; null behind.
   const fy=Math.tan(vrFov*Math.PI/360), fx=fy*W/Math.max(H, 1), yaw=vrYaw*Math.PI/180, pitch=vrPitch*Math.PI/180;
   const cp=Math.cos(pitch), sp=Math.sin(pitch), cy=Math.cos(yaw), sy=Math.sin(yaw);
