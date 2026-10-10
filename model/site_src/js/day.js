@@ -5,7 +5,12 @@ const sel=document.getElementById('depoch'); EP.forEach((ep,i)=>{ const o=docume
 let dIdx=MODERN_IDX, dLat='Mid-latitude', minutes=720, autoExpo=false;
 const DAYMIN=1440; // midnight to midnight
 sel.value=dIdx;
-const LATDEG={'Equator':0,'Mid-latitude':45,'Polar':75};
+const LATDEG={'Equator':0,'Mid-latitude':45,'Polar':75,'Mid-latitude S':-45,'Polar S':-75};
+// The southern latitudes share the northern ones' sky tables: the colours are tabulated by the
+// Sun's height and the azimuth from it, the same in either hemisphere (the air is not told apart).
+function dayLat(){ return dLat.replace(/ S$/, ''); }
+// The latitude in words, as the dome's corner and the VR view give it.
+function latLabel(){ const d=LATDEG[dLat]; return d?(d<0?'−':'')+Math.abs(d)+'°':'equator'; }
 const SZ=DAY.szas, VZ=DAY.vz, AZ=DAY.az;
 // The dome's zoom: the scroll wheel magnifies it up to DOME_ZOOM_MAX times about the pointer.
 // z scales the fisheye's radius and (ox, oy) moves its centre, in canvas pixels.
@@ -292,7 +297,7 @@ function cityUplight(key, Yref, k, p){
 function renderDay(fast){
   if(!dayReady(EP[dIdx].key, 'modern')) return;
   vrNote=''; syncDateUI();
-  const ep=EP[dIdx], rec=DAY.epochs[ep.key][dLat], sunNow=sunEquatorial(astroDay()); const {sza,az:sunAz}=sunGeom(LATDEG[dLat], minutes, sunNow.Dec);
+  const ep=EP[dIdx], rec=DAY.epochs[ep.key][dayLat()], sunNow=sunEquatorial(astroDay()); const {sza,az:sunAz}=sunGeom(LATDEG[dLat], minutes, sunNow.Dec);
   // Sunlight, and the moonlight it makes, go as the inverse square of the distance from the Sun:
   // 3.4% brighter at perihelion in January than on average, 3.3% dimmer at aphelion in July.
   const sunFlux=1/(sunNow.au*sunNow.au);
@@ -310,7 +315,7 @@ function renderDay(fast){
   const addField=(X, src, scale, vz, comp)=>{
     if(!src || src.fade<=0) return null;
     let azr=Math.abs(comp-src.az); if(azr>180) azr=360-azr;
-    const S=domeXYZ(ep.key,dLat,src.si,src.st,Math.min(vz,88),azr);
+    const S=domeXYZ(ep.key,dayLat(),src.si,src.st,Math.min(vz,88),azr);
     if(scale>0){ const f=src.fade*scale; X[0]+=S[0]*f; X[1]+=S[1]*f; X[2]+=S[2]*f; }
     return S;
   };
@@ -331,9 +336,9 @@ function renderDay(fast){
   if(cover>0.5 && sunSrc.fade>0){
     const rs=skySource(96, 0); ring=[];
     for(let ir=0;ir<=NR;ir++){ const vz=Math.min(90*ir/NR, 88), X=[0,0,0];
-      for(let azr=0;azr<=180;azr+=10){ const S=domeXYZ(ep.key,dLat,rs.si,rs.st,vz,azr), w=(azr===0||azr===180)?0.5:1; X[0]+=S[0]*w; X[1]+=S[1]*w; X[2]+=S[2]*w; }
+      for(let azr=0;azr<=180;azr+=10){ const S=domeXYZ(ep.key,dayLat(),rs.si,rs.st,vz,azr), w=(azr===0||azr===180)?0.5:1; X[0]+=S[0]*w; X[1]+=S[1]*w; X[2]+=S[2]*w; }
       ring.push(X.map(v=>v/18)); }
-    const zen=domeXYZ(ep.key,dLat,si,st,0,0)[1]*sunSrc.fade;
+    const zen=domeXYZ(ep.key,dayLat(),si,st,0,0)[1]*sunSrc.fade;
     ringK=1e-3*zen/Math.max(ring[0][1], 1e-30)*smooth01(0.5, 1, cover);
   }
   const addRing=(X, vz)=>{ if(!ring) return; const r=ring[Math.min(NR, Math.round(vz/90*NR))]; X[0]+=r[0]*ringK; X[1]+=r[1]*ringK; X[2]+=r[2]*ringK; };
@@ -344,7 +349,7 @@ function renderDay(fast){
   const zodiXY=xyY2XYZ([NIGHT_REST_XY[0], NIGHT_REST_XY[1], 1]), ekD=extK(ep.key), cduD=cdPerUnit();
   const ringLux=ringR?ringIlluminance(ringR, sunDir, ecl.pole, sunFlux, ekD):0, ringSky=ringR?xyY2XYZ([0.285, 0.300, 0.027*ringLux/cduD]):null;
   // The sky on the grid, in XYZ: the night sky, then the Sun's field, the Moon's, and the ring.
-  const grid=DOME_XYZ, S=DOME_TMP, slices=denseSlices(ep.key, dLat), sunF=sunVis*sunFlux;
+  const grid=DOME_XYZ, S=DOME_TMP, slices=denseSlices(ep.key, dayLat()), sunF=sunVis*sunFlux;
   let Ymax=1e-30, Yhold=1e-30, Ysun=1e-30;
   const zAbs=zodiOn?absZenith(ep.key):0;
   for(let ir=0;ir<=NR;ir++){ const vz=90*ir/NR, vzc=Math.min(vz,88), nr=night[ir], rg=ring?ring[Math.min(NR, Math.round(vz/90*NR))]:null;
@@ -353,13 +358,13 @@ function renderDay(fast){
       let X0=nr[0], X1=nr[1], X2=nr[2];
       if(!(sunSrc.fade<=0)){
         let azr=Math.abs(comp-sunSrc.az); if(azr>180) azr=360-azr;
-        domeSample(slices, ep.key, dLat, sunSrc.si, sunSrc.st, vzc, azr, S);
+        domeSample(slices, ep.key, dayLat(), sunSrc.si, sunSrc.st, vzc, azr, S);
         if(sunF>0){ const f=sunSrc.fade*sunF; X0+=S[0]*f; X1+=S[1]*f; X2+=S[2]*f; }
         const y=S[1]*sunSrc.fade; if(y>Ysun) Ysun=y; if(S[1]>Yhold) Yhold=S[1];
       }
       if(!(moonSrc.fade<=0)){
         let azr=Math.abs(comp-moonSrc.az); if(azr>180) azr=360-azr;
-        domeSample(slices, ep.key, dLat, moonSrc.si, moonSrc.st, vzc, azr, S);
+        domeSample(slices, ep.key, dayLat(), moonSrc.si, moonSrc.st, vzc, azr, S);
         if(mScale>0){ const f=moonSrc.fade*mScale; X0+=S[0]*f; X1+=S[1]*f; X2+=S[2]*f; }
       }
       if(rg){ X0+=rg[0]*ringK; X1+=rg[1]*ringK; X2+=rg[2]*ringK; }
@@ -400,7 +405,7 @@ function renderDay(fast){
   }
   // Ice halos (halo.js), from the Sun and the Moon: each source's halo luminance over Yref per
   // unit of haloAt, and its colour as linear RGB of unit luminance.
-  const hStr=haloStrength(ep.key, dLat), halos=[];
+  const hStr=haloStrength(ep.key, dayLat()), halos=[];
   let haloVR=null;
   if(hStr>0){
     let rMin=Infinity; for(let c=0;c<NG;c++) if(rgrid[c]<rMin) rMin=rgrid[c];
@@ -522,7 +527,10 @@ function renderDay(fast){
   document.getElementById('rmet').textContent=meteorReadout();
   document.getElementById('rcomet').textContent=cometReadout();
   metKick();
-  document.getElementById('rmoon').textContent = (moon.el<-moon.radDeg ? 'below horizon' : moon.el.toFixed(1)+'°')+' · '+Math.round(moonLit(moon, sunAz, 90-sza)*100)+'% lit · '+fullPct(mScale/MOON_SUN_FULL)+' of full'+(lunar?' · '+(MOON_V_SUN-2.5*Math.log10(Math.max(mScale, 1e-40))).toFixed(1)+' mag · '+lunar.text:'');
+  document.getElementById('rmoon').textContent = (moon.el<-moon.radDeg ? 'below horizon' : moon.el.toFixed(1)+'°')+' · '+Math.round(moonLit(moon, sunAz, 90-sza)*100)+'% lit · '+fullPct(mScale/MOON_SUN_FULL)+' of full';
+  // The eclipse's details have a cell of their own that is always there, so the Sun's and Moon's
+  // readouts keep their size as an eclipse comes and goes.
+  document.getElementById('recl').textContent=eclipse?'Sun · '+eclipse:lunar?'Moon · '+(MOON_V_SUN-2.5*Math.log10(Math.max(mScale, 1e-40))).toFixed(1)+' mag · '+lunar.text:'none';
   if(vrOn) paintVR();
   if(fast) return;
   // compass + rim
@@ -532,7 +540,7 @@ function renderDay(fast){
   // Two short lines in the corner, clear of the sky circle and the S mark.
   dctx.font='italic 20px Newsreader, Georgia, serif'; dctx.fillText(ep.short, 12, H-27);
   if(z>1.005){ dctx.font='15px Newsreader, Georgia, serif'; dctx.fillText(`${z<9.95?z.toFixed(1):'10'}× · middle-drag to pan, double-click to reset`, 12, 22); }
-  dctx.font='15px Newsreader, Georgia, serif'; dctx.fillText(`${ep.age} · ${dLat==='Polar'?'75° latitude':dLat==='Mid-latitude'?'45° latitude':'equator'}`, 12, H-8);
+  dctx.font='15px Newsreader, Georgia, serif'; dctx.fillText(`${ep.age} · ${dLat==='Equator'?'equator':latLabel()+' latitude'}`, 12, H-8);
   // readouts
   document.getElementById('hclock').textContent=clockLabel(minutes)+(dayHours()<24?` · ${dayHours()}-hour day · ${Math.round(yearDays())}-day year`:'');
   document.getElementById('relev').textContent=(90-sza).toFixed(1)+'°';
@@ -544,7 +552,6 @@ function renderDay(fast){
   const fmt=X=>{ if(X[1]*cdu<1) return skyMagArcsec(X[1]*cdu).toFixed(1)+' mag/arcsec²'; const s=X[0]+X[1]+X[2]; const c=cct(X[0]/s,X[1]/s); return (c>800&&c<60000? c.toLocaleString()+' K':'—')+` · ${(100*X[1]/YREF).toPrecision(2)}%`; };
   document.getElementById('rzen').textContent=fmt(zX); document.getElementById('rhor').textContent=fmt(hX);
   document.getElementById('rsun').textContent = sza>=90 ? 'below horizon' : (sunRel<=3e-4 ? 'not visible' : (()=>{const s=sX[0]+sX[1]+sX[2]; return cct(sX[0]/s,sX[1]/s).toLocaleString()+' K · '+(sunRel*100).toPrecision(2)+'%';})());
-  if(eclipse) document.getElementById('rsun').textContent+=' · '+eclipse;
   // swatch bar along the sun's vertical
   const bar=document.getElementById('hbar'); bar.innerHTML='';
   const pts=[[88,0],[75,0],[60,0],[45,0],[30,0],[15,0],[0,0],[15,180],[30,180],[45,180],[60,180],[75,180],[88,180]];
@@ -554,7 +561,7 @@ function renderDay(fast){
   paintDomeAurora();
   refreshDomeTip();
 }
-function warm(){ const ep=EP[dIdx], key=ep.key, lat=dLat; let s=0; if(!DAY.epochs[key]){ loadDay(key).then(()=>{ if(EP[dIdx].key===key && dLat===lat && DAY.epochs[key]) warm(); }); return; } const step=()=>{ if(EP[dIdx].key!==key||dLat!==lat) return; while(s<SZ.length && denseSlices(key,lat)[s]) s++; if(s>=SZ.length) return; denseSlice(key,lat,s); s++; (window.requestIdleCallback||setTimeout)(step); }; (window.requestIdleCallback||setTimeout)(step); }
+function warm(){ const ep=EP[dIdx], key=ep.key, lat=dayLat(); let s=0; if(!DAY.epochs[key]){ loadDay(key).then(()=>{ if(EP[dIdx].key===key && dayLat()===lat && DAY.epochs[key]) warm(); }); return; } const step=()=>{ if(EP[dIdx].key!==key||dayLat()!==lat) return; while(s<SZ.length && denseSlices(key,lat)[s]) s++; if(s>=SZ.length) return; denseSlice(key,lat,s); s++; (window.requestIdleCallback||setTimeout)(step); }; (window.requestIdleCallback||setTimeout)(step); }
 // The controls ask for a render on the next frame, so a burst of input draws once.
 let renderQueued=0;
 function requestRender(){ if(!renderQueued) renderQueued=requestAnimationFrame(()=>{ renderQueued=0; renderDay(); }); }
@@ -621,6 +628,13 @@ let playSpeed='default';
 const SPEED_X={default:1, fast:5};
 // Clock minutes per real second at real time: a minute of the clock is dayHours × 2.5 s.
 function realMinPerSec(){ return 1/(dayHours()*2.5); }
+// The play speed as words and a multiple of real time, for the VR view's clock line (at the VR
+// pace, a fifth of the page's), shown paused or playing.
+function speedLabel(){
+  if(playSpeed==='real') return 'real time';
+  const x=(2.5/0.06)/5*60*24/dayHours()*SPEED_X[playSpeed];
+  return (playSpeed==='fast'?'fast':'normal speed')+', '+Math.round(x).toLocaleString()+'×';
+}
 function setPlaySpeed(s){
   if(!(s==='real'||s==='default'||s==='fast')) return;
   playSpeed=s;

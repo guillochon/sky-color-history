@@ -107,6 +107,10 @@ function aurSubstorm(n, t, kh, rise=6){
 // line strong, as low-energy electrons pour in at the oval's equatorward edge.
 let aurStorm=false;
 function auroraState(key, latDeg, clockMin, zenithCd){
+  // The southern oval is the northern one mirrored (the magnetic poles taken at the geographic
+  // ones), so a southern sky is worked out at the northern latitude and drawn with north and
+  // south swapped (ns).
+  const ns=latDeg<0?-1:1; latDeg=Math.abs(latDeg);
   const [rmp, kp0, drive0, fO, fN]=AURORA_EPOCH[key]||AURORA_TODAY;
   // Each night has its own activity, blended into the next across the middle of the day.
   const seed=metHash(key), n=aurDayIndex(), x=clockMin/DAYMIN, w=smooth01(0.35, 0.65, x);
@@ -118,7 +122,7 @@ function auroraState(key, latDeg, clockMin, zenithCd){
   // Centre A+B·cos θ and half-width W0+W1·cos θ, θ the magnetic local time from noon.
   const A=(mid+noon)/2, B=(noon-mid)/2, W0=(hwm+hwn)/2, W1=(hwn-hwm)/2, mlt0=clockMin/DAYMIN*24;
   const here=A+B*Math.cos((mlt0-12)*Math.PI/12);
-  const st={on:false, key, lat:latDeg, mlt0, A, B, W0, W1, here, mid, fO, fN};
+  const st={on:false, key, lat:latDeg, ns, mlt0, A, B, W0, W1, here, mid, fO, fN};
   if(extK(key)>5){ st.why='hidden'; return st; }
   // An arc's red top, 300 km up, clears the horizon out to about 2,000 km (18°).
   let nearest=180;
@@ -235,7 +239,7 @@ function auroraFrame(st){
   return {t, arcs:aurFrame.arcs, v:aurFrame.v};
 }
 // Uniform locations for a program that includes AUR_GLSL.
-const AUR_UNIFORMS=['aurRayK','aurW0','aurW1','aurRed','aurLat','aurMlt0','aurA','aurB','aurSpan','aurIv','aurDiff','aurT','aurRefLat','aurSub','aurVr','aurSpec','aurK','aurSun'];
+const AUR_UNIFORMS=['aurRayK','aurW0','aurW1','aurRed','aurLat','aurMlt0','aurA','aurB','aurSpan','aurIv','aurDiff','aurT','aurRefLat','aurSub','aurVr','aurSpec','aurK','aurSun','aurNS'];
 function auroraUniforms(gl, prog, arcsUnit, raysUnit){
   const u=uniformLocs(gl, prog, AUR_UNIFORMS);
   gl.useProgram(prog);
@@ -250,7 +254,7 @@ function auroraSetUniforms(gl, u, st, t, sunDir){
   gl.uniform1f(u.aurA, st.A); gl.uniform1f(u.aurB, st.B); gl.uniform1f(u.aurSpan, st.span);
   gl.uniform1f(u.aurIv, st.iv); gl.uniform1f(u.aurDiff, st.diff); gl.uniform1f(u.aurT, t);
   gl.uniform1f(u.aurRefLat, st.refLat); gl.uniform1f(u.aurSub, st.sub); gl.uniform1f(u.aurVr, 4+10*st.sub);
-  gl.uniform4fv(u.aurSpec, st.spec); gl.uniform4fv(u.aurK, st.k); gl.uniform3fv(u.aurSun, sunDir);
+  gl.uniform4fv(u.aurSpec, st.spec); gl.uniform4fv(u.aurK, st.k); gl.uniform3fv(u.aurSun, [sunDir[0], sunDir[1]*st.ns, sunDir[2]]); gl.uniform1f(u.aurNS, st.ns);
 }
 const glv=v=>v.map(x=>x.toExponential(4)).join(', ');
 // auroraLight(rd, pxAng): the aurora's light in direction rd (east, north, up), as linear sRGB in
@@ -273,6 +277,7 @@ uniform sampler2D aurArcs; uniform sampler2D aurRays;
 uniform float aurRayK, aurRed, aurLat, aurMlt0, aurA, aurB, aurW0, aurW1, aurSpan, aurIv, aurDiff, aurT, aurRefLat, aurSub, aurVr;
 uniform vec4 aurSpec, aurK;
 uniform vec3 aurSun;
+uniform float aurNS;
 const float AUR_RE=6371.0, AUR_KMD=${KM_DEG.toFixed(1)};
 float aurErf(float x){
   float s=sign(x); x=abs(x); float t=1.0/(1.0+0.3275911*x);
@@ -307,6 +312,7 @@ float aurArcD(int i, vec3 P, vec3 ax, vec3 m0, float cosRef, out float s, out ve
 // reaching the ground from direction rd.
 vec4 auroraSpecies(vec3 rd, float pxAng){
   if(rd.z<=0.0) return vec4(0.0);
+  rd.y*=aurNS;
   float sl=sin(aurLat), cl=cos(aurLat);
   vec3 ax=vec3(0.0, cl, sl), m0=vec3(0.0, -sl, cl);
   float b2=AUR_RE*AUR_RE*rd.z*rd.z;
@@ -528,8 +534,8 @@ function auroraReadout(st){
   if(st.why==='hidden') return 'hidden by the CO₂';
   // Distance from here to the oval's nearer edge, on this meridian now.
   const off=Math.abs(st.here-st.lat)-(st.W0+st.W1*Math.cos((st.mlt0-12)*Math.PI/12));
-  const where=off<0.5?'overhead':`${Math.max(1, Math.round(off))}° ${st.here>st.lat?'north':'south'}`;
-  if(st.why==='far') return st.lat<st.mid?'oval too far north':'inside the polar cap';
+  const pole=st.ns<0?'south':'north', where=off<0.5?'overhead':`${Math.max(1, Math.round(off))}° ${st.here>st.lat?pole:st.ns<0?'north':'south'}`;
+  if(st.why==='far') return st.lat<st.mid?'oval too far '+pole:'inside the polar cap';
   const col=st.fO>=0.7?'green, red tops':(st.fO>=0.25?'pale green and violet':'violet and pink (nitrogen)');
   return `oval ${where} · `+(st.why==='bright'?'sky too bright':col);
 }

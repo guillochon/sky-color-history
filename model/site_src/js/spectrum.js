@@ -214,7 +214,7 @@ function cloudLight(px, key, lat){
 // far from the Sun's centre, in drawn solar radii, for the corona (null leaves it out). Returns {S (1 nm, cd/m² per nm-ish units), Y (cd/m²),
 // parts: [[name, Y]], marks: annotations}.
 function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null, cr=null, moonXY=null, sunXY=null){
-  const key=EP[dIdx].key, lat=dLat, cdu=cdPerUnit(), vz=Math.min(90-el, 88), parts=[], marks=[];
+  const key=EP[dIdx].key, lat=dayLat(), cdu=cdPerUnit(), vz=Math.min(90-el, 88), parts=[], marks=[];
   const S=new Float32Array(SP_N), sunlit=new Float32Array(SP_N), coronaEW=[];
   // sun: true for sunlight (it gets the Sun's lines), 'post' for light already through the air.
   const post=new Float32Array(SP_N);
@@ -619,7 +619,7 @@ function starAbove(T){
 // One airmass of the epoch's air, up to a constant, on the log grid: the direct Sun at 60° over
 // the Sun overhead.
 function spAirPerMass(key){
-  const D=spData, e=spEpoch(key), li=D.lats.indexOf(dLat), lo=spRaw(e, li, D.szas.indexOf(60), D.slots-1), hi=spRaw(e, li, D.szas.indexOf(0), D.slots-1);
+  const D=spData, e=spEpoch(key), li=D.lats.indexOf(dayLat()), lo=spRaw(e, li, D.szas.indexOf(60), D.slots-1), hi=spRaw(e, li, D.szas.indexOf(0), D.slots-1);
   return spTo1nm(lo.map((v, i)=>Math.max(v-hi[i], D.lo)));
 }
 // A point source's light S through X airmasses of the epoch's air, with the O2 and water bands.

@@ -161,7 +161,7 @@ function jumpNextLunarEclipse(total){
     if(Math.abs(ev.start-lead-(after-1000))>90*1000) break;
     after=ev.start+1000;
   }
-  if(!ev){ vrNote=total?'no total lunar eclipse in the next forty years':'no lunar eclipse in the next twelve years'; if(vrOn) paintVR(); else document.getElementById('rmoon').textContent=vrNote; return; }
+  if(!ev){ vrNote=total?'no total lunar eclipse in the next forty years':'no lunar eclipse in the next twelve years'; if(vrOn) paintVR(); else document.getElementById('recl').textContent=vrNote; return; }
   const at=pageAt(dayOfMs(ev.start-lead));
   document.getElementById('moonDate').value=at.date;
   minutes=at.min;

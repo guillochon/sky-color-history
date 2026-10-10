@@ -259,7 +259,7 @@ function jumpNextEclipse(central, totalOnly){
     if(Math.abs(ev.start-lead-(after-1000))>90*1000 && !(totalOnly && ev.type!=='total')) break;
     after=ev.start+1000;
   }
-  if(!ev){ vrNote=central?'no total or annular eclipse in the next forty years':'no eclipse in the next eight years'; if(vrOn) paintVR(); else document.getElementById('rsun').textContent=vrNote; return; }
+  if(!ev){ vrNote=central?'no total or annular eclipse in the next forty years':'no eclipse in the next eight years'; if(vrOn) paintVR(); else document.getElementById('recl').textContent=vrNote; return; }
   const at=pageAt(dayOfMs(ev.start-lead));
   document.getElementById('moonDate').value=at.date;
   minutes=at.min;
@@ -272,7 +272,7 @@ function vrQuery(){
   const q=new URLSearchParams(location.search);
   q.set('vr','1');
   q.set('epoch', EP[dIdx].key);
-  q.set('lat', dLat==='Equator'?'equator':dLat==='Polar'?'75':'45');
+  q.set('lat', dLat==='Equator'?'equator':String(LATDEG[dLat]));
   q.set('t', String(Math.floor(minutes)));
   q.set('date', document.getElementById('moonDate').value||localISODate(new Date()));
   return q;
@@ -288,7 +288,7 @@ function syncVRLink(force){
   // Safari throws after about 100 replaceState calls per 30 seconds, and that error was stopping the clock.
   // iOS also repaints the page on each query change. On a phone, leave the clock out of the address bar until playback pauses.
   const q=new URLSearchParams(location.search);
-  const latCode=dLat==='Equator'?'equator':dLat==='Polar'?'75':'45';
+  const latCode=dLat==='Equator'?'equator':String(LATDEG[dLat]);
   const samePlace=q.get('epoch')===EP[dIdx].key && q.get('lat')===latCode;
   if(!force && vrTouch && samePlace) return;
   vrLinkAt=now;
@@ -311,7 +311,7 @@ function applyLink(){
     if(idx>=0 && idx<EP.length){ dIdx=idx; sel.value=String(dIdx); }
   }
   const lat=(q.get('lat')||'').toLowerCase();
-  const latName={equator:'Equator','0':'Equator','45':'Mid-latitude',mid:'Mid-latitude','mid-latitude':'Mid-latitude','75':'Polar',polar:'Polar'}[lat];
+  const latName={equator:'Equator','0':'Equator','45':'Mid-latitude',mid:'Mid-latitude','mid-latitude':'Mid-latitude','75':'Polar',polar:'Polar','-45':'Mid-latitude S','-75':'Polar S'}[lat];
   if(latName){
     dLat=latName;
     document.querySelectorAll('[data-lat]').forEach(x=>x.setAttribute('aria-pressed', x.dataset.lat===latName?'true':'false'));

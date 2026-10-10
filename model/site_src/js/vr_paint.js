@@ -532,11 +532,11 @@ function paintVR(){
     afterPaint(()=>{ if(vrGL&&vrGL.note==='drawn'){ vrGL.note=''; hideVRLoad(); } });
   }
   const [hh, mm, ss]=clockParts(minutes);
-  const lat=dLat==='Polar'?'75°':dLat==='Mid-latitude'?'45°':'equator';
+  const lat=latLabel();
   const hud=vrGL.hud||(vrGL.hud={place:document.getElementById('vrplace'), note:document.querySelector('.vrnote'), clock:document.getElementById('vrclock'), date:document.getElementById('moonDate')});
   setText(hud.place, EP[dIdx].name+' · '+lat);
   setText(hud.note, vrCaption());
-  setText(hud.clock, (hud.date.value||'')+' · '+hh+':'+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0')+' · '+(dayPlaying?(playSpeed==='real'?'playing in real time':playSpeed==='fast'?'playing fast':'playing'):'paused')+(Math.abs(vrFov-60)>0.5?' · '+(vrFov<9.95?vrFov.toFixed(1):Math.round(vrFov))+'° view':'')+(skyNow.eclipse?' · '+skyNow.eclipse:'')+(vrClouds&&vrGL.field?' · clouds '+Math.round(vrGL.field.cov*100)+'%':'')+(vrNote?' · '+vrNote:''));
+  setText(hud.clock, (hud.date.value||'')+' · '+hh+':'+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0')+' · '+(dayPlaying?'playing':'paused')+' · '+speedLabel()+(Math.abs(vrFov-60)>0.5?' · '+(vrFov<9.95?vrFov.toFixed(1):Math.round(vrFov))+'° view':'')+(skyNow.eclipse?' · '+skyNow.eclipse:'')+(vrClouds&&vrGL.field?' · clouds '+Math.round(vrGL.field.cov*100)+'%':'')+(vrNote?' · '+vrNote:''));
   placeBodyMarks();
   drawVRLabels();
   followVRPin();
