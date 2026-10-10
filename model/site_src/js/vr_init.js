@@ -30,25 +30,39 @@ function whenLinked(gl, list, done){
 // which can freeze the browser for seconds. paintVR puts up a note before that draw.
 const vrSlow=new Map();
 function markSlow(job, prog, label){ if(prog && job.cold) vrSlow.set(prog, label); }
-// The sky program with the close-up detail (shader_sky.js VRFS), compiled the first time the view
-// wants it and then put in place of the one drawing. The compile can hold up the screen, so a note
-// goes up first and stays until the program's first draw (paintVR).
-function wantDetail(gl){
-  if(!vrGL||vrGL.detailJob) return;
-  vrGL.detailJob=true; vrGL.detailNote=true;
-  showVRLoad(VR_DETAIL_NOTE);
-  afterPaint(()=>{ if(vrGL) compileDetail(gl); });
-}
-const VR_DETAIL_NOTE='Loading the close-up detail…';
-function compileDetail(gl){
-  const job=vrGL.detailJob=glProgramAsync(gl, vrGL.vs, VRFS);
-  whenLinked(gl, [job], dp=>{
-    if(!dp||!vrGL){ if(vrGL) vrGL.detailNote=false; if(document.getElementById('vrload').textContent===VR_DETAIL_NOTE) hideVRLoad(); return; }
-    const old=vrGL.prog;
-    vrGL.u=setupSkyProg(gl, dp); vrGL.prog=dp; vrGL.detailOn=true; gl.deleteProgram(old);
-    markSlow(job, dp, 'the close-up detail');
-    skyUploaded=-1;
-    vrRestoreGL(gl); requestVR();
+// The close-up detail, a piece at a time: wantDetail(gl, f) asks for piece f, and its program is
+// compiled and, once linked, used: 'sun' a sky program with the Sun's photosphere (shader_sky.js
+// skyDetail), put in place of the one drawing; 'jup' or 'map' a program for the bodies' pass
+// (shader_bodies.js bodyFS) drawing Jupiter or the mapped bodies, beside the plain one. The compile
+// can hold up the screen, so a note naming the piece goes up first and stays until the program's
+// first draw (paintVR).
+const VR_DETAIL_NAMES={sun:"the Sun's surface", jup:"Jupiter's clouds", map:'the surface maps'};
+function wantDetail(gl, f){
+  if(!vrGL) return;
+  const w=vrGL.detailWant||(vrGL.detailWant=new Set());
+  if(w.has(f)) return;
+  w.add(f);
+  const note='Loading '+VR_DETAIL_NAMES[f]+'…';
+  vrGL.detailNotes=(vrGL.detailNotes||[]).concat([note]);
+  showVRLoad(note);
+  afterPaint(()=>{
+    if(!vrGL) return;
+    const src=f==='sun'?skyDetail(true):bodyFS(new Set([f]));
+    const job=glProgramAsync(gl, vrGL.vs, src);
+    whenLinked(gl, [job], dp=>{
+      if(!vrGL) return;
+      if(dp){
+        if(f==='sun'){
+          const old=vrGL.prog;
+          vrGL.u=setupSkyProg(gl, dp); vrGL.prog=dp; vrGL.detailOn=true; gl.deleteProgram(old);
+          skyUploaded=-1;
+        }else (vrGL.bodyProg||(vrGL.bodyProg={}))[f]=setupBodyProg(gl, dp);
+        markSlow(job, dp, VR_DETAIL_NAMES[f]);
+        vrRestoreGL(gl);
+      }
+      vrGL.detailDone=(vrGL.detailDone||[]).concat([note]);
+      requestVR();
+    });
   });
 }
 // Run fn once the browser has put the current frame on screen, so a note shown just before
@@ -108,14 +122,15 @@ function initVR(ready){
   const boot=glProgramAsync(gl, vs, VRFS_BOOT);
   const skyJob=glProgramAsync(gl, vs, VRFS_MAIN);
   const cloudJobs=[CLOUDFS, COMPFS, TEMPFS, NOISEFS].map(src=>glProgramAsync(gl, vs, src));
+  const bodyJob=glProgramAsync(gl, vs, bodyFS(new Set()));
   vrBoot=[ready];
   whenLinked(gl, [boot], prog=>{
     const waiting=vrBoot; vrBoot=null;
-    if(prog) setupVR(gl, vs, prog, skyJob, cloudJobs);
+    if(prog) setupVR(gl, vs, prog, skyJob, cloudJobs, bodyJob);
     for(const f of waiting) f(!!prog);
   });
 }
-function setupVR(gl, vs, prog, skyJob, cloudJobs){
+function setupVR(gl, vs, prog, skyJob, cloudJobs, bodyJob){
   gl.useProgram(prog);
   const buf=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
@@ -189,6 +204,8 @@ function setupVR(gl, vs, prog, skyJob, cloudJobs){
     vrGL.aurFbo=gl.createFramebuffer(); vrGL.aurStore={};
     vrRestoreGL(gl); requestVR();
   });
+  // The bodies' pass, plain (shader_bodies.js).
+  whenLinked(gl, [bodyJob], bp=>{ if(bp&&vrGL){ (vrGL.bodyProg||(vrGL.bodyProg={})).base=setupBodyProg(gl, bp); vrRestoreGL(gl); requestVR(); } });
   whenLinked(gl, cloudJobs, (cp, pp, tp, np)=>{ if(cp&&pp&&np&&vrGL){ setupCloudProgs(gl, cp, pp, tp, np); markSlow(cloudJobs[0], cp, 'the clouds'); vrRestoreGL(gl); requestVR(); } });
   // Last: when the moon image is already loaded this paints, so vrGL has to be complete.
   if(moonReady) uploadMoon();

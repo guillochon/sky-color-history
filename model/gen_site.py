@@ -192,6 +192,7 @@ PARTS = [
     'js/scenery.js',
     'js/shader_terrain.js',
     'js/shader_hit.js',
+    'js/shader_bodies.js',
     'js/shader_sky.js',
     'js/shader_clouds.js',
     'js/shader_present.js',

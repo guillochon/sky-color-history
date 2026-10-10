@@ -346,7 +346,8 @@ function paintVR(){
   // A program compiled from scratch can stall the browser on its first draw. Put up a note,
   // let it reach the screen, then draw.
   pickHit(vrGL.gl);
-  const firsts=[vrScenery&&vrGL.hitProg, vrScenery&&vrGL.townProg, vrClouds&&vrGL.cloudProg, vrGL.prog].filter(p=>p&&vrSlow.has(p));
+  const bps=Object.values(vrGL.bodyProg||{}).map(b=>b.p);
+  const firsts=[vrScenery&&vrGL.hitProg, vrScenery&&vrGL.townProg, vrClouds&&vrGL.cloudProg, vrGL.prog, ...bps].filter(p=>p&&vrSlow.has(p));
   if(firsts.length){
     if(vrGL.note==='waiting') return;
     if(vrGL.note!=='shown'){
@@ -368,7 +369,7 @@ function paintVR(){
     else { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, skyTexData(skyNow)); vrGL.skyW=w; vrGL.skyH=h; }
     skyUploaded=skyNow.gen;
   }
-  gl.uniform1f(u.nr, h-1); gl.uniform1f(u.na, w-1);
+  gl.uniform1f(u.nr, h-1); gl.uniform1f(u.na, w-1); vrGL.skyNa=[h-1, w-1];
   syncMoonTex();
   gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, vrGL.moonTex);
   gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex);
@@ -408,7 +409,7 @@ function paintVR(){
   if(sunPx>600&&skyNow.sunOn){
     const yw=vrYaw*Math.PI/180, pt=vrPitch*Math.PI/180, sd=horizDir(skyNow.sunAz, 90-skyNow.sza);
     const cosA=sd[0]*Math.sin(yw)*Math.cos(pt)+sd[1]*Math.cos(yw)*Math.cos(pt)+sd[2]*Math.sin(pt);
-    if(Math.acos(Math.min(1, cosA))<vrFov*Math.PI/180*Math.max(1, c.width/Math.max(c.height, 1))+skyNow.moon.sunRadDeg*DISK_SCALE*Math.PI/180) wantDetail(gl);
+    if(Math.acos(Math.min(1, cosA))<vrFov*Math.PI/180*Math.max(1, c.width/Math.max(c.height, 1))+skyNow.moon.sunRadDeg*DISK_SCALE*Math.PI/180) wantDetail(gl, 'sun');
   }
   const sm=syncSunTex(sunPx), so=sm&&sunOrientation(sm.A.key, astroDay()), sT=astroDay();
   gl.uniform4f(u.sunOri, so?so.P:0, so?so.B0:0, so?so.phase:0, so?1:0);
@@ -442,7 +443,7 @@ function paintVR(){
   const app=apparentEl(90-skyNow.sza), off=Math.min(...sunTauAt(app));
   const sCen=sunBandsAt(app, off), sLin=skyNow.sunRGB.map(v=>SRGB_LIN[Math.round(v)]);
   const gAll=Math.max(...sLin)/Math.max(...sCen, 1e-30);
-  gl.uniform1f(u.refK, sb.k); gl.uniform1f(u.sunOff, off); gl.uniform4fv(u.sunTau, sb.t.map(t=>t-off)); gl.uniform3fv(u.sunW, sb.w);
+  gl.uniform1f(u.refK, sb.k); vrGL.refKv=sb.k; gl.uniform1f(u.sunOff, off); gl.uniform4fv(u.sunTau, sb.t.map(t=>t-off)); gl.uniform3fv(u.sunW, sb.w);
   gl.uniform3fv(u.sunG, sCen.map((v, q)=>Math.max(gAll, v>0?sLin[q]/v:0)));
   gl.uniform4fv(u.sunLay, sl.lay); gl.uniform4fv(u.sunMir, sl.mir);
   // The Sun's light on the ground and the ground's colour, for the sky and cloud passes.
@@ -614,6 +615,7 @@ function paintVR(){
   gl.bindTexture(gl.TEXTURE_2D, tex);
   gl.drawArrays(gl.TRIANGLES, 0, 6);
   perfPassEnd('sky');
+  perfPass('bodies'); drawBodies(gl); perfPassEnd('bodies');
   if(!vrClouds||!vrLabels) vrGL.cloudAt=null;
   if(vrClouds&&vrGL.cloudProg&&vrGL.noise){
     perfPass('clouds');
@@ -710,9 +712,12 @@ function paintVR(){
     gl.activeTexture(gl.TEXTURE0); gl.useProgram(vrGL.prog);
   }
   perfPaintEnd(); perfBeg('labels & HUD');
-  if(vrGL.detailNote&&vrGL.detailOn&&!firsts.length){
-    vrGL.detailNote=false;
-    afterPaint(()=>{ if(document.getElementById('vrload').textContent===VR_DETAIL_NOTE) hideVRLoad(); });
+  // A piece of close-up detail now drawn: its note goes (or the next one's shows).
+  if(vrGL.detailDone&&vrGL.detailDone.length&&!firsts.length){
+    const done=vrGL.detailDone; vrGL.detailDone=[];
+    vrGL.detailNotes=vrGL.detailNotes.filter(n=>!done.includes(n));
+    afterPaint(()=>{ const el=document.getElementById('vrload'); if(!done.includes(el.textContent)) return;
+      if(vrGL&&vrGL.detailNotes.length) showVRLoad(vrGL.detailNotes[vrGL.detailNotes.length-1]); else hideVRLoad(); });
   }
   if(firsts.length||vrGL.note==='shown'){
     for(const p of firsts) vrSlow.delete(p);
@@ -770,6 +775,56 @@ function drawAuroraVR(gl, st, c){
   gl.activeTexture(gl.TEXTURE13); gl.bindTexture(gl.TEXTURE_2D, vrGL.mwTex||null);
   gl.activeTexture(gl.TEXTURE0);
 }
+// The planets' and moons' disks (shader_bodies.js), after the sky pass: for each body in view more
+// than a pixel across (uploadBodies' list), a draw clipped to the box round it, by the program for
+// its close-up detail when that is compiled (Jupiter's clouds; a mapped body's map once it is in),
+// else the plain one; added to the sky, or blended over it for a planet in front of the Sun.
+function drawBodies(gl){
+  const bp=vrGL.bodyProg, list=vrGL.bodyList;
+  if(!bp||!bp.base||!list||!list.length) return;
+  const c=gl.canvas, W=c.width, H=c.height, fy=Math.tan(vrFov*Math.PI/360), fx=fy*W/Math.max(H, 1), pxA=2*fy/Math.max(H, 1);
+  const sT=astroDay(), gT=sT*180, jg=(list.find(b=>b.kind===3)||{}).grs;
+  const sd=horizDir(skyNow.sunAz, 90-skyNow.sza), md=horizDir(skyNow.moon.az, skyNow.moon.el);
+  let used=null;
+  gl.enable(gl.SCISSOR_TEST); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+  list.forEach((b, i)=>{
+    const rPx=b.rad*DISK_SCALE/pxA, Sx=BODY_U.S[i*4], Sy=BODY_U.S[i*4+1];
+    if(rPx<1||Math.abs(Sx)>1e5) return;
+    const cx=(Sx/fx*0.5+0.5)*W, cy=(Sy/fy*0.5+0.5)*H, r=rPx*(b.rings?2.3:1)*1.05+3;
+    const x0=Math.max(0, Math.floor(cx-r)), y0=Math.max(0, Math.floor(cy-r)), x1=Math.min(W, Math.ceil(cx+r)), y1=Math.min(H, Math.ceil(cy+r));
+    if(x1<=x0||y1<=y0) return;
+    const code=surfCode(b.map), pr=(b.kind===3&&bp.jup)||(code>-0.5&&bp.map)||bp.base, u=pr.u;
+    if(pr!==used){
+      used=pr; gl.useProgram(pr.p);
+      gl.uniform2f(u.res, W, H); gl.uniform2f(u.hitScale, vrGL.hitInfo?vrGL.hitW/W:0, vrGL.hitInfo?vrGL.hitH/H:0);
+      gl.uniform1f(u.yaw, vrYaw*Math.PI/180); gl.uniform1f(u.pitch, vrPitch*Math.PI/180); gl.uniform1f(u.fov, vrFov*Math.PI/180);
+      gl.uniform1f(u.showScn, vrScenery?1:0); gl.uniform1f(u.refK, vrGL.refKv||1); gl.uniform1f(u.rCd, skyNow.rCd); gl.uniform1f(u.mwK, skyNow.extK);
+      gl.uniform1f(u.moonGain, moonGain()); gl.uniform1f(u.starPx, 0.35*(vrFov*Math.PI/180)/Math.max(window.innerHeight,1));
+      gl.uniform1f(u.nr, vrGL.skyNa[0]); gl.uniform1f(u.na, vrGL.skyNa[1]);
+      gl.uniform4f(u.fineT, gT-4096*Math.floor(gT/4096), sT-2000*Math.floor(sT/2000), 0, 0);
+      gl.uniform3fv(u.grsDir, jg?jg.dir:[1, 0, 0]); gl.uniform4f(u.grsAB, jg?jg.L:0, jg?jg.W:0, GRS_LAT, jg?jg.k:0);
+      gl.uniform4f(u.sunQ, sd[0], sd[1], sd[2], skyNow.sunOn?skyNow.moon.sunRadDeg*DISK_SCALE*Math.PI/180:0);
+      gl.uniform4f(u.moonQ, md[0], md[1], md[2], skyNow.moon.on?skyNow.moon.rad*DISK_SCALE:0);
+    }
+    gl.uniform4f(u.bP, b.dir[0], b.dir[1], b.dir[2], b.rad*DISK_SCALE);
+    gl.uniform4f(u.bC, b.rgb[0], b.rgb[1], b.rgb[2], b.px);
+    gl.uniform4f(u.bL, b.light[0], b.light[1], b.light[2], b.mag);
+    gl.uniform4f(u.bN, b.pole[0], b.pole[1], b.pole[2], b.kind+(b.front?8:0)+(b.kind===4&&!b.rings?16:0));
+    gl.uniform4f(u.bS, Sx, Sy, BODY_U.S[i*4+2], 0);
+    const m=b.meridian||[0, 0, 0]; gl.uniform4f(u.bM, m[0], m[1], m[2], code);
+    const sh=(b.shadows||[]).slice(0, SHADOW_MAX);
+    if(sh.length){
+      const M=new Float32Array(SHADOW_MAX*4), K=new Float32Array(SHADOW_MAX*4);
+      sh.forEach((s, k)=>{ M.set(s.m, k*4); K[k*4]=s.rm; K[k*4+1]=s.a; });
+      gl.uniform4fv(u.shadowM, M); gl.uniform4fv(u.shadowK, K);
+    }
+    gl.uniform1f(u.shadowCnt, sh.length);
+    gl.scissor(x0, y0, x1-x0, y1-y0);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+  });
+  gl.disable(gl.SCISSOR_TEST); gl.disable(gl.BLEND);
+  gl.useProgram(vrGL.prog);
+}
 // The planets and moons (planets.js placePlanets) into the sky shader's bodies, at the Sun's and
 // Moon's enlargement, and the moons' shadows on them.
 const BODY_U={P:new Float32Array(BODY_MAX*4), C:new Float32Array(BODY_MAX*4), L:new Float32Array(BODY_MAX*4), N:new Float32Array(BODY_MAX*4), S:new Float32Array(BODY_MAX*4), Mr:new Float32Array(BODY_MAX*4), M:new Float32Array(SHADOW_MAX*4), K:new Float32Array(SHADOW_MAX*4)};
@@ -785,9 +840,10 @@ function uploadBodies(gl, u){
   // Close enough for detail: Jupiter's clouds past a couple of dozen pixels' radius, a body's map
   // past a few (which fetches that body's map alone, surfaces.js).
   const radPx=b=>b.rad*DISK_SCALE/(2*fy/Math.max(c.height, 1));
-  if(list.some(b=>b.kind===3&&radPx(b)>20)) wantDetail(gl);
-  for(const b of list) if(b.map&&radPx(b)>5){ wantSurface(b.map); wantDetail(gl); }
+  if(list.some(b=>b.kind===3&&radPx(b)>20)) wantDetail(gl, 'jup');
+  for(const b of list) if(b.map&&radPx(b)>5){ wantSurface(b.map); wantDetail(gl, 'map'); }
   const cp=Math.cos(pt), sp=Math.sin(pt), cy=Math.cos(yw), sy=Math.sin(yw);
+  vrGL.bodyList=list;
   list.forEach((b, i)=>{
     const o=i*4;
     P.set(b.dir, o); P[o+3]=b.rad*DISK_SCALE;
