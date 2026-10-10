@@ -3,6 +3,7 @@ precision highp float;
 // VRFS_BOOT sets this to 0: sky and plain ground only, which compiles fast enough to show
 // while the full program compiles in the background.
 #define SCENERY 1
+// Random values in red (vN); the first row's green, blue and alpha hold the lunar eclipse's table.
 uniform sampler2D noiseTex;
 uniform sampler2D sky; uniform sampler2D moonMap; uniform sampler2D starMap; uniform sampler2D starBin; uniform sampler2D starIdx; uniform sampler2D weather; uniform sampler2D hitInfo; uniform sampler2D hitNrm; uniform sampler2D shadowTex; uniform vec2 hitScale, shScale; uniform sampler2D roadCells; uniform vec4 roadBox; uniform vec2 roadDim; uniform vec2 res;
 uniform float yaw,pitch,fov,sunAz,sunEl,sunRad,sunOn,nr,na,sunMu,showScn,mtnSnow;
@@ -32,11 +33,12 @@ uniform sampler2D aurTex; uniform float aurOn;
 // Ice halos (halo.js): x the Sun's and y the Moon's halo luminance over the sky reference per
 // unit of haloAt, with their colours as linear RGB of unit luminance.
 uniform vec2 haloK; uniform vec3 haloSunLin, haloMoonLin;
-// A lunar eclipse (lunar_eclipse.js): the shadow's light along its radius (linear, sRGB-coded),
-// and where its axis meets the Moon's disk (xy, in the disk's radii), the scale from disk radii
+// A lunar eclipse (lunar_eclipse.js): the shadow's light along its radius (linear, sRGB-coded, in
+// noiseTex's first row), and where its axis meets the Moon's disk (xy, in the disk's radii), the scale from disk radii
 // to the table's span (z), and whether the Moon is in the penumbra at all (w).
-uniform sampler2D eclTex; uniform vec4 eclU;
+uniform vec4 eclU;
 ${HALO_GLSL}
+${DSO_GLSL}
 // The Ordovician ring and the meteors (debris.js, meteors.js).
 ${RING_GLSL}
 ${MET_GLSL}
@@ -764,7 +766,7 @@ void main(){
         vec3 moonC=alb*(0.06+0.94*lit)*T;
         if(eclU.w>0.5){
           float t=length(vec2(x, y)-eclU.xy)*eclU.z;
-          if(t<1.0) moonC=lin2s3(s2lin3(moonC)*s2lin3(texture(eclTex, vec2((t*${LUN_LUT_N-1}.0+0.5)/${LUN_LUT_N}.0, 0.5)).rgb));
+          if(t<1.0) moonC=lin2s3(s2lin3(moonC)*s2lin3(textureLod(noiseTex, vec2((t*${LUN_LUT_N-1}.0+0.5)/128.0, 0.5/128.0), 0.0).gba));
         }
         float skyY=dot(skyC, vec3(0.2126, 0.7152, 0.0722));
         skyC+=moonC*(1.0-smoothstep(0.0, 1.15, skyY));
@@ -781,6 +783,12 @@ void main(){
         float rMw=texture(mwTex, vec2((gl+180.0)/360.0, (gb+${MW_BMAX.toFixed(1)})/${(2*MW_BMAX).toFixed(1)})).r*mwScale*extinctionAt(te, mwK);
         if(rMw>rBg*0.003) skyC=overSky(skyC, rBg, rMw, vec3(${mwLinGLSL()})*rMw);
       }
+    }
+    if(dsoCnt>0.5 && !onBody && te>-1.0){
+      // The nebulae and galaxies, behind the air like the Milky Way.
+      vec3 Ld=dsoAt(src, 2.0*fy/res.y)*extinctionAt(te, mwK);
+      float rD=dot(Ld, vec3(0.2126, 0.7152, 0.0722));
+      if(rD>rBg*0.003) skyC=overSky(skyC, rBg, rD, Ld);
     }
     if(haloK.x+haloK.y>0.0 && !onBody && te>-1.0){
       // Diamond dust: the halos, and the glints of single crystals, most of them where the halos are.

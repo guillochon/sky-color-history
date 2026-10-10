@@ -383,17 +383,22 @@ function paintVR(){
   gl.uniform1f(u.moonRad, skyNow.moon.rad*DISK_SCALE); gl.uniform1f(u.moonOn, skyNow.moon.on?1:0);
   gl.uniform1f(u.latRad, LATDEG[dLat]*Math.PI/180);
   // The lunar eclipse's shadow table, sent once per epoch, and its place on the disk.
-  // The table changes as the Moon moves through the shadow. Unit 6 also holds the clouds' 3D
-  // noise, on its own target, so the table is bound each time.
+  // The table changes as the Moon moves through the shadow. It rides in the noise texture's first
+  // row (unit 12), in green, blue and alpha, the red keeping the noise.
   const lu=skyNow.lunar;
-  gl.activeTexture(gl.TEXTURE6); gl.bindTexture(gl.TEXTURE_2D, vrGL.eclTex);
   if(lu&&vrGL.eclLut!==lu.lut){
-    const b=new Uint8Array(LUN_LUT_N*4);
-    for(let i=0;i<LUN_LUT_N;i++){ for(let q=0;q<3;q++) b[i*4+q]=linToByte(lu.lut[i*3+q]); b[i*4+3]=255; }
-    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, LUN_LUT_N, 1, gl.RGBA, gl.UNSIGNED_BYTE, b);
+    const b=vrGL.eclRow;
+    for(let i=0;i<LUN_LUT_N;i++) for(let q=0;q<3;q++) b[i*4+1+q]=linToByte(lu.lut[i*3+q]);
+    gl.activeTexture(gl.TEXTURE12); gl.bindTexture(gl.TEXTURE_2D, vrGL.noiseTex);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 128, 1, gl.RGBA, gl.UNSIGNED_BYTE, b);
     vrGL.eclLut=lu.lut;
   }
+  // The nebulae and galaxies' tiles on unit 6, which also holds the clouds' 3D noise on its own
+  // target, so they are bound each time.
+  syncDsoTex(gl);
+  gl.activeTexture(gl.TEXTURE6); gl.bindTexture(gl.TEXTURE_2D_ARRAY, vrGL.dsoTex||null);
   gl.activeTexture(gl.TEXTURE0);
+  uploadDso(gl, u);
   gl.uniform4f(u.eclU, lu?lu.c[0]:0, lu?lu.c[1]:0, lu?lu.k:0, lu?1:0);
   gl.uniform1f(u.sunOn, skyNow.sunOn?1:0);
   gl.uniform1f(u.sunRad, skyNow.moon.sunRadDeg*DISK_SCALE*Math.PI/180);

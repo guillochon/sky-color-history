@@ -4,7 +4,7 @@
 // Norma and Scorpius) and fades toward the anticentre, thicker toward the bulge, mottled by
 // noise; a bulge; the Sagittarius and Scutum star clouds; dust in a thin layer that splits the
 // band from Cygnus to Sagittarius (the Great Rift), plus the Coalsack and the Ophiuchus and
-// Taurus clouds; and the Magellanic Clouds and M31. The brightest field, the Sagittarius star
+// Taurus clouds. The Magellanic Clouds and M31 are images (dso.js). The brightest field, the Sagittarius star
 // cloud, is set to 8.5e-4 cd/m² (about 20.2 mag/arcsec² on its own, 20.0 with the natural sky,
 // at the bright end of what is measured), and the band elsewhere runs from about 40% of that in Cygnus to a tenth toward the
 // anticentre, in line with the integrated starlight of Leinert et al. 1998 (A&AS 127, 1). Its
@@ -14,12 +14,11 @@ let mwMap=null;
 // The map's terms that depend only on longitude, or only on latitude, are worked out once per
 // column or row. Spots (galactic longitude and latitude, and their widths in each, in degrees):
 // the bulge; the Sagittarius and Scutum star clouds; the Coalsack and the Ophiuchus and Taurus
-// dust; the Large and Small Magellanic Clouds and M31.
-const MW_SPOT=[[0, -1, 10, 8], [2, -4.5, 3, 2.5], [27, -2.5, 2.5, 2], [301, -1, 2.0, 2.0], [354, 16, 6, 5], [172, -15, 6, 5],
-  [280.5, -32.9, 3.2, 2.6], [302.8, -44.3, 1.6, 1.1], [121.2, -21.6, 1.1, 0.45]];
-// Fractal value noise: the cell size (degrees) and seed of each of mwSurface's six, three octaves
+// dust.
+const MW_SPOT=[[0, -1, 10, 8], [2, -4.5, 3, 2.5], [27, -2.5, 2.5, 2], [301, -1, 2.0, 2.0], [354, 16, 6, 5], [172, -15, 6, 5]];
+// Fractal value noise: the cell size (degrees) and seed of each of mwSurface's five, three octaves
 // each, on cells periodic in longitude.
-const MW_FBM=[[2.4, 1], [1.6, 2], [1.2, 3], [1.5, 4], [1.5, 5], [1.0, 6]];
+const MW_FBM=[[2.4, 1], [1.6, 2], [1.2, 3], [1.5, 4], [1.5, 5]];
 const MW_OCT=MW_FBM.flatMap(([cell, seed])=>[[cell, seed], [cell/2.5, seed+7], [cell/6, seed+13]]);
 function mwGs(x, w){ return Math.exp(-0.5*(x/w)*(x/w)); }
 // A cell corner's hash, from the XOR of its column's and its row's (and seed's) parts.
@@ -65,9 +64,7 @@ function mwSurface(C, R){
   I+=0.5*mwSpot(C, R, 1)+0.3*mwSpot(C, R, 2);
   let tau=C.dust*Math.exp(-Math.abs(b-C.rift)/2.0)*(0.35+1.3*mwFbm(C, R, 2));
   tau+=1.3*mwSpot(C, R, 3)+0.9*mwSpot(C, R, 4)*mwFbm(C, R, 3)*2+0.5*mwSpot(C, R, 5)*mwFbm(C, R, 4)*2;
-  I*=Math.exp(-tau);
-  I+=0.6*mwSpot(C, R, 6)*(0.7+0.6*mwFbm(C, R, 5))+0.32*mwSpot(C, R, 7)+0.22*mwSpot(C, R, 8);
-  return I;
+  return I*Math.exp(-tau);
 }
 function buildMilkyWay(){
   if(mwMap) return mwMap;

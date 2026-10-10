@@ -177,6 +177,14 @@ function drawVRLabels(){
   if(skyNow.sn) add(skyNow.sn, skyNow.sn.name||'Supernova', 'sn');
   // Active meteor showers' radiants (showers.js), marked with a small cross.
   for(const r of radiantMarks()){ const p=projectBody(r.el, r.az, 0); if(p.inView) pts.push({x:W/2+p.nx*W/2, y:H/2-p.ny*H/2, mag:-3, text:r.text, kind:'rad'}); }
+  // Nebulae and galaxies (dso.js), where the brightest of their light stands out from the sky; a
+  // galaxy's label gives its distance in the epoch shown.
+  for(const p of skyNow.dso||[]){
+    const el=Math.asin(Math.max(-1, Math.min(1, p.C[2])))*180/Math.PI, az=Math.atan2(p.C[0], p.C[1])*180/Math.PI;
+    if(el<=0||p.k*extinction(el, skyNow.extK)*extZenith(key)<0.1*skyRAt(skyNow.rgrid, el, (az+360)%360)*skyNow.rCd) continue;
+    const ly=p.o.d*3261.56/p.s, far=p.o.k==='g'?` · ${ly>=1e6?(ly/1e6).toPrecision(2)+' Mly':Math.round(ly/1000)+' kly'}`:'';
+    add({el, az:(az+360)%360, mag:2}, (/^(M|NGC )\d/.test(p.o.id)&&p.o.name!==p.o.id?`${p.o.id} ${p.o.name}`:p.o.name)+far, 'dso');
+  }
   for(const s of skyNow.starMarks){
     if((s.mag>lim&&!s.planet)||s.el<=0||markHidden(s)) continue;
     // Labelled when it shows: its colour as the sky pass adds it (faded near the naked-eye limit,
@@ -189,7 +197,7 @@ function drawVRLabels(){
   }
   pts.sort((a, b)=>a.mag-b.mag);
   ctx.textBaseline='middle'; ctx.lineJoin='round';
-  const placed=[], STYLE={con:['italic 13px', 'rgba(150,180,235,.7)'], sn:['600 13px', '#dbeaff'], planet:['600 13px', '#ffe2a8'], moon:['11px', 'rgba(255,226,168,.75)'], rad:['600 12px', '#ffd2b8'], star:['12px', 'rgba(220,230,255,.85)'], stype:['italic 11px', 'rgba(205,215,240,.65)'], sat:['11px', 'rgba(180,190,205,.6)']};
+  const placed=[], STYLE={con:['italic 13px', 'rgba(150,180,235,.7)'], sn:['600 13px', '#dbeaff'], planet:['600 13px', '#ffe2a8'], moon:['11px', 'rgba(255,226,168,.75)'], rad:['600 12px', '#ffd2b8'], star:['12px', 'rgba(220,230,255,.85)'], dso:['italic 12px', 'rgba(235,205,230,.8)'], stype:['italic 11px', 'rgba(205,215,240,.65)'], sat:['11px', 'rgba(180,190,205,.6)']};
   for(const p of pts){
     if(!p.text) continue;
     const [font, col]=STYLE[p.kind];

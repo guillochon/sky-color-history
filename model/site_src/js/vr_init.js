@@ -67,8 +67,8 @@ function vrRestoreGL(gl){
 // Uniform locations, texture units, and fixed values for a sky program (boot or full).
 function setupSkyProg(gl, prog){
   gl.useProgram(prog);
-  const u=uniformLocs(gl, prog, ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','eye','nr','na','sunMu','showScn','mtnSnow','moonAz','moonEl','moonRad','moonOn','latRad','starPx','cloudCov','cloudScale','cloudDrift','cloudOn','clockH','pondN','snowCover','waterT','snOn','snDir','snCol','snLight','mlDir','mlLight','corona','coronaMap[0]','coronaRim','sunOri','sunDrift','toneU','rCd','mwOn','mwScale','mwK','mwDB','galX','galY','galZ','aurOn','haloK','haloSunLin','haloMoonLin','eclU','ringU','ringV','ringP','ringLin','metA[0]','metB[0]','metC[0]','metN','metFlash','cometH[0]','cometK[0]','cometS[0]','cometI[0]','cometN','cometComa','cometDust','cometIon','beads[0]','bodyP[0]','bodyC[0]','bodyL[0]','bodyN[0]','bodyS[0]','bodyCnt','fineRel','moonGain','shadowM[0]','shadowK[0]','shadowCnt','grsDir','grsAB','refK','sunOff','sunTau[0]','sunW[0]','sunG','sunLay[0]','sunMir','pond[0]','gridN','roadN','grid[0]','road[0]','obj[0]','kind[0]','hitScale','shScale','roadBox','roadDim']);
-  bindSamplers(gl, prog, [['sky',0],['moonMap',1],['sunMap',2],['sunMap2',8],['starMap',3],['starBin',4],['starIdx',5],['weather',7],['hitInfo',10],['hitNrm',11],['noiseTex',12],['mwTex',13],['aurTex',9],['eclTex',6],['shadowTex',14],['roadCells',15]]);
+  const u=uniformLocs(gl, prog, ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','eye','nr','na','sunMu','showScn','mtnSnow','moonAz','moonEl','moonRad','moonOn','latRad','starPx','cloudCov','cloudScale','cloudDrift','cloudOn','clockH','pondN','snowCover','waterT','snOn','snDir','snCol','snLight','mlDir','mlLight','corona','coronaMap[0]','coronaRim','sunOri','sunDrift','toneU','rCd','mwOn','mwScale','mwK','mwDB','galX','galY','galZ','aurOn','haloK','haloSunLin','haloMoonLin','eclU','ringU','ringV','ringP','ringLin','metA[0]','metB[0]','metC[0]','metN','metFlash','cometH[0]','cometK[0]','cometS[0]','cometI[0]','cometN','cometComa','cometDust','cometIon','beads[0]','bodyP[0]','bodyC[0]','bodyL[0]','bodyN[0]','bodyS[0]','bodyCnt','fineRel','moonGain','shadowM[0]','shadowK[0]','shadowCnt','grsDir','grsAB','refK','sunOff','sunTau[0]','sunW[0]','sunG','sunLay[0]','sunMir','pond[0]','gridN','roadN','grid[0]','road[0]','obj[0]','kind[0]','hitScale','shScale','roadBox','roadDim','dsoC[0]','dsoE[0]','dsoN[0]','dsoK[0]','dsoCnt']);
+  bindSamplers(gl, prog, [['sky',0],['moonMap',1],['sunMap',2],['sunMap2',8],['starMap',3],['starBin',4],['starIdx',5],['weather',7],['hitInfo',10],['hitNrm',11],['noiseTex',12],['mwTex',13],['aurTex',9],['dsoTex',6],['shadowTex',14],['roadCells',15]]);
   gl.uniform1f(u.fov, vrFov*Math.PI/180);
   gl.uniform1f(u.sunRad, SUN_RADIUS_DEG*DISK_SCALE*Math.PI/180);
   return u;
@@ -103,12 +103,15 @@ function setupVR(gl, vs, prog, skyJob, cloudJobs){
   texParams(gl, gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE);
   gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
   const u=setupSkyProg(gl, prog);
-  // Random values for vN in the sky shader, on unit 12, which nothing else uses.
-  const noiseTex=gl.createTexture(), nd=new Uint8Array(128*128);
-  let seed=12345; for(let i=0;i<nd.length;i++){ seed=(Math.imul(seed, 1103515245)+12345)>>>0; nd[i]=seed>>>24; }
+  // Random values for vN in the sky shader, in red on unit 12, which nothing else uses. The first
+  // row's other channels carry the lunar eclipse's table (vr_paint.js), which so needs no unit of
+  // its own: the sixteen the sky pass may use are all taken.
+  const noiseTex=gl.createTexture(), nd=new Uint8Array(128*128*4);
+  let seed=12345; for(let i=0;i<128*128;i++){ seed=(Math.imul(seed, 1103515245)+12345)>>>0; nd[i*4]=seed>>>24; }
+  for(let i=0;i<LUN_LUT_N;i++) nd[i*4+1]=nd[i*4+2]=nd[i*4+3]=255;
   gl.activeTexture(gl.TEXTURE12); gl.bindTexture(gl.TEXTURE_2D, noiseTex);
   texParams(gl, gl.LINEAR, gl.LINEAR, gl.REPEAT, gl.REPEAT);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, 128, 128, 0, gl.RED, gl.UNSIGNED_BYTE, nd);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 128, 128, 0, gl.RGBA, gl.UNSIGNED_BYTE, nd);
   gl.activeTexture(gl.TEXTURE0);
   const moonTex=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, moonTex);
   texParams(gl, gl.LINEAR_MIPMAP_LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE);
@@ -135,12 +138,8 @@ function setupVR(gl, vs, prog, skyJob, cloudJobs){
   gl.activeTexture(gl.TEXTURE5); gl.bindTexture(gl.TEXTURE_2D, starIdxTex);
   texParams(gl, gl.NEAREST, gl.NEAREST, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 1024, 32, 0, gl.RGBA, gl.FLOAT, new Float32Array(1024*32*4));
-  const eclTex=gl.createTexture();
-  gl.activeTexture(gl.TEXTURE6); gl.bindTexture(gl.TEXTURE_2D, eclTex);
-  texParams(gl, gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, LUN_LUT_N, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(LUN_LUT_N*4).fill(255));
   gl.activeTexture(gl.TEXTURE0);
-  vrGL={gl,u,tex,prog,buf,moonTex,sunTex,sunTex2,eclTex,eclLut:null,starTex,starBinTex,starIdxTex,noiseTex,starUploaded:-1,
+  vrGL={gl,u,tex,prog,buf,moonTex,sunTex,sunTex2,eclRow:nd.slice(0, 128*4),eclLut:null,starTex,starBinTex,starIdxTex,noiseTex,starUploaded:-1,
     vs, hits:{}, hitFbo:gl.createFramebuffer(), hitFloat:!!gl.getExtension('EXT_color_buffer_float')};
   // Stand-in hit buffers that say "nothing here, unshadowed" until the hit pass runs.
   const noHit=px=>{ const t=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);

@@ -8,8 +8,9 @@
 const openVR=applyLink();
 tslider.value=dIdx;
 moonImg.src='moon.jpg';
-// The Milky Way map takes a moment, so it is built once the page is up.
-(window.requestIdleCallback||setTimeout)(()=>{ buildMilkyWay(); renderDay(); });
+// The Milky Way map takes a moment, so it is built once the page is up; the nebulae and galaxies
+// are fetched then too.
+(window.requestIdleCallback||setTimeout)(()=>{ buildMilkyWay(); renderDay(); loadDso(); });
 showEpoch(dIdx); renderDay(); warm();
 if(openVR) enterVR(true);
 // extra(x, y, box), when given, fills a box under the colour line (the dome's spectrum).

@@ -282,6 +282,10 @@ function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null, cr=null, moo
     const glow=SKYGLOW[key];
     if(glow) add(key==='volcanic'?'oil lamps':'city light', glow[0]*(1+2.2*Math.exp(-el/12)), spGlow(key));
     if(mwMap&&skyNow.gal){ const L=mwAt(skyNow.gal, horizDir(az, el))*extinction(el, extK(key))*extZenith(key); add('Milky Way', L, SP_MW); }
+    if(skyNow.dso&&skyNow.dso.length){
+      const L=[0, 0, 0], p=dsoAt(skyNow.dso, horizDir(az, el), Math.PI/180*90/domeView().R, L);
+      if(p) add(p.o.name, (L[0]*0.2126+L[1]*0.7152+L[2]*0.0722)*extinction(el, extK(key))*extZenith(key), dsoSpectrum(p.o.k));
+    }
     if(aurora) aurora.forEach((I, k)=>add(['aurora, oxygen green', 'aurora, oxygen red', 'aurora, nitrogen violet', 'aurora, nitrogen red'][k], I*SP_AUR_Y[k], SP_AUR[k]));
   }
   // A cloud in front: its own light, over what of the sky shows through it.

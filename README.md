@@ -31,6 +31,11 @@ sky through time: the setting Sun, solar and lunar eclipses, halos, airglow, aur
   over the Earth's limb as seen from the Moon (Link's method) -> `eclipse_grid.json` (about a minute)
 - `lunar_inclination.py` - the Moon's orbital tilt in each epoch (moon.js `MOON_INC`), integrated back
   from today's along the Moon's distance history with the tidal model of Ćuk et al. 2016
+- `dso.py` - the nebulae and galaxies binoculars show under a dark sky: survey images (DSS2 and
+  Mellinger, through CDS hips2fits, cached in `model/data/dso`) with their stars taken out, scaled
+  to each object's magnitude and central surface brightness -> `site/dso.webp`, and where each was
+  in each epoch (Local Group orbits for M31 and the Magellanic Clouds, the cosmic expansion beyond,
+  the nebulae's lifetimes) -> `dso.json`
 - `report_sky.py` - the report's part on everything beyond the sky colors (shared by the HTML and LaTeX);
   `eclipse_report.py` draws its eclipsed-Moon figure and table from `eclipse_grid.json`
 - `gen_report.py`, `gen_site.py`, `make_figs.py`, `make_tex.py` - build the HTML report, the

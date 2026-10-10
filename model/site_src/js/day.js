@@ -384,26 +384,39 @@ function renderDay(fast){
   for(let c=0;c<NG;c++){ toneTo(grid, c*3, Yref, k, p, 0.95, colgrid); rgrid[c]=Math.max(grid[c*3+1], 1e-30)/Yref; }
   // The Milky Way on the dome, per pixel, once the sky is dark enough for it to matter.
   const cdu=cdPerUnit(), mwOn=!!mwMap && rgrid[0]<2e-6, galB=mwOn?galacticBasis(LATDEG[dLat]):null, ek=extK(ep.key);
+  // The nebulae and galaxies (dso.js): their bright cores can show through a moonlit sky.
+  const dsoList=rgrid[0]<2e-4?dsoPlace(LATDEG[dLat]):[];
   const geo=domeGeometry(W, H), W2=geo.W2;
-  // The Milky Way and the sky under it vary slowly, so the mix is worked out once per 2×2 pixel
-  // block: each pixel's linear colour is scaled by mwA and gains mwB of the Milky Way's colour.
-  const mwA=mwOn&&!fast?new Float32Array(geo.nb):null, mwB=mwA?new Float32Array(geo.nb):null;
+  // The Milky Way, the nebulae and galaxies, and the sky under them vary slowly, so the mix is
+  // worked out once per 2×2 pixel block: each pixel's linear colour is scaled by mwA and gains
+  // mwB (three channels) of their light.
+  const mwA=(mwOn||dsoList.length)&&!fast?new Float32Array(geo.nb):null, mwB=mwA?new Float32Array(geo.nb*3):null;
   if(mwA){
     if(!MW_LIN) MW_LIN=xyzLin(xyY2XYZ([MW_XY[0], MW_XY[1], 1]));
     const lgrid=DOME_LOGR; for(let c=0;c<NG;c++) lgrid[c]=Math.log(rgrid[c]);
     const ext=domeExtinction(geo, ek), extZ=extZenith(ep.key), scale=cdu*Yref, T=toneLUT(k, p), bl=geo.bl, dir=geo.dir;
-    const [b0, b1, b2]=galB, db=galB.db;
+    const [b0, b1, b2]=galB||GAL_AXES, db=galB?galB.db:0, dd=[0, 0, 0], Ld=[0, 0, 0], blockRad=Math.PI/R;
     for(let bi=0;bi<geo.nb;bi++){
       const c=bl.cell[bi]; if(c===0xFFFF) continue;
       const d0=dir[bi*3], d1=dir[bi*3+1], d2=dir[bi*3+2];
-      const x=d0*b0[0]+d1*b0[1]+d2*b0[2], y=d0*b1[0]+d1*b1[1]+d2*b1[2], z=d0*b2[0]+d1*b2[1]+d2*b2[2];
-      const rMw=mwSample(Math.atan2(y, x)*180/Math.PI, Math.asin(Math.max(-1, Math.min(1, z)))*180/Math.PI-db)*ext[bi]*extZ/scale;
-      if(!(rMw>0)) continue;
+      let rMw=0;
+      if(mwOn){
+        const x=d0*b0[0]+d1*b0[1]+d2*b0[2], y=d0*b1[0]+d1*b1[1]+d2*b1[2], z=d0*b2[0]+d1*b2[1]+d2*b2[2];
+        rMw=mwSample(Math.atan2(y, x)*180/Math.PI, Math.asin(Math.max(-1, Math.min(1, z)))*180/Math.PI-db)*ext[bi]*extZ/scale;
+      }
+      let rD=0;
+      if(dsoList.length){
+        dd[0]=d0; dd[1]=d1; dd[2]=d2;
+        if(dsoAt(dsoList, dd, blockRad, Ld)){ const s=ext[bi]*extZ/scale; Ld[0]*=s; Ld[1]*=s; Ld[2]*=s; rD=Ld[0]*0.2126+Ld[1]*0.7152+Ld[2]*0.0722; }
+      }
+      const rAdd=rMw+rD;
+      if(!(rAdd>0)) continue;
       const tr=bl.tr[bi], ta=bl.ta[bi];
       const la=lgrid[c]*(1-ta)+lgrid[c+1]*ta, lb=lgrid[c+NC]*(1-ta)+lgrid[c+NC+1]*ta, rBg=Math.exp(la*(1-tr)+lb*tr);
-      if(rMw<rBg*0.003) continue;
-      const rNew=rBg+rMw, tBg=toneAt(T, rBg), tNew=toneAt(T, rNew);
-      mwA[bi]=tBg>0?(tNew/tBg)*(rBg/rNew):0; mwB[bi]=tNew*rMw/rNew;
+      if(rAdd<rBg*0.003) continue;
+      const rNew=rBg+rAdd, tBg=toneAt(T, rBg), tNew=toneAt(T, rNew), g=tNew/rNew;
+      mwA[bi]=tBg>0?(tNew/tBg)*(rBg/rNew):0;
+      for(let q=0;q<3;q++) mwB[bi*3+q]=g*(MW_LIN[q]*rMw+(rD>0?Ld[q]:0));
     }
   }
   // Ice halos (halo.js), from the Sun and the Moon: each source's halo luminance over Yref per
@@ -437,8 +450,8 @@ function renderDay(fast){
       for(let q=0;q<3;q++){ const a=colgrid[c0+q]*(1-ta)+colgrid[c0+3+q]*ta, b=colgrid[c0+C2+q]*(1-ta)+colgrid[c0+C2+3+q]*ta; px[o+q]=a*(1-tr)+b*tr; }
       px[o+3]=255;
       if(mwA){
-        const bi=(y>>1)*W2+(x>>1), b=mwB[bi];
-        if(b>0){ const a=mwA[bi]; for(let q=0;q<3;q++) px[o+q]=linToByte(SRGB_LIN[Math.round(px[o+q])]*a+MW_LIN[q]*b); }
+        const bi=(y>>1)*W2+(x>>1), a=mwA[bi];
+        if(a>0||mwB[bi*3+1]>0){ for(let q=0;q<3;q++) px[o+q]=linToByte(SRGB_LIN[Math.round(px[o+q])]*a+mwB[bi*3+q]); }
       }
       if(ringOn) domeRingPixel(px, o, j, c, tr, ta, rctx);
       if(cometOn) domeCometPixel(px, o, j, c, tr, ta, cctx);
@@ -526,7 +539,7 @@ function renderDay(fast){
   const fullPct=r=>{ const p=r*100; return (p<1e-3 ? 'under 0.001' : p<0.1 ? p.toPrecision(1) : p<10 ? p.toFixed(1) : Math.round(p))+'%'; };
   const sn=supernovaPlace(LATDEG[dLat]);
   if(!fast) drawSupernovaOnDome(sn);
-  skyNow={colgrid, nr:NR, na:NA, sza, sunAz, sunRGB, sunVis, lunar, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE*1.5+35/60*refK(), moon, corona, coronaMap:cMap, coronaRim:cRim, beads, eclipse:eclipse||(lunar&&moon.on?lunar.text:''), central, rgrid, cityUp:cityUplight(ep.key, Yref, k, p), Yref, toneK:k, toneP:p, rCd:Yref*cdu, gal:mwMap?galacticBasis(LATDEG[dLat]):null, extK:ek, stars:stars.tex, starMarks:stars.marks, bodies:stars.bodies, starBins:stars.bins, starIdx:stars.idx, starIdxCount:stars.idxCount, sn, moonRel:mScale/MOON_SUN_FULL, mScale, sunFlux, halo:haloVR, ring:ringVR, ecl, comets, aur:auroraState(ep.key, LATDEG[dLat], minutes, rgrid[0]*Yref*cdu), gen:++skyGen};
+  skyNow={colgrid, nr:NR, na:NA, sza, sunAz, sunRGB, sunVis, lunar, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE*1.5+35/60*refK(), moon, corona, coronaMap:cMap, coronaRim:cRim, beads, eclipse:eclipse||(lunar&&moon.on?lunar.text:''), central, rgrid, cityUp:cityUplight(ep.key, Yref, k, p), Yref, toneK:k, toneP:p, rCd:Yref*cdu, gal:mwMap?galacticBasis(LATDEG[dLat]):null, dso:dsoList, extK:ek, stars:stars.tex, starMarks:stars.marks, bodies:stars.bodies, starBins:stars.bins, starIdx:stars.idx, starIdxCount:stars.idxCount, sn, moonRel:mScale/MOON_SUN_FULL, mScale, sunFlux, halo:haloVR, ring:ringVR, ecl, comets, aur:auroraState(ep.key, LATDEG[dLat], minutes, rgrid[0]*Yref*cdu), gen:++skyGen};
   document.getElementById('raur').textContent=auroraReadout(skyNow.aur);
   document.getElementById('rmet').textContent=meteorReadout();
   document.getElementById('rcomet').textContent=cometReadout();
