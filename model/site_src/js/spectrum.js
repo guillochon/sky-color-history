@@ -632,7 +632,7 @@ function starSpectrum(s, el){
   const key=EP[dIdx].key, T=s.star[6]||10000, {S, marks}=starAbove(T), X=Math.min(spAirmass(el), 40);
   spThroughAir(S, marks, key, X);
   const cls=starClass(T), m=starThroughAir(s.mag, s.el, key);
-  const note=`${s.star[7]||'A star'} · ${cls==='O'||cls==='A'?'an':'a'} ${cls} star, ${Math.round(T/50)*50} K · V ${s.mag.toFixed(1)} above the air, `
+  const note=`${s.star[7]||(s.star[8]?`${/^[AFMOS]/.test(s.star[8])?'An':'A'} ${starTypeLabel(s.star[8])}, a stand-in for a star no catalogue can trace this far back`:'A star')} · ${cls==='O'||cls==='A'?'an':'a'} ${cls} star, ${Math.round(T/50)*50} K · V ${s.mag.toFixed(1)} above the air, `
     +`${m.toFixed(1)} through ${X.toFixed(1)} airmass${X>=1.05?'es':''} of it, whose imprint is left in`;
   return {S, Y:1, parts:[], marks, note};
 }

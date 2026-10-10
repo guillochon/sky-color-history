@@ -162,6 +162,7 @@ PARTS = [
     'js/calendar.js',
     'js/sunspots.js',
     'js/stars_catalog.js',
+    'js/star_types.js',
     'js/stars_epochs.js',
     'js/constellations.js',
     'js/planets.js',

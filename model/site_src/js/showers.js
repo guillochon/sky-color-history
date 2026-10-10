@@ -358,3 +358,17 @@ function openStorm(){
   const p=altaz(lat, best.dec, rev(localSidereal()-best.ra));
   return {az:p.az, alt:p.alt};
 }
+// The radiants to mark with the labels (vr_hud.js): up to four active showers or outbursts with a
+// ZHR of 3 or more now, strongest first, with their radiant above the horizon: "Perseids radiant",
+// or in the older epochs, whose showers have no names, "Meteor shower radiant".
+function radiantMarks(){
+  if(!skyNow) return [];
+  const key=EP[dIdx].key, lat=LATDEG[dLat], lst=localSidereal(), out=[];
+  for(const a of showersAt(key, astroDay()).filter(a=>a.Z>=3).sort((a, b)=>b.Z-a.Z).slice(0, 4)){
+    const p=altaz(lat, a.dec, rev(lst-a.ra));
+    if(p.alt<=0) continue;
+    const named=a.sh&&a.sh.code, kind=a.storm?(a.storm.Z>=1000?' storm':' outburst'):'';
+    out.push({el:p.alt, az:p.az, Z:a.Z, text:named?`${a.storm?a.sh.member:a.sh.name}${kind} radiant`:`Meteor shower${kind} radiant`});
+  }
+  return out;
+}

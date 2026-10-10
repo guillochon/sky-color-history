@@ -75,7 +75,9 @@ function placeBodyMarks(){
     }
   }
 }
-// Labels (l): a name beside each star, planet, satellite and supernova that shows. The faintest
+// Labels (l): a name beside each star, planet, satellite and supernova that shows (an unnamed
+// stand-in star in the deep epochs by its spectral type), and a cross on the radiant of each
+// active meteor shower (showers.js radiantMarks). The faintest
 // labelled grows with the zoom, from about V 1.6 across 90° and V 3 at the usual 60° to every
 // point (V 6.5) by 20°, and a label that would overlap a brighter one's is left out, as is one
 // on a point cloud hides. With them, the constellation figures and names (constellations.js),
@@ -173,6 +175,8 @@ function drawVRLabels(){
     pts.push({x:x+off*0.7, y:y-off*0.7, mag:s.mag, text, kind});
   };
   if(skyNow.sn) add(skyNow.sn, skyNow.sn.name||'Supernova', 'sn');
+  // Active meteor showers' radiants (showers.js), marked with a small cross.
+  for(const r of radiantMarks()){ const p=projectBody(r.el, r.az, 0); if(p.inView) pts.push({x:W/2+p.nx*W/2, y:H/2-p.ny*H/2, mag:-3, text:r.text, kind:'rad'}); }
   for(const s of skyNow.starMarks){
     if((s.mag>lim&&!s.planet)||s.el<=0||markHidden(s)) continue;
     // Labelled when it shows: its colour as the sky pass adds it (faded near the naked-eye limit,
@@ -181,11 +185,11 @@ function drawVRLabels(){
     const m=starThroughAir(s.mag, s.el, key), dim=Math.pow(10, -0.2*(m-s.mag));
     const a=cloudAt?cloudAt(horizDir(s.az, apparentEl(s.el))):0;
     if(Math.max(...s.rgb)*starVisible(m-(s.mag-markMag(s)), skyRAt(skyNow.rgrid, s.el, s.az)*skyNow.rCd)*dim*(1-a)<0.06) continue;
-    add(s, s.planet||(s.star?s.star[7]||'':'satellite'), s.host?'moon':s.planet?'planet':s.star?'star':'sat');
+    add(s, s.planet||(s.star?s.star[7]||starTypeLabel(s.star[8]):'satellite'), s.host?'moon':s.planet?'planet':s.star?(s.star[7]?'star':'stype'):'sat');
   }
   pts.sort((a, b)=>a.mag-b.mag);
   ctx.textBaseline='middle'; ctx.lineJoin='round';
-  const placed=[], STYLE={con:['italic 13px', 'rgba(150,180,235,.7)'], sn:['600 13px', '#dbeaff'], planet:['600 13px', '#ffe2a8'], moon:['11px', 'rgba(255,226,168,.75)'], star:['12px', 'rgba(220,230,255,.85)'], sat:['11px', 'rgba(180,190,205,.6)']};
+  const placed=[], STYLE={con:['italic 13px', 'rgba(150,180,235,.7)'], sn:['600 13px', '#dbeaff'], planet:['600 13px', '#ffe2a8'], moon:['11px', 'rgba(255,226,168,.75)'], rad:['600 12px', '#ffd2b8'], star:['12px', 'rgba(220,230,255,.85)'], stype:['italic 11px', 'rgba(205,215,240,.65)'], sat:['11px', 'rgba(180,190,205,.6)']};
   for(const p of pts){
     if(!p.text) continue;
     const [font, col]=STYLE[p.kind];
@@ -196,6 +200,7 @@ function drawVRLabels(){
     placed.push(box, [p.x-4, p.y-4, p.x+4, p.y+4]);
     ctx.strokeStyle='rgba(0,0,0,.75)'; ctx.lineWidth=3; ctx.strokeText(p.text, x, y);
     ctx.fillStyle=col; ctx.fillText(p.text, x, y);
+    if(p.kind==='rad'){ ctx.strokeStyle=col; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(p.x-5, p.y); ctx.lineTo(p.x+5, p.y); ctx.moveTo(p.x, p.y-5); ctx.lineTo(p.x, p.y+5); ctx.stroke(); }
     if(placed.length>400) break;
   }
 }

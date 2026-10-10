@@ -101,19 +101,27 @@ function starsFor(key){
   if(seed==null) return STARS;
   const traced=(STAR_TRACED[key]||[]).map(full), have={}, bins=new Map();
   for(const s of traced){ const b=Math.floor(s[2]*4); have[b]=(have[b]||0)+1; }
-  for(const s of STARS){ const b=Math.floor(s[2]*4); if(!bins.has(b)) bins.set(b, []); bins.get(b).push(s); }
+  STARS.forEach((s, i)=>{ const b=Math.floor(s[2]*4); if(!bins.has(b)) bins.set(b, []); bins.get(b).push([s, i]); });
   const rand=mulberry32(seed>>>0);
   const d2r=Math.PI/180, [G0, G1, G2]=GAL_AXES, fill=[];
   for(const [b, group] of bins){
-    for(const s of group.slice(0, Math.max(0, group.length-(have[b]||0)))){
+    for(const [s, i] of group.slice(0, Math.max(0, group.length-(have[b]||0)))){
       const ra=s[0]*d2r, dec=s[1]*d2r, cd=Math.cos(dec);
       const sb=Math.max(-1, Math.min(1, G2[0]*cd*Math.cos(ra)+G2[1]*cd*Math.sin(ra)+G2[2]*Math.sin(dec)));
       const cb=Math.sqrt(1-sb*sb), l=rand()*2*Math.PI, u=cb*Math.cos(l), v=cb*Math.sin(l);
       const e=[0, 1, 2].map(i=>u*G0[i]+v*G1[i]+sb*G2[i]);
-      fill.push([((Math.atan2(e[1], e[0])/d2r)%360+360)%360, Math.asin(Math.max(-1, Math.min(1, e[2])))/d2r, s[2], s[3], 0, 0, s[6], '']);
+      // Unnamed, but with the spectral type of the star it copies (star_types.js).
+      fill.push([((Math.atan2(e[1], e[0])/d2r)%360+360)%360, Math.asin(Math.max(-1, Math.min(1, e[2])))/d2r, s[2], s[3], 0, 0, s[6], '', STAR_TYPES[i]||'']);
     }
   }
   return STAR_LISTS[key]=traced.concat(fill).sort((a, b)=>a[2]-b[2]).slice(0, 1000);
+}
+// A stand-in's label from its MK type: "K1.5 III" is a K1.5 giant.
+const STAR_LUM_WORD={V:'dwarf', IV:'subgiant', III:'giant', II:'bright giant', Ib:'supergiant', Iab:'supergiant', Ia:'supergiant', I:'supergiant'};
+function starTypeLabel(t){
+  if(!t) return '';
+  const [sp, lum]=t.split(' ');
+  return sp+' '+(STAR_LUM_WORD[lum]||'star');
 }
 function starBinsFor(up){
   const pxMax=STAR_PX_ANCHOR*Math.pow(42, 0.22);
