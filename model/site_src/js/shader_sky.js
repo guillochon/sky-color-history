@@ -16,6 +16,10 @@ uniform float corona, coronaMap[16], coronaRim;
 // of the Sun's north pole from celestial north, y the latitude of the disk's centre (B0), z the
 // rotation phase in turns, w whether the map is ready.
 uniform sampler2D sunMap; uniform vec4 sunOri;
+// The next day's map, and x the days from the first map's day to now, y from the next's, z the
+// next's weight: each is carried to now by the latitude's differential rotation and blended; w
+// the time in days modulo ten years, for the network, which turns the same way.
+uniform sampler2D sunMap2; uniform vec4 sunDrift;
 uniform sampler2D mwTex;
 uniform vec4 toneU; // display curve: k, p, cap, cd/m² per unit r (color.js toneT)
 uniform float rCd,mwOn,mwScale,mwK,mwDB;
@@ -194,12 +198,14 @@ vec3 sunSurface(vec2 q, float pxR){
   float cP=cos(sunOri.x), sP=sin(sunOri.x), cB=cos(sunOri.y), sB=sin(sunOri.y);
   float X=q.x*cP-q.y*sP, Y=q.x*sP+q.y*cP, Z=sqrt(max(0.0, 1.0-X*X-Y*Y));
   float lat=asin(clamp(Y*cB+Z*sB, -1.0, 1.0)), cmd=atan(-X, Z*cB-Y*sB);
-  float lon=fract(cmd/6.28318530718-sunOri.z);
-  float lod=log2(max(1.0, float(textureSize(sunMap, 0).x)/6.28318530718*pxR/sqrt(max(Z, 0.04))));
-  vec4 t=textureLod(sunMap, vec2(lon, lat/3.14159265+0.5), lod);
+  // Differential rotation against the equator (sunspots.js diffRot), in turns a day.
+  float s2=sin(lat)*sin(lat), dr=(-2.39*s2-1.78*s2*s2)/360.0, lon0=cmd/6.28318530718-sunOri.z;
+  float lon=fract(lon0-dr*sunDrift.x), v=lat/3.14159265+0.5, pxT=pxR/sqrt(max(Z, 0.04))/6.28318530718;
+  vec4 t=textureLod(sunMap, vec2(lon, v), log2(max(1.0, float(textureSize(sunMap, 0).x)*pxT)));
+  if(sunDrift.z>0.0) t=mix(t, textureLod(sunMap2, vec2(fract(lon0-dr*sunDrift.y), v), log2(max(1.0, float(textureSize(sunMap2, 0).x)*pxT))), sunDrift.z);
   float w=1.0-Z, fac=t.a, c=9.48*Z*w*w*w;
   if(pxR<0.012){
-    float cl=cos(lat), la=lon*6.28318530718;
+    float cl=cos(lat), la=fract(lon0-dr*sunDrift.w)*6.28318530718;
     vec3 p=vec3(cl*cos(la), cl*sin(la), sin(lat))*23.0, ip=floor(p);
     float f1=8.0, f2=8.0;
     for(int k=0;k<27;k++){

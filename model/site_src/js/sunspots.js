@@ -423,30 +423,37 @@ function sunspotLib(){
     }
     return {key, D, W, H, px, levels};
   }
-  return {sunAct, spotCoverage, spotGroups, buildSunMap, planckRatio};
+  return {sunAct, spotCoverage, spotGroups, buildSunMap, planckRatio, diffRot};
 }
 const SS=sunspotLib();
-// The maps for the epoch and day shown, made in a worker: first the placeholder (SUN_LO texels
-// round), then the full map (SUN_HI) once a disk more than SUN_HI_PX pixels in radius asks for it.
-// sunMap(rad) returns the best one ready for a disk of rad pixels, or the epoch's previous day's
-// placeholder meanwhile, or null; each new map redraws the page.
+// The maps for the epoch, made in a worker for whole days: the day shown and the next, so the
+// drawing can carry the spots smoothly through the day (sunMapsNow). Each comes first as the
+// placeholder (SUN_LO texels round), then as the full map (SUN_HI) once a disk more than
+// SUN_HI_PX pixels in radius, or the tooltip, asks for it. Each new map redraws the page.
 const SUN_LO=1024, SUN_HI=4096, SUN_HI_PX=150;
-let sunMaps={lo:null, hi:null}, sunQueue=[], sunBusy=false, sunGenN=0, sunWorker;
+let sunCache=[], sunQueue=[], sunBusy=false, sunGenN=0, sunWorker;
 function sunMapDay(){ return Math.floor(astroDay()); }
-function sunMap(rad=0){
-  const ep=EP[dIdx], key=ep.key, D=sunMapDay(), at=m=>m&&m.key===key&&m.D===D;
-  const lo=sunMaps.lo, hi=sunMaps.hi, wantHi=rad>SUN_HI_PX;
-  if(!at(lo)) requestSunMap(key, D, ep.teff||5772, SUN_LO);
-  if(wantHi&&!at(hi)) requestSunMap(key, D, ep.teff||5772, SUN_HI);
-  if(wantHi&&at(hi)) return hi;
-  if(at(lo)) return lo;
-  return lo&&lo.key===key?lo:null;
+function sunCached(key, D, W){ return sunCache.find(m=>m.key===key&&m.D===D&&m.W===W)||null; }
+// The maps to draw at the time shown, for a disk of rad pixels: A for the day the time falls in,
+// B for the next (null until it is made in the same detail), and how far through the day it is.
+// Without the day's own map, A is the epoch's nearest one made, carried to the time shown.
+function sunMapsNow(rad=0){
+  const ep=EP[dIdx], key=ep.key, t=astroDay(), D=Math.floor(t), teff=ep.teff||5772, wantHi=rad>SUN_HI_PX;
+  for(const d of [D, D+1]) if(!sunCached(key, d, SUN_LO)) requestSunMap(key, d, teff, SUN_LO);
+  if(wantHi) for(const d of [D, D+1]) if(!sunCached(key, d, SUN_HI)) requestSunMap(key, d, teff, SUN_HI);
+  const W=wantHi&&sunCached(key, D, SUN_HI)?SUN_HI:SUN_LO;
+  let A=sunCached(key, D, W);
+  const B=A?sunCached(key, D+1, W):null;
+  if(!A) A=sunCache.filter(m=>m.key===key&&m.W===SUN_LO).sort((p, q)=>Math.abs(p.D-t)-Math.abs(q.D-t))[0]||null;
+  return A?{A, B, f:t-D}:null;
 }
 function requestSunMap(key, D, teff, W){
   if(sunQueue.some(q=>q.key===key&&q.D===D&&q.W===W)) return;
-  // Requests for another epoch or day are stale.
-  sunQueue=sunQueue.filter(q=>q.key===key&&q.D===D&&!q.sent);
-  sunQueue.push({key, D, teff, W}); sunQueue.sort((a, b)=>a.W-b.W);
+  // Requests for another epoch, or days already past, are stale.
+  const D0=sunMapDay();
+  sunQueue=sunQueue.filter(q=>q.sent||(q.key===key&&q.D>=D0&&q.D<=D0+1));
+  sunQueue.push({key, D, teff, W});
+  sunQueue.sort((a, b)=>a.sent?-1:b.sent?1:a.W-b.W||a.D-b.D);
   pumpSunJobs();
 }
 function sunWorkerGet(){
@@ -464,8 +471,12 @@ function pumpSunJobs(){
   const done=m=>{
     sunBusy=false; sunQueue=sunQueue.filter(q=>q!==w);
     m={...m, gen:++sunGenN};
-    if(m.W>=SUN_HI) sunMaps.hi=m;
-    else{ sunMaps.lo=m; if(sunMaps.hi&&(sunMaps.hi.key!==m.key||sunMaps.hi.D!==m.D)) sunMaps.hi=null; }
+    // Keep the epoch's maps for the day shown and the next, and one placeholder to fall back on.
+    const key=EP[dIdx].key, D0=sunMapDay(), keep=x=>x.key===key&&x.D>=D0&&x.D<=D0+1;
+    sunCache=sunCache.filter(x=>!(x.key===m.key&&x.D===m.D&&x.W===m.W));
+    const back=sunCache.filter(x=>!keep(x)&&x.key===key&&x.W===SUN_LO).sort((p, q)=>Math.abs(p.D-D0)-Math.abs(q.D-D0))[0];
+    sunCache=sunCache.filter(x=>keep(x)||x===back);
+    sunCache.push(m);
     pumpSunJobs();
     renderDay(); if(vrOn) paintVR();
     if(m.W>=SUN_HI){ if(vrOn) refreshVRTip(); else refreshDomeTip(); }
@@ -499,34 +510,41 @@ const FAC_PEAK=[0.10, 0.13, 0.18];
 // (multiplying linear light instead would show them a pale gray on a near-white disk).
 const SPOT_GAMMA=2.2;
 function facMu(mu){ const w=1-mu; return 9.48*mu*w*w*w; }
-// The map at disk position (u east, v north, in disk radii), bilinear at mip level n: the raw
-// intensity ratios in R, G, B (I), the facular filling (a), and mu there.
-function sunMapSample(m, o, u, v, n){
+// The maps at disk position (u east, v north, in disk radii), bilinear at mip level n: the raw
+// intensity ratios in R, G, B (I), the facular filling (a), and mu there. Each map is carried from
+// its own day to the time shown by the latitude's differential rotation, and the next day's (B)
+// is blended in through the day, so spots drift, grow and fade without jumps.
+function sunMapSample(S, o, u, v, n){
   const cP=Math.cos(o.P), sP=Math.sin(o.P), cB=Math.cos(o.B0), sB=Math.sin(o.B0);
   const X=u*cP-v*sP, Y=u*sP+v*cP, Z=Math.sqrt(Math.max(0, 1-X*X-Y*Y));
   const lat=Math.asin(Math.max(-1, Math.min(1, Y*cB+Z*sB))), cmd=Math.atan2(-X, Z*cB-Y*sB);
-  let tu=cmd/(2*Math.PI)-o.phase; tu-=Math.floor(tu);
-  const L=m.levels[Math.min(n, m.levels.length-1)], x=tu*L.w-0.5, y=(lat/Math.PI+0.5)*L.h-0.5, i0=Math.floor(x), j0=Math.max(0, Math.min(L.h-2, Math.floor(y))), fx=x-i0, fy=Math.max(0, Math.min(1, y-j0));
-  const i1=((i0+1)%L.w+L.w)%L.w, ia=((i0%L.w)+L.w)%L.w, mu=Z, c=facMu(mu);
-  const g=q=>{ const a=L.px[(j0*L.w+ia)*4+q]*(1-fx)+L.px[(j0*L.w+i1)*4+q]*fx, b=L.px[((j0+1)*L.w+ia)*4+q]*(1-fx)+L.px[((j0+1)*L.w+i1)*4+q]*fx; return (a*(1-fy)+b*fy)/255; };
-  return {I:[g(0), g(1), g(2)], a:g(3), mu};
+  const dr=SS.diffRot(lat*180/Math.PI)/360, t=astroDay(), out={I:[0, 0, 0], a:0, mu:Z};
+  const one=(m, w)=>{
+    let tu=cmd/(2*Math.PI)-o.phase-dr*(t-m.D); tu-=Math.floor(tu);
+    const L=m.levels[Math.min(n, m.levels.length-1)], x=tu*L.w-0.5, y=(lat/Math.PI+0.5)*L.h-0.5, i0=Math.floor(x), j0=Math.max(0, Math.min(L.h-2, Math.floor(y))), fx=x-i0, fy=Math.max(0, Math.min(1, y-j0));
+    const i1=((i0+1)%L.w+L.w)%L.w, ia=((i0%L.w)+L.w)%L.w;
+    const g=q=>{ const a=L.px[(j0*L.w+ia)*4+q]*(1-fx)+L.px[(j0*L.w+i1)*4+q]*fx, b=L.px[((j0+1)*L.w+ia)*4+q]*(1-fx)+L.px[((j0+1)*L.w+i1)*4+q]*fx; return (a*(1-fy)+b*fy)/255; };
+    for(let q=0;q<3;q++) out.I[q]+=w*g(q);
+    out.a+=w*g(3);
+  };
+  const wB=S.B?S.f:0;
+  one(S.A, 1-wB); if(wB>0) one(S.B, wB);
+  return out;
 }
 // Light at disk position (u, v) as multipliers of linear R, G, B (out), sampled at mip level n.
-function sunSurfaceAt(m, o, u, v, n, out){
-  const s=sunMapSample(m, o, u, v, n), c=facMu(s.mu);
+function sunSurfaceAt(S, o, u, v, n, out){
+  const s=sunMapSample(S, o, u, v, n), c=facMu(s.mu);
   for(let q=0;q<3;q++) out[q]=Math.pow(s.I[q], SPOT_GAMMA)+s.a*c*FAC_PEAK[q];
   return out;
 }
-// What the spectrum tooltip sees at disk position (u, v), from the most detailed map ready: the
-// temperature there (the map's green ratio taken back through Planck's law), the photosphere's,
-// the facular filling and mu, and what it is; or null without a map.
+// What the spectrum tooltip sees at disk position (u, v), from the most detailed maps ready
+// (pointing at the Sun asks for the full ones; the tooltip is redrawn when they arrive): the
+// temperature there (the green ratio taken back through Planck's law), the photosphere's, the
+// facular filling and mu, and what it is; or null without a map.
 function sunFeatureAt(u, v){
-  const ep=EP[dIdx], D=sunMapDay(), m=[sunMaps.hi, sunMaps.lo].find(x=>x&&x.key===ep.key&&x.D===D);
-  // Pointing at the Sun asks for the full map, if it isn't made yet; the tooltip is redrawn
-  // when it arrives.
-  if(m!==sunMaps.hi) sunMap(Infinity);
-  if(!m||u*u+v*v>=1) return null;
-  const s=sunMapSample(m, sunOrientation(m.key, astroDay()), u, v, 0), teff=ep.teff||5772;
+  const ep=EP[dIdx], S=sunMapsNow(Infinity);
+  if(!S||u*u+v*v>=1) return null;
+  const s=sunMapSample(S, sunOrientation(ep.key, astroDay()), u, v, 0), teff=ep.teff||5772;
   let lo=1500, hi=teff;
   if(s.I[1]>=0.995) lo=teff;
   else for(let i=0;i<40;i++){ const T=(lo+hi)/2; if(SS.planckRatio(545, T, teff)<s.I[1]) lo=T; else hi=T; }
@@ -564,34 +582,45 @@ function domeSunXY(x, y){
 // inside the Moon (moonC: x, y, radius) or outside the dome are left alone.
 function drawSunSurfaceOnDome(sx, sy, rad, az, el, moonC){
   if(rad<4) return;
-  const m=sunMap(rad); if(!m) return;
-  const o=sunOrientation(m.key, astroDay());
+  const S=sunMapsNow(rad); if(!S) return;
+  const o=sunOrientation(S.A.key, astroDay());
   const {cx, cy, R}=domeView(), W=dome.width, H=dome.height;
   const x0=Math.max(0, Math.floor(sx-rad-1)), y0=Math.max(0, Math.floor(sy-rad-1)), x1=Math.min(W-1, Math.ceil(sx+rad+1)), y1=Math.min(H-1, Math.ceil(sy+rad+1));
   if(x1<x0||y1<y0) return;
   const ang=domeSunAngle(sx, sy, az, el);
-  const n=Math.max(0, Math.min(8, Math.round(Math.log2(m.W/(2*Math.PI)/rad)))), ca=Math.cos(ang), sa=Math.sin(ang);
+  const n=Math.max(0, Math.min(8, Math.round(Math.log2(S.A.W/(2*Math.PI)/rad)))), ca=Math.cos(ang), sa=Math.sin(ang);
   const bw=x1-x0+1, bh=y1-y0+1, img=dctx.getImageData(x0, y0, bw, bh), px=img.data, f=[1, 1, 1];
   for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++){
     const dx=x-cx, dy=y-cy; if(dx*dx+dy*dy>R*R) continue;
     if(moonC&&(x-moonC[0])**2+(y-moonC[1])**2<moonC[2]*moonC[2]) continue;
     const qx=x-sx, qy=y-sy, lx=qx*ca+qy*sa, ly=-qx*sa+qy*ca, u=lx/rad, v=-ly/rad;
     if(u*u+v*v>=0.995) continue;
-    sunSurfaceAt(m, o, u, v, n, f);
+    sunSurfaceAt(S, o, u, v, n, f);
     const k=((y-y0)*bw+(x-x0))*4;
     for(let q=0;q<3;q++) px[k+q]=linToByte(SRGB_LIN[px[k+q]]*f[q]);
   }
   dctx.putImageData(img, x0, y0);
 }
-// The walk-around view's copy of the map for a disk of rad pixels, sent when it changes; the map,
-// or null.
+// The walk-around view's copies of the maps for a disk of rad pixels (sunMapsNow): two textures,
+// each holding whichever map it was last sent, so the next day's map becomes the day's without
+// being sent again. Binds A's to unit 2 and B's to unit 8; returns the maps, or null.
 function syncSunTex(rad){
   if(!vrGL||!vrGL.sunTex) return null;
-  const m=sunMap(rad); if(!m) return null;
-  if(vrGL.sunGen===m.gen) return m;
-  const gl=vrGL.gl; gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, vrGL.sunTex);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, m.W, m.H, 0, gl.RGBA, gl.UNSIGNED_BYTE, m.px);
-  gl.generateMipmap(gl.TEXTURE_2D); gl.activeTexture(gl.TEXTURE0);
-  vrGL.sunGen=m.gen;
-  return m;
+  const S=sunMapsNow(rad); if(!S) return null;
+  const gl=vrGL.gl, slots=vrGL.sunSlots||(vrGL.sunSlots=[{tex:vrGL.sunTex, gen:-1}, {tex:vrGL.sunTex2, gen:-1}]);
+  const slotFor=(m, avoid)=>{
+    let sl=slots.find(x=>x.gen===m.gen);
+    if(!sl){
+      sl=slots.find(x=>x!==avoid);
+      gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, sl.tex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, m.W, m.H, 0, gl.RGBA, gl.UNSIGNED_BYTE, m.px);
+      gl.generateMipmap(gl.TEXTURE_2D); sl.gen=m.gen;
+    }
+    return sl;
+  };
+  const a=slotFor(S.A, S.B&&slots.find(x=>x.gen===S.B.gen)), b=S.B?slotFor(S.B, a):null;
+  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, a.tex);
+  gl.activeTexture(gl.TEXTURE8); gl.bindTexture(gl.TEXTURE_2D, (b||a).tex);
+  gl.activeTexture(gl.TEXTURE0);
+  return S;
 }

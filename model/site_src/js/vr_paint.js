@@ -290,9 +290,9 @@ function paintVR(){
   gl.uniform1f(u.sunRad, skyNow.moon.sunRadDeg*DISK_SCALE*Math.PI/180);
   // The photosphere's spots and faculae, once the day's map is made.
   const sunPx=skyNow.moon.sunRadDeg*DISK_SCALE*Math.PI/180/(2*Math.tan(vrFov*Math.PI/360)/c.height);
-  const sm=syncSunTex(sunPx), so=sm&&sunOrientation(sm.key, astroDay());
-  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, vrGL.sunTex); gl.activeTexture(gl.TEXTURE0);
+  const sm=syncSunTex(sunPx), so=sm&&sunOrientation(sm.A.key, astroDay()), sT=astroDay();
   gl.uniform4f(u.sunOri, so?so.P:0, so?so.B0:0, so?so.phase:0, so?1:0);
+  gl.uniform4f(u.sunDrift, sm?sT-sm.A.D:0, sm&&sm.B?sT-sm.B.D:0, sm&&sm.B?sm.f:0, sT-3650*Math.floor(sT/3650));
   gl.uniform1f(u.corona, skyNow.corona||0);
   gl.uniform1fv(u.coronaMap, skyNow.coronaMap||coronaMap(EP[dIdx].key)); gl.uniform1f(u.coronaRim, skyNow.coronaRim??1);
   // The night sky: the display curve, the Milky Way (uploaded once it is built), and limits.
