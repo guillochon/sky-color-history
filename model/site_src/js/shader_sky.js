@@ -193,7 +193,7 @@ float trueAlt(float app){ return app-refK*bennett(app); } // apparent altitude (
 // is an inverted, squeezed image of the rays above. sunG takes band light to linear sRGB, so the
 // disk's middle is sunCol. xyz is the band light reaching this ray, w its
 // fraction of the disk's radius in the nearest image, and off the ray's offset from the Sun's
-// centre in that image.
+// centre in the 545 nm image.
 const float SUN_DISP[20]=float[20](${SUN_DISP.join(', ')});
 const float SUN_APPS[10]=float[10](${SUN_APP.map(v=>v.toFixed(1)).join(', ')});
 // Zoomed in to arcseconds, the angle from a disk's centre can't come from the dot product of two
@@ -241,11 +241,14 @@ vec4 sunDiskAt(float comp, float app, vec3 sd, float rd, out vec3 off, bool fn, 
     // gradient rather than ten steps.
     float gap=max(dispX*abs(SUN_DISP[b]-SUN_DISP[min(b+1, 19)])*bend*0.01745329252, px);
     float cov=clamp(0.5+(sunRad-d)/gap, 0.0, 1.0);
+    // The surface is placed by the 545 nm image alone: taking the nearest image's offset would
+    // hold it still across the rows where the images' centres lie, smearing the granulation there.
+    if(b==8) off=ov;
     if(cov<=0.0) continue;
     int k0=i*20+b, k1=k0+20;
     float t=mix(sunTau[k0/4][k0%4], sunTau[k1/4][k1%4], f);
     P+=sunW[b]*exp(-t-(t+sunOff)*extra)*cov;
-    if(d/sunRad<r){ r=d/sunRad; off=ov; }
+    r=min(r, d/sunRad);
   }
   return vec4(P, r);
 }
