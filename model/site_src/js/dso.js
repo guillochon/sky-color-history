@@ -111,7 +111,8 @@ function syncDsoTex(gl){
   gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  gl.texStorage3D(gl.TEXTURE_2D_ARRAY, Math.log2(DSO_N)+1, gl.RGBA8, DSO_N, DSO_N, n);
+  // After the tiles, room for the airless bodies' maps (surfaces.js).
+  gl.texStorage3D(gl.TEXTURE_2D_ARRAY, Math.log2(DSO_N)+1, gl.RGBA8, DSO_N, DSO_N, n+SURF_LAYERS);
   gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE);
   gl.pixelStorei(gl.UNPACK_ROW_LENGTH, dsoImg.width);
   for(let i=0;i<n;i++){

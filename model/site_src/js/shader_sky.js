@@ -42,6 +42,7 @@ uniform vec2 haloK; uniform vec3 haloSunLin, haloMoonLin;
 uniform vec4 eclU;
 ${HALO_GLSL}
 ${DSO_GLSL}
+${SURF_GLSL}
 // The Ordovician ring and the meteors (debris.js, meteors.js).
 ${RING_GLSL}
 ${MET_GLSL}
@@ -560,7 +561,8 @@ vec4 bodyDisk(vec3 o, vec3 v, vec3 n, vec3 L, int kind, float rPx, vec3 tint, ve
   // East longitude (degrees) from the prime meridian.
   vec3 mp=M.xyz-n*dot(M.xyz, n); mp=dot(mp, mp)>1e-8?normalize(mp):normalize(cross(n, abs(n.x)<0.9?vec3(1.0, 0.0, 0.0):vec3(0.0, 1.0, 0.0)));
   float lon=atan(dot(nrm, cross(n, mp)), dot(nrm, mp))*57.2957795;
-  vec3 alb=kind==3?jupiterAlbedo(lat, lon, 57.2957795/max(rPx, 1.0)):bodyAlbedo(kind, lat, tint);
+  // A body with a spacecraft map (M.w its index, surfaces.js) shows it, mipmapped to the pixel.
+  vec3 alb=kind==3?jupiterAlbedo(lat, lon, 57.2957795/max(rPx, 1.0)):M.w>-0.5?surfAt(int(M.w+0.5), lon, lat, log2(max(512.0/360.0*57.2957795/max(rPx, 1.0)/max(mu, 0.1), 1e-6))):bodyAlbedo(kind, lat, tint);
   if(kind==3 && grsAB.x>0.0) alb=grsPaint(alb, nrm, n, lat);
   return vec4(alb*lit*BODY_GAIN[kind], cov);
 }

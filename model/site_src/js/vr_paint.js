@@ -395,7 +395,7 @@ function paintVR(){
   }
   // The nebulae and galaxies' tiles on unit 6, which also holds the clouds' 3D noise on its own
   // target, so they are bound each time.
-  syncDsoTex(gl);
+  syncDsoTex(gl); syncSurfTex(gl);
   gl.activeTexture(gl.TEXTURE6); gl.bindTexture(gl.TEXTURE_2D_ARRAY, vrGL.dsoTex||null);
   gl.activeTexture(gl.TEXTURE0);
   uploadDso(gl, u);
@@ -779,7 +779,7 @@ function uploadBodies(gl, u){
     C.set(b.rgb, o); C[o+3]=b.px;
     L.set(b.light, o); L[o+3]=b.mag;
     N.set(b.pole, o); N[o+3]=b.kind+(b.front?8:0)+(b.kind===4&&!b.rings?16:0);
-    Mr.set(b.meridian||[0, 0, 0], o); Mr[o+3]=b.map??-1;
+    Mr.set(b.meridian||[0, 0, 0], o); Mr[o+3]=vrGL.surfOn&&b.map!=null?b.map:-1;
     // Where it is on the image plane, seen at its apparent altitude: the sky shader's trueAlt
     // undone by Newton's method, which also gives the squeeze, true over apparent altitude.
     const d=b.dir, h=Math.asin(Math.max(-1, Math.min(1, d[2])))*180/Math.PI;

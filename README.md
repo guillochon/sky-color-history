@@ -31,6 +31,9 @@ sky through time: the setting Sun, solar and lunar eclipses, halos, airglow, aur
   over the Earth's limb as seen from the Moon (Link's method) -> `eclipse_grid.json` (about a minute)
 - `lunar_inclination.py` - the Moon's orbital tilt in each epoch (moon.js `MOON_INC`), integrated back
   from today's along the Moon's distance history with the tidal model of Ćuk et al. 2016
+- `surfaces.py` - Mercury's, Io's, Europa's, Ganymede's, Tethys's, Dione's and Rhea's global maps from
+  MESSENGER, Galileo, Voyager and Cassini (USGS and NASA, public domain), turned to the IAU prime
+  meridian, their gaps filled and colours toned toward true colour -> `site/surfaces.webp`
 - `dso.py` - the nebulae and galaxies binoculars show under a dark sky: survey images (DSS2 and
   Mellinger, through CDS hips2fits, cached in `model/data/dso`) with their stars taken out, scaled
   to each object's magnitude and central surface brightness -> `site/dso.webp`, and where each was

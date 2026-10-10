@@ -151,6 +151,8 @@ DAY_META = dict(szas=DAY['szas'], vz=DAY['vz'], az=DAY['az'], lats=DAY_LATS, yEm
 # and where each was in each epoch.
 DSO = json.loads((HERE / 'dso.json').read_text(encoding='utf-8'))
 DSO_IMG = f"dso.webp?v={hashlib.sha1((SITE / 'dso.webp').read_bytes()).hexdigest()[:10]}"
+# The airless bodies' surface maps (surfaces.py), fetched when the walk-around view first draws.
+SURF_IMG = f"surfaces.webp?v={hashlib.sha1((SITE / 'surfaces.webp').read_bytes()).hexdigest()[:10]}"
 # The interactive page, in the order the browser receives it.
 # shader_terrain.js is a JavaScript template string. It has to stay ahead of
 # shader_hit.js, which interpolates it.
@@ -174,6 +176,7 @@ PARTS = [
     'js/stars.js',
     'js/milkyway.js',
     'js/dso.js',
+    'js/surfaces.js',
     'js/aurora.js',
     'js/halo.js',
     'js/debris.js',
@@ -220,7 +223,7 @@ html = html.replace('__FAVICON__', 'data:image/svg+xml,' + urllib.parse.quote(fa
 PDF_V = hashlib.sha1((HERE.parent / 'latex' / 'main.pdf').read_bytes()).hexdigest()[:10]
 html = html.replace('href="main.pdf"', f'href="main.pdf?v={PDF_V}"')
 html = html.replace('__EP__', json.dumps(EP, separators=(',',':'))).replace('__DAY__', json.dumps(DAY_META, separators=(',',':')))
-html = html.replace('__DSO_IMG__', DSO_IMG).replace('__DSO__', json.dumps(DSO, separators=(',', ':'), ensure_ascii=False))
+html = html.replace('__SURF_IMG__', SURF_IMG).replace('__DSO_IMG__', DSO_IMG).replace('__DSO__', json.dumps(DSO, separators=(',', ':'), ensure_ascii=False))
 
 
 def minify(html):
