@@ -470,9 +470,13 @@ function paintVR(){
       }
       if(vrGL.shadowProg&&ensureShadowTarget(lw, lh)){
         shadowOn=true;
-        const shKey=geoKey+'|'+skyNow.sunAz+'|'+skyNow.sza;
-        if(shKey!==vrGL.shadowKey||vrGL.shadowProgUsed!==vrGL.shadowProg){
-          vrGL.shadowKey=shKey; vrGL.shadowProgUsed=vrGL.shadowProg;
+        // When only the Sun has moved (the day playing), the shadows follow every other paint: the
+        // Sun moves a few hundredths of a degree a frame. A paint that leaves them asks for another,
+        // so they catch up when the clock stops. A new view, size, scene or program redraws them at once.
+        const shKey=geoKey+'|'+skyNow.sunAz+'|'+skyNow.sza, sunOnly=vrGL.shadowKey.startsWith(geoKey+'|')&&vrGL.shadowProgUsed===vrGL.shadowProg;
+        if(shKey!==vrGL.shadowKey&&sunOnly&&!vrGL.shadowLate){ vrGL.shadowLate=true; requestVR(); }
+        else if(shKey!==vrGL.shadowKey||!sunOnly){
+          vrGL.shadowKey=shKey; vrGL.shadowProgUsed=vrGL.shadowProg; vrGL.shadowLate=false;
           perfPass('shadow');
           gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.shadowFbo);
           gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
