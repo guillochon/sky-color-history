@@ -496,7 +496,7 @@ function pinVRTip(cx, cy){
   else if(P.disk==='sun') pin={kind:'sun', ...onDisk(vrSunBasis(), P.d)};
   else pin={kind:'sky', d:P.d};
   const root=document.getElementById('vr'), tip=document.createElement('div'), mark=document.createElement('div');
-  tip.className='tip vrpintip'; mark.className='vrpinmark'; mark.setAttribute('aria-hidden', 'true');
+  tip.className='tip vrpintip'; mark.className='vrpinmark'; tip.style.display='none'; mark.setAttribute('aria-hidden', 'true');
   tip.innerHTML=`<div class="tbar"><button type="button" data-act="lock" aria-pressed="false" title="Lock the view to this" aria-label="Lock the view to this">${VR_LOCK_ICON(false)}</button><button type="button" data-act="close" title="Close" aria-label="Close">✕</button></div><span class="tline"></span><div class="spbox"></div>`;
   root.append(mark, tip);
   Object.assign(pin, {tip, mark, side:-1, size:[0, 0], sideFor:[0, 0]});
@@ -702,7 +702,8 @@ function followVRPin(){
   for(const p of vrPins){
     const at=vrPinPoint(p);
     if(!at){ p.tip.style.display='none'; p.mark.style.display='none'; continue; }
-    if(p.tip.style.display==='none') refreshPin(p); else placePin(p, at);
+    // Not shown, or not yet given its side: it is shown and placed when its pixels are in.
+    if(p.tip.style.display==='none'||p.side<0) refreshPin(p); else placePin(p, at);
   }
 }
 // Apparent altitude (degrees) to true (Bennett 1982, times refK), as the sky shader's trueAlt.
