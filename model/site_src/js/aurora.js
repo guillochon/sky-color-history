@@ -82,8 +82,14 @@ function aurNoise(x, y, P, s){
 function aurCirc(a, b){ return ((a-b)%24+36)%24-12; }
 // The page's day as a whole number of the epoch's days, the same all through the date in every
 // calendar. Everything random about a night hangs on it and on the clock, never on the date
-// string, so nothing jumps when the clock passes midnight.
-function aurDayIndex(){ return Math.round(astroDay()*24/dayHours()-minutes/DAYMIN); }
+// string, so nothing jumps when the clock passes midnight. It comes from the date alone: taking
+// the clock off the day number and rounding sat on .5 in an epoch whose days start half a day
+// number off, and flipped between two nights, and their substorms, as the clock moved.
+function aurDayIndex(){
+  const [Y,M,D]=pageDate();
+  if(gregorian()) return dayNumber(Y, M, D, 0);
+  return Math.round((DN_2000-TZ_STD/24)*24/dayHours())+epochDayIndex(Y, M, D);
+}
 // Substorms: two a night, one in the evening (21:36–23:24) and one after midnight (1:00–3:00),
 // at times set by the night. Each brightens the arcs near midnight within minutes and fades over
 // about half an hour. t is minutes since the start of day n; the onsets of the two nights before
