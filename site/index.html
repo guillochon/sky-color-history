@@ -39,7 +39,7 @@ button.tick.on{background:none;color:var(--ink)}
 .tick .name{display:none;position:absolute;left:50%;top:3.2rem;transform:translateX(-50%);background:var(--ink);color:var(--bg);font-weight:400;font-size:.75rem;line-height:1.2;padding:.12rem .45rem;border-radius:3px;pointer-events:none;z-index:6;white-space:nowrap}
 .tick.row1 .name{top:2.05rem}
 .tick:hover .name,.tick:focus-visible .name{display:block}
-.readout{display:grid;grid-template-columns:auto 1fr;align-items:baseline;align-content:start;gap:.2rem .9rem;font-size:.88rem;color:var(--ink2);margin:.5rem 0}
+.readout{display:grid;grid-template-columns:auto 1fr;align-items:baseline;align-content:start;gap:.2rem .9rem;font-size:.88rem;color:var(--ink2);margin:1rem 0 .5rem}
 .readout b{display:block;font-weight:400;color:var(--ink);font-size:1.02rem;line-height:1.35;font-variant-numeric:tabular-nums}
 .domes{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;background:var(--stage);padding:.5rem;border-radius:4px}
 .domes figure{margin:0}.domes .sky{height:110px;border-radius:2px}
@@ -255,7 +255,6 @@ section.sky{margin-top:2.2rem}
     <input id="hslider" type="range" min="0" max="1440" step="5" value="720" aria-label="Time of day (minutes)">
     <div class="track" id="htrack"></div>
    </div>
-   <h3 class="sub-h">Right now</h3>
    <div class="readout">
     <span>Sun elevation</span><b id="relev"></b>
     <span>Zenith</span><b id="rzen"></b>
