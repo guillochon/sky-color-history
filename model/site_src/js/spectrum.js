@@ -197,14 +197,16 @@ function cloudLight(px, key, lat){
 // cloudPx the cloud pass's pixel there ({a, rgb}) or null, its cloud in front of the sky; cr how
 // far from the Sun's centre, in drawn solar radii, for the corona (null leaves it out). Returns {S (1 nm, cd/m² per nm-ish units), Y (cd/m²),
 // parts: [[name, Y]], marks: annotations}.
-function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null, cr=null, moonXY=null){
+function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null, cr=null, moonXY=null, sunXY=null){
   const key=EP[dIdx].key, lat=dLat, cdu=cdPerUnit(), vz=Math.min(90-el, 88), parts=[], marks=[];
   const S=new Float32Array(SP_N), sunlit=new Float32Array(SP_N), coronaEW=[];
   // sun: true for sunlight (it gets the Sun's lines), 'post' for light already through the air.
   const post=new Float32Array(SP_N);
   const add=(name, Y, shape, sun)=>{ if(!(Y>0)) return; parts.push([name, Y]); const T=sun==='post'?post:sun?sunlit:S; for(let i=0;i<SP_N;i++) T[i]+=Y*shape[i]; };
   const sunSrc=skySource(skyNow.sza, skyNow.sunAz), azr=a=>{ let d=Math.abs(az-a)%360; return d>180?360-d:d; };
-  if(disk==='sun'){ const mu=limbMu(litHere); add('Sun’s disk', 1, spNorm(spSunDisk(key, lat, skyNow.sza).map((v, i)=>{ const a=sunLimbAlpha(SP_LAM[i]); return v*(a+2)/2*Math.pow(mu, a); })), true); }
+  // On the Sun, the spot or facula under the pointer (sunspots.js) reshapes the disk's light.
+  const feat=disk==='sun'&&sunXY?sunFeatureAt(sunXY[0], sunXY[1]):null;
+  if(disk==='sun'){ const mu=limbMu(litHere); add('Sun’s disk', 1, spNorm(spSunDisk(key, lat, skyNow.sza).map((v, i)=>{ const a=sunLimbAlpha(SP_LAM[i]); return v*(a+2)/2*Math.pow(mu, a)*(feat?sunFeatureRatio(feat, SP_LAM[i]):1); })), true); }
   else{
     if(disk==='moon'){
       // The Moon's surface: its brightness per lit area (the full Moon's 2,500 cd/m², by the
@@ -286,6 +288,7 @@ function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null, cr=null, moo
     if(key.startsWith('archean27')) marks.push({a:380, b:480, t:'organic haze', band:true});
     if(key==='kpg66') marks.push({a:380, b:780, t:'soot dims all colours', band:true});
   }
+  if(feat&&tioDepth(feat.T)>0.03) TIO_HEADS.forEach(l=>marks.push({l, t:'TiO'}));
   if(sun>0.3){ marks.push(...SP_SUN_MARKS); if(share('Sun')+share('sunlit')<0.5) marks.push({l:589.3, t:'Na D'}); }
   spAirMarks(marks, o2, h2o);
   if(share('airglow')>0.1){ marks.push({l:557.7, t:'[O I] 557.7', em:true}, {l:589.3, t:'Na D', em:true}, {l:630, t:'[O I] 630', em:true}, {l:735, t:'OH', em:true}); }
@@ -301,7 +304,7 @@ function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null, cr=null, moo
   if(share('aurora, oxygen red')>0.03) marks.push({l:630, t:'[O I] 630', em:true});
   if(share('aurora, nitrogen violet')>0.02) marks.push({l:391.4, t:'N₂⁺ 391', em:true}, {l:427.8, t:'N₂⁺ 428', em:true});
   if(share('aurora, nitrogen red')>0.05) marks.push({l:670, t:'N₂ 1P', em:true});
-  return {S, Y, parts, marks};
+  return {S, Y, parts, marks, feat};
 }
 // The plot: the spectrum filled with the colour of each wavelength, linear, normalized to the
 // continuum so a bright line runs off the top (marked with a caret) rather than flattening the rest.
@@ -366,15 +369,19 @@ function spectrumHTML(box, el, az, opts={}){
   if(!spReady(box)) return;
   if(opts.meteor){ const st=meteorSpectrumTip(opts.meteor); spShow(box, st, st.note); return; }
   if(opts.sn||opts.star){ const s=opts.star, st=opts.sn?snSpectrum(opts.sn):s.star?starSpectrum(s, el):reflectedSpectrum(s); spShow(box, st, st.note); return; }
-  const sp=skySpectrum(el, az, opts.disk||null, opts.aurora||null, opts.disk==='sun'?opts.r||0:opts.lit??1, opts.cloud||null, opts.cr??null, opts.moonXY||null);
+  const sp=skySpectrum(el, az, opts.disk||null, opts.aurora||null, opts.disk==='sun'?opts.r||0:opts.lit??1, opts.cloud||null, opts.cr??null, opts.moonXY||null, opts.sunXY||null);
   const fmt=Y=>Y>=1?Y.toPrecision(3)+' cd/m²':(Y>=1e-3?(Y*1e3).toPrecision(3)+' mcd/m²':skyMagArcsec(Y).toFixed(1)+' mag/arcsec²');
   // The strongest sources, and on the Moon its own light however faint (earthshine against a
   // day or twilight sky is well under a percent).
   const isMoon=p=>p[0].startsWith('the Moon'), ranked=sp.parts.slice().sort((a, b)=>b[1]-a[1]).filter(p=>isMoon(p)||p[1]>sp.Y*0.02);
   const keep=new Set(ranked.filter(isMoon).concat(ranked.filter(p=>!isMoon(p))).slice(0, 4));
   const top=ranked.filter(p=>keep.has(p)).map(p=>{ const f=100*p[1]/sp.Y; return `${p[0]} ${f<1?'<1':Math.round(f)}%`; });
-  spShow(box, sp, opts.disk==='sun'?(opts.r>0.5?'The Sun’s disk near its edge, dimmer and redder (limb darkening): sunlight through the air':'The Sun’s disk: sunlight through the air')
-    :fmt(sp.Y)+' · '+top.join(' · '));
+  const f=sp.feat, K=T=>Math.round(T/10)*10, pct=x=>Math.round(100*x);
+  const featNote=!f?null:f.kind==='umbra'?`A sunspot’s umbra, about ${K(f.T).toLocaleString()} K against the photosphere’s ${K(f.teff).toLocaleString()} K: ${pct(f.I)}% as bright at 545 nm and redder${tioDepth(f.T)>0.03?', with bands of TiO':''}. Sunlight through the air`
+    :f.kind==='penumbra'?`A sunspot’s penumbra, about ${K(f.T).toLocaleString()} K: ${pct(f.I)}% as bright at 545 nm and a little redder. Sunlight through the air`
+    :f.kind==='facula'?`A facula, ${pct(f.fac)}% brighter at 545 nm and more in the blue, seen toward the limb. Sunlight through the air`:null;
+  spShow(box, sp, featNote||(opts.disk==='sun'?(opts.r>0.5?'The Sun’s disk near its edge, dimmer and redder (limb darkening): sunlight through the air':'The Sun’s disk: sunlight through the air')
+    :fmt(sp.Y)+' · '+top.join(' · ')));
 }
 // The dome's tooltip: the direction under canvas pixel (x, y), and whether it is on the Sun or Moon.
 function domeSpectrum(x, y, box){
@@ -393,7 +400,7 @@ function domeSpectrum(x, y, box){
   if(star){ spectrumHTML(box, star.el, star.az, {star}); return; }
   const st=skyNow.aur, aurora=disk!=='sun'&&st&&st.on&&domeAur.gl?auroraProbe(domeAur.gl, domeAur.store, st, horizDir(az, el)):null;
   const cr=at(skyNow.sunAz, 90-skyNow.sza)/sunR;
-  spectrumHTML(box, el, az, {disk, aurora, lit, r:disk==='sun'?cr:0, cr, moonXY:lit!=null?moonDiskXY(horizDir(az, el), mR):null});
+  spectrumHTML(box, el, az, {disk, aurora, lit, r:disk==='sun'?cr:0, cr, moonXY:lit!=null?moonDiskXY(horizDir(az, el), mR):null, sunXY:disk==='sun'?domeSunXY(x, y):null});
 }
 // Where direction dir falls on the Moon's disk drawn radDeg degrees in radius, in its radii
 // along east and north.

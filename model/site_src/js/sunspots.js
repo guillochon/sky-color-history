@@ -498,9 +498,9 @@ const FAC_PEAK=[0.10, 0.13, 0.18];
 // (multiplying linear light instead would show them a pale gray on a near-white disk).
 const SPOT_GAMMA=2.2;
 function facMu(mu){ const w=1-mu; return 9.48*mu*w*w*w; }
-// Light at disk position (u east, v north, in disk radii) as multipliers of linear R, G, B (out),
-// sampled at mip level n.
-function sunSurfaceAt(m, o, u, v, n, out){
+// The map at disk position (u east, v north, in disk radii), bilinear at mip level n: the raw
+// intensity ratios in R, G, B (I), the facular filling (a), and mu there.
+function sunMapSample(m, o, u, v, n){
   const cP=Math.cos(o.P), sP=Math.sin(o.P), cB=Math.cos(o.B0), sB=Math.sin(o.B0);
   const X=u*cP-v*sP, Y=u*sP+v*cP, Z=Math.sqrt(Math.max(0, 1-X*X-Y*Y));
   const lat=Math.asin(Math.max(-1, Math.min(1, Y*cB+Z*sB))), cmd=Math.atan2(-X, Z*cB-Y*sB);
@@ -508,9 +508,52 @@ function sunSurfaceAt(m, o, u, v, n, out){
   const L=m.levels[Math.min(n, m.levels.length-1)], x=tu*L.w-0.5, y=(lat/Math.PI+0.5)*L.h-0.5, i0=Math.floor(x), j0=Math.max(0, Math.min(L.h-2, Math.floor(y))), fx=x-i0, fy=Math.max(0, Math.min(1, y-j0));
   const i1=((i0+1)%L.w+L.w)%L.w, ia=((i0%L.w)+L.w)%L.w, mu=Z, c=facMu(mu);
   const g=q=>{ const a=L.px[(j0*L.w+ia)*4+q]*(1-fx)+L.px[(j0*L.w+i1)*4+q]*fx, b=L.px[((j0+1)*L.w+ia)*4+q]*(1-fx)+L.px[((j0+1)*L.w+i1)*4+q]*fx; return (a*(1-fy)+b*fy)/255; };
-  const f=g(3);
-  for(let q=0;q<3;q++) out[q]=Math.pow(g(q), SPOT_GAMMA)+f*c*FAC_PEAK[q];
+  return {I:[g(0), g(1), g(2)], a:g(3), mu};
+}
+// Light at disk position (u, v) as multipliers of linear R, G, B (out), sampled at mip level n.
+function sunSurfaceAt(m, o, u, v, n, out){
+  const s=sunMapSample(m, o, u, v, n), c=facMu(s.mu);
+  for(let q=0;q<3;q++) out[q]=Math.pow(s.I[q], SPOT_GAMMA)+s.a*c*FAC_PEAK[q];
   return out;
+}
+// What the spectrum tooltip sees at disk position (u, v), from the most detailed map ready: the
+// temperature there (the map's green ratio taken back through Planck's law), the photosphere's,
+// the facular filling and mu, and what it is; or null without a map.
+function sunFeatureAt(u, v){
+  const ep=EP[dIdx], D=sunMapDay(), m=[sunMaps.hi, sunMaps.lo].find(x=>x&&x.key===ep.key&&x.D===D);
+  if(!m||u*u+v*v>=1) return null;
+  const s=sunMapSample(m, sunOrientation(m.key, astroDay()), u, v, 0), teff=ep.teff||5772;
+  let lo=1500, hi=teff;
+  if(s.I[1]>=0.995) lo=teff;
+  else for(let i=0;i<40;i++){ const T=(lo+hi)/2; if(SS.planckRatio(545, T, teff)<s.I[1]) lo=T; else hi=T; }
+  const T=lo, dT=teff-T, fac=s.a*facMu(s.mu)*FAC_PEAK[1];
+  const kind=dT>1000?'umbra':dT>120?'penumbra':fac>0.01?'facula':'photosphere';
+  return {T, teff, a:s.a, mu:s.mu, I:s.I[1], fac, kind};
+}
+// The feature's light over the photosphere's at wavelength lam (nm): the Planck ratio, the
+// faculae's contrast (through the three channels' values, held above 3% in the red), and in umbrae
+// cooler than about 4,400 K the red bands of TiO's γ system (heads near 665, 705 and 759 nm,
+// shading to the red), as umbral spectra show them. Their depths are estimates, up to 15% at 3,700 K.
+const TIO_HEADS=[665.1, 705.4, 758.9];
+function tioDepth(T){ return 0.15*smooth01(4400, 3700, T); }
+function sunFeatureRatio(f, lam){
+  const fk=lam<=545?FAC_PEAK[2]+(FAC_PEAK[1]-FAC_PEAK[2])*(lam-465)/80:FAC_PEAK[1]+(FAC_PEAK[0]-FAC_PEAK[1])*(lam-545)/65;
+  let r=SS.planckRatio(lam, f.T, f.teff)+f.a*facMu(f.mu)*Math.max(0.03, fk);
+  const D=tioDepth(f.T);
+  if(D>0) for(const h of TIO_HEADS) if(lam>=h&&lam<h+12) r*=1-D*(1-(lam-h)/12);
+  return r;
+}
+// Canvas angle of celestial north at the dome's Sun, drawn at (sx, sy) for azimuth az, elevation el.
+function domeSunAngle(sx, sy, az, el){
+  const {cx, cy, R}=domeView(), b=moonBasis({az, el}), step=vnorm(vadd(b.md, vscale(b.north, 0.02), [0, 0, 0]));
+  const el2=Math.asin(Math.max(-1, Math.min(1, step[2])))*180/Math.PI, az2=Math.atan2(step[0], step[1]), rr2=R*(90-el2)/90;
+  return Math.atan2(cx+rr2*Math.sin(az2)-sx, -(cy-rr2*Math.cos(az2)-sy));
+}
+// Where canvas pixel (x, y) falls on the dome's Sun, in its radii along east and north.
+function domeSunXY(x, y){
+  const {cx, cy, R, z}=domeView(), rad=DOME_DISK*z*skyNow.moon.sunRadDeg/SUN_RADIUS_DEG, rr=R*skyNow.sza/90, a=skyNow.sunAz*Math.PI/180;
+  const sx=cx+rr*Math.sin(a), sy=cy-rr*Math.cos(a), ang=domeSunAngle(sx, sy, skyNow.sunAz, 90-skyNow.sza), qx=x-sx, qy=y-sy;
+  return [(qx*Math.cos(ang)+qy*Math.sin(ang))/rad, (qx*Math.sin(ang)-qy*Math.cos(ang))/rad];
 }
 // The dome's Sun: the drawn disk at (sx, sy), radius rad pixels, at azimuth az and elevation el,
 // multiplied by the photosphere's features, oriented as the Moon is (drawMoonOnDome). Pixels
@@ -522,9 +565,7 @@ function drawSunSurfaceOnDome(sx, sy, rad, az, el, moonC){
   const {cx, cy, R}=domeView(), W=dome.width, H=dome.height;
   const x0=Math.max(0, Math.floor(sx-rad-1)), y0=Math.max(0, Math.floor(sy-rad-1)), x1=Math.min(W-1, Math.ceil(sx+rad+1)), y1=Math.min(H-1, Math.ceil(sy+rad+1));
   if(x1<x0||y1<y0) return;
-  const b=moonBasis({az, el}), step=vnorm(vadd(b.md, vscale(b.north, 0.02), [0, 0, 0]));
-  const el2=Math.asin(Math.max(-1, Math.min(1, step[2])))*180/Math.PI, az2=Math.atan2(step[0], step[1]), rr2=R*(90-el2)/90;
-  const ang=Math.atan2(cx+rr2*Math.sin(az2)-sx, -(cy-rr2*Math.cos(az2)-sy));
+  const ang=domeSunAngle(sx, sy, az, el);
   const n=Math.max(0, Math.min(8, Math.round(Math.log2(m.W/(2*Math.PI)/rad)))), ca=Math.cos(ang), sa=Math.sin(ang);
   const bw=x1-x0+1, bh=y1-y0+1, img=dctx.getImageData(x0, y0, bw, bh), px=img.data, f=[1, 1, 1];
   for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++){

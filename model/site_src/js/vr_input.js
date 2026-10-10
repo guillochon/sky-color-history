@@ -363,7 +363,11 @@ function vrProbe(cx, cy, throughCloud){
   P.moonXY=P.lit!=null?moonDiskXY(horizDir(az, el), mo.radDeg*DISK_SCALE):null;
   P.disk=P.cloud?null:(P.lit!=null?'moon':(skyNow.sunOn&&skyNow.sunVis>0.01&&sep(skyNow.sunAz, 90-skyNow.sza)<mo.sunRadDeg*DISK_SCALE?'sun':null));
   P.cr=sep(skyNow.sunAz, 90-skyNow.sza)/(mo.sunRadDeg*DISK_SCALE);
-  if(P.disk==='sun') P.r=P.cr;
+  if(P.disk==='sun'){
+    P.r=P.cr;
+    const b=vrSunBasis(), sr=Math.sin(mo.sunRadDeg*DISK_SCALE*Math.PI/180);
+    P.sunXY=[vdot(d, b.east)/sr, vdot(d, b.north)/sr];
+  }
   // Within about 18 page pixels of a star, twice that of the supernova and its glare.
   // A meteor (or a lunar flash) within about 18 page pixels, in front of all but the clouds.
   P.meteor=P.cloud?null:metNearDir(d, 18*vrFov/H);
@@ -445,7 +449,7 @@ function refreshVRTip(){
     if(P.meteor) spectrumHTML(box, P.meteor.el, P.meteor.az, {meteor:P.meteor});
     else if(sn) spectrumHTML(box, sn.el, sn.az, {sn});
     else if(star) spectrumHTML(box, star.el, star.az, {star});
-    else spectrumHTML(box, el, az, {disk, aurora, cloud:P.cloudPx, lit, r:P.r, cr:P.cr, moonXY:P.moonXY});
+    else spectrumHTML(box, el, az, {disk, aurora, cloud:P.cloudPx, lit, r:P.r, cr:P.cr, moonXY:P.moonXY, sunXY:P.sunXY});
   }
   tip.style.display='block';
   placeVRTip(cx, cy, true);
