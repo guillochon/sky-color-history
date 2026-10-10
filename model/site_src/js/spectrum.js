@@ -157,25 +157,41 @@ function spLSQ(A, cols, u){
   }
   return G.map((row, c)=>row[m]/row[c]);
 }
+// What lights the clouds, the same for every cloud in one sky: the sky's own light (from two whole-
+// sky spectra, the costly part), the Sun's, the Moon's and the city's, with their colours. Kept
+// for the sky it was made for, as tooltips refreshing several times a second ask for it again.
+let cloudLightsMemo=null;
+function cloudLights(key, lat){
+  // While the day plays the sky is made afresh every frame; what lights the clouds hardly moves
+  // in that time, so it is kept until the Sun or the Moon has moved a tenth of a degree, or a second.
+  const m=cloudLightsMemo, now=performance.now();
+  if(m&&m.key===key&&m.lat===lat&&(m.sky===skyNow||(Math.abs(m.sza-skyNow.sza)<0.1&&Math.abs(m.mel-skyNow.moon.el)<0.1&&now-m.t<1000))) return m.v;
+  const k=skyNow.toneK, p=skyNow.toneP, sza=skyNow.sza, mo=skyNow.moon, antiAz=(skyNow.sunAz+180)%360;
+  const rZ=skyRAt(skyNow.rgrid, 90, 0), rM=skyRAt(skyNow.rgrid, 36, antiAz);
+  const tRef=0.45*toneT(rZ, k, p, 0.95)+0.55*toneT(rM, k, p, 0.95);
+  let v=null;
+  if(tRef>0){
+    const zen=skySpectrum(90, 0), mid=skySpectrum(36, antiAz), perSky=(0.45*zen.Y+0.55*mid.Y)/tRef;
+    const cu=skyNow.cityUp, tCity=cu?0.2126*cu[0]+0.7152*cu[1]+0.0722*cu[2]:0, perCity=tCity>0&&SKYGLOW[key]?6*SKYGLOW[key][0]/tCity:perSky;
+    const lights=[['cloud, lit by the sky', spNorm(spAdd([0.45, zen.S], [0.55, mid.S])), 'post']];
+    // Direct sunlight reaches a cloud a few km up until the Sun is about 3° down.
+    if(skyNow.sunVis>0&&sza<93) lights.push(['cloud, sunlit', spNorm(spSunDisk(key, lat, Math.min(sza, 89))), true]);
+    if(sza>=90&&mo.el>0&&skyNow.mScale>0) lights.push(['cloud, moonlit', spNorm(spSunDisk(key, lat, 90-mo.el).map((v, i)=>v*SP_MOON_RED[i])), true]);
+    if(sza>=90&&SKYGLOW[key]) lights.push([key==='volcanic'?'cloud, lit by oil lamps':'cloud, lit by the city', spGlow(key), false, true]);
+    v={lights, A:lights.map(l=>spRGB(l[1])), perSky, perCity};
+  }
+  cloudLightsMemo={sky:skyNow, key, lat, v, sza:skyNow.sza, mel:skyNow.moon.el, t:now};
+  return v;
+}
 function cloudLight(px, key, lat){
   const a=px.a;
   if(!(a>0.02)) return null;
   const un=v=>{ let c=Math.pow(Math.max(v/a, 0), 2.2); if(c>0.6) c=0.6-0.4*Math.log(Math.max(1e-4, 1-(c-0.6)/0.4)); return c; };
   const rgb=px.rgb.map(un), t=0.2126*rgb[0]+0.7152*rgb[1]+0.0722*rgb[2];
   if(!(t>0)) return null;
-  const k=skyNow.toneK, p=skyNow.toneP, sza=skyNow.sza, mo=skyNow.moon, antiAz=(skyNow.sunAz+180)%360;
-  const rZ=skyRAt(skyNow.rgrid, 90, 0), rM=skyRAt(skyNow.rgrid, 36, antiAz);
-  const tRef=0.45*toneT(rZ, k, p, 0.95)+0.55*toneT(rM, k, p, 0.95);
-  if(!(tRef>0)) return null;
-  const zen=skySpectrum(90, 0), mid=skySpectrum(36, antiAz), perSky=(0.45*zen.Y+0.55*mid.Y)/tRef;
-  const cu=skyNow.cityUp, tCity=cu?0.2126*cu[0]+0.7152*cu[1]+0.0722*cu[2]:0, perCity=tCity>0&&SKYGLOW[key]?6*SKYGLOW[key][0]/tCity:perSky;
-  const lights=[['cloud, lit by the sky', spNorm(spAdd([0.45, zen.S], [0.55, mid.S])), 'post']];
-  // Direct sunlight reaches a cloud a few km up until the Sun is about 3° down.
-  if(skyNow.sunVis>0&&sza<93) lights.push(['cloud, sunlit', spNorm(spSunDisk(key, lat, Math.min(sza, 89))), true]);
-  if(sza>=90&&mo.el>0&&skyNow.mScale>0) lights.push(['cloud, moonlit', spNorm(spSunDisk(key, lat, 90-mo.el).map((v, i)=>v*SP_MOON_RED[i])), true]);
-  if(sza>=90&&SKYGLOW[key]) lights.push([key==='volcanic'?'cloud, lit by oil lamps':'cloud, lit by the city', spGlow(key), false, true]);
-  if(!lights.length) return null;
-  const A=lights.map(l=>spRGB(l[1])), u=rgb.map(v=>v/t), n=lights.length;
+  const L=cloudLights(key, lat);
+  if(!L) return null;
+  const {lights, A, perSky, perCity}=L, u=rgb.map(v=>v/t), n=lights.length;
   let best=null, bestR=Infinity;
   for(let mask=1;mask<(1<<n);mask++){
     const cols=[]; for(let i=0;i<n;i++) if(mask&(1<<i)) cols.push(i);
@@ -311,16 +327,39 @@ function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null, cr=null, moo
 // Past 690 nm the fit's tails turn the hue back toward green, so the deep red holds from there.
 const SP_RGB=SP_CMF.map((c, i)=>SP_CMF[Math.min(i, 310)]).map(([x, y, z])=>{ const r=3.2406*x-1.5372*y-0.4986*z, gr=-0.9689*x+1.8758*y+0.0415*z, b=0.0557*x-0.2040*y+1.0570*z, m=Math.max(r, gr, b, 1e-6);
   return `rgb(${[r, gr, b].map(v=>Math.round(255*g(Math.max(0, v/m)*0.75+0.08))).join(',')})`; });
+const SP_STRIPS={};
+function spStrip(W, dpr, X){
+  const k=W+'@'+dpr;
+  if(SP_STRIPS[k]) return SP_STRIPS[k];
+  const cv=document.createElement('canvas'); cv.width=Math.round(W*dpr); cv.height=1;
+  const c=cv.getContext('2d'); c.setTransform(dpr, 0, 0, 1, 0, 0);
+  for(let i=0;i<SP_N-1;i++){ const x0=X(SP_LAM[i]), x1=X(SP_LAM[i+1]); c.fillStyle=SP_RGB[i]; c.fillRect(x0, 0, x1-x0+0.5, 1); }
+  return SP_STRIPS[k]=cv;
+}
+// A tooltip refreshed with a spectrum that would plot the same (no point of the curve moved by a
+// third of a pixel, the same marks) is left as it is.
 function drawSpectrum(cv, sp){
   const dpr=Math.min(window.devicePixelRatio||1, 2), W=264, H=118;
-  if(cv.width!==W*dpr){ cv.width=W*dpr; cv.height=H*dpr; cv.style.width=W+'px'; cv.style.height=H+'px'; }
-  const c=cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
   const L=6, R=W-6, T=30, B=H-16, X=l=>L+(l-SP_L0)/(SP_N-1)*(R-L);
   const S=sp.S, sorted=Array.from(S).sort((a, b)=>a-b), cont=sorted[Math.floor(SP_N*0.9)]||1, mx=Math.max(...S), top=Math.max(mx>3*cont?2.2*cont:mx, 1e-30);
   const Yv=v=>B-(B-T)*Math.min(v/top, 1);
-  c.globalAlpha=0.55;
-  for(let i=0;i<SP_N-1;i++){ const x0=X(SP_LAM[i]), x1=X(SP_LAM[i+1]); c.fillStyle=SP_RGB[i];
-    const y=Yv(Math.min(S[i], S[i+1])); c.fillRect(x0, y, x1-x0+0.5, B-y); }
+  const ys=new Float32Array(SP_N), marksKey=(sp.marks||[]).map(m=>m.t+(m.l??m.a)).join('|'), was=cv._sp;
+  for(let i=0;i<SP_N;i++) ys[i]=Yv(S[i]);
+  if(was&&was.dpr===dpr&&was.marks===marksKey&&was.over===(mx>top)){
+    let d=0;
+    for(let i=0;i<SP_N;i++) d=Math.max(d, Math.abs(ys[i]-was.ys[i]));
+    if(d<0.35) return;
+  }
+  cv._sp={dpr, marks:marksKey, ys, over:mx>top};
+  if(cv.width!==W*dpr){ cv.width=W*dpr; cv.height=H*dpr; cv.style.width=W+'px'; cv.style.height=H+'px'; }
+  const c=cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
+  // The colour fill: a strip of every wavelength's colour, made once, clipped to the spectrum's
+  // steps (each column as high as the lower of its two ends) instead of a rectangle per column.
+  c.save(); c.beginPath(); c.moveTo(X(SP_LAM[0]), B);
+  for(let i=0;i<SP_N-1;i++){ const y=Yv(Math.min(S[i], S[i+1])); c.lineTo(X(SP_LAM[i]), y); c.lineTo(X(SP_LAM[i+1]), y); }
+  c.lineTo(X(SP_LAM[SP_N-1]), B); c.closePath(); c.clip();
+  c.globalAlpha=0.55; c.drawImage(spStrip(W, dpr, X), 0, 0, W, B);
+  c.restore();
   c.globalAlpha=1; c.strokeStyle='#fff'; c.lineWidth=1.1; c.beginPath();
   for(let i=0;i<SP_N;i++){ const x=X(SP_LAM[i]), y=Yv(S[i]); if(i) c.lineTo(x, y); else c.moveTo(x, y); }
   c.stroke();
@@ -356,12 +395,12 @@ function drawSpectrum(cv, sp){
 function spBox(box, note){
   let cv=box.querySelector('canvas.spc'), src=box.querySelector('.spsrc');
   if(!cv){ cv=document.createElement('canvas'); cv.className='spc'; src=document.createElement('div'); src.className='spsrc'; box.append(cv, src); }
-  if(note){ cv.style.display='none'; src.textContent=note; }
+  if(note){ cv.style.display='none'; if(src.textContent!==note) src.textContent=note; }
   return {cv, src};
 }
 // Says whether the spectra are in; until they are, the box says they are loading.
 function spReady(b){ if(spData) return true; spLoad(); spBox(b, 'Loading the spectrum…'); return false; }
-function spShow(b, sp, note){ const {cv, src}=spBox(b); cv.style.display='block'; drawSpectrum(cv, sp); src.textContent=note; }
+function spShow(b, sp, note){ const {cv, src}=spBox(b); if(cv.style.display!=='block') cv.style.display='block'; drawSpectrum(cv, sp); if(src.textContent!==note) src.textContent=note; }
 // The tooltip body for a direction: the swatch line is the caller's; this adds the plot and the
 // sources. el is true altitude in degrees.
 function spectrumHTML(box, el, az, opts={}){
@@ -460,8 +499,10 @@ function starNear(dir, tolDeg){
   if(!skyNow||!skyNow.starMarks) return null;
   const key=EP[dIdx].key;
   let best=null, bestC=Math.cos(tolDeg*Math.PI/180);
+  // A star further off in altitude alone than tolDeg is further off in all.
+  const el=Math.asin(Math.max(-1, Math.min(1, dir[2])))*180/Math.PI;
   for(const s of skyNow.starMarks){
-    if(s.comet) continue;
+    if(s.comet||Math.abs(s.el-el)>tolDeg) continue;
     const c=vdot(dir, horizDir(s.az, s.el)); if(c<bestC) continue;
     const m=starThroughAir(s.mag, s.el, key), dim=Math.pow(10, -0.2*(m-s.mag));
     if(starVisible(m, skyRAt(skyNow.rgrid, s.el, s.az)*skyNow.rCd)*dim<0.3) continue;

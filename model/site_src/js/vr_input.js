@@ -176,7 +176,7 @@ window.addEventListener('wheel', e=>{
   if(vrPins.length||(vrInspect&&vrInspectAt)) refreshVRTip();
   requestVR();
 }, {passive:false});
-window.addEventListener('mousemove', e=>{ if(!vrOn) return; if(vrInspect){ vrInspectAt=[e.clientX, e.clientY]; vrOverPin=!!(e.target.closest&&e.target.closest('.vrpintip')); if(vrOverPin) hideVRHoverTip(); else if(fillVRTip(document.getElementById('vrtip'), e.clientX, e.clientY)){ document.getElementById('vrtip').style.display='block'; placeVRHoverTip(e.clientX, e.clientY); } if(!vrEdgeRAF) vrEdgeRAF=requestAnimationFrame(edgeScroll); return; } if(!e.movementX&&!e.movementY) return; lookVR(e.movementX, e.movementY); });
+window.addEventListener('mousemove', e=>{ if(!vrOn) return; if(vrInspect){ vrInspectAt=[e.clientX, e.clientY]; vrOverPin=!!(e.target.closest&&e.target.closest('.vrpintip')); if(vrOverPin) hideVRHoverTip(); else askVRHoverTip(); if(!vrEdgeRAF) vrEdgeRAF=requestAnimationFrame(edgeScroll); return; } if(!e.movementX&&!e.movementY) return; lookVR(e.movementX, e.movementY); });
 window.addEventListener('pointerdown', e=>{ if(!vrOn) return; pokeVRMusic(); if(e.target.closest&&e.target.closest('.vrpintip')) return; if(vrInspect){ if(e.button===0) pinVRTip(e.clientX, e.clientY); return; } if(document.pointerLockElement===vrc) return; vrRelock=true;
   const root=document.getElementById('vr'); if(!document.fullscreenElement&&root.requestFullscreen){ const p=root.requestFullscreen(); if(p&&p.catch) p.catch(()=>{}); }
   lockLook(); setTimeout(()=>{ vrRelock=false; }, 400); });
@@ -332,6 +332,74 @@ function edgeScroll(t){
 }
 // A pointer that leaves the window stops the turning.
 document.addEventListener('mouseout', e=>{ if(vrInspect&&!e.relatedTarget){ vrInspectAt=null; hideVRHoverTip(); } });
+// The canvas pixel under page point (cx, cy).
+function vrCanvasPx(cx, cy){
+  const c=vrGL.gl.canvas, W=window.innerWidth, H=Math.max(window.innerHeight, 1);
+  return {x:Math.min(c.width-1, Math.max(0, Math.floor(cx*c.width/W))), y:Math.min(c.height-1, Math.max(0, c.height-1-Math.floor(cy*c.height/H)))};
+}
+// Reads that do not wait for the GPU: vrReadAsync copies a pixel into a buffer, vrProbeAsk queues
+// all a tooltip needs (the drawn colour, scenery hit, clouds, aurora) behind one fence, and
+// vrAskPoll hands them over once the GPU has got there, a frame or so later. Waiting on readPixels
+// instead stalls the page until everything drawn so far is finished.
+const VR_PBOS=[];
+let vrAsks=[], vrAskRAF=0;
+// Each tooltip's reads share one buffer, 16 bytes apiece, and come back in one call.
+function vrReadAsync(ask, fb, x, y, float){
+  const gl=vrGL.gl, off=ask.n++*16;
+  gl.bindFramebuffer(gl.READ_FRAMEBUFFER, fb);
+  if(fb) gl.readBuffer(gl.COLOR_ATTACHMENT0);
+  gl.readPixels(x, y, 1, 1, gl.RGBA, float?gl.FLOAT:gl.UNSIGNED_BYTE, off);
+  gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
+  return {off, float};
+}
+// done(px, view) is called with the pixels; it may return {show, measure, place}, each run for all
+// the tooltips answered together in turn, so writes and reads of the layout are not interleaved
+// and the page is laid out once.
+function vrProbeAsk(cx, cy, done){
+  const gl=vrGL.gl, c=gl.canvas, {x, y}=vrCanvasPx(cx, cy), ask={n:0, buf:VR_PBOS.pop()||gl.createBuffer()};
+  gl.bindBuffer(gl.PIXEL_PACK_BUFFER, ask.buf);
+  gl.bufferData(gl.PIXEL_PACK_BUFFER, 64, gl.STREAM_READ);
+  const reads={col:vrReadAsync(ask, null, x, y, false)};
+  if(vrScenery&&vrGL.hitInfo&&vrGL.hitMRT) reads.hit=vrReadAsync(ask, vrGL.hitFbo, x, y, true);
+  if(vrClouds&&vrGL.accumFbo&&vrGL.cw) reads.accum=vrReadAsync(ask, vrGL.accumFbo, Math.floor(x*vrGL.cw/c.width), Math.floor(y*vrGL.ch/c.height), !!vrGL.cloudHDR);
+  if(skyNow.aur&&skyNow.aur.on){
+    const d=vrRayAt(cx, cy, vrYaw, vrPitch), app=Math.asin(Math.max(-1, Math.min(1, d[2])))*180/Math.PI;
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+    const fb=auroraProbeDraw(gl, vrGL.aurStore||(vrGL.aurStore={}), skyNow.aur, horizDir(Math.atan2(d[0], d[1])*180/Math.PI, trueAltDeg(app)));
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, ask.buf);
+    if(fb) reads.aur=vrReadAsync(ask, fb, 0, 0, true);
+    vrRestoreGL(gl);
+  }
+  gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+  Object.assign(ask, {reads, done, view:[vrYaw, vrPitch], sync:gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0)});
+  gl.flush();
+  vrAsks.push(ask);
+  if(!vrAskRAF) vrAskRAF=requestAnimationFrame(vrAskPoll);
+}
+// Tooltips whose pixels are in are filled one or two a frame (each takes 1-2 ms), so several due
+// together do not all land in one frame.
+const VR_ASK_BUDGET=1.5;
+function vrAskPoll(){
+  vrAskRAF=0;
+  if(!vrGL){ vrAsks=[]; return; }
+  const gl=vrGL.gl, t0=performance.now(), after=[];
+  for(let i=0;i<vrAsks.length;){
+    const a=vrAsks[i];
+    if(after.length&&performance.now()-t0>VR_ASK_BUDGET) break;
+    if(gl.getSyncParameter(a.sync, gl.SYNC_STATUS)!==gl.SIGNALED){ i++; continue; }
+    vrAsks.splice(i, 1);
+    gl.deleteSync(a.sync);
+    const ab=new ArrayBuffer(a.n*16), px={};
+    gl.bindBuffer(gl.PIXEL_PACK_BUFFER, a.buf); gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, new Uint8Array(ab)); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+    VR_PBOS.push(a.buf);
+    for(const k in a.reads){ const r=a.reads[k]; px[k]=r.float?new Float32Array(ab, r.off, 4):new Uint8Array(ab, r.off, 4); }
+    if(px.aur) px.aur=Array.from(px.aur, v=>Math.max(0, v));
+    const r=a.done(px, a.view);
+    if(r) after.push(r);
+  }
+  for(const ph of ['show', 'measure', 'place']) for(const r of after) if(r[ph]) r[ph]();
+  if(vrAsks.length&&!vrAskRAF) vrAskRAF=requestAnimationFrame(vrAskPoll);
+}
 // One pixel of a framebuffer as numbers, or null.
 function vrReadPixel(fb, x, y, float){
   const gl=vrGL.gl;
@@ -372,17 +440,17 @@ function sunImageAt(comp, app){
   }
   return {r, off};
 }
-function vrProbe(cx, cy, throughCloud){
-  const gl=vrGL.gl, c=gl.canvas, W=window.innerWidth, H=Math.max(window.innerHeight, 1);
-  const x=Math.min(c.width-1, Math.max(0, Math.floor(cx*c.width/W))), y=Math.min(c.height-1, Math.max(0, c.height-1-Math.floor(cy*c.height/H)));
-  const d=vrRayAt(cx, cy, vrYaw, vrPitch);
+// With px, the pixels were read already (vrProbeAsk), under the view's yaw and pitch then (view).
+function vrProbe(cx, cy, throughCloud, px, view){
+  const gl=vrGL.gl, c=gl.canvas, W=window.innerWidth, H=Math.max(window.innerHeight, 1), {x, y}=vrCanvasPx(cx, cy);
+  const d=view?vrRayAt(cx, cy, view[0], view[1]):vrRayAt(cx, cy, vrYaw, vrPitch);
   const app=Math.asin(Math.max(-1, Math.min(1, d[2])))*180/Math.PI, el=trueAltDeg(app);
   let az=Math.atan2(d[0], d[1])*180/Math.PI; if(az<0) az+=360;
   const P={x, y, d, app, el, az};
-  const hit=vrScenery&&vrGL.hitInfo&&vrGL.hitMRT?vrReadPixel(vrGL.hitFbo, x, y, true):null;
+  const hit=px?px.hit:vrScenery&&vrGL.hitInfo&&vrGL.hitMRT?vrReadPixel(vrGL.hitFbo, x, y, true):null;
   if(app<0||(hit&&hit[0]>0)){ P.ground=true; return P; }
   if(vrClouds&&vrGL.accumFbo&&vrGL.cw&&!throughCloud){
-    const a=vrReadPixel(vrGL.accumFbo, Math.floor(x*vrGL.cw/c.width), Math.floor(y*vrGL.ch/c.height), !!vrGL.cloudHDR), s=vrGL.cloudHDR?1:1/255;
+    const a=px?px.accum:vrReadPixel(vrGL.accumFbo, Math.floor(x*vrGL.cw/c.width), Math.floor(y*vrGL.ch/c.height), !!vrGL.cloudHDR), s=vrGL.cloudHDR?1:1/255;
     if(a){ P.cloudPx={a:a[3]*s, rgb:[a[0]*s, a[1]*s, a[2]*s]}; P.cloud=P.cloudPx.a>0.35; }
   }
   const sep=(bAz, bEl)=>Math.acos(Math.max(-1, Math.min(1, vdot(d, horizDir(bAz, apparentEl(bEl))))))*180/Math.PI, mo=skyNow.moon;
@@ -514,51 +582,81 @@ function lockVRView(){
 function hideVRHoverTip(){ document.getElementById('vrtip').style.display='none'; }
 function hideVRTip(){ hideVRHoverTip(); for(const p of vrPins){ p.tip.style.display='none'; p.mark.style.display='none'; } }
 // The tooltip under the pointer in inspect (unless it is over a pinned one), and every pinned one.
+// Each is filled when its pixels arrive (vrProbeAsk); one asked again while its pixels are on the
+// way is asked once more when they come, at wherever it is then.
 let vrOverPin=false;
 function refreshVRTip(){
-  const tip=document.getElementById('vrtip'), live=vrOn&&vrGL&&skyNow;
-  const at=live&&vrInspect&&!vrOverPin?vrInspectAt:null;
-  if(at&&fillVRTip(tip, at[0], at[1])){ tip.style.display='block'; placeVRHoverTip(at[0], at[1]); }
-  else hideVRHoverTip();
+  if(vrOn&&vrGL&&skyNow&&vrInspect&&!vrOverPin&&vrInspectAt) askVRHoverTip(); else hideVRHoverTip();
   for(const p of vrPins) refreshPin(p);
 }
-function refreshPin(p){
-  const at=vrOn&&vrGL&&skyNow?vrPinPoint(p):null;
-  if(!at){ p.tip.style.display='none'; p.mark.style.display='none'; return; }
-  if(!fillVRTip(p.tip, at[0], at[1])) return;
-  p.tip.style.display='block'; p.mark.style.display='block';
-  p.size=[p.tip.offsetWidth, p.tip.offsetHeight];
-  // The side is chosen once the tooltip has its size, and again if it grows or shrinks much (its
-  // spectrum arriving, say).
-  if(p.side<0||Math.abs(p.size[0]-p.sideFor[0])>24||Math.abs(p.size[1]-p.sideFor[1])>24){ p.side=vrPinSide(p, at); p.sideFor=p.size; }
-  placePin(p, at);
+const vrHover={asking:false, again:false};
+function askVRHoverTip(){
+  if(!vrOn||!vrGL||!skyNow) return;
+  if(vrHover.asking){ vrHover.again=true; return; }
+  const at=vrInspectAt;
+  if(!at) return;
+  vrHover.asking=true; vrHover.again=false;
+  vrProbeAsk(at[0], at[1], (px, view)=>{
+    vrHover.asking=false;
+    if(vrHover.again) askVRHoverTip();
+    const tip=document.getElementById('vrtip');
+    if(!vrOn||!vrInspect||vrOverPin||!vrInspectAt){ hideVRHoverTip(); return null; }
+    fillVRTip(tip, at[0], at[1], px, view);
+    let size;
+    return {show:()=>{ tip.style.display='block'; }, measure:()=>{ size=[tip.offsetWidth, tip.offsetHeight]; }, place:()=>placeVRHoverTip(at[0], at[1], size)};
+  });
 }
-// Fill a tooltip with the colour and spectrum at page point (cx, cy); false if it cannot be read.
-function fillVRTip(tip, cx, cy){
-  const gl=vrGL.gl, P=vrProbe(cx, cy), {el, az, app}=P;
-  const col=vrReadPixel(null, P.x, P.y, false);
-  if(!col) return false;
+function refreshPin(p){
+  if(!vrOn||!vrGL||!skyNow) return;
+  if(p.asking){ p.again=true; return; }
+  const at=vrPinPoint(p);
+  if(!at){ p.tip.style.display='none'; p.mark.style.display='none'; return; }
+  p.asking=true; p.again=false;
+  vrProbeAsk(at[0], at[1], (px, view)=>{
+    p.asking=false;
+    if(!vrPins.includes(p)) return null;
+    if(p.again) refreshPin(p);
+    fillVRTip(p.tip, at[0], at[1], px, view);
+    return {
+      show:()=>{
+        p.now=vrPinPoint(p);
+        const v=p.now?'block':'none';
+        p.tip.style.display=v; p.mark.style.display=v;
+      },
+      measure:()=>{ if(p.now) p.size=[p.tip.offsetWidth, p.tip.offsetHeight]; },
+      place:()=>{
+        if(!p.now) return;
+        // The side is chosen once the tooltip has its size, and again if it grows or shrinks much (its
+        // spectrum arriving, say).
+        if(p.side<0||Math.abs(p.size[0]-p.sideFor[0])>24||Math.abs(p.size[1]-p.sideFor[1])>24){ p.side=vrPinSide(p, p.now); p.sideFor=p.size; }
+        placePin(p, p.now);
+      }};
+  });
+}
+// Fill a tooltip with the colour and spectrum at page point (cx, cy), from pixels px read under view.
+function fillVRTip(tip, cx, cy, px, view){
+  const P=vrProbe(cx, cy, false, px, view), {el, az, app}=P, col=px.col;
   const cur=hex([col[0], col[1], col[2]]);
   if(!tip.querySelector('.tline')) tip.innerHTML='<span class="tline"></span><div class="spbox"></div>';
-  tip.querySelector('.tline').innerHTML=`<i style="background:${cur}"></i>${cur} · ${app.toFixed(1)}° up, ${Math.round(az)}°`;
+  // Written only when it changes, so an unchanged tooltip does not have to be laid out again.
+  const line=tip.querySelector('.tline'), html=`<i style="background:${cur}"></i>${cur} · ${app.toFixed(1)}° up, ${Math.round(az)}°`;
+  if(line._html!==html){ line.innerHTML=html; line._html=html; }
   const box=tip.querySelector('.spbox');
   if(P.ground) spectrumHTML(box, el, az, {note:'Ground and scenery are not part of the model, so they have no spectrum.'});
   else {
     const {sn, star, disk, lit}=P;
-    let aurora=null;
-    if(!star&&disk!=='sun'&&skyNow.aur&&skyNow.aur.on){ aurora=auroraProbe(gl, vrGL.aurStore||(vrGL.aurStore={}), skyNow.aur, horizDir(az, el)); vrRestoreGL(gl); }
+    const aurora=!star&&disk!=='sun'&&px.aur?px.aur:null;
     if(P.meteor) spectrumHTML(box, P.meteor.el, P.meteor.az, {meteor:P.meteor});
     else if(sn) spectrumHTML(box, sn.el, sn.az, {sn});
     else if(star) spectrumHTML(box, star.el, star.az, {star});
     else spectrumHTML(box, el, az, {disk, aurora, cloud:P.cloudPx, lit, r:P.r, cr:P.cr, moonXY:P.moonXY, sunXY:P.sunXY});
   }
-  return true;
 }
 // The hover tooltip takes the side of the pointer that overlaps the pinned tooltips least, as a
 // new pin's does, keeping its last side while that does as well, so it does not flit about.
 let vrHoverSide=0;
-function placeVRHoverTip(cx, cy){
-  const tip=document.getElementById('vrtip'), w=tip.offsetWidth, h=tip.offsetHeight;
+function placeVRHoverTip(cx, cy, size){
+  const tip=document.getElementById('vrtip'), [w, h]=size;
   vrHoverSide=vrBestSide(w, h, [cx, cy], null, vrHoverSide);
   const [x, y]=pinBox(vrHoverSide, w, h, cx, cy);
   tip.style.left=x+'px'; tip.style.top=y+'px'; tip.style.transform='none';
@@ -579,7 +677,8 @@ function vrPinSide(p, at){ return vrBestSide(p.size[0], p.size[1], at, p, -1); }
 function vrBestSide(w, h, at, skip, keep){
   const others=[];
   for(const o of vrPins){
-    if(o===skip||o.tip.style.display==='none') continue;
+    // One answered in the same batch is shown before it is placed: until it is, it is nowhere.
+    if(o===skip||o.tip.style.display==='none'||!o.tip.style.left) continue;
     others.push([parseFloat(o.tip.style.left), parseFloat(o.tip.style.top), o.size[0], o.size[1]]);
     const m=parseFloat(o.mark.style.left), n=parseFloat(o.mark.style.top);
     others.push([m-10, n-10, 20, 20]);

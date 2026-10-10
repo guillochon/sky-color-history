@@ -484,6 +484,15 @@ void main(){ fragColor=auroraSpecies(probeDir, 0.002); }`;
 // and its aurora textures in store. Leaves the default framebuffer bound; the caller restores
 // its own program and units 14 and 15.
 function auroraProbe(gl, store, st, dir){
+  const fb=auroraProbeDraw(gl, store, st, dir);
+  if(!fb) return null;
+  const px=new Float32Array(4);
+  gl.bindFramebuffer(gl.READ_FRAMEBUFFER, fb); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.FLOAT, px); gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
+  return Array.from(px, v=>Math.max(0, v));
+}
+// The probe's draw alone: its one float pixel is left in the framebuffer returned (null if there
+// is none), for the caller to read now or later (vrReadAsync).
+function auroraProbeDraw(gl, store, st, dir){
   if(!st||!st.on) return null;
   if(!store.probe){
     if(!gl.getExtension('EXT_color_buffer_float')) return null;
@@ -507,12 +516,11 @@ function auroraProbe(gl, store, st, dir){
   gl.bindFramebuffer(gl.FRAMEBUFFER, pr.fb); gl.viewport(0, 0, 1, 1);
   if(gl.drawBuffers) gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
   gl.drawArrays(gl.TRIANGLES, 0, 6);
-  const px=new Float32Array(4); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.FLOAT, px);
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   if(gl.drawBuffers) gl.drawBuffers([gl.BACK]);
   gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
   gl.activeTexture(gl.TEXTURE0);
-  return Array.from(px, v=>Math.max(0, v));
+  return pr.fb;
 }
 // What the readout says.
 function auroraReadout(st){
