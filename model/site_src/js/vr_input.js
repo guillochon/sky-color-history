@@ -163,7 +163,7 @@ window.addEventListener('wheel', e=>{
   if(!vrOn) return;
   e.preventDefault();
   const px=e.deltaMode===1?e.deltaY*33:e.deltaMode===2?e.deltaY*400:e.deltaY;
-  const locked=document.pointerLockElement===vrc, cx=locked?window.innerWidth/2:e.clientX, cy=locked?window.innerHeight/2:e.clientY;
+  const locked=document.pointerLockElement===vrc||(vrLock&&vrPin), cx=locked?window.innerWidth/2:e.clientX, cy=locked?window.innerHeight/2:e.clientY;
   const want=vrRayAt(cx, cy, vrYaw, vrPitch), azEl=d=>[Math.atan2(d[0], d[1])*180/Math.PI, Math.asin(Math.max(-1, Math.min(1, d[2])))*180/Math.PI];
   vrFov=Math.max(VR_FOV_MIN, Math.min(VR_FOV_MAX, vrFov*Math.exp(px*0.0015)));
   // Turn the view until the ray under the pointer is the one that was there.
@@ -177,7 +177,7 @@ window.addEventListener('wheel', e=>{
   requestVR();
 }, {passive:false});
 window.addEventListener('mousemove', e=>{ if(!vrOn) return; if(vrInspect){ vrInspectAt=[e.clientX, e.clientY]; if(!vrPin) refreshVRTip(); if(!vrEdgeRAF) vrEdgeRAF=requestAnimationFrame(edgeScroll); return; } if(!e.movementX&&!e.movementY) return; lookVR(e.movementX, e.movementY); });
-window.addEventListener('pointerdown', e=>{ if(!vrOn) return; pokeVRMusic(); if(vrInspect){ if(e.button===0) pinVRTip(e.clientX, e.clientY); return; } if(document.pointerLockElement===vrc) return; vrRelock=true;
+window.addEventListener('pointerdown', e=>{ if(!vrOn) return; pokeVRMusic(); if(e.target.closest&&e.target.closest('#vrtip')) return; if(vrInspect){ if(e.button===0) pinVRTip(e.clientX, e.clientY); return; } if(document.pointerLockElement===vrc) return; vrRelock=true;
   const root=document.getElementById('vr'); if(!document.fullscreenElement&&root.requestFullscreen){ const p=root.requestFullscreen(); if(p&&p.catch) p.catch(()=>{}); }
   lockLook(); setTimeout(()=>{ vrRelock=false; }, 400); });
 let vrTX=0, vrTY=0;
@@ -408,19 +408,28 @@ function vrProbe(cx, cy, throughCloud){
 }
 // A click in inspect pins the tooltip to what was under it. The sky keeps its direction; the Sun
 // and Moon keep the clicked spot on their disks, and a star, planet, satellite or supernova is
-// followed as it moves. Another click pins it to whatever is there instead.
-let vrPin=null;
+// followed as it moves. Another click pins it to whatever is there instead, unlocked.
+// The pinned tooltip's Lock turns the view with what it is pinned to (vrLock, applied by lockVRView
+// before each paint), and Close drops the pin. A body more than PIN_SET_DEG below the horizon
+// drops both: the view is free again and the tooltip goes.
+let vrPin=null, vrLock=false;
+const PIN_SET_DEG=3;
 function pinVRTip(cx, cy){
   if(!vrGL||!skyNow) return;
   const P=vrProbe(cx, cy, true), s=P.star;
   const onDisk=(b, d)=>({ox:vdot(d, b.east), oy:vdot(d, b.north)});
   if(P.sn) vrPin={kind:'sn'};
-  else if(s&&(s.star||s.planet)) vrPin={kind:'mark', star:s.star, planet:s.planet};
+  else if(s&&(s.star||s.planet)) vrPin={kind:'mark', star:s.star, planet:s.planet, ra:s.ra, dec:s.dec};
   else if(s) vrPin={kind:'sat', az:s.az, el:s.el};
   else if(P.disk==='moon') vrPin={kind:'moon', ...onDisk(moonBasis(skyNow.moon), horizDir(P.az, P.el))};
   else if(P.disk==='sun') vrPin={kind:'sun', ...onDisk(vrSunBasis(), P.d)};
   else vrPin={kind:'sky', d:P.d};
+  vrLock=false;
   refreshVRTip();
+}
+function unpinVRTip(){
+  vrPin=null; vrLock=false; hideVRTip();
+  if(!vrInspect){ clearInterval(vrInspectTimer); vrInspectTimer=0; }
 }
 function vrSunBasis(){ return moonBasis({az:skyNow.sunAz, el:apparentEl(90-skyNow.sza)}); }
 // Page point of a view-frame direction (as vrRayAt's), or null off the view.
@@ -435,29 +444,51 @@ function vrPointOf(d){
 }
 // The same for a direction given by azimuth and true altitude.
 function vrPointAt(az, el){ return vrPointOf(horizDir(az, apparentEl(el))); }
-// Where the pinned thing is on the page now, or null when it is out of view, set or gone.
-function vrPinPoint(){
+// Where the pinned thing is: its direction in the view's frame (as vrRayAt's), its true altitude,
+// and whether it shows, or null when it is gone. A star or planet below the horizon is no longer
+// among the marks, so it is placed from its right ascension and declination.
+function vrPinDir(){
   const p=vrPin;
   if(!p||!skyNow) return null;
   const fromDisk=(b, trueFrame)=>{
     const d=vnorm(vadd(b.md, vscale(b.east, p.ox), vscale(b.north, p.oy)));
-    return trueFrame?vrPointAt(Math.atan2(d[0], d[1])*180/Math.PI, Math.asin(Math.max(-1, Math.min(1, d[2])))*180/Math.PI):vrPointOf(d);
+    if(!trueFrame) return d;
+    const el=Math.asin(Math.max(-1, Math.min(1, d[2])))*180/Math.PI;
+    return horizDir(Math.atan2(d[0], d[1])*180/Math.PI, apparentEl(el));
   };
-  if(p.kind==='sky') return vrPointOf(p.d);
-  if(p.kind==='sun') return skyNow.sunOn?fromDisk(vrSunBasis(), false):null;
-  if(p.kind==='moon') return skyNow.moon.on?fromDisk(moonBasis(skyNow.moon), true):null;
-  if(p.kind==='sn'){ const sn=skyNow.sn; return sn&&sn.el>0?vrPointAt(sn.az, sn.el):null; }
+  const at=(az, el, on)=>({d:horizDir(az, apparentEl(el)), el, on});
+  if(p.kind==='sky') return {d:p.d, el:90, on:true};
+  if(p.kind==='sun') return {d:fromDisk(vrSunBasis(), false), el:90-skyNow.sza, on:skyNow.sunOn};
+  if(p.kind==='moon') return {d:fromDisk(moonBasis(skyNow.moon), true), el:skyNow.moon.el, on:skyNow.moon.on};
+  if(p.kind==='sn'){ const sn=skyNow.sn; return sn?at(sn.az, sn.el, sn.el>0):null; }
   const marks=skyNow.starMarks||[];
   let m=null;
-  if(p.kind==='mark') m=marks.find(s=>p.star?s.star===p.star:s.planet===p.planet)||null;
+  if(p.kind==='mark'){
+    m=marks.find(s=>p.star?s.star===p.star:s.planet===p.planet)||null;
+    if(m){ p.ra=m.ra; p.dec=m.dec; }
+    else if(p.ra!=null){ const q=raDecAltaz(LATDEG[dLat], p.ra, p.dec, localSidereal()); return at(q.az, q.alt, false); }
+  }
   else{
     // A satellite has no name to find it by: the nearest one to where it was last.
     let best=Math.cos(10*Math.PI/180);
     const was=horizDir(p.az, p.el);
     for(const s of marks){ if(s.star||s.planet) continue; const c=vdot(was, horizDir(s.az, s.el)); if(c>best){ best=c; m=s; } }
     if(m){ p.az=m.az; p.el=m.el; }
+    // Lost low down, it has set.
+    else if(p.el<2) return {d:horizDir(p.az, p.el), el:-90, on:false};
   }
-  return m&&m.el>0?vrPointAt(m.az, m.el):null;
+  return m?at(m.az, m.el, m.el>0):null;
+}
+// Where the pinned thing is on the page now, or null when it is out of view, set or gone.
+function vrPinPoint(){ const q=vrPinDir(); return q&&q.on?vrPointOf(q.d):null; }
+// Before each paint: drop a pin whose body has set, and turn a locked view to its pin.
+function lockVRView(){
+  if(!vrPin) return;
+  const q=vrPinDir();
+  if(q&&q.el<-PIN_SET_DEG){ unpinVRTip(); return; }
+  if(!vrLock||!q) return;
+  vrYaw=(Math.atan2(q.d[0], q.d[1])*180/Math.PI+360)%360;
+  vrPitch=Math.max(-80, Math.min(85, Math.asin(Math.max(-1, Math.min(1, q.d[2])))*180/Math.PI));
 }
 function hideVRTip(){ document.getElementById('vrtip').style.display='none'; document.getElementById('vrpin').style.display='none'; }
 function refreshVRTip(){
@@ -468,7 +499,12 @@ function refreshVRTip(){
   const col=vrReadPixel(null, P.x, P.y, false);
   if(!col) return;
   const cur=hex([col[0], col[1], col[2]]);
-  if(!tip.querySelector('.tline')) tip.innerHTML='<span class="tline"></span><div class="spbox"></div>';
+  if(!tip.querySelector('.tline')){
+    tip.innerHTML='<div class="tbar"><button type="button" data-act="lock" aria-pressed="false">Lock</button><button type="button" data-act="close" aria-label="Close">✕</button></div><span class="tline"></span><div class="spbox"></div>';
+    tip.querySelector('[data-act=lock]').addEventListener('click', ()=>{ vrLock=!vrLock&&!!vrPin; syncVRTipBar(); requestVR(); });
+    tip.querySelector('[data-act=close]').addEventListener('click', ()=>{ unpinVRTip(); requestVR(); });
+  }
+  syncVRTipBar();
   tip.querySelector('.tline').innerHTML=`<i style="background:${cur}"></i>${cur} · ${app.toFixed(1)}° up, ${Math.round(az)}°`;
   const box=tip.querySelector('.spbox');
   if(P.ground) spectrumHTML(box, el, az, {note:'Ground and scenery are not part of the model, so they have no spectrum.'});
@@ -483,6 +519,15 @@ function refreshVRTip(){
   }
   tip.style.display='block';
   placeVRTip(cx, cy, true);
+}
+// The pinned tooltip's buttons: shown only on a pin, Lock pressed while the view is locked to it.
+function syncVRTipBar(){
+  const tip=document.getElementById('vrtip'), bar=tip.querySelector('.tbar');
+  if(!bar) return;
+  bar.hidden=!vrPin;
+  tip.classList.toggle('pinned', !!vrPin);
+  const b=bar.querySelector('[data-act=lock]');
+  b.setAttribute('aria-pressed', vrLock?'true':'false'); b.textContent=vrLock?'Unlock':'Lock';
 }
 // With measure, the tip's size is taken afresh (its content has changed); otherwise the last one
 // is used, so following a pin each frame does not force a layout.

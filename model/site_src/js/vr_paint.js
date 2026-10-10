@@ -237,6 +237,8 @@ function paintVR(){
   if(vrRAF){ cancelAnimationFrame(vrRAF); vrRAF=0; }
   // A sky drawn for the page has no star cells for VR: draw it again for VR, which paints.
   if(!skyNow.starBins){ renderDay(true); return; }
+  // A locked view turns with its pin first; a pin whose body has set goes.
+  lockVRView();
   // A program compiled from scratch can stall the browser on its first draw. Put up a note,
   // let it reach the screen, then draw.
   pickHit(vrGL.gl);
