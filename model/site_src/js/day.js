@@ -295,8 +295,10 @@ function cityUplight(key, Yref, k, p){
   return new Float32Array(c.map(v=>Math.pow(v/255, 2.2)));
 }
 function renderDay(fast){
+  // The date shows at once, while an epoch's sky is still loading.
+  syncDateUI();
   if(!dayReady(EP[dIdx].key, 'modern')) return;
-  vrNote=''; syncDateUI();
+  vrNote='';
   const ep=EP[dIdx], rec=DAY.epochs[ep.key][dayLat()], sunNow=sunEquatorial(astroDay()); const {sza,az:sunAz}=sunGeom(LATDEG[dLat], minutes, sunNow.Dec);
   // Sunlight, and the moonlight it makes, go as the inverse square of the distance from the Sun:
   // 3.4% brighter at perihelion in January than on average, 3.3% dimmer at aphelion in July.
@@ -615,13 +617,13 @@ const HMIN=+hslider.min, HMAX=+hslider.max;
 function clockParts(m){ const h=Math.min(m, DAYMIN)/DAYMIN*dayHours(), s=Math.floor(h*3600+1e-6); return [Math.floor(s/3600), Math.floor(s/60)%60, s%60]; }
 function clockLabel(m){ const [hh, mm]=clockParts(m); return hh+':'+String(mm).padStart(2,'0'); }
 // The short readouts keep one size whatever they say: each is held to the height of the longest
-// text it can show at the page's width, and the clock to the width of its longest, measured again
-// only when the width or the fonts change. The last three (comets, eclipse, meteors) run to two or
-// three lines only now and then, and take the height they need.
+// text it can show at the page's width, and the clock and the date's button to the width of their
+// longest, measured again only when the width or the fonts change. The last three (comets,
+// eclipse, meteors) run to two or three lines only now and then, and take the height they need.
 function readoutSamples(){
   const sky=['88,888 K · 0.0088%', '88.8 mag/arcsec²'];
   return {
-    hclock:['88:88'], rday:['88.8 hours · 888-day year'],
+    hclock:['88:88'], dateBtn:['Sep 88, 8888', 'Sep 88, year −8888'], rday:['88.8 hours · 888-day year'],
     relev:['-88.8°'], rzen:sky, rhor:sky,
     rsun:['88,888 K · 0.088%', 'below horizon', 'not visible'],
     rmoon:['-88.8° · 100% lit · under 0.001% of full', 'below horizon · 100% lit · under 0.001% of full'],
@@ -635,7 +637,7 @@ function holdReadouts(force){
   if(!w||(!force&&w===readoutW)) return;
   readoutW=w;
   for(const [id, samples] of Object.entries(readoutSamples())){
-    const el=document.getElementById(id), keep=el.textContent, wide=id==='hclock', size=()=>{ const r=el.getBoundingClientRect(); return wide?r.width:r.height; };
+    const el=document.getElementById(id), keep=el.textContent, wide=id==='hclock'||id==='dateBtn', size=()=>{ const r=el.getBoundingClientRect(); return wide?r.width:r.height; };
     el.style[wide?'minWidth':'minHeight']='';
     let m=0;
     for(const s of samples){ el.textContent=s; m=Math.max(m, size()); }

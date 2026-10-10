@@ -308,7 +308,8 @@ function applyLink(){
   if(ep){
     let idx=EP.findIndex(e=>e.key===ep);
     if(idx<0 && /^\d+$/.test(ep)) idx=+ep;
-    if(idx>=0 && idx<EP.length){ dIdx=idx; sel.value=String(dIdx); }
+    // Without a date in the link, the epoch's own year, at today's season.
+    if(idx>=0 && idx<EP.length){ const yf=yearFraction(), prev=EP[dIdx].key; dIdx=idx; sel.value=String(dIdx); if(!q.get('date')) document.getElementById('moonDate').value=epochDate(prev, yf); }
   }
   const lat=(q.get('lat')||'').toLowerCase();
   const latName={equator:'Equator','0':'Equator','45':'Mid-latitude',mid:'Mid-latitude','mid-latitude':'Mid-latitude','75':'Polar',polar:'Polar','-45':'Mid-latitude S','-75':'Polar S'}[lat];
@@ -317,7 +318,7 @@ function applyLink(){
     document.querySelectorAll('[data-lat]').forEach(x=>x.setAttribute('aria-pressed', x.dataset.lat===latName?'true':'false'));
   }
   const date=q.get('date');
-  if(date && /^\d{4}-\d{2}-\d{2}$/.test(date)) document.getElementById('moonDate').value=date;
+  if(date && /^-?\d{4,}-\d{2}-\d{2}$/.test(date)) document.getElementById('moonDate').value=date;
   const raw=q.get('t');
   if(raw){
     let m=NaN;

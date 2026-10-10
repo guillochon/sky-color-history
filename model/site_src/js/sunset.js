@@ -41,8 +41,8 @@ const MIRAGE_ODDS={snowball07:[0.05, 0.75], hadean44:[0.55, 0.2], hadean40:[0.55
   archean27thin:[0.5, 0.25], archean27:[0.5, 0.25], archean27vthick:[0.5, 0.25]};
 let sunsetCache=null;
 function sunsetLayers(rd){
-  const m=/^(\d+)-(\d+)-(\d+)$/.exec(document.getElementById('moonDate').value||'');
-  const day=Math.floor((m?Date.UTC(+m[1], m[2]-1, +m[3]):Date.now())/86400000), key=EP[dIdx].key;
+  const m=/^(-?\d+)-(\d+)-(\d+)$/.exec(document.getElementById('moonDate').value||'');
+  const day=Math.floor((m?utcDay(+m[1], +m[2], +m[3]):Date.now()/86400000)), key=EP[dIdx].key;
   const id=`${key}|${day}|${rd.toFixed(4)}`;
   if(sunsetCache&&sunsetCache.id===id) return sunsetCache;
   const rnd=mulberry32((day*2654435761^[...key].reduce((h, c)=>h*31+c.charCodeAt(0)|0, 7))>>>0);

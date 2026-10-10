@@ -70,8 +70,8 @@ const CLOUD_ERA={
 // about a kilometre thick.
 function cloudCover(key){
   const e=CLOUD_ERA[key]||CLOUD_ERA.modern;
-  const m=/^(\d+)-(\d+)-(\d+)$/.exec(document.getElementById('moonDate').value||'');
-  const day=(m?Date.UTC(+m[1], m[2]-1, +m[3]):Date.now())/86400000+(minutes%DAYMIN)/DAYMIN;
+  const m=/^(-?\d+)-(\d+)-(\d+)$/.exec(document.getElementById('moonDate').value||'');
+  const day=(m?utcDay(+m[1], +m[2], +m[3]):Date.now()/86400000)+(minutes%DAYMIN)/DAYMIN;
   const seed=key.length*7.31;
   const wave=(t, period, s)=>{ const x=t/period, i=Math.floor(x), f=x-i, u=f*f*(3-2*f);
     return h12xy(i, seed+s)*(1-u)+h12xy(i+1, seed+s)*u; };

@@ -250,8 +250,10 @@ document.addEventListener('keydown',e=>{
   // The page has VR's keys for time and eras: space plays or pauses the day, ← and → step it by
   // five minutes, ↑ and ↓ (or [ and ]) change era, e and t jump to the next eclipse, u and b to the next
   // lunar one, n to the next meteor shower. Not while
-  // typing, or on a control that uses the key itself; with a modifier, the browser's own.
+  // typing, with the date picker open, or on a control that uses the key itself; with a modifier,
+  // the browser's own.
   const t=document.activeElement, tag=t&&t.tagName;
+  if(datePop.open) return;
   if(e.ctrlKey||e.metaKey||e.altKey||tag==='INPUT'||tag==='SELECT'||tag==='TEXTAREA'||(t&&t.isContentEditable)) return;
   if(e.key===' '&&(tag==='BUTTON'||tag==='A'||tag==='SUMMARY')) return;
   const k=e.key.length===1?e.key.toLowerCase():e.key;
