@@ -64,7 +64,7 @@ uniform vec4 beads[6];
 // The planets and their moons (planets.js): per body, P its direction and drawn radius (radians),
 // C the colour of its point and that point's size (as a star's), L the way to the Sun from it and
 // its magnitude, N its north pole and its kind (0-6 Mercury to Neptune, 7 a moon), plus 8 when it
-// is nearer than the Sun and 16 when Saturn has no rings. moonGain is what zooming in adds to the limit for the moons, Uranus and Neptune (planets.js moonGain).
+// is nearer than the Sun and 16 when Saturn has no rings. moonGain is what zooming in adds to the limit for the planets and moons (planets.js moonGain).
 // S is where the body is on the view's image plane (xy, worked out in double precision) and the
 // refraction's squeeze of altitude there (z), from which a deep zoom places its disk (below).
 // M is the direction of its prime meridian's point on the equator (planets.js meridian).
@@ -1157,7 +1157,7 @@ void main(){
         if(fine){ vec4 S=bodyS[b]; dd=axR*(fuv.x-S.x)+axU*((fuv.y-S.y)*S.z); }
         float d2=dot(dd, dd);
         if(d2>reach*reach) continue;
-        float rPx=P.w/pxA, diskK=smoothstep(1.0, 3.0, rPx), vis=1.0-smoothstep(lim-0.8, lim+0.2, L.w+dm-(kind>=5?moonGain:0.0));
+        float rPx=P.w/pxA, diskK=smoothstep(1.0, 3.0, rPx), vis=1.0-smoothstep(lim-0.8, lim+0.2, L.w+dm-moonGain);
         // src less its part along the body, from the offset: src-P.xyz*dot(src, P.xyz) is the same.
         vec3 o=(dd-P.xyz*dot(dd, P.xyz))/sin(P.w), x; float t;
         if(inSun){

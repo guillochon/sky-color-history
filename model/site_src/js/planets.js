@@ -103,13 +103,14 @@ function planetDisplay(mag, tint){ const d=magDisplay(mag, 200); return {px:d.px
 // How many times their size the planets and moons are drawn: the Sun's and Moon's enlargement in the
 // walk-around view, and on the dome its drawn Sun over the true one.
 function bodyScale(dome){ return dome?(DOME_DISK/(dome.width*0.46))*90/SUN_RADIUS_DEG:DISK_SCALE; }
-// Zooming in stands for looking through binoculars or a telescope: the moons, fainter than the
-// naked-eye limit or lost in their planet's glare, and the faint outer planets, show as the view narrows, by 2.5 magnitudes
-// for each tenfold zoom past the walk-around view's usual 60 degrees, or the dome's full view.
+// Zooming in stands for looking through binoculars or a telescope: the planets and their moons
+// show as the view narrows, by 2.5 magnitudes for each tenfold zoom past the walk-around view's
+// usual 60 degrees, or the dome's full view: the moons, fainter than the naked-eye limit or lost
+// in their planet's glare, the faint outer planets, and Mercury or Venus low in a bright twilight
+// or by day, as a telescope finds them.
 function moonGain(){ return vrOn?2.5*Math.log10(Math.max(1, 60/vrFov)):2.5*Math.log10(Math.max(1, domeZoom.z)); }
-// A mark's magnitude for whether it shows: a moon's, Uranus's or Neptune's less the zoom's gain
-// (Uranus is at the naked-eye limit, Neptune well past it).
-function markMag(s){ return s.host||s.kind>=5?s.mag-moonGain():s.mag; }
+// A mark's magnitude for whether it shows: a planet's or moon's less the zoom's gain.
+function markMag(s){ return s.planet?s.mag-moonGain():s.mag; }
 // The epochs before history, and their ages in Myr. On any day of one of them, where each planet and
 // moon was on its orbit cannot be known: the Solar System is chaotic, its uncertainties growing
 // tenfold every ~10 Myr (Laskar 1989), and an epoch's age is uncertain by far more than any orbital
