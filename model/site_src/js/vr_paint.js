@@ -427,7 +427,7 @@ function paintVR(){
   }
   // The aurora, in its own pass, for the sky pass to add.
   const aurSt=skyNow.aur, aurOn=!!(aurSt&&aurSt.on&&vrGL.aurProg&&vrPitch+vrFov*0.5>-2);
-  if(aurOn){ perfPass('aurora'); drawAuroraVR(gl, aurSt, c); perfPassEnd('aurora'); }
+  if(aurOn){ perfPass('aurora'); drawAuroraVR(gl, aurSt, c); perfPassEnd('aurora', vrGL.aurFbo); }
   perfPass('sky');
   gl.uniform1f(u.aurOn, aurOn?1:0);
   const hl=skyNow.halo;

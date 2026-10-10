@@ -1,10 +1,12 @@
 // The VR view's frame profiler, on with ?perf in the address bar and off otherwise: every hook
 // below is a no-op without it. Each pass's GPU time comes from timer queries, read back frames
-// later so the measurement does not stall the GPU; where the browser has no timer queries
-// (Safari, Firefox), or with ?perf=sync, each pass is bracketed by gl.finish(), which inflates
-// the times but keeps their proportions; try it where every pass's timer query reads alike, as
-// a driver that times whole command buffers gives. CPU time is performance.now() around each part. The overlay keeps the last
-// 240 painted frames; p copies them as JSON, and vrPerf() in the console returns the same.
+// later so the measurement does not stall the GPU. Where the browser has no timer queries
+// (Safari, Firefox), where they read the whole frame for each pass (Chrome on a Mac), or with
+// ?perf=sync, each pass waits for the GPU by reading back one pixel of what it drew: the time
+// to that read is the pass's. gl.finish() would not do, as Chrome on a Mac returns from it at
+// once, and a read waits only for the work its target depends on. The waits inflate the frame
+// time but keep the passes' proportions. CPU time is performance.now() around each part. The
+// overlay keeps the last 240 painted frames; p copies them as JSON, and vrPerf() returns the same.
 const PERF=/[?&]perf(=|&|$)/.test(location.search)?{
   ext:null, sync:false, forceSync:/[?&]perf=sync(&|$)/.test(location.search), gl:null,
   cpu:{}, open:{}, gpuOpen:null,   // this frame's CPU sums, open CPU sections, the open GPU query
@@ -22,19 +24,30 @@ function perfEnd(k){ if(!PERF||PERF.open[k]==null) return; PERF.cpu[k]=(PERF.cpu
 function perfPass(k){
   if(!PERF||!PERF.gl) return;
   const gl=PERF.gl;
-  if(PERF.sync){ gl.finish(); perfBeg(k); PERF.gpuAt=performance.now(); return; }
+  if(PERF.sync){ perfBeg(k); PERF.gpuAt=performance.now(); return; }
   perfBeg(k);
   if(!PERF.ext||!PERF.paint) return;
   const q=PERF.pool.pop()||gl.createQuery();
   gl.beginQuery(PERF.ext.TIME_ELAPSED_EXT, q);
   PERF.gpuOpen={k, q};
 }
-function perfPassEnd(k){
+// fb is the target the pass drew into, when it is no longer bound for reading.
+function perfPassEnd(k, fb){
   if(!PERF||!PERF.gl) return;
   const gl=PERF.gl;
-  if(PERF.sync){ perfEnd(k); gl.finish(); PERF.paint&&PERF.paint.push({k, ms:performance.now()-PERF.gpuAt}); return; }
+  if(PERF.sync){ perfEnd(k); perfWait(gl, fb); PERF.paint&&PERF.paint.push({k, ms:performance.now()-PERF.gpuAt}); return; }
   if(PERF.gpuOpen&&PERF.gpuOpen.k===k){ gl.endQuery(PERF.ext.TIME_ELAPSED_EXT); PERF.paint.push(PERF.gpuOpen); PERF.gpuOpen=null; }
   perfEnd(k);
+}
+// Read one pixel of fb (or of what is bound for reading), in a format the target allows.
+const PERF_PX=new ArrayBuffer(16);
+function perfWait(gl, fb){
+  const was=gl.getParameter(gl.READ_FRAMEBUFFER_BINDING);
+  if(fb!==undefined) gl.bindFramebuffer(gl.READ_FRAMEBUFFER, fb);
+  const fmt=gl.getParameter(gl.IMPLEMENTATION_COLOR_READ_FORMAT), type=gl.getParameter(gl.IMPLEMENTATION_COLOR_READ_TYPE);
+  const view=type===gl.FLOAT?new Float32Array(PERF_PX):type===gl.UNSIGNED_BYTE?new Uint8Array(PERF_PX):type===gl.INT?new Int32Array(PERF_PX):type===gl.UNSIGNED_INT||type===gl.UNSIGNED_INT_2_10_10_10_REV?new Uint32Array(PERF_PX):new Uint16Array(PERF_PX);
+  gl.readPixels(0, 0, 1, 1, fmt, type, view);
+  if(fb!==undefined) gl.bindFramebuffer(gl.READ_FRAMEBUFFER, was);
 }
 function perfPaintBeg(gl){
   if(!PERF) return;
@@ -42,6 +55,8 @@ function perfPaintBeg(gl){
     PERF.gl=gl; PERF.ext=PERF.forceSync?null:gl.getExtension('EXT_disjoint_timer_query_webgl2'); PERF.sync=!PERF.ext;
     PERF.pending=[]; PERF.pool=[]; perfOverlay(); requestAnimationFrame(perfTick);
   }
+  // The last paint's work is waited out first, so the first pass doesn't carry it.
+  if(PERF.sync) perfWait(gl, null);
   PERF.paint=[]; PERF.paints++;
 }
 function perfPaintEnd(){
@@ -85,7 +100,7 @@ function perfTick(now){
 }
 // ANGLE on Metal (Chrome on a Mac) answers every timer query with about the whole command
 // buffer's time, so the passes add up to several frames. Seen over 30 paints, switch to
-// gl.finish() brackets and say why.
+// pixel readbacks and say why.
 function perfCheckTimer(){
   if(!PERF.ext||PERF.gpu.length<30||PERF.frames.length<30) return;
   const g=perfStat(PERF.gpu.map(x=>x.total)).avg, f=perfStat(PERF.frames.map(x=>x.dt).filter(d=>d>0));
@@ -109,7 +124,7 @@ function perfReport(){
   for(const k of PERF_GPU){ const st=perfStat(G.map(g=>g[k]||0)); if(st&&st.max>0) gpu[k]=st; }
   const dts=F.map(f=>f.dt).filter(d=>d>0);
   return {
-    gpuTimer:PERF.ext?'EXT_disjoint_timer_query_webgl2':'gl.finish() brackets (approximate)'+(PERF.switched?', switched: '+PERF.switched:''),
+    gpuTimer:PERF.ext?'EXT_disjoint_timer_query_webgl2':'pixel readback after each pass (approximate)'+(PERF.switched?', switched: '+PERF.switched:''),
     canvas:c?[c.width, c.height]:null, dpr:window.devicePixelRatio||1,
     epoch:EP[dIdx].key, lat:dLat, fov:vrFov, scenery:vrScenery, clouds:vrClouds, labels:vrLabels, playing:dayPlaying,
     frames:F.length, idleFrames:PERF.idle, frameMs:perfStat(dts), cpuTotal:perfStat(F.map(f=>f.total)), gpuTotal:perfStat(G.map(g=>g.total)),
@@ -137,7 +152,7 @@ function perfDraw(){
   const fm=r.frameMs;
   L.push('VR perf · '+(fm?(1000/fm.avg).toFixed(0)+' fps · frame '+fm.avg.toFixed(1)+' ms (p95 '+fm.p95.toFixed(1)+')':'waiting for frames'));
   L.push('canvas '+(r.canvas?r.canvas.join('×'):'?')+' @'+r.dpr+'x · '+r.frames+' painted / '+r.idleFrames+' idle frames');
-  L.push('GPU: '+(PERF.ext?'timer queries':'gl.finish() brackets, approximate'));
+  L.push('GPU: '+(PERF.ext?'timer queries':'pixel readback per pass, approximate'));
   if(PERF.switched) L.push('  (switched: '+PERF.switched+')');
   L.push('');
   L.push('GPU per paint     avg     p95  share');
