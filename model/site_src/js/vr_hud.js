@@ -81,7 +81,22 @@ function placeBodyMarks(){
 // on a point cloud hides. With them, the constellation figures and names, wherever the epoch's
 // stars still make them (constellations.js).
 let vrLabels=false, vrLabelsDrawn=false;
-const CON_PLACES={};
+const CON_PLACES={}, CON_KEEP={};
+// A line is left out when its stars' separation differs from today's by more than half.
+const CON_LINE_MAX=0.5;
+// Whether each line of CON_FIG, in order, is drawn for the epoch: all of them unless its stars
+// are moved there (CON_EPOCHS).
+function conKeep(key){
+  if(CON_KEEP[key]) return CON_KEEP[key];
+  const E=CON_EPOCHS[key], keep=[];
+  const unit=p=>{ const r=Math.PI/180, cd=Math.cos(p[1]*r); return [cd*Math.cos(p[0]*r), cd*Math.sin(p[0]*r), Math.sin(p[1]*r)]; };
+  const sep=(p, q)=>Math.acos(Math.max(-1, Math.min(1, vdot(unit(p), unit(q)))));
+  for(const [, , chains] of CON_FIG) for(const run of chains) for(let k=1;k<run.length;k++){
+    const i=run[k-1], j=run[k];
+    keep.push(!E||Math.abs(sep(E[i], E[j])/sep(CON_VERT[i], CON_VERT[j])-1)<=CON_LINE_MAX);
+  }
+  return CON_KEEP[key]=keep;
+}
 // The figures' vertices for the epoch, as right ascension and declination of date, or null.
 function conPlaces(key, year){
   const k=key+'|'+year;
@@ -90,19 +105,23 @@ function conPlaces(key, year){
   return CON_PLACES[k]=src&&src.map(v=>starMeanPlace([v[0], v[1], 0, 0, moved?0:v[2], moved?0:v[3]], key, year));
 }
 // The constellation lines, as great circles between their stars, cut at the horizon; returns
-// the names to label, at the middle of each figure's stars.
+// the names to label, at the middle of the stars of each figure's lines that are drawn.
 function drawConstellations(ctx, proj){
   const key=EP[dIdx].key, P=conPlaces(key, STAR_YEAR[key]||pageDate()[0]);
   if(!P) return [];
   const lat=LATDEG[dLat], LST=localSidereal();
   const dirs=P.map(p=>{ let H=rev(LST-rev(p.ra)); if(H>180) H-=360; const a=altaz(lat, p.dec, H); return horizDir(a.az, a.alt); });
   ctx.strokeStyle='rgba(140,170,225,.38)'; ctx.lineWidth=1; ctx.beginPath();
-  const names=[];
+  const names=[], keep=conKeep(key);
+  let li=0;
   for(const [, name, chains] of CON_FIG){
     const sum=[0, 0, 0];
+    let any=false;
     for(const run of chains){
-      for(const i of run){ sum[0]+=dirs[i][0]; sum[1]+=dirs[i][1]; sum[2]+=dirs[i][2]; }
       for(let k=1;k<run.length;k++){
+        if(!keep[li++]) continue;
+        any=true;
+        for(const i of [run[k-1], run[k]]){ sum[0]+=dirs[i][0]; sum[1]+=dirs[i][1]; sum[2]+=dirs[i][2]; }
         const a=dirs[run[k-1]], b=dirs[run[k]], ang=Math.acos(Math.max(-1, Math.min(1, vdot(a, b))));
         const n=Math.max(1, Math.ceil(ang*180/Math.PI/0.5)), s=Math.sin(ang)||1;
         let pen=false;
@@ -116,7 +135,7 @@ function drawConstellations(ctx, proj){
       }
     }
     const c=vnorm(sum);
-    if(c[2]>0.02){ const q=proj(c); if(q) names.push({x:q[0], y:q[1], text:name}); }
+    if(any&&c[2]>0.02){ const q=proj(c); if(q) names.push({x:q[0], y:q[1], text:name}); }
   }
   ctx.stroke();
   return names;

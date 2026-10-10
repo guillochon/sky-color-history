@@ -254,11 +254,9 @@ print('wrote', path)
 
 # ---- Constellation figures: Stellarium's modern sky culture (skycultures/modern/index.json, ----
 # lines as chains of Hipparcos numbers), matched to the catalogue through XHIP's HD numbers.
-# Each vertex is placed today and moved to the supernova epochs as its star is. An epoch whose
-# figures have moved too far to be traced gets none: the median change of a line's length is
-# printed for each, and the page draws only the epochs in CON_EPOCHS. Geminga's figures, 342,000
-# years back, are badly stretched (their lines change by about 1.3 times their length) but still
-# drawn, so the drift of the familiar shapes shows; ζ Oph's, 1.8 Myr back, are not.
+# Each vertex is placed today and moved to the supernova epochs as its star is; the page leaves
+# out each line whose stars have moved too far apart or together (vr_hud.js, CON_LINE_MAX). The
+# median change of a line's length is printed for each epoch.
 by_hd = {s['hd']: s for s in stars if s['hd']}
 sky = json.loads((DATA / 'stelcon' / 'index.json').read_text(encoding='utf-8'))
 verts, vindex, figures, dropped = [], {}, [], 0
@@ -296,17 +294,14 @@ def line_change(pos0, pos1):
 
 
 now = [(s['ra'], s['dec']) for s in verts]
-con_pos, CON_MAX = {}, 2.0           # the median line stretched or shrunk by more than twice its length
+con_pos = {}
 for key, years in EPOCHS.items():
-    pos = [at_epoch(s, years)[:2] for s in verts]
-    change = line_change(now, pos)
-    print(f"{key}: median line length change {change:.2f}" + ("" if change <= CON_MAX else ", too far: no figures"))
-    if change <= CON_MAX:
-        con_pos[key] = pos
+    con_pos[key] = [at_epoch(s, years)[:2] for s in verts]
+    print(f"{key}: median line length change {line_change(now, con_pos[key]):.2f}")
 con_out = ["// Constellation figures from Stellarium's modern sky culture, by build_star_epochs.py. CON_FIG rows",
            "// are abbreviation, name and chains of vertex indices. CON_VERT rows are J2000 right ascension,",
            "// declination and proper motion (arcsec/yr), as in STARS. CON_EPOCHS holds the vertices moved",
-           "// to the epochs whose figures are still recognisable.",
+           "// to the supernova epochs.",
            "const CON_FIG=" + json.dumps(figures, ensure_ascii=False, separators=(',', ':')) + ";",
            "const CON_VERT=[" + ",".join(f"[{s['ra']:.4f},{s['dec']:.4f},{s['pma']:.3f},{s['pmd']:.3f}]" for s in verts) + "];",
            "const CON_EPOCHS={" + ",".join(f"{k}:[" + ",".join(f"[{ra:.4f},{dec:.4f}]" for ra, dec in pos) + "]"
