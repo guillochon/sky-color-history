@@ -588,7 +588,7 @@ function uploadBodies(gl, u){
     P.set(b.dir, o); P[o+3]=b.rad*DISK_SCALE;
     C.set(b.rgb, o); C[o+3]=b.px;
     L.set(b.light, o); L[o+3]=b.mag;
-    N.set(b.pole, o); N[o+3]=b.kind+(b.front?8:0);
+    N.set(b.pole, o); N[o+3]=b.kind+(b.front?8:0)+(b.kind===4&&!b.rings?16:0);
   });
   gl.uniform4fv(u.bodyP, P); gl.uniform4fv(u.bodyC, C); gl.uniform4fv(u.bodyL, L); gl.uniform4fv(u.bodyN, N);
   gl.uniform1f(u.bodyCnt, list.length); gl.uniform1f(u.moonGain, moonGain());

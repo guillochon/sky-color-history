@@ -150,7 +150,7 @@ function drawVRLabels(){
     const p=projectBody(s.el, s.az, 0);
     if(!p.inView) return;
     // A planet drawn larger than its label's usual offset is labelled beside its disk (or rings).
-    const x=W/2+p.nx*W/2, y=H/2-p.ny*H/2, off=s.kind!=null?s.radDeg*DISK_SCALE*(s.kind===4?2.3:1)/(vrFov/H):0;
+    const x=W/2+p.nx*W/2, y=H/2-p.ny*H/2, off=s.kind!=null?s.radDeg*DISK_SCALE*(s.rings?2.3:1)/(vrFov/H):0;
     pts.push({x:x+off*0.7, y:y-off*0.7, mag:s.mag, text, kind});
   };
   if(skyNow.sn) add(skyNow.sn, skyNow.sn.name||'Supernova', 'sn');

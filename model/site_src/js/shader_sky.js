@@ -55,7 +55,7 @@ uniform vec4 beads[6];
 // The planets and their moons (planets.js): per body, P its direction and drawn radius (radians),
 // C the colour of its point and that point's size (as a star's), L the way to the Sun from it and
 // its magnitude, N its north pole and its kind (0-4 Mercury to Saturn, 5 a moon), plus 8 when it
-// is nearer than the Sun. moonGain is what zooming in adds to the moons' limit (planets.js moonGain).
+// is nearer than the Sun and 16 when Saturn has no rings. moonGain is what zooming in adds to the moons' limit (planets.js moonGain).
 uniform vec4 bodyP[${BODY_MAX}], bodyC[${BODY_MAX}], bodyL[${BODY_MAX}], bodyN[${BODY_MAX}]; uniform float bodyCnt, moonGain;
 // Moons' shadows that may fall on their planets (planets.js moonShadow): M the moon's place about
 // its planet in the planet's radii and w the planet's index among the bodies; K x the moon's radius
@@ -820,8 +820,9 @@ void main(){
         if(float(b)>=bodyCnt) break;
         vec4 P=bodyP[b], C=bodyC[b], L=bodyL[b], N=bodyN[b];
         int kind=int(mod(N.w, 8.0)+0.5);
-        if(inSun && N.w<7.5) continue;
-        float sig=max(C.w*starPx, sigMin), reach=max(P.w*(kind==4?2.3:1.0)+2.0*pxA, 4.0*sig);
+        bool ringed=kind==4 && N.w<15.5;
+        if(inSun && mod(N.w, 16.0)<7.5) continue;
+        float sig=max(C.w*starPx, sigMin), reach=max(P.w*(ringed?2.3:1.0)+2.0*pxA, 4.0*sig);
         vec3 dd=src-P.xyz; float d2=dot(dd, dd);
         if(d2>reach*reach) continue;
         float rPx=P.w/pxA, diskK=smoothstep(1.0, 3.0, rPx), vis=1.0-smoothstep(lim-0.8, lim+0.2, L.w+dm-(kind==5?moonGain:0.0));
@@ -846,7 +847,7 @@ void main(){
             dc*=1.0-0.97*(1.0-smoothstep(max(K.x-spread, 0.0)-pw, K.x+spread+pw, perp));
           }
           float vn=dot(P.xyz, N.xyz);
-          if(kind==4 && abs(vn)>1e-4){
+          if(ringed && abs(vn)>1e-4){
             // The rings, in the equator: lit on the Sun's side (seen from the other, only what light
             // gets through), dark in the planet's shadow, and casting their own shadow on it.
             vec3 Lr=L.xyz;

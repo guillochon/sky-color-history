@@ -505,7 +505,7 @@ function starNear(dir, tolDeg){
   // taken is the one the direction is furthest inside the reach of.
   const scale=bodyScale(!vrOn&&dome);
   for(const s of skyNow.starMarks){
-    const reach=s.kind!=null?Math.max(tolDeg, s.radDeg*scale*(s.kind===4?2.3:1)):tolDeg;
+    const reach=s.kind!=null?Math.max(tolDeg, s.radDeg*scale*(s.rings?2.3:1)):tolDeg;
     if(s.comet||Math.abs(s.el-el)>reach||markHidden(s)) continue;
     const d=Math.acos(Math.max(-1, Math.min(1, vdot(dir, horizDir(s.az, s.el)))))*180/Math.PI-reach;
     if(d>0||(best&&d>=bestD)) continue;
@@ -550,7 +550,11 @@ function reflectedSpectrum(s){
   const m=starThroughAir(s.mag, s.el, key);
   // A planet's or moon's size and how much of it is lit, as seen.
   const size=s.radDeg!=null?` · ${(s.radDeg*7200).toFixed(s.radDeg*7200<10?1:0)}″ across, ${Math.round(s.lit*100)}% lit`:'';
-  const note=`${s.planet?s.planet+(s.host?`, a moon of ${s.host}`:''):'A satellite'}${size} · ${r.note} · V ${s.mag.toFixed(1)} above the air, ${m.toFixed(1)} through ${X.toFixed(1)} airmass${X>=1.05?'es':''}`;
+  // In an epoch before history, where it was on its orbit that day is unknown; Saturn's rings may
+  // be younger than the epoch.
+  const ring=s.planet==='Saturn'&&s.ageMa>=RINGS_DEBATED_MA?(s.rings?' · its rings may be younger than this (100–400 Myr by Cassini’s measures, still argued)':' · drawn without rings, which are thought to be at most a few hundred Myr old'):'';
+  const where=s.unknown?' · its place on its orbit this day cannot be known: drawn at one picked at random for the epoch':'';
+  const note=`${s.planet?s.planet+(s.host?`, a moon of ${s.host}`:''):'A satellite'}${size} · ${s.planet==='Saturn'&&!s.rings?'sunlight off its yellower haze, with methane bands':r.note}${ring}${where} · V ${s.mag.toFixed(1)} above the air, ${m.toFixed(1)} through ${X.toFixed(1)} airmass${X>=1.05?'es':''}`;
   return {S, Y:1, parts:[], marks, note};
 }
 // The supernova, if it is up within tolDeg of dir.

@@ -75,9 +75,9 @@ function eqVec(ra, dec){ const r=Math.PI/180, c=Math.cos(dec*r); return [c*Math.
 // Orbit plane of a moon: the host's equator, x toward its ascending node on the J2000 equator.
 function equatorAxes(ra, dec){ const k=eqVec(ra, dec), i=vnorm([-k[1], k[0], 0]); return {i, j:vcross(k, i), k}; }
 // A moon's place about its host (km, J2000 equatorial) t days after J2000.
-function moonOffset(m, ax, t){
+function moonOffset(m, ax, t, dL=0){
   const r=Math.PI/180, ecc=m[8], per=m[9], g=per?(per[2]+per[3]*t)*r:0;
-  const L=(m[5]+m[6]*t+(per?per[0]*Math.sin(g)+per[1]*Math.cos(g):0))*r;
+  const L=(m[5]+dL+m[6]*t+(per?per[0]*Math.sin(g)+per[1]*Math.cos(g):0))*r;
   let lon=L, rad=m[4];
   if(ecc){
     const [e, w0, wd]=ecc, M=L-(w0+wd*t)*r;
@@ -98,12 +98,35 @@ function bodyScale(dome){ return dome?(DOME_DISK/(dome.width*0.46))*90/SUN_RADIU
 function moonGain(){ return vrOn?2.5*Math.log10(Math.max(1, 60/vrFov)):2.5*Math.log10(Math.max(1, domeZoom.z)); }
 // A mark's magnitude for whether it shows: a moon's less the zoom's gain.
 function markMag(s){ return s.host?s.mag-moonGain():s.mag; }
+// The epochs before history, and their ages in Myr. On any day of one of them, where each planet and
+// moon was on its orbit cannot be known: the Solar System is chaotic, its uncertainties growing
+// tenfold every ~10 Myr (Laskar 1989), and an epoch's age is uncertain by far more than any orbital
+// period. Each is drawn at a place on its orbit drawn at random for the epoch (seeded by its key),
+// moving on from there with the date; Jupiter's moons share one offset, keeping their resonance.
+// The orbits' shapes are today's: known back to about 50 Myr (La2010; Zeebe & Lourens 2019), only
+// statistically before.
+const PLANET_AGE_MA={hadean44:4400, hadean40:4000, archean38:3800, archean27thin:2700, archean27:2700, archean27vthick:2700, proterozoic22:2200, snowball07:700, ordovician466:466, carbon30:300, kpg66:66, zetaoph:1.78, geminga:0.342};
+// Saturn's rings may be young: their mass and how little meteoroid dust darkens them put them at
+// 100-400 Myr (Iess et al. 2019; Kempf et al. 2023), though whether they are is still argued.
+// They are drawn back to 1 Ga and left out before.
+const RINGS_MA=1000, RINGS_DEBATED_MA=100;
+function planetPhases(key){
+  const P=planetPhases.cache||(planetPhases.cache={});
+  if(P[key]!==undefined) return P[key];
+  if(PLANET_AGE_MA[key]==null) return P[key]=null;
+  let h=2166136261; for(const c of key) h=Math.imul(h^c.charCodeAt(0), 16777619);
+  const rand=mulberry32(h>>>0), planets=PLANETS.map(()=>rand()*360), jup=rand()*360;
+  return P[key]={planets, moons:PLANET_MOONS.map(m=>m[1]===3?jup:rand()*360)};
+}
 // Whether a moon is hidden behind its host's drawn disk, in the view showing.
 function markHidden(s){ return !!s.host&&s.behind&&s.rho<(vrOn?DISK_SCALE:bodyScale(dome)); }
 // Write the planets and their moons into the marks and the walk-around view's bodies. Positions
 // are J2000, precessed to the same year as the stars so they sit correctly among them; each J2000
 // direction (a pole, the way to the Sun) is turned into the local horizon frame the same way.
+// Each shines by the epoch's sunlight: the young Sun's fainter light dims them all alike.
 function placePlanets(lat, marks, bodies, epochKey, year, LST){
+  const phases=planetPhases(epochKey), ageMa=PLANET_AGE_MA[epochKey]||0, rings=ageMa<RINGS_MA;
+  const dimMag=-2.5*Math.log10((EP[dIdx]&&EP[dIdx].sunL)||1);
   const T=(astroDay()-1.5)/36525, tD=T*36525;
   const earth=planetHelio(PLANET_EARTH[0], PLANET_EARTH[1], T), R=Math.hypot(...earth);
   const eps=23.43928*Math.PI/180, ce=Math.cos(eps), se=Math.sin(eps), eq=v=>[v[0], v[1]*ce-v[2]*se, v[1]*se+v[2]*ce];
@@ -111,24 +134,24 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
   const horiz=v=>{ const [ra, dec]=toRaDec(v), place=starMeanPlace([ra, dec, 0, 0, 0, 0], epochKey, year), p=raDecAltaz(lat, place.ra, place.dec, LST); return {az:p.az, alt:p.alt, ra:place.ra, dec:place.dec, dir:horizDir(p.az, p.alt)}; };
   PLANETS.forEach(([name, el, rate, tint], k)=>{
     const [Rkm, flat, pra, pdec]=PLANET_BODY[k];
-    const h=planetHelio(el, rate, T), g=[h[0]-earth[0], h[1]-earth[1], h[2]-earth[2]];
+    const h=planetHelio(phases?el.map((v, n)=>n===3?v+phases.planets[k]:v):el, rate, T), g=[h[0]-earth[0], h[1]-earth[1], h[2]-earth[2]];
     const r=Math.hypot(...h), d=Math.hypot(...g);
     const q=eq(g), qn=q.map(v=>v/d), pole=eqVec(pra, pdec);
     const i=Math.acos(Math.max(-1, Math.min(1, (r*r+d*d-R*R)/(2*r*d))))*180/Math.PI;
-    const ringSinB=name==='Saturn'?Math.abs(vdot(qn, pole)):0;
-    const mag=planetMag(name, r, d, i, ringSinB);
+    const ringed=name==='Saturn'&&rings, ringSinB=ringed?Math.abs(vdot(qn, pole)):0;
+    const mag=planetMag(name, r, d, i, ringSinB)+dimMag;
     const p=horiz(q);
     const radDeg=Math.atan(Rkm/(d*PL_AU_KM))*180/Math.PI, show=planetDisplay(mag, tint);
-    const body={dir:p.dir, rad:radDeg*Math.PI/180, light:vnorm(horiz(eq(h.map(v=>-v))).dir), pole:horiz(pole).dir, kind:k, px:show.px, rgb:show.rgb, mag, front:d<R, shadows:[]};
+    const body={dir:p.dir, rad:radDeg*Math.PI/180, light:vnorm(horiz(eq(h.map(v=>-v))).dir), pole:horiz(pole).dir, kind:k, px:show.px, rgb:show.rgb, mag, front:d<R, shadows:[], rings:ringed};
     if(p.alt>0){
-      marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb, planet:name, mag, ra:p.ra, dec:p.dec, radDeg, lit:(1+Math.cos(i*Math.PI/180))/2, body, kind:k});
+      marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb, planet:name, mag, ra:p.ra, dec:p.dec, radDeg, lit:(1+Math.cos(i*Math.PI/180))/2, body, kind:k, rings:ringed, unknown:!!phases, ageMa});
       bodies.push(body);
     }
     // Its moons, where the light now arriving left them, and the Sun's way from the host.
     const ax=equatorAxes(pra, pdec), sunFrom=vnorm(eq(h.map(v=>-v))), tM=tD-d*LIGHT_DAY_AU;
-    for(const m of PLANET_MOONS){
-      if(m[1]!==k) continue;
-      const off=moonOffset(m, ax, tM), along=vdot(off, qn);
+    PLANET_MOONS.forEach((m, mi)=>{
+      if(m[1]!==k) return;
+      const off=moonOffset(m, ax, tM, phases?phases.moons[mi]:0), along=vdot(off, qn);
       // On the Sun's side and near enough its line through the host: its shadow may fall on the
       // host. Kept in host radii in the horizon frame, with the moon's radius and the Sun's angular
       // radius there, by which the penumbra widens with distance.
@@ -139,19 +162,19 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
       }
       // In the host's shadow (a cylinder of its radius away from the Sun): eclipsed.
       const sAlong=vdot(off, sunFrom), sPerp=vscale(vadd(off, vscale(sunFrom, -sAlong), [0, 0, 0]), 1/Rkm);
-      if(sAlong<0&&Math.hypot(sPerp[0], sPerp[1], sPerp[2]/(1-flat))<1) continue;
+      if(sAlong<0&&Math.hypot(sPerp[0], sPerp[1], sPerp[2]/(1-flat))<1) return;
       // Its offset across the sky in host radii, the polar one stretched by the flattening, so 1 is the limb.
       const perp=vadd(off, vscale(qn, -along), [0, 0, 0]), pp=vdot(perp, pole), eqP=vadd(perp, vscale(pole, -pp), [0, 0, 0]);
       const rho=Math.hypot(Math.hypot(...eqP), pp/(1-flat))/Rkm;
       const pos=q.map((v, n)=>v*PL_AU_KM+off[n]), dm=Math.hypot(...pos)/PL_AU_KM;
       const mp=horiz(pos);
-      if(!(mp.alt>0)) continue;
-      const mmag=m[3]+5*Math.log10(r*dm)+0.02*i, ms=planetDisplay(mmag, m[7]);
-      const mark={az:mp.az, el:mp.alt, px:ms.px, rgb:ms.rgb, planet:m[0], host:name, mag:mmag, ra:mp.ra, dec:mp.dec, radDeg:Math.atan(m[2]/(dm*PL_AU_KM))*180/Math.PI, lit:(1+Math.cos(i*Math.PI/180))/2, behind:along>0, rho, tint:m[7]};
+      if(!(mp.alt>0)) return;
+      const mmag=m[3]+5*Math.log10(r*dm)+0.02*i+dimMag, ms=planetDisplay(mmag, m[7]);
+      const mark={az:mp.az, el:mp.alt, px:ms.px, rgb:ms.rgb, planet:m[0], host:name, mag:mmag, ra:mp.ra, dec:mp.dec, radDeg:Math.atan(m[2]/(dm*PL_AU_KM))*180/Math.PI, lit:(1+Math.cos(i*Math.PI/180))/2, behind:along>0, rho, tint:m[7], unknown:!!phases};
       mark.body={dir:mp.dir, rad:mark.radDeg*Math.PI/180, light:body.light, pole:body.pole, kind:5, px:ms.px, rgb:ms.rgb, mag:mmag, front:false, tint:m[7], mark};
       marks.push(mark);
       if(!(mark.behind&&rho<DISK_SCALE)) bodies.push(mark.body);
-    }
+    });
   });
 }
 // The dome's version of the sky shader's bodyDisk, bodyAlbedo and saturnRing: the colour (before the
@@ -205,7 +228,7 @@ function bodyPixel(b, src, rad, rPx){
     dc=bodyAlbedo(b.kind, Math.asin(Math.max(-1, Math.min(1, vdot(nrm, n))))*180/Math.PI, b.tint).map(c=>c*lit*cov*BODY_GAIN[b.kind]);
     for(const s of b.shadows||[]){ const sh=moonShadow(x, s, L, rPx); dc=dc.map(c=>c*sh); }
   }
-  if(b.kind===4&&Math.abs(vnK)>1e-4){
+  if(b.kind===4&&b.rings&&Math.abs(vnK)>1e-4){
     if(cov>0){ const ts=-vdot(x, n)/vdot(L, n); if(ts>0){ const sh=1-0.85*saturnRing(Math.hypot(...x.map((c, i)=>c+ts*L[i])), 0.02)[1]; dc=dc.map(c=>c*sh); } }
     const tr=-on/vnK, xr=o.map((c, i)=>c+tr*v[i]), rg=saturnRing(Math.hypot(...xr), 0.8/rPx/Math.max(Math.abs(vnK), 0.03));
     if(rg[1]>0){
@@ -220,7 +243,7 @@ function bodyPixel(b, src, rad, rPx){
 // times show (how much of it shows through the sky and how the air dims it, as a star) and the
 // air's reddening low down (as the sky shader's).
 function drawBodyOnDome(b, x, y, rPx, show){
-  const {cx, cy, R}=domeView(), W=dome.width, H=dome.height, reach=rPx*(b.kind===4?2.35:1.05)+1;
+  const {cx, cy, R}=domeView(), W=dome.width, H=dome.height, reach=rPx*(b.kind===4&&b.rings?2.35:1.05)+1;
   const x0=Math.max(0, Math.floor(x-reach)), y0=Math.max(0, Math.floor(y-reach)), x1=Math.min(W-1, Math.ceil(x+reach)), y1=Math.min(H-1, Math.ceil(y+reach));
   if(x1<x0||y1<y0) return;
   const bw=x1-x0+1, bh=y1-y0+1, img=dctx.getImageData(x0, y0, bw, bh), px=img.data, rad=rPx*(Math.PI/2)/R;
