@@ -66,6 +66,17 @@ const ginv = s => s<=0.04045 ? s/12.92 : Math.pow((s+0.055)/1.055, 2.4);
 // TOE_W2 wide, leaving the day curve unchanged above about 1 cd/m². TOE_CD converts r to cd/m²
 // with day.js's calibration of 969.5 cd/m² per model unit. Mirrored in the sky shader as toneT.
 const TOE_A=0.1674, TOE_B=0.002276, TOE_W=0.957, TOE_W2=0.012, TOE_CD=YREF*969.5;
+// A nebula or galaxy is a small patch, and the eye judges it against the sky round it, by the
+// ratio of their light: its pixels are drawn at least DSO_STEP of sRGB brighter than the sky's for
+// each tenfold of light over it (20 levels a decade, about the curve's own step just above a dark
+// sky), where the curve alone, levelling off toward 43, would crush M42's 16-19 mag/arcsec² into
+// six levels. Rods and cones see contrast, not the light's absolute level, over so small a field.
+const DSO_STEP=20/255;
+// sRGB value of the sky (display linear light tBg) with a nebula or galaxy over it, its light
+// raising the luminance ratio from rBg to rNew, given the curve's own value tNew for rNew.
+function toneDso(tBg, rBg, rNew, tNew){
+  return rBg>0?Math.max(tNew, ginv(Math.min(1, g(tBg)+DSO_STEP*Math.log10(rNew/rBg)))):tNew;
+}
 // The same curve in GLSL, for shaders that declare uniform vec4 toneU (k, p, cap, TOE_CD), with
 // sRGB encoding and decoding.
 const TONE_GLSL=`

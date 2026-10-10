@@ -414,7 +414,11 @@ function renderDay(fast){
       const tr=bl.tr[bi], ta=bl.ta[bi];
       const la=lgrid[c]*(1-ta)+lgrid[c+1]*ta, lb=lgrid[c+NC]*(1-ta)+lgrid[c+NC+1]*ta, rBg=Math.exp(la*(1-tr)+lb*tr);
       if(rAdd<rBg*0.003) continue;
-      const rNew=rBg+rAdd, tBg=toneAt(T, rBg), tNew=toneAt(T, rNew), g=tNew/rNew;
+      const rNew=rBg+rAdd, tBg=toneAt(T, rBg);
+      let tNew=toneAt(T, rNew);
+      // A nebula or galaxy over the sky and the Milky Way (color.js toneDso).
+      if(rD>0){ const rb=rBg+rMw; tNew=toneDso(rMw>0?toneAt(T, rb):tBg, rb, rNew, tNew); }
+      const g=tNew/rNew;
       mwA[bi]=tBg>0?(tNew/tBg)*(rBg/rNew):0;
       for(let q=0;q<3;q++) mwB[bi*3+q]=g*(MW_LIN[q]*rMw+(rD>0?Ld[q]:0));
     }

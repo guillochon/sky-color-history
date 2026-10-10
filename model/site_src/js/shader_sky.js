@@ -452,6 +452,13 @@ vec3 overSky(vec3 skyC, float rBg, float r, vec3 L){
   float rNew=rBg+r, tBg=toneT(rBg), tNew=toneT(rNew);
   return lin2s3(clamp(s2lin3(skyC)*(tBg>0.0?(tNew/tBg)*(rBg/rNew):0.0)+L*(tNew/rNew), 0.0, 1.0));
 }
+// The same for a nebula or galaxy, at least DSO_STEP of sRGB over the sky per tenfold of light
+// (color.js toneDso).
+vec3 overSkyDso(vec3 skyC, float rBg, float r, vec3 L){
+  float rNew=rBg+r, tBg=toneT(rBg), tNew=toneT(rNew);
+  if(rBg>0.0) tNew=max(tNew, s2lin(min(lin2s(tBg)+${DSO_STEP.toFixed(5)}*log(rNew/rBg)*0.4342945, 1.0)));
+  return lin2s3(clamp(s2lin3(skyC)*(tBg>0.0?(tNew/tBg)*(rBg/rNew):0.0)+L*(tNew/rNew), 0.0, 1.0));
+}
 // Light at night from the Moon (ml) and a supernova (sn), on a surface with normal n.
 vec3 nightLit(vec3 n){ return snLight*max(dot(n, snDir), 0.0)+mlLight*max(dot(n, mlDir), 0.0); }
 vec3 skyLook(vec3 d){
@@ -860,7 +867,7 @@ void main(){
       // The nebulae and galaxies, behind the air like the Milky Way.
       vec3 Ld=dsoAt(src, 2.0*fy/res.y)*extinctionAt(te, mwK);
       float rD=dot(Ld, vec3(0.2126, 0.7152, 0.0722));
-      if(rD>rBg*0.003) skyC=overSky(skyC, rBg, rD, Ld);
+      if(rD>rBg*0.003) skyC=overSkyDso(skyC, rBg, rD, Ld);
     }
     if(haloK.x+haloK.y>0.0 && !onBody && te>-1.0){
       // Diamond dust: the halos, and the glints of single crystals, most of them where the halos are.
