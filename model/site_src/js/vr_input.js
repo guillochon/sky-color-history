@@ -316,6 +316,14 @@ function vrHoldEsc(on){
   if(!on){ if(kb.unlock) kb.unlock(); return; }
   if(kb.lock&&document.fullscreenElement){ const p=kb.lock(['Escape']); if(p&&p.catch) p.catch(()=>{}); }
 }
+// On a Mac, Chrome's keyboard lock turns off all the system's shortcuts, not just Esc, so
+// Cmd+Shift+3/4/5 (and Cmd+Ctrl+Shift+3/4) took no screenshot. The lock is let go while Cmd is
+// down, before the rest of the shortcut is pressed, and taken back when it comes up or, if the
+// shortcut took the focus, when the focus returns.
+const vrEscBack=()=>{ if(vrOn&&document.fullscreenElement) vrHoldEsc(true); };
+document.addEventListener('keydown', e=>{ if(vrOn&&(e.key==='Meta'||e.key==='OS')) vrHoldEsc(false); }, true);
+document.addEventListener('keyup', e=>{ if(e.key==='Meta'||e.key==='OS') vrEscBack(); }, true);
+window.addEventListener('focus', vrEscBack);
 // Edge scrolling, in inspect only: with the pointer in the outer band of the view, the view turns
 // that way, faster the nearer the edge, up to 0.7 of the field of view a second.
 function edgeScroll(t){
