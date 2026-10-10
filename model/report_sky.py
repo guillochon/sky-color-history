@@ -213,7 +213,19 @@ SECTIONS = [
 "The rate follows the lunar cratering record (Neukum et al. 2001): about 3,000 times today's at 4.4 Ga, 500 at "
 "4.0 Ga and 120 at 3.8 Ga, of slow, yellow-orange fireballs from a main-belt-like population (Strom et al. 2015; "
 "Marchi et al. 2014), with impact flashes on the closer Moon's dark side; twice today's at 2.7 Ga; and a hundred "
-"times today's fireballs at 466 Ma, after the L-chondrite parent body broke up (Schmitz et al. 2019)."]],
+"times today's fireballs at 466 Ma, after the L-chondrite parent body broke up (Schmitz et al. 2019).",
+"Meteor showers come on their own dates. The modern-era skies have the 38 showers of the IMO's working list "
+"(Rendtel 2027), with their radiants and drift, speeds, population indices and peak rates, rising and falling "
+"about the maximum as Jenniskens (1994) measured them, and their outbursts and storms at the hour they were seen: "
+"the Leonids of 1799 to 2002, the Andromedids of 1872 and 1885, the Draconids of 1933 and 1946 and others "
+"(Jenniskens 1995 and the IMO's analyses), with the Leonid peaks predicted for 2034. Showers last thousands of "
+"years, so the older epochs have their own, drawn at random with the geometry, speeds and profiles of today's and "
+"outbursts at today's rate, about 0.5 a year above ZHR 100 and one in 45 years above 10,000. Their number is taken "
+"to follow the comets that feed them: three quarters from short-period comets, a quarter from long-period ones "
+"(only about a fifth of known streams have an identified parent; Ye &amp; Jenniskens 2022), giving about 30 times "
+"today's at 4.4 Ga, 5 at 4.0 Ga, today's by 2 Ga and 1.75 at 1.78 Ma, in the comet shower after a star's passage. "
+"No published work estimates showers in the early Solar System, so these are estimates, and in the bombardment "
+"they hardly show against the sporadic rate."]],
 
 ['Dust, comets and the Ordovician ring', [
 "The zodiacal light, sunlight off interplanetary dust, is part of today's natural night sky. Where the inner Solar "
@@ -345,6 +357,10 @@ REFS = [
 ("Schmitz B. et al. (2019). An extraterrestrial trigger for the mid-Ordovician ice age: dust from the breakup of the L-chondrite parent body. <i>Science Advances</i> 5, eaax4184.", "schmitz2019", "@article{schmitz2019, author={Schmitz, Birger and others}, title={An extraterrestrial trigger for the mid-{Ordovician} ice age: Dust from the breakup of the {L}-chondrite parent body}, journal={Science Advances}, volume={5}, pages={eaax4184}, year={2019}}"),
 ("Nesvorný D. et al. (2010). Cometary origin of the zodiacal cloud and carbonaceous micrometeorites. <i>Astrophysical Journal</i> 713, 816.", "nesvorny2010", "@article{nesvorny2010, author={Nesvorn{\\'y}, David and others}, title={Cometary origin of the zodiacal cloud and carbonaceous micrometeorites}, journal={Astrophysical Journal}, volume={713}, pages={816--836}, year={2010}}"),
 ("Tomkins A.G., Martin E.L., Cawood P.A. (2024). Evidence suggesting that Earth had a ring in the Ordovician. <i>Earth and Planetary Science Letters</i> 646, 118991.", "tomkins2024", "@article{tomkins2024, author={Tomkins, Andrew G. and Martin, Erin L. and Cawood, Peter A.}, title={Evidence suggesting that {Earth} had a ring in the {Ordovician}}, journal={Earth and Planetary Science Letters}, volume={646}, pages={118991}, year={2024}}"),
+("Jenniskens P. (1994). Meteor stream activity. I. The annual streams. <i>Astronomy and Astrophysics</i> 287, 990.", "jenniskens1994", "@article{jenniskens1994, author={Jenniskens, Peter}, title={Meteor stream activity. {I}. {The} annual streams}, journal={Astronomy and Astrophysics}, volume={287}, pages={990--1013}, year={1994}}"),
+("Jenniskens P. (1995). Meteor stream activity. II. Meteor outbursts. <i>Astronomy and Astrophysics</i> 295, 206.", "jenniskens1995", "@article{jenniskens1995, author={Jenniskens, Peter}, title={Meteor stream activity. {II}. {Meteor} outbursts}, journal={Astronomy and Astrophysics}, volume={295}, pages={206--235}, year={1995}}"),
+("Rendtel J. (2027). Meteor Shower Calendar 2027. International Meteor Organization, IMO INFO(3-26).", "rendtel2027", "@misc{rendtel2027, author={Rendtel, J{\\\"u}rgen}, title={Meteor Shower Calendar 2027}, howpublished={International Meteor Organization, IMO INFO(3-26)}, year={2027}}"),
+("Ye Q. &amp; Jenniskens P. (2022). Comets and meteor showers. In <i>Comets III</i> (in press), arXiv:2209.10654.", "ye2022", "@incollection{ye2022, author={Ye, Quanzhi and Jenniskens, Peter}, title={Comets and meteor showers}, booktitle={Comets III (in press); arXiv:2209.10654}, year={2022}}"),
 ("Kaib N.A. &amp; Raymond S.N. (2026). A potential signature of HD 7977's passage among observed long-period comet orbits. <i>Planetary Science Journal</i>, doi:10.3847/PSJ/ae7a65.", "kaib2026", "@article{kaib2026, author={Kaib, Nathan A. and Raymond, Sean N.}, title={A potential signature of {HD 7977}'s passage among observed long-period comet orbits}, journal={Planetary Science Journal}, year={2026}, doi={10.3847/PSJ/ae7a65}}"),
 ('Morris B.M. (2020). A relationship between stellar age and spot coverage. <i>Astrophysical Journal</i> 893, 67.', 'morris2020', '@article{morris2020, author={Morris, Brett M.}, title={A relationship between stellar age and spot coverage}, journal={Astrophysical Journal}, volume={893}, pages={67}, year={2020}, doi={10.3847/1538-4357/ab79a0}}'),
 ('Nichols-Fleming F. &amp; Blackman E.G. (2020). Determination of starspot covering fraction as a function of stellar age from observational data. <i>MNRAS</i> 491, 2706.', 'nicholsfleming2020', '@article{nicholsfleming2020, author={Nichols-Fleming, Fiona and Blackman, Eric G.}, title={Determination of starspot covering fraction as a function of stellar age from observational data}, journal={Monthly Notices of the Royal Astronomical Society}, volume={491}, pages={2706--2717}, year={2020}, doi={10.1093/mnras/stz3197}}'),

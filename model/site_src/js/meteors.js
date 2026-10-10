@@ -261,6 +261,8 @@ function metBin(s, b){
         }
       }
       if(E.flash&&!s) flashBin(got, b, E, key, D, id);
+      // Showers (showers.js), last, so the sporadics of the second stay as they were.
+      showerBin(got, b, s, lo, hi, E, ctx, F, id);
     }
   }finally{ metRng=Math.random; }
   MET.cache.set(id, got);
@@ -506,14 +508,16 @@ function metHoverCheck(){
   const id=h?(h.m||h.f).id:null;
   if(id!==MET.hover){ MET.hover=id; if(vrOn) refreshVRTip(); else refreshDomeTip(); }
 }
-// The readout: how many meteors an hour show at the zenith's darkness now, and the epoch's rate.
+// The readout: how many meteors an hour show at the zenith's darkness now, and the epoch's rate,
+// with the showers active (showers.js).
 function meteorReadout(){
   if(!skyNow) return '';
   const key=EP[dIdx].key, E=metEpoch(key), k=extK(key);
   const lim=nakedEyeLimit(skyNow.rgrid[0]*skyNow.rCd);
   // Calibrated: about 8 an hour where the zenith shows stars to 6.5 in clean air, today.
-  const per=MET_VIS_TODAY*E.F*metCum(E, lim-(k-0.25)-MET_PERCEPT+0.3)/metCum(metEpoch('modern'), 6.5-MET_PERCEPT+0.3);
-  const rate=per<0.05?'almost none':per<1?`about one every ${per>0.1?Math.round(1/per)+' hours':'day of watching'}`:per<120?`about ${Math.round(per)} an hour`:`about ${Math.round(per/60)} a minute`;
-  const x=E.F===1?'':` · ${E.F>=10?Math.round(E.F).toLocaleString('en-US'):E.F}× today`;
-  return rate+x+(E.ring&&ringOf(key)?(dLat==='Equator'?' · ring debris overhead':''):'');
+  const sh=showerReadout(key, lim-(k-0.25));
+  const per=MET_VIS_TODAY*E.F*metCum(E, lim-(k-0.25)-MET_PERCEPT+0.3)/metCum(metEpoch('modern'), 6.5-MET_PERCEPT+0.3)+sh.hr;
+  const rate=per<0.05?'almost none':per<1?`about one every ${per>0.1?Math.round(1/per)+' hours':'day of watching'}`:per<120?`about ${Math.round(per)} an hour`:per<7200?`about ${Math.round(per/60)} a minute`:`about ${Math.round(per/3600)} a second`;
+  const x=E.F===1?'':` · sporadics ${E.F>=10?Math.round(E.F).toLocaleString('en-US'):E.F}× today`;
+  return rate+x+sh.text+(E.ring&&ringOf(key)?(dLat==='Equator'?' · ring debris overhead':''):'');
 }

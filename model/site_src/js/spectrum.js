@@ -704,6 +704,6 @@ function meteorSpectrumTip(h){
   const comp=m.rho>3?'stone':m.rho<1?'fluffy cometary dust':'grain';
   const ago=h.ago>0.05?` · went by ${h.ago.toFixed(1)} s ago`:'';
   const big=m.he<35?' · deep enough that part of it may fall as meteorites':'';
-  return {S, Y:1, parts:[], marks, note:`A meteor ${key==='ordovician466'&&m.src==='aster'?'from the shattered L-chondrite parent body':(MET_SRC[m.src]||'')} · ${Math.round(m.v)} km/s · a ${metFmtMass(m.mass)} ${comp} about ${metFmtSize(m.diam)} across · `
+  return {S, Y:1, parts:[], marks, note:`${m.shower?showerWho(m.shower):`A meteor ${key==='ordovician466'&&m.src==='aster'?'from the shattered L-chondrite parent body':(MET_SRC[m.src]||'')}`} · ${Math.round(m.v)} km/s · a ${metFmtMass(m.mass)} ${comp} about ${metFmtSize(m.diam)} across · `
     +`glowing from ${Math.round(m.hb)} to ${Math.round(m.he)} km up, ${m.T.toFixed(1)} s · peak V ${peak.toFixed(1)}${big}${ago}`};
 }

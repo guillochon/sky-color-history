@@ -173,6 +173,7 @@ PARTS = [
     'js/corona.js',
     'js/spectrum.js',
     'js/meteors.js',
+    'js/showers.js',
     'js/satellites.js',
     'js/comets.js',
     'js/dome_bodies.js',

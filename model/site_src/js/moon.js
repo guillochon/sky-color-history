@@ -87,9 +87,10 @@ function dayNumber(y,m,D,ut){ const div=(a,b)=>Math.trunc(a/b); return 367*y - d
 function localISODate(t){ const p=n=>String(n).padStart(2,'0'); return t.getFullYear()+'-'+p(t.getMonth()+1)+'-'+p(t.getDate()); }
 function instantUT(){
   const [Y,M,D]=pageDate();
-  const local=new Date(Y,M-1,D, Math.floor(minutes/60), Math.floor(minutes%60), Math.floor((minutes*60)%60));
+  // To the millisecond, so the meteors (meteors.js) play smoothly in real time.
+  const local=new Date(Y,M-1,D, Math.floor(minutes/60), Math.floor(minutes%60), Math.floor((minutes*60)%60), Math.floor((minutes*60000)%1000));
   return { y:local.getUTCFullYear(), m:local.getUTCMonth()+1, D:local.getUTCDate(),
-    ut:local.getUTCHours()+local.getUTCMinutes()/60+local.getUTCSeconds()/3600,
+    ut:local.getUTCHours()+local.getUTCMinutes()/60+(local.getUTCSeconds()+local.getUTCMilliseconds()/1000)/3600,
     lon:-local.getTimezoneOffset()/60*15 };
 }
 // Low-precision lunar theory, Schlyter / van Flandern & Pulkkinen, about 0.05°. The Sun's angles

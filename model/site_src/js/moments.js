@@ -2,7 +2,9 @@
 // latitude, date and clock time, then where to look: toward the Sun (the default), a direction
 // (look: [azimuth, elevation]), the supernova (look: 'sn') or the Moon (look: 'moon'). The eclipse
 // card finds the next total eclipse from today with the Sun up, as the t key does but passing over
-// annular ones, and the lunar one the next total lunar eclipse with the Moon up, as b does. Moments
+// annular ones, and the lunar one the next total lunar eclipse with the Moon up, as b does. The
+// storm card opens the Leonid storm of 1966, 1999, 2001 or 2002 whose peak came in the darkest sky,
+// with the radiant highest, at the visitor's own longitude (showers.js openStorm). Moments
 // that show one feature (clear: the eclipse, the supernova, an aurora, the Milky Way, the
 // satellites) open with clouds off, and the visitor's own setting returns on leaving VR; c or the
 // pad during the moment makes that the setting.
@@ -16,6 +18,7 @@ const MOMENTS=[
   {epoch:'geminga', date:'2026-01-15', t:1320, look:'sn', clear:true, title:'The Geminga supernova', sub:'342,000 years ago, a star in Orion as bright as the quarter Moon', art:'nova'},
   {epoch:'volcanic', date:'2026-07-08', t:1380, look:[180, 32], title:'A town night in 1815', sub:'Oil lamps light the streets but barely touch the sky', art:'stars'},
   {epoch:'modern', date:'2026-07-08', t:1380, look:[180, 32], title:'A city night, today', sub:'Sodium and LED glow hides all but the brightest stars', art:'city'},
+  {epoch:'modern', date:null, t:0, storm:true, clear:true, title:'A Leonid meteor storm', sub:'Over a thousand an hour from one point in Leo, even through city glow', art:'storm'},
   {epoch:'modern', date:null, eclipse:true, clear:true, title:'The next total eclipse', sub:'The corona, Baily’s beads, and a sunset all round the horizon', art:'eclipse'},
   {epoch:'modern', date:null, lunar:true, look:'moon', clear:true, title:'The next total lunar eclipse', sub:'A copper Moon, lit by every sunrise and sunset on Earth', art:'lunar'},
   {epoch:'y2100', date:'2026-03-20', t:1180, look:[300, 28], clear:true, title:'Satellites at dusk, 2100', sub:'Megaconstellations and orbital datacenters still in sunlight', art:'sats'},
@@ -33,6 +36,10 @@ const MOMENT_ART={
   // Meteors falling from upper right, under the arc of a ring.
   meteors:'<path d="M-10 58 Q60 20 130 58" stroke="#c9a585" stroke-width="5" fill="none" opacity=".22"/><path d="M-10 58 Q60 20 130 58" stroke="#e6c7a6" stroke-width="1.2" fill="none" opacity=".35"/>'
     +[[96,6,80,22,1],[70,4,58,16,.8],[112,24,100,36,.7],[40,10,30,20,.6],[86,30,78,38,.5]].map(([x0,y0,x1,y1,o])=>`<line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y1}" stroke="#fff3d9" stroke-width="${0.5+o*0.6}" stroke-linecap="round" opacity="${o}"/><circle cx="${x1}" cy="${y1}" r="${0.6+o*0.7}" fill="#fffbe9" opacity="${o}"/>`).join(''),
+  // Streaks radiating from one point, as in a storm.
+  storm:Array.from({length:22}, (_, k)=>{ const a=k*2.4+0.3, r0=6+(k*7)%13, r1=r0+5+(k*5)%9, o=0.35+0.6*((k*37)%10)/10;
+    const x0=78+r0*Math.cos(a), y0=20+r0*Math.sin(a)*0.8, x1=78+r1*Math.cos(a), y1=20+r1*Math.sin(a)*0.8;
+    return `<line x1="${x0.toFixed(1)}" y1="${y0.toFixed(1)}" x2="${x1.toFixed(1)}" y2="${y1.toFixed(1)}" stroke="#f3f6ff" stroke-width="${(0.4+o*0.6).toFixed(2)}" stroke-linecap="round" opacity="${o.toFixed(2)}"/>`; }).join(''),
   stars:'',
   day:'',
 };
@@ -42,7 +49,7 @@ function momentGradient(m){
     return `linear-gradient(${hex(tone(xyY2XYZ(v.z), YREF))}, ${hex(tone(xyY2XYZ(v.h), YREF))})`;
   }
   return {aurora:'linear-gradient(#06050f, #151027)', eclipse:'linear-gradient(#0f1a2e, #3a3442)', lunar:'linear-gradient(#05060c, #161625)', nova:'linear-gradient(#05060c, #141a2c)', galaxy:'linear-gradient(#06070b, #121521)',
-    city:'linear-gradient(#2a1f17, #6b4527)', sats:'linear-gradient(#0c0b0f, #2e2620)', meteors:'linear-gradient(#07070c, #1d1a1c)', stars:'linear-gradient(#05060a, #10131c)'}[m.art];
+    city:'linear-gradient(#2a1f17, #6b4527)', sats:'linear-gradient(#0c0b0f, #2e2620)', storm:'linear-gradient(#04050b, #121626)', meteors:'linear-gradient(#07070c, #1d1a1c)', stars:'linear-gradient(#05060a, #10131c)'}[m.art];
 }
 function starsSVG(seed){
   let s='', x=seed*9301+49297;
@@ -62,6 +69,7 @@ function openMoment(m){
   renderDay();
   if(m.eclipse) jumpNextEclipse(true, true);
   if(m.lunar) jumpNextLunarEclipse(true);
+  const storm=m.storm?openStorm():null;
   if(momentClouds!==null) vrClouds=momentClouds;
   momentClouds=m.clear?vrClouds:null;
   if(m.clear) vrClouds=false;
@@ -69,6 +77,7 @@ function openMoment(m){
     if(m.look==='moon') lookAtMoon();
     else if(m.look==='sn'){ const sn=supernovaPlace(LATDEG[dLat]); if(sn){ vrYaw=sn.az; vrPitch=Math.max(5, Math.min(60, sn.el-12)); } }
     else if(m.look){ vrYaw=m.look[0]; vrPitch=m.look[1]; }
+    else if(storm){ vrYaw=storm.az; vrPitch=Math.max(12, Math.min(50, storm.alt-18)); }
   };
   enterVR(false);
   syncVRPad();

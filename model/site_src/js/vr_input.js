@@ -243,12 +243,13 @@ document.addEventListener('keydown',e=>{
     if(k==='t'&&!e.repeat){ e.preventDefault(); jumpNextEclipse(true); return; }
     if(k==='u'&&!e.repeat){ e.preventDefault(); jumpNextLunarEclipse(false); return; }
     if(k==='b'&&!e.repeat){ e.preventDefault(); jumpNextLunarEclipse(true); return; }
+    if(k==='n'&&!e.repeat){ e.preventDefault(); jumpNextShower(); return; }
     if((k==='1'||k==='2'||k==='3')&&!e.repeat){ e.preventDefault(); setPlaySpeed(SPEED_KEYS[k]); return; }
     return;
   }
   // The page has VR's keys for time and eras: space plays or pauses the day, ← and → step it by
   // five minutes, ↑ and ↓ (or [ and ]) change era, e and t jump to the next eclipse, u and b to the next
-  // lunar one. Not while
+  // lunar one, n to the next meteor shower. Not while
   // typing, or on a control that uses the key itself; with a modifier, the browser's own.
   const t=document.activeElement, tag=t&&t.tagName;
   if(e.ctrlKey||e.metaKey||e.altKey||tag==='INPUT'||tag==='SELECT'||tag==='TEXTAREA'||(t&&t.isContentEditable)) return;
@@ -257,7 +258,7 @@ document.addEventListener('keydown',e=>{
   const act={' ':()=>{ if(!e.repeat) hplay.click(); }, ArrowRight:()=>stepMinutes(5), ArrowLeft:()=>stepMinutes(-5),
     ArrowUp:()=>stepEpoch(1), ']':()=>stepEpoch(1), ArrowDown:()=>stepEpoch(-1), '[':()=>stepEpoch(-1),
     e:()=>{ if(!e.repeat) jumpNextEclipse(false); }, t:()=>{ if(!e.repeat) jumpNextEclipse(true); },
-    u:()=>{ if(!e.repeat) jumpNextLunarEclipse(false); }, b:()=>{ if(!e.repeat) jumpNextLunarEclipse(true); },
+    u:()=>{ if(!e.repeat) jumpNextLunarEclipse(false); }, b:()=>{ if(!e.repeat) jumpNextLunarEclipse(true); }, n:()=>{ if(!e.repeat) jumpNextShower(); },
     1:()=>setPlaySpeed('real'), 2:()=>setPlaySpeed('default'), 3:()=>setPlaySpeed('fast')}[k];
   if(act){ e.preventDefault(); act(); }
 });

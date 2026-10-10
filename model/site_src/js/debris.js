@@ -32,14 +32,14 @@ function zodiS10(v, F, band=0){
   return 60+(E-60)*Math.exp(-ab/w)+band*E*Math.exp(-0.5*(beta/2.5)*(beta/2.5));
 }
 // The Sun, the ecliptic pole and the apex of the Earth's motion (the point on the ecliptic 90°
-// west of the Sun) in the horizon frame, at latitude lat now.
+// west of the Sun) in the horizon frame, at latitude lat now, with the local sidereal time.
 function eclipticFrame(lat){
   const lst=localSidereal(), sun=sunEquatorial(astroDay());
   const at=(ra, dec)=>{ const p=altaz(lat, dec, rev(lst-ra)); return horizDir(p.az, p.alt); };
   const N=at(270, 90-OBLIQUITY), s=at(sun.RA, sun.Dec);
   // The Sun's direction in the ecliptic (it is on it, up to rounding).
   const se=vnorm(vadd(s, vscale(N, -vdot(s, N)), [0, 0, 0]));
-  return {N, s, se, apex:vnorm(vcross(se, N)), pole:[0, Math.cos(lat*Math.PI/180), Math.sin(lat*Math.PI/180)]};
+  return {N, s, se, apex:vnorm(vcross(se, N)), pole:[0, Math.cos(lat*Math.PI/180), Math.sin(lat*Math.PI/180)], lst, lat};
 }
 // The excess zodiacal light of epoch key toward v, in cd/m² above the air.
 function zodiExtra(key, v, F){
