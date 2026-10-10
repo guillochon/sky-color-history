@@ -710,6 +710,10 @@ function paintVR(){
     gl.activeTexture(gl.TEXTURE0); gl.useProgram(vrGL.prog);
   }
   perfPaintEnd(); perfBeg('labels & HUD');
+  if(vrGL.detailNote&&vrGL.detailOn&&!firsts.length){
+    vrGL.detailNote=false;
+    afterPaint(()=>{ if(document.getElementById('vrload').textContent===VR_DETAIL_NOTE) hideVRLoad(); });
+  }
   if(firsts.length||vrGL.note==='shown'){
     for(const p of firsts) vrSlow.delete(p);
     vrGL.note='drawn';
@@ -778,11 +782,11 @@ function uploadBodies(gl, u){
   const fwd=[Math.sin(yw)*Math.cos(pt), Math.cos(yw)*Math.cos(pt), Math.sin(pt)];
   const onScreen=b=>b.dir[0]*fwd[0]+b.dir[1]*fwd[1]+b.dir[2]*fwd[2]>Math.cos(Math.min(edge+b.rad*DISK_SCALE*2.3+0.03, Math.PI));
   const list=(skyNow.bodies||[]).filter(onScreen).slice(0, BODY_MAX), {P, C, L, N, S, Mr}=BODY_U;
-  // Close enough for detail: Jupiter's clouds past a couple of dozen pixels' radius, a map's past a
-  // few (which also fetches the maps, surfaces.js).
+  // Close enough for detail: Jupiter's clouds past a couple of dozen pixels' radius, a body's map
+  // past a few (which fetches that body's map alone, surfaces.js).
   const radPx=b=>b.rad*DISK_SCALE/(2*fy/Math.max(c.height, 1));
   if(list.some(b=>b.kind===3&&radPx(b)>20)) wantDetail(gl);
-  if(list.some(b=>b.map!=null&&radPx(b)>5)){ vrGL.surfWanted=true; wantDetail(gl); }
+  for(const b of list) if(b.map&&radPx(b)>5){ wantSurface(b.map); wantDetail(gl); }
   const cp=Math.cos(pt), sp=Math.sin(pt), cy=Math.cos(yw), sy=Math.sin(yw);
   list.forEach((b, i)=>{
     const o=i*4;
@@ -790,7 +794,7 @@ function uploadBodies(gl, u){
     C.set(b.rgb, o); C[o+3]=b.px;
     L.set(b.light, o); L[o+3]=b.mag;
     N.set(b.pole, o); N[o+3]=b.kind+(b.front?8:0)+(b.kind===4&&!b.rings?16:0);
-    Mr.set(b.meridian||[0, 0, 0], o); Mr[o+3]=vrGL.surfOn&&b.map!=null?b.map:-1;
+    Mr.set(b.meridian||[0, 0, 0], o); Mr[o+3]=surfCode(b.map);
     // Where it is on the image plane, seen at its apparent altitude: the sky shader's trueAlt
     // undone by Newton's method, which also gives the squeeze, true over apparent altitude.
     const d=b.dir, h=Math.asin(Math.max(-1, Math.min(1, d[2])))*180/Math.PI;

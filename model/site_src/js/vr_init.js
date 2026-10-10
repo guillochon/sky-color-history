@@ -31,12 +31,19 @@ function whenLinked(gl, list, done){
 const vrSlow=new Map();
 function markSlow(job, prog, label){ if(prog && job.cold) vrSlow.set(prog, label); }
 // The sky program with the close-up detail (shader_sky.js VRFS), compiled the first time the view
-// wants it and then put in place of the one drawing; its first draw may stall, under a note.
+// wants it and then put in place of the one drawing. The compile can hold up the screen, so a note
+// goes up first and stays until the program's first draw (paintVR).
 function wantDetail(gl){
   if(!vrGL||vrGL.detailJob) return;
+  vrGL.detailJob=true; vrGL.detailNote=true;
+  showVRLoad(VR_DETAIL_NOTE);
+  afterPaint(()=>{ if(vrGL) compileDetail(gl); });
+}
+const VR_DETAIL_NOTE='Loading the close-up detail…';
+function compileDetail(gl){
   const job=vrGL.detailJob=glProgramAsync(gl, vrGL.vs, VRFS);
   whenLinked(gl, [job], dp=>{
-    if(!dp||!vrGL) return;
+    if(!dp||!vrGL){ if(vrGL) vrGL.detailNote=false; if(document.getElementById('vrload').textContent===VR_DETAIL_NOTE) hideVRLoad(); return; }
     const old=vrGL.prog;
     vrGL.u=setupSkyProg(gl, dp); vrGL.prog=dp; vrGL.detailOn=true; gl.deleteProgram(old);
     markSlow(job, dp, 'the close-up detail');

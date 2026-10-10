@@ -641,7 +641,7 @@ vec4 bodyDisk(vec3 o, vec3 v, vec3 n, vec3 L, int kind, float rPx, vec3 tint, ve
 #if DETAIL
   // The surface's degrees to a pixel there, foreshortened toward the limb.
   float pxS=57.2957795/max(rPx, 1.0)/max(mu, 0.08);
-  vec3 alb=kind==3?jupiterAlbedo(lat, lon, pxS):M.w>-0.5?surfAt(int(M.w+0.5), lon, lat, log2(max(512.0/360.0*pxS, 1e-6))):bodyAlbedo(kind, lat, tint);
+  vec3 alb=kind==3?jupiterAlbedo(lat, lon, pxS):M.w>-0.5?surfAt(M.w, lon, lat, log2(max(512.0/360.0*pxS, 1e-6))):bodyAlbedo(kind, lat, tint);
 #else
   vec3 alb=bodyAlbedo(kind, lat, tint);
 #endif

@@ -13,11 +13,11 @@ Sources, all public domain (NASA/USGS; Cassini maps NASA/JPL-Caltech/SSI/LPI):
 Each map is turned so its left edge is longitude 0 (east to the right), its no-data pixels are
 filled from round about (push-pull over a pyramid, wrapping in longitude), its colour is toned
 down toward true colour by a factor per body, and it is scaled to a mean luminance of 0.45
-(cosine-weighted; the shader brings it to 0.8). In an atlas of 512-pixel tiles, eight to a row:
-Mercury, then Mars, 4096 x 2048 (8 x 4 tiles each), then each moon's 1024 x 512 as two tiles.
+(cosine-weighted; the shader brings it to 0.8). One file per body, fetched only when the view zooms
+in on it: Mercury's and Mars's 4096 x 2048, each moon's 1024 x 512 (site/surf/<name>.webp).
 
 Usage: python surfaces.py <download dir with io/io.jpg, europa/europa.jpg, ...>
-       <mercury 4096x2048 png> <mars 4096x2048 png> <out webp> <preview dir>
+       <mercury 4096x2048 png> <mars 4096x2048 png> <out dir> <preview dir>
 (the 4096 px pngs are box-downsampled from the GeoTIFFs)
 """
 import sys
@@ -108,21 +108,19 @@ def process(a, gray, left, sat, tint, size, name):
     return np.clip(a, 0, 1)
 
 
-atlas = np.zeros((5120, 4096, 3), dtype=np.float32)
+import os
+os.makedirs(out, exist_ok=True)
+
+
+def save(name, a):
+    Image.fromarray((a * 255 + 0.5).astype(np.uint8)).save(f'{out}/{name}.webp', 'WEBP', quality=88, method=6)
+    Image.fromarray((a * 255 + 0.5).astype(np.uint8)).resize((768, 384), Image.LANCZOS).save(f'{prev}/{name}_out.png')
+
+
 m, _ = load(merc, (4096, 2048))
-atlas[:2048] = process(m, False, 180, 0.35, None, (4096, 2048), 'mercury')
+save('mercury', process(m, False, 180, 0.35, None, (4096, 2048), 'mercury'))
 m, _ = load(mars, (4096, 2048))
-atlas[2048:4096] = process(m, False, 180, 0.7, None, (4096, 2048), 'mars')
-for k, (name, path, left, sat, tint) in enumerate(BODIES):
+save('mars', process(m, False, 180, 0.7, None, (4096, 2048), 'mars'))
+for name, path, left, sat, tint in BODIES:
     a, gray = load(path, None)
-    p = process(a, gray, left, sat, tint, (1024, 512), name)
-    t = 64 + 2 * k
-    for half in range(2):
-        ti = t + half
-        ty, tx = ti // 8, ti % 8
-        atlas[ty * 512:(ty + 1) * 512, tx * 512:(tx + 1) * 512] = p[:, half * 512:(half + 1) * 512]
-    Image.fromarray((p * 255 + 0.5).astype(np.uint8)).resize((768, 384), Image.LANCZOS).save(f'{prev}/{name}_out.png')
-img = Image.fromarray((atlas * 255 + 0.5).astype(np.uint8))
-img.save(out, 'WEBP', quality=88, method=6)
-img.resize((1024, 1280), Image.LANCZOS).save(f'{prev}/atlas.png')
-Image.fromarray((atlas[:2048] * 255 + 0.5).astype(np.uint8)).resize((768, 384), Image.LANCZOS).save(f'{prev}/mercury_out.png')
+    save(name, process(a, gray, left, sat, tint, (1024, 512), name))

@@ -8,7 +8,7 @@
 const DSO=__DSO__, DSO_IMG='__DSO_IMG__', DSO_N=DSO.n, DSO_LV=64;
 // For the dome, each tile as linear light at 64 pixels and each halving down to one (dsoMips[i][l],
 // l=0 the 64), once the image is in; for VR the image itself, uploaded as a texture array.
-let dsoImg=null, dsoMips=null;
+let dsoImg=null, dsoMips=null, dsoPx=null;
 function loadDso(){
   const img=new Image();
   img.onload=()=>{
@@ -33,6 +33,9 @@ function loadDso(){
       }
       return levels;
     });
+    // The whole image's pixels for the VR texture array (surfaces.js buildSkyArray), read once:
+    // uploading tiles from the image itself converts it all again for each.
+    dsoPx=ctx.getImageData(0, 0, img.width, img.height);
     cv.width=cv.height=0;
     dsoImg=img;
     renderDay();
@@ -101,29 +104,10 @@ function dsoSpectrum(kind){
     r:spNorm(spPlanck(16000))}[kind];
   return DSO_SP[kind]=S;
 }
-// The texture array for the VR sky (unit 6), filled from the image once both are there: a
-// layer per tile, mipmapped.
+// The texture array for the VR sky (unit 6), made once the image is in: a layer per tile,
+// mipmapped, and after them any surface maps (surfaces.js buildSkyArray).
 function syncDsoTex(gl){
-  if(!dsoImg||vrGL.dsoTex) return;
-  const t=gl.createTexture(), n=DSO.objects.length;
-  gl.activeTexture(gl.TEXTURE6); gl.bindTexture(gl.TEXTURE_2D_ARRAY, t);
-  gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  // After the tiles, room for the airless bodies' maps (surfaces.js).
-  gl.texStorage3D(gl.TEXTURE_2D_ARRAY, Math.log2(DSO_N)+1, gl.RGBA8, DSO_N, DSO_N, n+SURF_LAYERS);
-  gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE);
-  gl.pixelStorei(gl.UNPACK_ROW_LENGTH, dsoImg.width);
-  for(let i=0;i<n;i++){
-    gl.pixelStorei(gl.UNPACK_SKIP_PIXELS, (i%DSO.cols)*DSO_N); gl.pixelStorei(gl.UNPACK_SKIP_ROWS, Math.floor(i/DSO.cols)*DSO_N);
-    gl.texSubImage3D(gl.TEXTURE_2D_ARRAY, 0, 0, 0, i, DSO_N, DSO_N, 1, gl.RGBA, gl.UNSIGNED_BYTE, dsoImg);
-  }
-  gl.pixelStorei(gl.UNPACK_ROW_LENGTH, 0); gl.pixelStorei(gl.UNPACK_SKIP_PIXELS, 0); gl.pixelStorei(gl.UNPACK_SKIP_ROWS, 0);
-  gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.BROWSER_DEFAULT_WEBGL);
-  gl.generateMipmap(gl.TEXTURE_2D_ARRAY);
-  gl.activeTexture(gl.TEXTURE0);
-  vrGL.dsoTex=t;
+  if(dsoPx&&!vrGL.skyArrayDso) buildSkyArray(gl);
 }
 // Into the sky shader: those whose tile can reach the screen, nearest the middle of the view
 // first, up to DSO_MAX. C is the centre and the cosine of the tile's corner, E the east and the

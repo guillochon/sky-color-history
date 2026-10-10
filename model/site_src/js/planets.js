@@ -194,7 +194,7 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
     }
     const Wk=PLANET_W[k], axk=equatorAxes(pra, pdec), Wr=Wk?(Wk[0]+Wk[1]*(tD-d*LIGHT_DAY_AU))*Math.PI/180:0;
     const meridian=horiz(vadd(vscale(axk.i, Math.cos(Wr)), vscale(axk.j, Math.sin(Wr)), [0, 0, 0])).dir;
-    const body={grs, meridian, map:SURF_MAP[name], dir:p.dir, rad:radDeg*Math.PI/180, light:vnorm(horiz(eq(h.map(v=>-v))).dir), pole:horiz(pole).dir, kind:k, px:show.px, rgb:show.rgb, mag, front:d<R, shadows:[], rings:ringed};
+    const body={grs, meridian, map:SURF_FILES[name]?name:null, dir:p.dir, rad:radDeg*Math.PI/180, light:vnorm(horiz(eq(h.map(v=>-v))).dir), pole:horiz(pole).dir, kind:k, px:show.px, rgb:show.rgb, mag, front:d<R, shadows:[], rings:ringed};
     if(p.alt>0){
       marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb, planet:name, mag, ra:p.ra, dec:p.dec, radDeg, lit:(1+Math.cos(i*Math.PI/180))/2, body, kind:k, rings:ringed, unknown:!!phases, ageMa, grs});
       bodies.push(body);
@@ -224,7 +224,7 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
       const mmag=m[3]+5*Math.log10(r*dm)+0.02*i+dimMag, ms=planetDisplay(mmag, m[7]);
       const mark={az:mp.az, el:mp.alt, px:ms.px, rgb:ms.rgb, planet:m[0], host:name, mag:mmag, ra:mp.ra, dec:mp.dec, radDeg:Math.atan(m[2]/(dm*PL_AU_KM))*180/Math.PI, lit:(1+Math.cos(i*Math.PI/180))/2, behind:along>0, rho, tint:m[7], unknown:!!phases};
       // The moons turn synchronously: longitude 0 faces the host.
-      mark.body={dir:mp.dir, meridian:horiz(vscale(off, -1)).dir, map:SURF_MAP[m[0]], rad:mark.radDeg*Math.PI/180, light:body.light, pole:body.pole, kind:BODY_MOON, px:ms.px, rgb:ms.rgb, mag:mmag, front:false, tint:m[7], mark};
+      mark.body={dir:mp.dir, meridian:horiz(vscale(off, -1)).dir, map:SURF_FILES[m[0]]?m[0]:null, rad:mark.radDeg*Math.PI/180, light:body.light, pole:body.pole, kind:BODY_MOON, px:ms.px, rgb:ms.rgb, mag:mmag, front:false, tint:m[7], mark};
       marks.push(mark);
       if(!(mark.behind&&rho<DISK_SCALE)) bodies.push(mark.body);
     });
