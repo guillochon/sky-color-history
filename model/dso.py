@@ -20,7 +20,10 @@ Each image is made to stand for light on the sky:
   - The light is scaled so nine tenths of the object's catalogue V magnitude falls within its
     catalogue ellipse (the rest is the outskirts), and its brightest, smoothed over about half an
     arcminute, comes to the object's central surface brightness (MU), by k where the plates hold
-    it and by the rebuilt top where they don't. It is kept in cd/m² (V mag/arcsec² m is
+    it and by the rebuilt top where they don't. A nebula whose rebuilt top can't reach it is
+    brightened as a whole instead, its catalogue total (a rough visual estimate) giving way:
+    M42's V = 4.0 would leave its wings no brighter than a dark sky; fitted to its centre it
+    comes to about V = 1. It is kept in cd/m² (V mag/arcsec² m is
     10.8e4·10^(−0.4m) cd/m²).
   - The colour, the light's share in each channel, is blurred (Mellinger's resolution is about an
     arcminute) and its saturation raised by a third, for slightly richer than true colour.
@@ -293,8 +296,14 @@ def tile(o):
     else:
         k = (lo + hi) / 2
     L = calibrated(k, dm)
+    # A nebula whose rebuilt top still falls short of its central brightness is brightened as a
+    # whole: its catalogue total, a rough visual estimate, is what gives way (M42's V = 4.0 would
+    # leave its wings no brighter than a dark sky). A galaxy's total, measured, is kept.
+    if o['k'] != 'g' and peak_of(L) < target:
+        L *= target / peak_of(L)
+    V = -2.5 * math.log10(L[inside].sum() * pix_as2 / 0.9 / 10.8e4)
     print(f"{o['id']:9s} k={k:5.2f} rebuilt {dm:4.2f} mag over {sat.sum():5d} px; mean in ellipse "
-          f"{-2.5 * math.log10(L[inside].mean() / 10.8e4):5.2f}, peak {-2.5 * math.log10(peak_of(L) / 10.8e4):5.2f} (aim {o['mu']})")
+          f"{-2.5 * math.log10(L[inside].mean() / 10.8e4):5.2f}, peak {-2.5 * math.log10(peak_of(L) / 10.8e4):5.2f} (aim {o['mu']}), V {V:5.2f} (catalogue {o['V']})")
     # The colour: each channel's share of the luminance, blurred, saturation raised.
     c = unstretch(imgs[o['col']], 3.0)
     blur = 1.5 if o['col'] == 'dss' else max(1.5, 60 / px_as)
