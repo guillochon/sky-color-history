@@ -345,6 +345,33 @@ function vrReadPixel(fb, x, y, float){
 // What lies under page point (cx, cy): the view ray, the pixel, and the Sun, Moon, supernova,
 // star or planet there, or the bare sky, cloud or ground. With throughCloud, a body behind a
 // cloud still counts.
+// The Sun's image under the view ray at azimuth comp (radians) and apparent altitude app (degrees),
+// found as the sky shader's sunDiskAt finds it, from the same bands, refraction, inversion layers
+// and mirage: the fraction of the disk's radius in the nearest band image that reaches the ray (r,
+// 2 off the disk) and the ray's offset from the Sun's centre in that image (off), so a low,
+// squeezed Sun is read where it is drawn.
+function sunImageAt(comp, app){
+  const sb=EP[dIdx].sun, rd=skyNow.moon.sunRadDeg*DISK_SCALE, sunRad=rd*Math.PI/180, {lay, mir}=sunsetLayers(rd);
+  const H=vrGL.gl.canvas.height, fov=vrFov*Math.PI/180, px=2*Math.tan(fov/2)/H, wT=(performance.now()/1000)%1000;
+  let ap=app+mir[3]*(0.6*Math.sin(comp*1432.4+wT*2.1)+0.4*Math.sin(comp*3610-wT*3.3))*Math.exp(-Math.max(app, 0)/rd);
+  if(mir[0]>0&&ap<mir[0]) ap=mir[0]+(mir[0]-ap)*mir[1];
+  let bend=sb.k*(ap>80?0:1/Math.tan((ap+7.31/(ap+4.4))*Math.PI/180)/60);
+  for(let i=0;i<4;i++){
+    if(lay[i*4+1]<=0) continue;
+    const w=Math.max(lay[i*4+1], Math.tan(fov/2)/H*180/Math.PI);
+    bend+=lay[i*4+2]*smooth01(lay[i*4]-w, lay[i*4]+w, ap);
+  }
+  const dispX=DISK_SCALE*(1+5*Math.exp(-Math.max(ap, 0)/0.6)), sd=horizDir(skyNow.sunAz, 90-skyNow.sza);
+  let r=2, off=[0, 0, 0];
+  for(let b=0;b<SUN_DISP.length;b++){
+    const te=(ap-(1+dispX*(SUN_DISP[b]-1))*bend)*Math.PI/180, rv=[Math.sin(comp)*Math.cos(te), Math.cos(comp)*Math.cos(te), Math.sin(te)];
+    const c=vdot(rv, sd), d=Math.acos(Math.max(-1, Math.min(1, c)));
+    const gap=Math.max(dispX*Math.abs(SUN_DISP[b]-SUN_DISP[Math.min(b+1, SUN_DISP.length-1)])*bend*Math.PI/180, px);
+    if(0.5+(sunRad-d)/gap<=0) continue;
+    if(d/sunRad<r){ r=d/sunRad; off=[rv[0]-sd[0]*c, rv[1]-sd[1]*c, rv[2]-sd[2]*c]; }
+  }
+  return {r, off};
+}
 function vrProbe(cx, cy, throughCloud){
   const gl=vrGL.gl, c=gl.canvas, W=window.innerWidth, H=Math.max(window.innerHeight, 1);
   const x=Math.min(c.width-1, Math.max(0, Math.floor(cx*c.width/W))), y=Math.min(c.height-1, Math.max(0, c.height-1-Math.floor(cy*c.height/H)));
@@ -361,12 +388,15 @@ function vrProbe(cx, cy, throughCloud){
   const sep=(bAz, bEl)=>Math.acos(Math.max(-1, Math.min(1, vdot(d, horizDir(bAz, apparentEl(bEl))))))*180/Math.PI, mo=skyNow.moon;
   P.lit=!P.cloud&&mo.on?moonLitAt(horizDir(az, el), mo.radDeg*DISK_SCALE):null;
   P.moonXY=P.lit!=null?moonDiskXY(horizDir(az, el), mo.radDeg*DISK_SCALE):null;
-  P.disk=P.cloud?null:(P.lit!=null?'moon':(skyNow.sunOn&&skyNow.sunVis>0.01&&sep(skyNow.sunAz, 90-skyNow.sza)<mo.sunRadDeg*DISK_SCALE?'sun':null));
   P.cr=sep(skyNow.sunAz, 90-skyNow.sza)/(mo.sunRadDeg*DISK_SCALE);
+  // On the Sun: the image the shader draws there, its east and north from celestial north at the
+  // Sun's true place, as the shader orients the spots.
+  const im=!P.cloud&&P.lit==null&&skyNow.sunOn&&skyNow.sunVis>0.01&&P.cr<3?sunImageAt(Math.atan2(d[0], d[1]), app):null;
+  P.disk=P.cloud?null:(P.lit!=null?'moon':(im&&im.r<1?'sun':null));
   if(P.disk==='sun'){
-    P.r=P.cr;
-    const b=vrSunBasis(), sr=Math.sin(mo.sunRadDeg*DISK_SCALE*Math.PI/180);
-    P.sunXY=[vdot(d, b.east)/sr, vdot(d, b.north)/sr];
+    P.r=im.r;
+    const b=moonBasis({az:skyNow.sunAz, el:90-skyNow.sza}), sr=Math.sin(mo.sunRadDeg*DISK_SCALE*Math.PI/180);
+    P.sunXY=[vdot(im.off, b.east)/sr, vdot(im.off, b.north)/sr];
   }
   // Within about 18 page pixels of a star, twice that of the supernova and its glare.
   // A meteor (or a lunar flash) within about 18 page pixels, in front of all but the clouds.

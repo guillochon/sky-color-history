@@ -468,6 +468,7 @@ function pumpSunJobs(){
     else{ sunMaps.lo=m; if(sunMaps.hi&&(sunMaps.hi.key!==m.key||sunMaps.hi.D!==m.D)) sunMaps.hi=null; }
     pumpSunJobs();
     renderDay(); if(vrOn) paintVR();
+    if(m.W>=SUN_HI){ if(vrOn) refreshVRTip(); else refreshDomeTip(); }
   };
   const wk=sunWorkerGet();
   if(wk){
@@ -521,6 +522,9 @@ function sunSurfaceAt(m, o, u, v, n, out){
 // the facular filling and mu, and what it is; or null without a map.
 function sunFeatureAt(u, v){
   const ep=EP[dIdx], D=sunMapDay(), m=[sunMaps.hi, sunMaps.lo].find(x=>x&&x.key===ep.key&&x.D===D);
+  // Pointing at the Sun asks for the full map, if it isn't made yet; the tooltip is redrawn
+  // when it arrives.
+  if(m!==sunMaps.hi) sunMap(Infinity);
   if(!m||u*u+v*v>=1) return null;
   const s=sunMapSample(m, sunOrientation(m.key, astroDay()), u, v, 0), teff=ep.teff||5772;
   let lo=1500, hi=teff;
