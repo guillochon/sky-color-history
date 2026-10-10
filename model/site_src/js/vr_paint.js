@@ -84,13 +84,6 @@ function smoothstep(e0, e1, x){
   const t=Math.min(1, Math.max(0, (x-e0)/Math.max(e1-e0, 1e-6)));
   return t*t*(3-2*t);
 }
-function peakEnv(x, y, cx, cy, R, H){
-  const u=Math.hypot(x-cx, y-cy)/R;
-  if(u>=1) return 0;
-  const core=Math.pow(1-smoothstep(0, 0.74, u), 1.18);
-  const skirt=Math.pow(1-u, 1.9);
-  return (core*0.78+skirt*0.22)*H;
-}
 // The hill in 1800 m cell (gx, gy), as [cx, cy, R], or null. Mirrors marchLand in the hit shader.
 const HILL_CELL=1800;
 function hillIn(gx, gy){
@@ -102,19 +95,74 @@ function hillHeight(x, y){
   const gx=Math.floor(x/HILL_CELL), gy=Math.floor(y/HILL_CELL), hill=hillIn(gx, gy);
   if(!hill) return 0;
   const [cx, cy, R]=hill;
-  const H=(100+h12xy(gx+8.2, gy+8.2)*(280-100))*MTN_SCALE;
   if(!hillClear(cx, cy, R)) return 0;
-  const Rm=R*1.28;
-  let h=0;
-  for(let k=0;k<8;k++){
-    const a=k*Math.PI/4, ox=Math.cos(a), oy=Math.sin(a);
-    h=Math.max(h, peakEnv(x, y, cx+ox*Rm*0.09, cy+oy*Rm*0.09, Rm*0.88, H));
-    h=Math.max(h, peakEnv(x, y, cx-ox*Rm*0.36, cy-oy*Rm*0.36, Rm*0.50, H*0.74));
-    h=Math.max(h, peakEnv(x, y, cx-oy*Rm*0.40, cy+ox*Rm*0.40, Rm*0.38, H*0.56));
-  }
-  return h*1.06;
+  return massifH(x, y, [cx, cy, R, 67+h12xy(gx+8.2, gy+8.2)*(188-67)], 0);
 }
-function landHeight(x, y){ return hillHeight(x, y); }
+// The ground under the walker: the hills and the scene's massifs, as the hit shader draws them.
+function landHeight(x, y){
+  let h=hillHeight(x, y);
+  const sc=sceneFor(EP[dIdx].key);
+  for(let i=0;i<12;i++){
+    const kk=sc.k[i]; if(kk<0.5||kk>=3.5) continue;
+    const q=sc.o.subarray(i*4, i*4+4), volc=kk>2.5?2:kk>=1.5?1:0;
+    if(Math.hypot(x-q[0], y-q[1])<scRad(kk, q[2])) h=Math.max(h, massifH(x, y, q, volc));
+  }
+  return h;
+}
+// The terrain functions of shader_terrain.js in JS, on a copy of the weather texture sampled as
+// the GPU does (bilinear, repeating).
+let weatherBytes=null;
+function weatherData(){ return weatherBytes||(weatherBytes=makeWeather(256)); }
+function wtex(u, v, c){
+  const W=weatherData(), n=256, x=u*n-0.5, y=v*n-0.5, x0=Math.floor(x), y0=Math.floor(y), fx=x-x0, fy=y-y0;
+  const i0=((x0%n)+n)%n, i1=(i0+1)%n, j0=((y0%n)+n)%n, j1=(j0+1)%n, at=(i, j)=>W[(j*n+i)*4+c];
+  return ((at(i0, j0)*(1-fx)+at(i1, j0)*fx)*(1-fy)+(at(i0, j1)*(1-fx)+at(i1, j1)*fx)*fy)/255;
+}
+function mix(a, b, t){ return a+(b-a)*t; }
+function ridgeAt(x, y){
+  const a=Math.pow(1-Math.abs(wtex(x, y, 2)*2-1), 1.45), b=Math.pow(1-Math.abs(wtex(x*2.35+0.37, y*2.35+0.37, 3)*2-1), 1.45);
+  return a*0.64+b*0.36;
+}
+function onePeak(x, y, cx, cy, R, H, volc, seed){
+  const dx=x-cx, dy=y-cy, r=Math.hypot(dx, dy);
+  if(r>=R||R<1) return 0;
+  let ang=Math.atan2(dy, dx);
+  const u=r/(R*(0.74+0.26*wtex(ang*0.52+seed*2, seed*3.7, 1)));
+  if(u>=1) return 0;
+  ang+=(wtex(dx/(R*0.62)+seed, dy/(R*0.62)+seed, 0)-0.5)*1.6;
+  const core=Math.pow(1-smoothstep(0, mix(0.74, 0.90, volc), u), mix(1.18, 0.92, volc));
+  let prof=core*mix(0.78, 0.90, volc)+Math.pow(1-u, mix(1.9, 1.35, volc))*mix(0.22, 0.10, volc);
+  const sp1=0.5+0.5*Math.sin(ang*mix(2, 3.6, volc)+seed*20), sp2=0.5+0.5*Math.sin(ang*mix(3.2, 5.2, volc)-seed*9);
+  const spoke=smoothstep(0.22, 0.78, mix(sp1, sp2, 0.42)), amt=smoothstep(0.08, 0.24, u);
+  prof*=mix(1, mix(mix(0.90, 0.94, volc), 1, spoke), amt);
+  prof*=mix(1, mix(0.94, 1.06, ridgeAt(dx/(R*0.62)+seed*3.1, dy/(R*0.62)+seed*3.1)), amt);
+  if(volc>0.5) prof+=smoothstep(0.045, 0.10, u)*(1-smoothstep(0.12, 0.22, u))*0.11-(1-smoothstep(0.02, 0.145, u))*0.18;
+  return Math.max(prof, 0)*H;
+}
+function glacierH(x, y, q, seed){
+  const dx=x-q[0], dy=y-q[1], R=q[2]*1.08, r=Math.hypot(dx, dy);
+  if(r>=R) return 0;
+  const u=r/(R*(0.74+0.26*wtex(Math.atan2(dy, dx)*0.3+seed*2, seed*3.1, 1)));
+  if(u>=1) return 0;
+  const wx=dx/R, wy=dy/R, n1=wtex(wx*0.6+seed, wy*0.6+seed, 2), n2=wtex(wx*1.1+seed*1.7, wy*1.1+seed*1.7, 3);
+  const e=(1-u)*0.75+Math.sqrt(1-u)*0.35*ridgeAt(wx*0.9+seed, wy*0.9+seed)+(n1-0.5)*0.25;
+  const tiers=3+Math.floor(seed*2.99), s=Math.max(e*tiers+(n2-0.5)*1.6, 0), k=Math.floor(s), f=s-k;
+  const b0=k+0.6*(h12xy(k, seed*37)-0.5), b1=k+1+0.6*(h12xy(k+1, seed*37)-0.5);
+  const cliff=smoothstep(0, mix(0.04, 0.35, n1*n1), f);
+  return Math.max((b0+(b1-b0)*mix(cliff, f, mix(0, 0.55, n2)))/(tiers+0.5), 0)*smoothstep(0, 0.03, 1-u)*q[3];
+}
+// q is [x, y, radius, height] as in sc.o; volc 0 mountain, 1 volcano, 2 glacier.
+function massifH(x, y, q, volc){
+  if(volc>1.5) return glacierH(x, y, q, wtex(q[0]*0.00041+0.37, q[1]*0.00041+0.37, 0));
+  const R=q[2]*mix(1.28, 1.12, volc), H=q[3], s0=wtex(q[0]*0.00041+0.13, q[1]*0.00041+0.13, 0), s1=wtex(q[0]*0.00041+0.71, q[1]*0.00041+0.71, 1);
+  const ox=Math.cos(s0*2*Math.PI), oy=Math.sin(s0*2*Math.PI), d=R*mix(0.09, 0.02, volc);
+  let h=onePeak(x, y, q[0]+ox*d, q[1]+oy*d, R*0.88, H, volc, s0);
+  if(volc<0.5){
+    h=Math.max(h, onePeak(x, y, q[0]-ox*R*0.36, q[1]-oy*R*0.36, R*0.50, H*(0.46+0.28*s1), 0, s1+0.17));
+    h=Math.max(h, onePeak(x, y, q[0]-oy*R*0.40, q[1]+ox*R*0.40, R*0.38, H*(0.34+0.22*s0), 0, s0+0.63));
+  }else h=Math.max(h, onePeak(x, y, q[0]+ox*R*0.50, q[1]+oy*R*0.50, R*0.30, H*0.46, 0.25, s1));
+  return h;
+}
 // Mirrors hillClear in the hit shader.
 function hillClear(cx, cy, R){ const sc=sceneFor(EP[dIdx].key); return hillClearOf(sc.t, sc.tn, cx, cy, R); }
 // Whether a hill at (cx, cy) of radius R stays out of the tn towns in t.
@@ -168,6 +216,20 @@ function townSolid(sc, x, y, pad){
   return false;
 }
 function eyeZ(){ return vrScenery?2+landHeight(vrX, vrY):2; }
+// A new epoch or the scenery coming back can put a building or trunk where the walker stands:
+// step out to the nearest clear spot. The land itself needs nothing, since eyeZ stands on it.
+let vrSettledFor='';
+function settleVR(){
+  const key=EP[dIdx].key, tag=key+(vrScenery?'+':'-');
+  if(tag===vrSettledFor) return;
+  vrSettledFor=tag;
+  const sc=sceneFor(key);
+  if(!vrScenery||!townSolid(sc, vrX, vrY, 0.4)) return;
+  for(let r=1;r<=80;r++) for(let k=0;k<24;k++){
+    const a=k*Math.PI/12, x=vrX+Math.sin(a)*r, y=vrY+Math.cos(a)*r;
+    if(!townSolid(sc, x, y, 0.4)){ vrX=x; vrY=y; return; }
+  }
+}
 // The ground's colour under the sky's light and sunlight mu (sunMu in paintVR).
 function groundRGB(mu){
   const alb=LAND[EP[dIdx].key]||[.2,.18,.14], cg=skyNow.colgrid, NR=skyNow.nr, NA=skyNow.na;
@@ -267,12 +329,15 @@ function lowAir(el){ return smoothstep(-0.5, 6, el)*Math.exp(-0.25/Math.max(Math
 function nightLight(rgb, rel, el, night){ const f=0.6*Math.sqrt(Math.max(rel, 0))*lowAir(el)*night; return new Float32Array([rgb[0]*f, rgb[1]*f, rgb[2]*f]); }
 // Text in the VR heads-up display, written only when it changes.
 function setText(el, text){ if(el.textContent!==text) el.textContent=text; }
+// A field of view for the HUD: whole degrees down to 10°, then tenths, then arcminutes and arcseconds.
+function fovLabel(f){ return f>=9.95?Math.round(f)+'°':f>=0.995?f.toFixed(1)+'°':f*60>=0.995?(f*60<9.95?(f*60).toFixed(1):Math.round(f*60))+'′':Math.round(f*3600)+'″'; }
 function paintVR(){
   if(!vrOn||!vrGL||!skyNow) return;
   // This paint answers any one already asked for.
   if(vrRAF){ cancelAnimationFrame(vrRAF); vrRAF=0; }
   // A sky drawn for the page has no star cells for VR: draw it again for VR, which paints.
   if(!skyNow.starBins){ renderDay(true); return; }
+  settleVR();
   // A locked view turns with its pin first; a pin whose body has set goes.
   lockVRView();
   // A program compiled from scratch can stall the browser on its first draw. Put up a note,
@@ -637,7 +702,7 @@ function paintVR(){
   const hud=vrGL.hud||(vrGL.hud={place:document.getElementById('vrplace'), note:document.querySelector('.vrnote'), clock:document.getElementById('vrclock')});
   setText(hud.place, EP[dIdx].name+' · '+lat);
   setText(hud.note, vrCaption());
-  setText(hud.clock, dateLabel()+' · '+hh+':'+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0')+' · '+(dayPlaying?'playing':'paused')+' · '+speedLabel()+(Math.abs(vrFov-60)>0.5?' · '+(vrFov<9.95?vrFov.toFixed(1):Math.round(vrFov))+'° view':'')+(skyNow.eclipse?' · '+skyNow.eclipse:'')+(vrClouds&&vrGL.field?' · clouds '+Math.round(vrGL.field.cov*100)+'%':'')+(vrNote?' · '+vrNote:''));
+  setText(hud.clock, dateLabel()+' · '+hh+':'+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0')+' · '+(dayPlaying?'playing':'paused')+' · '+speedLabel()+(Math.abs(vrFov-60)>0.5?' · '+fovLabel(vrFov)+' view':'')+(skyNow.eclipse?' · '+skyNow.eclipse:'')+(vrClouds&&vrGL.field?' · clouds '+Math.round(vrGL.field.cov*100)+'%':'')+(vrNote?' · '+vrNote:''));
   placeBodyMarks();
   drawVRLabels();
   followVRPin();
@@ -685,7 +750,7 @@ function drawAuroraVR(gl, st, c){
 }
 // The planets and moons (planets.js placePlanets) into the sky shader's bodies, at the Sun's and
 // Moon's enlargement, and the moons' shadows on them.
-const BODY_U={P:new Float32Array(BODY_MAX*4), C:new Float32Array(BODY_MAX*4), L:new Float32Array(BODY_MAX*4), N:new Float32Array(BODY_MAX*4), M:new Float32Array(SHADOW_MAX*4), K:new Float32Array(SHADOW_MAX*4)};
+const BODY_U={P:new Float32Array(BODY_MAX*4), C:new Float32Array(BODY_MAX*4), L:new Float32Array(BODY_MAX*4), N:new Float32Array(BODY_MAX*4), S:new Float32Array(BODY_MAX*4), M:new Float32Array(SHADOW_MAX*4), K:new Float32Array(SHADOW_MAX*4)};
 // Only those whose disk, rings or glow can reach the screen: the rest would cost every sky pixel
 // a pass of the loop for nothing. The margin covers refraction (the shader places bodies by true
 // altitude) and a star's four-sigma glow.
@@ -694,15 +759,25 @@ function uploadBodies(gl, u){
   const edge=Math.atan(Math.hypot(fx, fy)), yw=vrYaw*Math.PI/180, pt=vrPitch*Math.PI/180;
   const fwd=[Math.sin(yw)*Math.cos(pt), Math.cos(yw)*Math.cos(pt), Math.sin(pt)];
   const onScreen=b=>b.dir[0]*fwd[0]+b.dir[1]*fwd[1]+b.dir[2]*fwd[2]>Math.cos(Math.min(edge+b.rad*DISK_SCALE*2.3+0.03, Math.PI));
-  const list=(skyNow.bodies||[]).filter(onScreen).slice(0, BODY_MAX), {P, C, L, N}=BODY_U;
+  const list=(skyNow.bodies||[]).filter(onScreen).slice(0, BODY_MAX), {P, C, L, N, S}=BODY_U;
+  const cp=Math.cos(pt), sp=Math.sin(pt), cy=Math.cos(yw), sy=Math.sin(yw);
   list.forEach((b, i)=>{
     const o=i*4;
     P.set(b.dir, o); P[o+3]=b.rad*DISK_SCALE;
     C.set(b.rgb, o); C[o+3]=b.px;
     L.set(b.light, o); L[o+3]=b.mag;
     N.set(b.pole, o); N[o+3]=b.kind+(b.front?8:0)+(b.kind===4&&!b.rings?16:0);
+    // Where it is on the image plane, seen at its apparent altitude: the sky shader's trueAlt
+    // undone by Newton's method, which also gives the squeeze, true over apparent altitude.
+    const d=b.dir, h=Math.asin(Math.max(-1, Math.min(1, d[2])))*180/Math.PI;
+    let a=apparentEl(h), k=1;
+    for(let it=0;it<4;it++){ const t=trueAltDeg(a); k=(trueAltDeg(a+1e-4)-t)/1e-4||1; a-=(t-h)/k; }
+    const r=Math.hypot(d[0], d[1])||1, ce=Math.cos(a*Math.PI/180), v=[d[0]/r*ce, d[1]/r*ce, Math.sin(a*Math.PI/180)];
+    const depth=v[0]*sy*cp+v[1]*cy*cp+v[2]*sp;
+    if(depth>1e-3){ S[o]=(v[0]*cy-v[1]*sy)/depth; S[o+1]=(-v[0]*sy*sp-v[1]*cy*sp+v[2]*cp)/depth; } else { S[o]=S[o+1]=1e6; }
+    S[o+2]=k;
   });
-  gl.uniform4fv(u.bodyP, P); gl.uniform4fv(u.bodyC, C); gl.uniform4fv(u.bodyL, L); gl.uniform4fv(u.bodyN, N);
+  gl.uniform4fv(u.bodyP, P); gl.uniform4fv(u.bodyC, C); gl.uniform4fv(u.bodyL, L); gl.uniform4fv(u.bodyN, N); gl.uniform4fv(u.bodyS, S);
   gl.uniform1f(u.bodyCnt, list.length); gl.uniform1f(u.moonGain, moonGain());
   let n=0;
   list.forEach((b, i)=>{ for(const s of b.shadows||[]){

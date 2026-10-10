@@ -56,7 +56,9 @@ uniform vec4 beads[6];
 // C the colour of its point and that point's size (as a star's), L the way to the Sun from it and
 // its magnitude, N its north pole and its kind (0-6 Mercury to Neptune, 7 a moon), plus 8 when it
 // is nearer than the Sun and 16 when Saturn has no rings. moonGain is what zooming in adds to the limit for the moons, Uranus and Neptune (planets.js moonGain).
-uniform vec4 bodyP[${BODY_MAX}], bodyC[${BODY_MAX}], bodyL[${BODY_MAX}], bodyN[${BODY_MAX}]; uniform float bodyCnt, moonGain;
+// S is where the body is on the view's image plane (xy, worked out in double precision) and the
+// refraction's squeeze of altitude there (z), from which a deep zoom places its disk (below).
+uniform vec4 bodyP[${BODY_MAX}], bodyC[${BODY_MAX}], bodyL[${BODY_MAX}], bodyN[${BODY_MAX}], bodyS[${BODY_MAX}]; uniform float bodyCnt, moonGain;
 // Moons' shadows that may fall on their planets (planets.js moonShadow): M the moon's place about
 // its planet in the planet's radii and w the planet's index among the bodies; K x the moon's radius
 // in the planet's, y the Sun's angular radius there.
@@ -855,6 +857,15 @@ void main(){
       // The air dims a disk as it does a star, and reddens it: green and blue lose about 0.07 and
       // 0.2 magnitudes more than red to each airmass.
       vec3 T=dim*exp(-vec3(0.0, 0.064, 0.184)/max(sin(te*0.01745329252), 0.04));
+      // Zoomed in to arcseconds a pixel is only a few float steps of a unit vector, and src, built
+      // through atan, asin and the refraction, is off by several: a moon's disk would come out in
+      // blocks. There the offset from a body is taken on the image plane instead, from the pixel's
+      // place less the body's, both small numbers known to a float's full relative precision, and
+      // turned to a direction by the view's right and up axes, up squeezed by the refraction.
+      bool fine=fy<0.02;
+      float cyw=cos(yaw), syw=sin(yaw), cpt=cos(pitch), spt=sin(pitch);
+      vec3 axR=vec3(cyw, -syw, 0.0), axU=vec3(-syw*spt, -cyw*spt, cpt);
+      vec2 uvF=((gl_FragCoord.xy/res)*2.0-1.0)*vec2(fy*res.x/max(res.y, 1.0), fy);
       for(int b=0;b<${BODY_MAX};b++){
         if(float(b)>=bodyCnt) break;
         vec4 P=bodyP[b], C=bodyC[b], L=bodyL[b], N=bodyN[b];
@@ -862,10 +873,13 @@ void main(){
         bool ringed=kind==4 && N.w<15.5;
         if(inSun && mod(N.w, 16.0)<7.5) continue;
         float sig=max(C.w*starPx, sigMin), reach=max(P.w*(ringed?2.3:1.0)+2.0*pxA, 4.0*sig);
-        vec3 dd=src-P.xyz; float d2=dot(dd, dd);
+        vec3 dd=src-P.xyz;
+        if(fine){ vec4 S=bodyS[b]; dd=axR*(uvF.x-S.x)+axU*((uvF.y-S.y)*S.z); }
+        float d2=dot(dd, dd);
         if(d2>reach*reach) continue;
         float rPx=P.w/pxA, diskK=smoothstep(1.0, 3.0, rPx), vis=1.0-smoothstep(lim-0.8, lim+0.2, L.w+dm-(kind>=5?moonGain:0.0));
-        vec3 o=(src-P.xyz*dot(src, P.xyz))/sin(P.w), x; float t;
+        // src less its part along the body, from the offset: src-P.xyz*dot(src, P.xyz) is the same.
+        vec3 o=(dd-P.xyz*dot(dd, P.xyz))/sin(P.w), x; float t;
         if(inSun){
           vec4 dk=bodyDisk(o, P.xyz, N.xyz, L.xyz, kind, rPx, C.rgb, x, t);
           skyC=mix(skyC, skyBase, dk.a*min(rPx, 1.0));
