@@ -253,6 +253,7 @@ function paintVR(){
     }
   }
   const {gl,u,tex}=vrGL, c=gl.canvas;
+  perfPaintBeg(gl); perfBeg('setup');
   gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.disable(gl.BLEND); gl.drawBuffers([gl.BACK]);
   gl.viewport(0,0,c.width,c.height);
   gl.useProgram(vrGL.prog);
@@ -382,6 +383,7 @@ function paintVR(){
     gl.uniform1f(u.cloudCov, vrGL.field.cov); gl.uniform1f(u.cloudScale, vrGL.field.scale); gl.uniform1f(u.cloudDrift, cloudScroll); gl.uniform1f(u.cloudOn, vrClouds?1:0);
     gl.activeTexture(gl.TEXTURE0);
   }
+  perfEnd('setup');
   if(vrGL.hitProg&&vrScenery){
     ensureHitTarget(c.width, c.height);
     if(vrGL.hitMRT){
@@ -389,6 +391,7 @@ function paintVR(){
       gl.bindFramebuffer(gl.FRAMEBUFFER, town?vrGL.landFbo:vrGL.hitFbo);
       gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
       gl.viewport(0,0,c.width,c.height);
+      perfPass('terrain');
       gl.useProgram(vrGL.hitProg);
       const hu=vrGL.hu; gl.uniform1f(hu.fov, vrFov*Math.PI/180);
       if(vrGL.weather){ gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, vrGL.weather); }
@@ -400,7 +403,9 @@ function paintVR(){
       gl.uniform4fv(hu.obj, sc.o); gl.uniform1fv(hu.kind, sc.k);
       gl.uniform4fv(hu.town, sc.t); gl.uniform1f(hu.townN, sc.tn);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
+      perfPassEnd('terrain');
       if(town){
+        perfPass('town');
         gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.hitFbo);
         gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
         gl.useProgram(vrGL.townProg);
@@ -413,6 +418,7 @@ function paintVR(){
         gl.uniform3f(tu.eye, vrX, vrY, ez);
         gl.uniform4fv(tu.town, sc.t); gl.uniform1f(tu.townN, sc.tn);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
+        perfPassEnd('town');
       }
       gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.drawBuffers([gl.BACK]);
       gl.viewport(0,0,c.width,c.height);
@@ -421,7 +427,8 @@ function paintVR(){
   }
   // The aurora, in its own pass, for the sky pass to add.
   const aurSt=skyNow.aur, aurOn=!!(aurSt&&aurSt.on&&vrGL.aurProg&&vrPitch+vrFov*0.5>-2);
-  if(aurOn) drawAuroraVR(gl, aurSt, c);
+  if(aurOn){ perfPass('aurora'); drawAuroraVR(gl, aurSt, c); perfPassEnd('aurora'); }
+  perfPass('sky');
   gl.uniform1f(u.aurOn, aurOn?1:0);
   const hl=skyNow.halo;
   gl.uniform2fv(u.haloK, hl?hl.k:new Float32Array(2));
@@ -441,8 +448,10 @@ function paintVR(){
   // ensureHitTarget binds new hit textures on the active unit, which can be the sky's.
   gl.bindTexture(gl.TEXTURE_2D, tex);
   gl.drawArrays(gl.TRIANGLES, 0, 6);
+  perfPassEnd('sky');
   if(!vrClouds||!vrLabels) vrGL.cloudAt=null;
   if(vrClouds&&vrGL.cloudProg&&vrGL.noise){
+    perfPass('clouds');
     vrGL.cloudFrame=(vrGL.cloudFrame||0)+1;
     if(vrGL.histKey!==EP[dIdx].key){ vrGL.histOk=false; vrGL.histKey=EP[dIdx].key; }
     const cw=Math.max(2,Math.round(c.width*2/3)), ch=Math.max(2,Math.round(c.height*2/3));
@@ -476,10 +485,12 @@ function paintVR(){
     gl.uniform3fv(cu.cityUp, skyNow.cityUp||new Float32Array(3));
     gl.uniform4fv(cu.obj, sc.o); gl.uniform1fv(cu.kind, sc.k);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
+    perfPassEnd('clouds');
     let shown=vrGL.cloudTex;
     // The view: while it holds still the clouds average over frames and settle.
     const viewKey=[vrYaw,vrPitch,vrFov,vrX,vrY,minutes,dIdx,dLat,cw,ch].join('|');
     if(vrGL.tempProg&&vrGL.cloudMRT){
+      perfPass('cloud blend');
       gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.accumFbo);
       gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
       gl.useProgram(vrGL.tempProg);
@@ -504,12 +515,14 @@ function paintVR(){
       gl.blitFramebuffer(0,0,cw,ch,0,0,cw,ch, gl.COLOR_BUFFER_BIT, gl.NEAREST);
       vrGL.histOk=true;
       shown=vrGL.accumTex;
+      perfPassEnd('cloud blend');
     }
-    if(vrLabels) readCloudMask(shown===vrGL.accumTex?vrGL.accumFbo:vrGL.cloudFbo);
+    if(vrLabels){ perfBeg('cloud mask'); readCloudMask(shown===vrGL.accumTex?vrGL.accumFbo:vrGL.cloudFbo); perfEnd('cloud mask'); }
     vrGL.prevYaw=vrYaw*Math.PI/180; vrGL.prevPitch=vrPitch*Math.PI/180; vrGL.prevEyeX=vrX; vrGL.prevEyeY=vrY; vrGL.prevEyeZ=ez;
     // The march is jittered per frame; repaint a few times after the view settles so it converges.
     if(viewKey!==vrGL.settleKey){ vrGL.settleKey=viewKey; vrGL.settle=48; }
     if(vrGL.settle>0){ vrGL.settle--; requestVR(); }
+    perfPass('composite');
     gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.drawBuffers([gl.BACK]); gl.viewport(0,0,c.width,c.height);
     gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.useProgram(vrGL.compProg);
@@ -523,9 +536,11 @@ function paintVR(){
     gl.uniform1f(pu.showScn, vrScenery?1:0);
     gl.uniform4fv(pu.obj, sc.o); gl.uniform1fv(pu.kind, sc.k);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
+    perfPassEnd('composite');
     gl.disable(gl.BLEND);
     gl.activeTexture(gl.TEXTURE0); gl.useProgram(vrGL.prog);
   }
+  perfPaintEnd(); perfBeg('labels & HUD');
   if(firsts.length||vrGL.note==='shown'){
     for(const p of firsts) vrSlow.delete(p);
     vrGL.note='drawn';
@@ -541,6 +556,7 @@ function paintVR(){
   drawVRLabels();
   followVRPin();
   syncVRLink(false);
+  perfEnd('labels & HUD');
   // Water and magma move in real time, so keep painting at about 30 fps while one is in view.
   if(!vrGL.poolTimer && movingPoolInView()) vrGL.poolTimer=setTimeout(()=>{ vrGL.poolTimer=0; requestVR(); }, 33);
   // So does the aurora.

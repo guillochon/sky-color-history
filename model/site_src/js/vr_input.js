@@ -404,6 +404,7 @@ const VR_ASK_BUDGET=1.5;
 function vrAskPoll(){
   vrAskRAF=0;
   if(!vrGL){ vrAsks=[]; return; }
+  perfBeg('tooltips');
   const gl=vrGL.gl, t0=performance.now(), after=[];
   for(let i=0;i<vrAsks.length;){
     const a=vrAsks[i];
@@ -420,6 +421,7 @@ function vrAskPoll(){
     if(r) after.push(r);
   }
   for(const ph of ['show', 'measure', 'place']) for(const r of after) if(r[ph]) r[ph]();
+  perfEnd('tooltips');
   if(vrAsks.length&&!vrAskRAF) vrAskRAF=requestAnimationFrame(vrAskPoll);
 }
 // One pixel of a framebuffer as numbers, or null.

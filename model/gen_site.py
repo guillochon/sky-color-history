@@ -155,6 +155,7 @@ PARTS = [
     'document/style.css',
     'document/body.html',
     'js/color.js',
+    'js/vr_perf.js',
     'js/globe.js',
     'js/day.js',
     'js/moon.js',

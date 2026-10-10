@@ -295,6 +295,7 @@ function cityUplight(key, Yref, k, p){
   return new Float32Array(c.map(v=>Math.pow(v/255, 2.2)));
 }
 function renderDay(fast){
+  if(vrOn) perfBeg('sky model');
   // The date shows at once, while an epoch's sky is still loading.
   syncDateUI();
   if(!dayReady(EP[dIdx].key, 'modern')) return;
@@ -534,6 +535,7 @@ function renderDay(fast){
   // The eclipse's details have a cell of their own that is always there, so the Sun's and Moon's
   // readouts keep their size as an eclipse comes and goes.
   document.getElementById('recl').textContent=eclipse?'Sun · '+eclipse:lunar?'Moon · '+(MOON_V_SUN-2.5*Math.log10(Math.max(mScale, 1e-40))).toFixed(1)+' mag · '+lunar.text:'none';
+  perfEnd('sky model');
   if(vrOn) paintVR();
   if(fast) return;
   // compass + rim
