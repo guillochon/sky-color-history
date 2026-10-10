@@ -501,7 +501,7 @@ dome.addEventListener('mousemove', e=>{ const b=dome.getBoundingClientRect(); ME
 dome.addEventListener('mouseleave', ()=>{ MET.ptr=null; });
 function metHoverCheck(){
   let h=null;
-  if(vrOn){ if(typeof vrInspect!=='undefined'&&vrInspect&&vrInspectAt&&!vrPin&&vrGL){ const d=vrRayAt(vrInspectAt[0], vrInspectAt[1], vrYaw, vrPitch); h=metNearDir(d, 18*vrFov/Math.max(window.innerHeight, 1)); } }
+  if(vrOn){ if(typeof vrInspect!=='undefined'&&vrInspect&&vrInspectAt&&!vrOverPin&&vrGL){ const d=vrRayAt(vrInspectAt[0], vrInspectAt[1], vrYaw, vrPitch); h=metNearDir(d, 18*vrFov/Math.max(window.innerHeight, 1)); } }
   else if(MET.ptr) h=meteorNearDome(MET.ptr[0], MET.ptr[1]);
   const id=h?(h.m||h.f).id:null;
   if(id!==MET.hover){ MET.hover=id; if(vrOn) refreshVRTip(); else refreshDomeTip(); }

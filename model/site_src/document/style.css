@@ -57,17 +57,16 @@ button.tick.on{background:none;color:var(--ink)}
 #vr{display:none;position:fixed;inset:0;z-index:40;background:#000;overflow:hidden;cursor:none}
 #vr.on{display:block}
 #vr.inspect,#vr.inspect canvas{cursor:crosshair}
-#vrtip{z-index:9;position:absolute}
-#vrtip .tbar{display:flex;justify-content:flex-end;gap:.3rem;margin:0 0 .25rem}
-#vrtip .tbar[hidden]{display:none}
-#vrtip .tbar button{pointer-events:auto;cursor:pointer;font:inherit;font-size:.75rem;line-height:1.2;padding:.1rem .45rem;border-radius:3px;border:1px solid rgba(255,255,255,.45);background:rgba(255,255,255,.08);color:#fff}
-#vrtip .tbar button:hover{background:rgba(255,255,255,.2)}
-#vrtip .tbar button[aria-pressed=true]{background:#fff;color:#14161e}
-#vrpin{position:absolute;z-index:9;width:14px;height:14px;margin:-7px 0 0 -7px;box-sizing:border-box;border:1.5px solid #fff;border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.7),inset 0 0 0 1px rgba(0,0,0,.7);pointer-events:none;display:none}
+#vrtip,.vrpintip{z-index:9;position:absolute}
+.vrpintip .tbar{display:flex;justify-content:flex-end;gap:.3rem;margin:0 0 .25rem}
+.vrpintip .tbar button{pointer-events:auto;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font:inherit;font-size:.75rem;line-height:1;min-width:1.6rem;height:1.35rem;padding:0 .35rem;border-radius:3px;border:1px solid rgba(255,255,255,.45);background:rgba(255,255,255,.08);color:#fff}
+.vrpintip .tbar button:hover{background:rgba(255,255,255,.2)}
+.vrpintip .tbar button[aria-pressed=true]{background:#fff;color:#14161e}
+.vrpinmark{position:absolute;z-index:9;width:14px;height:14px;margin:-7px 0 0 -7px;box-sizing:border-box;border:1.5px solid #fff;border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.7),inset 0 0 0 1px rgba(0,0,0,.7);pointer-events:none;display:none}
 #vr #vrlabels{z-index:1;pointer-events:none}
 #vrload{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:8;padding:.6em 1.1em;border-radius:999px;background:rgba(0,0,0,.6);color:#fff;font-size:1.05rem;pointer-events:none;white-space:nowrap}
 #vrload[hidden]{display:none}
-#vr #vrtip canvas{position:static;inset:auto}
+#vr .tip canvas{position:static;inset:auto}
 #vr canvas{position:absolute;inset:0;width:100%;height:100%;cursor:none}
 .aim{position:absolute;width:36px;height:36px;margin:-18px 0 0 -18px;pointer-events:none;color:#fff}
 .aim .chev{display:block;width:100%;height:100%;overflow:visible}
