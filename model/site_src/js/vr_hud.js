@@ -149,23 +149,24 @@ function drawVRLabels(){
     if(s.el<=0) return;
     const p=projectBody(s.el, s.az, 0);
     if(!p.inView) return;
-    const x=W/2+p.nx*W/2, y=H/2-p.ny*H/2;
-    pts.push({x, y, mag:s.mag, text, kind});
+    // A planet drawn larger than its label's usual offset is labelled beside its disk (or rings).
+    const x=W/2+p.nx*W/2, y=H/2-p.ny*H/2, off=s.kind!=null?s.radDeg*DISK_SCALE*(s.kind===4?2.3:1)/(vrFov/H):0;
+    pts.push({x:x+off*0.7, y:y-off*0.7, mag:s.mag, text, kind});
   };
   if(skyNow.sn) add(skyNow.sn, skyNow.sn.name||'Supernova', 'sn');
   for(const s of skyNow.starMarks){
-    if((s.mag>lim&&!s.planet)||s.el<=0) continue;
+    if((s.mag>lim&&!s.planet)||s.el<=0||markHidden(s)) continue;
     // Labelled when it shows: its colour as the sky pass adds it (faded near the naked-eye limit,
     // dimmed by the air), times what the cloud in front lets through. 0.06 is where the drawn
     // point stands out from the sky around it.
     const m=starThroughAir(s.mag, s.el, key), dim=Math.pow(10, -0.2*(m-s.mag));
     const a=cloudAt?cloudAt(horizDir(s.az, apparentEl(s.el))):0;
-    if(Math.max(...s.rgb)*starVisible(m, skyRAt(skyNow.rgrid, s.el, s.az)*skyNow.rCd)*dim*(1-a)<0.06) continue;
-    add(s, s.planet||(s.star?s.star[7]||'':'satellite'), s.planet?'planet':s.star?'star':'sat');
+    if(Math.max(...s.rgb)*starVisible(m-(s.mag-markMag(s)), skyRAt(skyNow.rgrid, s.el, s.az)*skyNow.rCd)*dim*(1-a)<0.06) continue;
+    add(s, s.planet||(s.star?s.star[7]||'':'satellite'), s.host?'moon':s.planet?'planet':s.star?'star':'sat');
   }
   pts.sort((a, b)=>a.mag-b.mag);
   ctx.textBaseline='middle'; ctx.lineJoin='round';
-  const placed=[], STYLE={con:['italic 13px', 'rgba(150,180,235,.7)'], sn:['600 13px', '#dbeaff'], planet:['600 13px', '#ffe2a8'], star:['12px', 'rgba(220,230,255,.85)'], sat:['11px', 'rgba(180,190,205,.6)']};
+  const placed=[], STYLE={con:['italic 13px', 'rgba(150,180,235,.7)'], sn:['600 13px', '#dbeaff'], planet:['600 13px', '#ffe2a8'], moon:['11px', 'rgba(255,226,168,.75)'], star:['12px', 'rgba(220,230,255,.85)'], sat:['11px', 'rgba(180,190,205,.6)']};
   for(const p of pts){
     if(!p.text) continue;
     const [font, col]=STYLE[p.kind];

@@ -498,15 +498,20 @@ function globeSpectrumTip(x, y, box){
 function starNear(dir, tolDeg){
   if(!skyNow||!skyNow.starMarks) return null;
   const key=EP[dIdx].key;
-  let best=null, bestC=Math.cos(tolDeg*Math.PI/180);
+  let best=null, bestD=0;
   // A star further off in altitude alone than tolDeg is further off in all.
   const el=Math.asin(Math.max(-1, Math.min(1, dir[2])))*180/Math.PI;
+  // A planet's drawn disk (and Saturn's rings) counts as near, however large it is drawn: the one
+  // taken is the one the direction is furthest inside the reach of.
+  const scale=bodyScale(!vrOn&&dome);
   for(const s of skyNow.starMarks){
-    if(s.comet||Math.abs(s.el-el)>tolDeg) continue;
-    const c=vdot(dir, horizDir(s.az, s.el)); if(c<bestC) continue;
+    const reach=s.kind!=null?Math.max(tolDeg, s.radDeg*scale*(s.kind===4?2.3:1)):tolDeg;
+    if(s.comet||Math.abs(s.el-el)>reach||markHidden(s)) continue;
+    const d=Math.acos(Math.max(-1, Math.min(1, vdot(dir, horizDir(s.az, s.el)))))*180/Math.PI-reach;
+    if(d>0||(best&&d>=bestD)) continue;
     const m=starThroughAir(s.mag, s.el, key), dim=Math.pow(10, -0.2*(m-s.mag));
-    if(starVisible(m, skyRAt(skyNow.rgrid, s.el, s.az)*skyNow.rCd)*dim<0.3) continue;
-    best=s; bestC=c;
+    if(starVisible(m-(s.mag-markMag(s)), skyRAt(skyNow.rgrid, s.el, s.az)*skyNow.rCd)*dim<0.3) continue;
+    best=s; bestD=d;
   }
   return best;
 }
@@ -521,10 +526,16 @@ const REFL={
   Mars:{n:[[380, 0.15], [450, 0.2], [500, 0.27], [550, 0.45], [600, 0.76], [650, 0.9], [700, 0.96], [780, 1]], note:'sunlight off iron-oxide dust, dark in the blue', band:[400, 560, 'Fe³⁺']},
   Jupiter:{n:[[380, 0.6], [450, 0.75], [500, 0.85], [550, 0.94], [600, 1], [780, 1]], ch4:[[543, 0.06, 3], [619, 0.18, 4], [727, 0.42, 5]], note:'sunlight off ammonia clouds, with the bands of the methane above them'},
   Saturn:{n:[[380, 0.45], [450, 0.6], [500, 0.75], [550, 0.9], [600, 1], [780, 1]], ch4:[[543, 0.06, 3], [619, 0.2, 4], [727, 0.48, 5]], note:'sunlight off its yellower haze and its rings, with methane bands'},
+  Io:{n:[[380, 0.3], [450, 0.45], [500, 0.75], [550, 0.9], [600, 0.97], [780, 1]], note:'sunlight off sulfur and its frosts, dark in the violet'},
+  Europa:{n:[[380, 0.7], [450, 0.82], [550, 0.95], [780, 1]], note:'sunlight off water ice, a little reddened'},
+  Ganymede:{n:[[380, 0.72], [500, 0.85], [600, 0.95], [780, 1]], note:'sunlight off ice and dark rock'},
+  Callisto:{n:[[380, 0.68], [500, 0.82], [600, 0.94], [780, 1]], note:'sunlight off dark, dusty ice'},
+  Titan:{n:[[380, 0.12], [450, 0.25], [500, 0.45], [550, 0.7], [600, 0.92], [780, 1]], ch4:[[619, 0.25, 4], [727, 0.55, 5]], note:'sunlight off its orange organic haze, with the methane bands of its air'},
+  icy:{n:[[380, 0.85], [500, 0.95], [780, 1]], note:'sunlight off nearly pure water ice'},
   sat:{n:[[380, 0.85], [780, 1]], note:'sunlight off its metal, panels and paint'},
 };
 function reflectedSpectrum(s){
-  const key=EP[dIdx].key, r=REFL[s.planet||'sat'], S=spPlanck(5772), n=r.n;
+  const key=EP[dIdx].key, r=REFL[s.planet||'sat']||REFL.icy, S=spPlanck(5772), n=r.n;
   for(let i=0;i<SP_N;i++){
     const l=SP_LAM[i], k=Math.max(0, n.findIndex(([x])=>x>=l)-1), [x0, y0]=n[k], [x1, y1]=n[Math.min(k+1, n.length-1)];
     let t=x1>x0?y0+(y1-y0)*(l-x0)/(x1-x0):y0;
@@ -537,7 +548,9 @@ function reflectedSpectrum(s){
   const X=Math.min(spAirmass(s.el), 40);
   spThroughAir(S, marks, key, X);
   const m=starThroughAir(s.mag, s.el, key);
-  const note=`${s.planet||'A satellite'} · ${r.note} · V ${s.mag.toFixed(1)} above the air, ${m.toFixed(1)} through ${X.toFixed(1)} airmass${X>=1.05?'es':''}`;
+  // A planet's or moon's size and how much of it is lit, as seen.
+  const size=s.radDeg!=null?` · ${(s.radDeg*7200).toFixed(s.radDeg*7200<10?1:0)}″ across, ${Math.round(s.lit*100)}% lit`:'';
+  const note=`${s.planet?s.planet+(s.host?`, a moon of ${s.host}`:''):'A satellite'}${size} · ${r.note} · V ${s.mag.toFixed(1)} above the air, ${m.toFixed(1)} through ${X.toFixed(1)} airmass${X>=1.05?'es':''}`;
   return {S, Y:1, parts:[], marks, note};
 }
 // The supernova, if it is up within tolDeg of dir.

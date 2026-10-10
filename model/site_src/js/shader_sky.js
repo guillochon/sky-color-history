@@ -52,6 +52,11 @@ float extinctionAt(float el, float k){
   return pow(10.0, -0.4*k*(airmass(max(el, 0.0))-1.0));
 }
 uniform vec4 beads[6];
+// The planets and their moons (planets.js): per body, P its direction and drawn radius (radians),
+// C the colour of its point and that point's size (as a star's), L the way to the Sun from it and
+// its magnitude, N its north pole and its kind (0-4 Mercury to Saturn, 5 a moon), plus 8 when it
+// is nearer than the Sun. moonGain is what zooming in adds to the moons' limit (planets.js moonGain).
+uniform vec4 bodyP[${BODY_MAX}], bodyC[${BODY_MAX}], bodyL[${BODY_MAX}], bodyN[${BODY_MAX}]; uniform float bodyCnt, moonGain;
 float limbH(float pa){ return 0.002*sin(7.0*pa+1.3)+0.00167*sin(12.0*pa+4.1)+0.00133*sin(19.0*pa+2.2)+0.001*sin(29.0*pa+5.0)+0.00083*sin(41.0*pa+0.7)+0.00067*sin(57.0*pa+3.3)+0.0005*sin(83.0*pa+1.9); } // moon.js limbH
 uniform vec4 obj[12];
 uniform vec4 pond[8];
@@ -221,6 +226,48 @@ vec3 sunSurface(vec2 q, float pxR){
     fac=max(fac, 0.3*(1.0-smoothstep(0.0, 0.45, sqrt(f2)-sqrt(f1)))*smoothstep(0.35, 0.75, clump)*smoothstep(0.012, 0.006, pxR));
   }
   return pow(t.rgb, vec3(2.2))+fac*c*vec3(0.10, 0.13, 0.18);
+}
+// A planet's cloud tops or ground at planetographic latitude lat (degrees): Mercury's grey rock,
+// Venus's clouds, Mars's ochre with its darker south and polar caps, Jupiter's belts and zones,
+// Saturn's fainter bands; a moon in its own tint.
+float bandOf(float lat, float a, float b, float w){ return smoothstep(a-w, a+w, lat)-smoothstep(b-w, b+w, lat); }
+vec3 bodyAlbedo(int kind, float lat, vec3 tint){
+  if(kind==0) return vec3(0.66, 0.62, 0.57);
+  if(kind==1) return vec3(1.0, 0.96, 0.84);
+  if(kind==2) return mix(mix(vec3(0.86, 0.52, 0.33), vec3(0.66, 0.42, 0.30), 0.6*bandOf(lat, -45.0, -5.0, 6.0)), vec3(0.95, 0.95, 0.97), smoothstep(68.0, 74.0, abs(lat)));
+  if(kind==3){
+    float belt=bandOf(lat, 7.0, 18.0, 1.5)+bandOf(lat, -21.0, -8.0, 1.5)+0.55*(bandOf(lat, 24.0, 31.0, 1.5)+bandOf(lat, -33.0, -26.0, 1.5))+0.3*(bandOf(lat, 36.0, 42.0, 2.0)+bandOf(lat, -44.0, -38.0, 2.0));
+    return mix(mix(vec3(0.95, 0.91, 0.82), vec3(0.70, 0.53, 0.40), clamp(belt, 0.0, 1.0)), vec3(0.62, 0.60, 0.58), smoothstep(45.0, 70.0, abs(lat)));
+  }
+  if(kind==4) return mix(mix(vec3(0.93, 0.85, 0.64), vec3(0.78, 0.68, 0.50), 0.5*(bandOf(lat, 18.0, 32.0, 3.0)+bandOf(lat, -32.0, -18.0, 3.0))), vec3(0.70, 0.70, 0.64), smoothstep(55.0, 75.0, abs(lat)));
+  return tint/max(max(tint.r, tint.g), max(tint.b, 1e-4))*0.85;
+}
+const float BODY_FLAT[6]=float[6](0.0, 0.0, 0.00589, 0.06487, 0.09796, 0.0);
+// How bright each kind's disk is drawn, after its albedo, and its Minnaert k (planets.js BODY_GAIN, BODY_MINN).
+const float BODY_GAIN[6]=float[6](${BODY_GAIN.map(v=>v.toFixed(2)).join(', ')}), BODY_MINN[6]=float[6](${BODY_MINN.map(v=>v.toFixed(2)).join(', ')});
+// A body's disk where the view ray is o (the offset across the sky, in drawn radii) and the line of
+// sight v: its lit colour (rgb) and coverage (a), the surface point x and how far along v it lies
+// (t, toward the observer negative). The disk is the flattened spheroid about pole n, lit from L,
+// darkening toward the terminator and, by its Minnaert k, the limb; rPx is its radius in pixels.
+vec4 bodyDisk(vec3 o, vec3 v, vec3 n, vec3 L, int kind, float rPx, vec3 tint, out vec3 x, out float t){
+  float f=BODY_FLAT[kind], k=1.0/(1.0-f)-1.0;
+  vec3 op=o+k*dot(o, n)*n, vp=v+k*dot(v, n)*n;
+  float a=dot(vp, vp), bh=dot(op, vp)/a, rho2=max(dot(op, op)-bh*bh*a, 0.0);
+  float cov=clamp(0.5+(1.0-sqrt(rho2))*rPx, 0.0, 1.0);
+  t=1e9; x=o;
+  if(cov<=0.0) return vec4(0.0);
+  t=-bh-sqrt(max(1.0-rho2, 0.0)/a); x=o+t*v;
+  vec3 nrm=normalize(x+(1.0/((1.0-f)*(1.0-f))-1.0)*dot(x, n)*n);
+  float mu0=dot(nrm, L), mu=max(dot(nrm, -v), 0.05), w=1.5/max(rPx, 1.0);
+  float km=BODY_MINN[kind], lit=smoothstep(-w, w, mu0)*min(pow(max(mu0, 0.0)+0.01, km)*pow(mu, km-1.0), 1.3);
+  return vec4(bodyAlbedo(kind, asin(clamp(dot(nrm, n), -1.0, 1.0))*57.2957795, tint)*lit*BODY_GAIN[kind], cov);
+}
+// Saturn's rings at r planet radii, w the radial blur: brightness (x) and opacity (y) of the C ring,
+// the B ring (brightest in its outer half), the Cassini division and the A ring.
+vec2 saturnRing(float r, float w){
+  float C=smoothstep(1.239-w, 1.239+w, r)-smoothstep(1.527-w, 1.527+w, r), B=smoothstep(1.527-w, 1.527+w, r)-smoothstep(1.951-w, 1.951+w, r);
+  float D=smoothstep(1.951-w, 1.951+w, r)-smoothstep(2.025-w, 2.025+w, r), A=smoothstep(2.025-w, 2.025+w, r)-smoothstep(2.267-w, 2.267+w, r);
+  return vec2(0.18*C+mix(0.72, 1.0, smoothstep(1.55, 1.75, r))*B+0.12*D+0.62*A, 0.12*C+0.95*B+0.1*D+0.6*A);
 }
 int starCubeCell(vec3 d){
   float ax=abs(d.x), ay=abs(d.y), az=abs(d.z);
@@ -578,7 +625,7 @@ void main(){
       vec4 sk=sunDiskAt(comp, elevDeg, sd, sunRad*57.2957795, sunOffV);
       inSun=sk.x+sk.y+sk.z!=0.0; sunR=min(sk.w, 1.0); sunP=max(sk.rgb, vec3(0.0));
     }
-    bool onBody=inSun;
+    bool onBody=inSun, onMoon=false;
     vec3 skyBase=skyC;
     if(inSun){
       // Limb darkening (moon.js sunLimbRGB): dimmer and redder toward the edge. The bands that
@@ -622,7 +669,7 @@ void main(){
       float cm=dot(src,md);
       bool inMoon=cm>cos(moonRad*1.01)&&acos(clamp(cm, -1.0, 1.0))<moonRad*(1.0+limbH(atan(dot(src,east), dot(src,north))));
       if(inMoon){
-        onBody=true;
+        onBody=true; onMoon=true;
         {
         // In front of the Sun the Moon is drawn like the rest of its disk: the sky in front of it
         // plus its own dim light.
@@ -753,6 +800,56 @@ void main(){
           vec4 sc=texelFetch(starMap, ivec2(si, 1), 0);
           skyC+=sc.rgb*wgt*(1.0-smoothstep(lim-0.8, lim+0.2, sc.a+dm))*dim;
         }
+      }
+    }
+    if(bodyCnt>0.5 && te>0.0 && !onMoon){
+      // The planets and moons: a point like a star's while the drawn disk is under a pixel or two,
+      // the lit disk once it is larger. Each shows as a star does, by its magnitude through the air
+      // against the naked-eye limit here.
+      // In front of the Sun, a planet nearer than it is a dark disk.
+      float lim=nakedEyeLimit(rBg*rCd), pxA=2.0*fy/res.y, sigMin=1.2*fy/res.y;
+      float dm=-2.5*log(max(extinctionAt(te, mwK), 1e-9))/2.302585+(mwK-0.25), dim=pow(10.0, -0.2*dm);
+      // The air dims a disk as it does a star, and reddens it: green and blue lose about 0.07 and
+      // 0.2 magnitudes more than red to each airmass.
+      vec3 T=dim*exp(-vec3(0.0, 0.064, 0.184)/max(sin(te*0.01745329252), 0.04));
+      for(int b=0;b<${BODY_MAX};b++){
+        if(float(b)>=bodyCnt) break;
+        vec4 P=bodyP[b], C=bodyC[b], L=bodyL[b], N=bodyN[b];
+        int kind=int(mod(N.w, 8.0)+0.5);
+        if(inSun && N.w<7.5) continue;
+        float sig=max(C.w*starPx, sigMin), reach=max(P.w*(kind==4?2.3:1.0)+2.0*pxA, 4.0*sig);
+        vec3 dd=src-P.xyz; float d2=dot(dd, dd);
+        if(d2>reach*reach) continue;
+        float rPx=P.w/pxA, diskK=smoothstep(1.0, 3.0, rPx), vis=1.0-smoothstep(lim-0.8, lim+0.2, L.w+dm-(kind==5?moonGain:0.0));
+        vec3 o=(src-P.xyz*dot(src, P.xyz))/sin(P.w), x; float t;
+        if(inSun){
+          vec4 dk=bodyDisk(o, P.xyz, N.xyz, L.xyz, kind, rPx, C.rgb, x, t);
+          skyC=mix(skyC, skyBase, dk.a*min(rPx, 1.0));
+          continue;
+        }
+        if(vis<=0.0) continue;
+        vec3 add=C.rgb*exp(-0.5*d2/(sig*sig))*(1.0-diskK)*dim;
+        if(diskK>0.0){
+          vec4 dk=bodyDisk(o, P.xyz, N.xyz, L.xyz, kind, rPx, C.rgb, x, t);
+          vec3 dc=dk.rgb*dk.a;
+          float vn=dot(P.xyz, N.xyz);
+          if(kind==4 && abs(vn)>1e-4){
+            // The rings, in the equator: lit on the Sun's side (seen from the other, only what light
+            // gets through), dark in the planet's shadow, and casting their own shadow on it.
+            vec3 Lr=L.xyz;
+            if(dk.a>0.0){ float ts=-dot(x, N.xyz)/dot(Lr, N.xyz); if(ts>0.0) dc*=1.0-0.85*saturnRing(length(x+ts*Lr), 0.02).y; }
+            float tr=-dot(o, N.xyz)/vn; vec3 xr=o+tr*P.xyz;
+            vec2 rg=saturnRing(length(xr), 0.8/rPx/max(abs(vn), 0.03));
+            if(rg.y>0.0){
+              float s=dot(xr, Lr), sh=s<0.0?smoothstep(0.97, 1.03, length(xr-s*Lr)):1.0;
+              vec3 rc=vec3(0.86, 0.78, 0.64)*rg.x*sh*(dot(Lr, N.xyz)*vn<0.0?1.0:0.12);
+              float ro=rg.y*smoothstep(0.0, 0.03, abs(vn));
+              dc=tr<t?rc*ro+dc*(1.0-ro):dc+rc*ro*(1.0-dk.a);
+            }
+          }
+          add+=dc*T*diskK;
+        }
+        skyC+=add*vis;
       }
     }
     if(metN>0.5 && te>-0.5) skyC=meteorsAt(skyC+metFlash, src, onBody);

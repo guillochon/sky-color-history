@@ -362,6 +362,7 @@ function paintVR(){
   // A star's px is the radius the page draws it at, with most of its light inside a third of
   // that; the Gaussian here takes that third as its width, in page pixels.
   gl.uniform1f(u.starPx, 0.35*(vrFov*Math.PI/180)/Math.max(window.innerHeight,1));
+  uploadBodies(gl, u);
   if(skyNow.stars && vrGL.starTex && vrGL.starUploaded!==skyNow.gen){
     gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, vrGL.starTex);
     gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, STAR_MAP_W, 2, gl.RGBA, gl.FLOAT, skyNow.stars);
@@ -576,4 +577,19 @@ function drawAuroraVR(gl, st, c){
   gl.useProgram(vrGL.prog);
   gl.activeTexture(gl.TEXTURE9); gl.bindTexture(gl.TEXTURE_2D, vrGL.aurTex);
   gl.activeTexture(gl.TEXTURE0);
+}
+// The planets and moons (planets.js placePlanets) into the sky shader's bodies, at the Sun's and
+// Moon's enlargement.
+const BODY_U={P:new Float32Array(BODY_MAX*4), C:new Float32Array(BODY_MAX*4), L:new Float32Array(BODY_MAX*4), N:new Float32Array(BODY_MAX*4)};
+function uploadBodies(gl, u){
+  const list=(skyNow.bodies||[]).slice(0, BODY_MAX), {P, C, L, N}=BODY_U;
+  list.forEach((b, i)=>{
+    const o=i*4;
+    P.set(b.dir, o); P[o+3]=b.rad*DISK_SCALE;
+    C.set(b.rgb, o); C[o+3]=b.px;
+    L.set(b.light, o); L[o+3]=b.mag;
+    N.set(b.pole, o); N[o+3]=b.kind+(b.front?8:0);
+  });
+  gl.uniform4fv(u.bodyP, P); gl.uniform4fv(u.bodyC, C); gl.uniform4fv(u.bodyL, L); gl.uniform4fv(u.bodyN, N);
+  gl.uniform1f(u.bodyCnt, list.length); gl.uniform1f(u.moonGain, moonGain());
 }

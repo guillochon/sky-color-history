@@ -14,7 +14,7 @@ function placeStars(lat){
   const epochKey=EP[dIdx].key;
   const year=STAR_YEAR[epochKey]||pageDate()[0];
   const LST=localSidereal(), P=starPlaces(epochKey, year), list=P.list;
-  const tex=new Float32Array(STAR_MAP_W*8), marks=[], up=[];
+  const tex=new Float32Array(STAR_MAP_W*8), marks=[], up=[], bodies=[];
   for(let i=0;i<P.n;i++){
     const star=list[i];
     const p=raDecAltaz(lat, P.ra[i], P.dec[i], LST), show=P.show[i], o=i*4;
@@ -25,11 +25,11 @@ function placeStars(lat){
     marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb, mag:star[2], star, ra:P.ra[i], dec:P.dec[i]});
     up.push({i, x:dir[0], y:dir[1], z:dir[2]});
   }
-  placePlanets(lat, tex, marks, up, epochKey, year, LST);
+  placePlanets(lat, marks, bodies, epochKey, year, LST);
   if(epochKey==='y2100') placeSatellites(lat, tex, marks, up);
   // The cube cells are for the VR sky shader only.
   const bins=vrOn?starBinsFor(up):{info:null, idx:null, count:0};
-  return {tex, marks, bins:bins.info, idx:bins.idx, idxCount:bins.count};
+  return {tex, marks, bodies, bins:bins.info, idx:bins.idx, idxCount:bins.count};
 }
 // Sky luminance ratio at (el, az), interpolated in log from the dome grid (skyNow.rgrid, rows
 // of DOME_NA+1 from the zenith down). Each render makes a new grid, and its logs are kept with it.
@@ -54,14 +54,20 @@ function drawStarsOnDome(marks, rgrid, rCd, key, moon){
   dctx.save();
   dctx.beginPath(); dctx.arc(cx,cy,R,0,Math.PI*2); dctx.clip();
   dctx.globalCompositeOperation='lighter';
+  const disks=[];
   for(const s of marks){
+    if(markHidden(s)) continue;
     // Through the air a star is fainter, so less of it shows, and smaller and dimmer when it does.
     const m0=s.mag==null?0:s.mag, m=starThroughAir(m0, s.el, key), dim=Math.pow(10, -0.2*(m-m0));
-    const night=starVisible(m, skyRAt(rgrid, s.el, s.az)*rCd)*dim;
+    const vis=starVisible(m-(m0-markMag(s)), skyRAt(rgrid, s.el, s.az)*rCd), night=vis*dim;
     if(night<0.03) continue;
     const rr=R*(90-s.el)/90, a=s.az*Math.PI/180, x=cx+rr*Math.sin(a), y=cy-rr*Math.cos(a);
     if(mUp&&(x-mx)**2+(y-my)**2<mrad*mrad) continue;
-    const col=s.rgb.map(c=>Math.round(Math.min(255, c*night*255)));
+    // A planet drawn more than a pixel or two across is its lit disk (after the points), not a point.
+    const rPx=s.body&&s.kind!=null?s.radDeg*(DOME_DISK*z/SUN_RADIUS_DEG):0, diskK=smooth01(1, 3, rPx);
+    if(diskK>0) disks.push([s.body, x, y, rPx, night*diskK]);
+    if(diskK>=1) continue;
+    const col=s.rgb.map(c=>Math.round(Math.min(255, c*night*(1-diskK)*255)));
     if(s.px<2.2){
       dctx.fillStyle='rgb('+col[0]+','+col[1]+','+col[2]+')';
       dctx.beginPath(); dctx.arc(x,y,Math.max(0.6, s.px*0.55),0,Math.PI*2); dctx.fill();
@@ -74,6 +80,7 @@ function drawStarsOnDome(marks, rgrid, rCd, key, moon){
     dctx.fillStyle=g; dctx.beginPath(); dctx.arc(x,y,s.px,0,Math.PI*2); dctx.fill();
   }
   dctx.restore();
+  for(const d of disks) drawBodyOnDome(...d);
 }
 const vdot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
 const vscale=(a,s)=>[a[0]*s,a[1]*s,a[2]*s];
