@@ -543,7 +543,8 @@ function renderDay(fast){
   if(z>1.005){ dctx.font='15px Newsreader, Georgia, serif'; dctx.fillText(`${z<9.95?z.toFixed(1):'10'}× · middle-drag to pan, double-click to reset`, 12, 22); }
   dctx.font='15px Newsreader, Georgia, serif'; dctx.fillText(`${ep.age} · ${dLat==='Equator'?'equator':latLabel()+' latitude'}`, 12, H-8);
   // readouts
-  document.getElementById('hclock').textContent=clockLabel(minutes)+(dayHours()<24?` · ${dayHours()}-hour day · ${Math.round(yearDays())}-day year`:'');
+  document.getElementById('hclock').textContent=clockLabel(minutes);
+  document.getElementById('rday').textContent=`${dayHours()} hours · ${Math.round(yearDays())}-day year`;
   document.getElementById('relev').textContent=(90-sza).toFixed(1)+'°';
   const sumAt=(vz,comp)=>{ const X=night[Math.min(NR, Math.round(vz/90*NR))].slice(); addField(X,sunSrc,sunVis*sunFlux,vz,comp); addField(X,moonSrc,mScale,vz,comp); addRing(X,vz);
     if(zodiOn){ const el=90-vz, zl=zodiExtra(ep.key, horizDir(comp, el), ecl)*absZenith(ep.key)*(0.4+0.6*extinction(el, ekD))/cduD; for(let q=0;q<3;q++) X[q]+=zodiXY[q]*zl; }
@@ -613,26 +614,31 @@ const HMIN=+hslider.min, HMAX=+hslider.max;
 // The time of day in the epoch's own hours: m is the fraction of the day times DAYMIN.
 function clockParts(m){ const h=Math.min(m, DAYMIN)/DAYMIN*dayHours(), s=Math.floor(h*3600+1e-6); return [Math.floor(s/3600), Math.floor(s/60)%60, s%60]; }
 function clockLabel(m){ const [hh, mm]=clockParts(m); return hh+':'+String(mm).padStart(2,'0'); }
-// The readouts keep one size whatever they say: each cell is held to the height of the longest
-// text it can show at the page's width, and the clock to the width of its longest, measured
-// again only when the width or the fonts change. The longest texts are built from the formats
+// The readouts keep one size whatever they say, measured again only when the width or the fonts
+// change. Each short readout is held to the height of the longest text it can show at the page's
+// width, and the clock to the width of its longest. The last three (comets, eclipse, meteors) run
+// to two or three lines only now and then, so they take the height they need and the list as a
+// whole is held to its height with all three at their longest: the spare room gathers at the
+// bottom instead of opening gaps between the lines. The longest texts are built from the formats
 // that write them (the readouts above, auroraReadout, meteorReadout, cometReadout and the
 // eclipse searches), with the longest comet and shower names.
 function readoutSamples(){
   const longest=a=>a.reduce((x, y)=>y.length>x.length?y:x, '');
   const comet=longest(COMETS_REAL.map(c=>c[0]));
-  const shower=longest(SHOWERS.map(s=>s[1]+', ZHR 88,888').concat(SHOWERS.map(s=>s[2]+' outburst, ZHR 88,888')));
+  // A shower at its usual strength, or one of the recorded outbursts and storms at its peak.
+  const eight=Z=>Math.round(Z).toLocaleString('en-US').replace(/\d/g, '8');
+  const shower=longest(SHOWERS.map(s=>s[1]+', ZHR 888').concat(stormList().map(s=>`${s.sh.member} ${s.Z>=1000?'storm':'outburst'}, ZHR ${eight(s.Z)}`)));
   const sky=['88,888 K · 0.0088%', '88.8 mag/arcsec²'];
   return {
-    hclock:['88:88 · 88.8-hour day · 888-day year'],
+    hclock:['88:88'], rday:['88.8 hours · 888-day year'],
     relev:['-88.8°'], rzen:sky, rhor:sky,
     rsun:['88,888 K · 0.088%', 'below horizon', 'not visible'],
     rmoon:['-88.8° · 100% lit · under 0.001% of full', 'below horizon · 100% lit · under 0.001% of full'],
     raur:['hidden by the CO₂', 'oval too far north', 'oval too far south', 'inside the polar cap', 'oval overhead · sky too bright',
       'oval 88° north · violet and pink (nitrogen)', 'oval 88° south · violet and pink (nitrogen)', 'oval 88° north · pale green and violet', 'oval 88° south · pale green and violet'],
-    // Named showers come only in the modern-era skies, which have today's sporadics; the older
-    // epochs' showers are unnamed, with their sporadic rate (to some 3,000× today's) and the ring.
-    rmet:[`about one every day of watching · ${shower}, ${shower}`, 'about one every day of watching · sporadics 8,888× today · a outburst, ZHR 88,888, a outburst, ZHR 88,888 · ring debris overhead'],
+    // Per epoch: its sporadics, its showers (named only in the modern-era skies) and its ring.
+    rmet:EP.map(({key})=>{ const F=metEpoch(key).F, named=COMET_REAL_EPOCHS.has(key)?shower:'a storm, ZHR 88,888';
+      return 'about one every day of watching'+(F===1?'':` · sporadics ${F>=10?Math.round(F).toLocaleString('en-US'):F}× today`)+` · ${named}, ${named}`+(ringOf(key)?' · ring debris overhead':''); }),
     rcomet:['none bright enough to see', `${comet}, magnitude -88.8 · tail 188° · below the horizon · 8 more`],
     recl:['Moon · -88.8 mag · partial lunar eclipse · umbral magnitude 0.88 · umbral phase 88h 88m left', 'Moon · -88.8 mag · penumbral lunar eclipse · magnitude 0.88',
       'Sun · annular eclipse · 888m 88s left', 'Sun · partial eclipse · 99.9% covered', 'no total lunar eclipse in the next forty years', 'no total or annular eclipse in the next forty years'],
@@ -643,14 +649,27 @@ function holdReadouts(force){
   const w=document.querySelector('.readout').getBoundingClientRect().width;
   if(!w||(!force&&w===readoutW)) return;
   readoutW=w;
+  const box=document.querySelector('.readout'), pooled={rcomet:1, recl:1, rmet:1}, worst={};
+  box.style.minHeight='';
   for(const [id, samples] of Object.entries(readoutSamples())){
     const el=document.getElementById(id), keep=el.textContent, wide=id==='hclock', size=()=>{ const r=el.getBoundingClientRect(); return wide?r.width:r.height; };
     el.style[wide?'minWidth':'minHeight']='';
-    let m=size();
-    for(const s of samples){ el.textContent=s; m=Math.max(m, size()); }
+    let m=-1, t='';
+    for(const s of samples){ el.textContent=s; const v=size(); if(v>m){ m=v; t=s; } }
     el.textContent=keep;
-    el.style[wide?'minWidth':'minHeight']=Math.ceil(m)+'px';
+    worst[id]=t;
+    if(!pooled[id]) el.style[wide?'minWidth':'minHeight']=Math.ceil(m)+'px';
   }
+  // The list's height with every line at its longest, whatever it shows now (an empty line, as
+  // before the first render, has no baseline and would stretch its row).
+  const keep={};
+  for(const id in worst){ const el=document.getElementById(id); keep[id]=el.textContent; el.textContent=worst[id]; }
+  const h=box.getBoundingClientRect().height;
+  for(const id in worst) document.getElementById(id).textContent=keep[id];
+  box.style.minHeight=Math.ceil(h)+'px';
+  // The longest texts can need glyphs (the Greek of shower names) the page has not loaded yet,
+  // which measuring them starts loading; measure again once they are in.
+  if(document.fonts&&document.fonts.status==='loading') document.fonts.ready.then(()=>holdReadouts(true));
 }
 if(window.ResizeObserver) new ResizeObserver(()=>holdReadouts(false)).observe(document.querySelector('.readout'));
 if(document.fonts){ document.fonts.ready.then(()=>holdReadouts(true)); document.fonts.addEventListener('loadingdone', ()=>holdReadouts(true)); }
