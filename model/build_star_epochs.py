@@ -255,7 +255,7 @@ print('wrote', path)
 # ---- Constellation figures: Stellarium's modern sky culture (skycultures/modern/index.json, ----
 # lines as chains of Hipparcos numbers), matched to the catalogue through XHIP's HD numbers.
 # Each vertex is placed today and moved to the supernova epochs as its star is; the page leaves
-# out each line whose stars have moved too far apart or together (vr_hud.js, CON_LINE_MAX). The
+# out each line whose stars have moved too far apart (vr_hud.js, CON_LINE_MAX). The
 # median change of a line's length is printed for each epoch.
 by_hd = {s['hd']: s for s in stars if s['hd']}
 sky = json.loads((DATA / 'stelcon' / 'index.json').read_text(encoding='utf-8'))

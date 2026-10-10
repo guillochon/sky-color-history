@@ -78,12 +78,12 @@ function placeBodyMarks(){
 // Labels (l): a name beside each star, planet, satellite and supernova that shows. The faintest
 // labelled grows with the zoom, from about V 1.6 across 90° and V 3 at the usual 60° to every
 // point (V 6.5) by 20°, and a label that would overlap a brighter one's is left out, as is one
-// on a point cloud hides. With them, the constellation figures and names, wherever the epoch's
-// stars still make them (constellations.js).
+// on a point cloud hides. With them, the constellation figures and names (constellations.js),
+// less each line whose stars have since moved too far apart to make it.
 let vrLabels=false, vrLabelsDrawn=false;
 const CON_PLACES={}, CON_KEEP={};
-// A line is left out when its stars' separation differs from today's by more than half.
-const CON_LINE_MAX=0.5;
+// A line is left out when its stars have moved to more than three times today's separation.
+const CON_LINE_MAX=3;
 // Whether each line of CON_FIG, in order, is drawn for the epoch: all of them unless its stars
 // are moved there (CON_EPOCHS).
 function conKeep(key){
@@ -93,7 +93,7 @@ function conKeep(key){
   const sep=(p, q)=>Math.acos(Math.max(-1, Math.min(1, vdot(unit(p), unit(q)))));
   for(const [, , chains] of CON_FIG) for(const run of chains) for(let k=1;k<run.length;k++){
     const i=run[k-1], j=run[k];
-    keep.push(!E||Math.abs(sep(E[i], E[j])/sep(CON_VERT[i], CON_VERT[j])-1)<=CON_LINE_MAX);
+    keep.push(!E||sep(E[i], E[j])<=CON_LINE_MAX*sep(CON_VERT[i], CON_VERT[j]));
   }
   return CON_KEEP[key]=keep;
 }
