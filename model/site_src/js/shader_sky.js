@@ -6,6 +6,9 @@ precision highp float;
 uniform sampler2D noiseTex;
 uniform sampler2D sky; uniform sampler2D moonMap; uniform sampler2D starMap; uniform sampler2D starBin; uniform sampler2D starIdx; uniform sampler2D weather; uniform sampler2D hitInfo; uniform sampler2D hitNrm; uniform sampler2D shadowTex; uniform vec2 hitScale, shScale; uniform sampler2D roadCells; uniform vec4 roadBox; uniform vec2 roadDim; uniform vec2 res;
 uniform float yaw,pitch,fov,sunAz,sunEl,sunRad,sunOn,nr,na,sunMu,showScn,mtnSnow;
+// For a deep zoom (fineEU): the view's azimuth less the Sun's (x, radians) and its altitude less
+// the Sun's true altitude (y, degrees), and the same for the Moon (z, w), in double precision.
+uniform vec4 fineRel;
 uniform float moonAz,moonEl,moonRad,moonOn,latRad,starPx,cloudCov,cloudScale,cloudDrift,cloudOn,clockH,snowCover,waterT,snOn;
 uniform vec3 snDir,snCol,snLight,mlDir,mlLight;
 uniform vec3 sunCol,ground,eye;
@@ -184,10 +187,29 @@ float trueAlt(float app){ return app-refK*bennett(app); } // apparent altitude (
 // centre in that image.
 const float SUN_DISP[20]=float[20](${SUN_DISP.join(', ')});
 const float SUN_APPS[10]=float[10](${SUN_APP.map(v=>v.toFixed(1)).join(', ')});
-vec4 sunDiskAt(float comp, float app, vec3 sd, float rd, out vec3 off){
-  float ap=app+sunMir.w*(0.6*sin(comp*1432.4+waterT*2.1)+0.4*sin(comp*3610.0-waterT*3.3))*exp(-max(app, 0.0)/rd);
-  float extra=0.0;
-  if(sunMir.x>0.0 && ap<sunMir.x){ ap=sunMir.x+(sunMir.x-ap)*sunMir.y; extra=sunMir.z; }
+// Zoomed in to arcseconds, the angle from a disk's centre can't come from the dot product of two
+// unit vectors: their float steps are a pixel or more, and acos near a small angle magnifies them
+// tens of times, so the limb comes out jagged. fineEU gives the offset exactly instead, in the
+// target's tangent plane along its azimuth (x) and altitude (y) axes (azAxis, altAxis), for a
+// ray dAz radians round in azimuth from it at true altitude t (degrees); h is the target's true
+// altitude and dt is t-h, passed apart so it keeps its precision.
+vec2 fineEU(float dAz, float t, float h, float dt){
+  float tr=t*0.01745329252, s=sin(dAz*0.5);
+  return vec2(sin(dAz)*cos(tr), sin(dt*0.01745329252)+sin(h*0.01745329252)*cos(tr)*2.0*s*s);
+}
+// asin by its series, for a fine offset: GPUs' own asin is a polynomial fit good to only about
+// 1e-4 radians, a hundred pixels at the deepest zoom. To x^7 it is good to 4e-8 at 0.22 radians,
+// the corona's reach; a disk's edge is under 0.02.
+float asinS(float x){ float x2=x*x; return x*(1.0+x2*(1.0/6.0+x2*(3.0/40.0+x2*(5.0/112.0)))); }
+vec3 azAxis(float az){ float a=az*0.01745329252; return vec3(cos(a), -sin(a), 0.0); }
+vec3 altAxis(float az, float h){ float a=az*0.01745329252, hr=h*0.01745329252; return vec3(-sin(a)*sin(hr), -cos(a)*sin(hr), cos(hr)); }
+// With fn, the ray's offsets from the Sun come from fineEU: dAz in azimuth (radians), dApp its
+// apparent altitude less the view's (degrees), dH the view's altitude less the Sun's.
+vec4 sunDiskAt(float comp, float app, vec3 sd, float rd, out vec3 off, bool fn, float dAz, float dApp, float dH){
+  float wob=sunMir.w*(0.6*sin(comp*1432.4+waterT*2.1)+0.4*sin(comp*3610.0-waterT*3.3))*exp(-max(app, 0.0)/rd), ap=app+wob;
+  float extra=0.0, apH=dH+dApp+wob; // apH: ap less the Sun's true altitude
+  if(sunMir.x>0.0 && ap<sunMir.x){ apH=sunMir.x-sunEl+(sunMir.x-ap)*sunMir.y; ap=sunMir.x+(sunMir.x-ap)*sunMir.y; extra=sunMir.z; }
+  vec3 eS=azAxis(sunAz), uS=altAxis(sunAz, sunEl);
   float bend=refK*bennett(ap);
   for(int i=0;i<4;i++){
     vec4 L=sunLay[i];
@@ -202,9 +224,10 @@ vec4 sunDiskAt(float comp, float app, vec3 sd, float rd, out vec3 off){
   f=(a-SUN_APPS[i])/(SUN_APPS[i+1]-SUN_APPS[i]);
   vec3 P=vec3(0.0); float r=2.0; off=vec3(0.0);
   for(int b=0;b<20;b++){
-    float te=(ap-(1.0+dispX*(SUN_DISP[b]-1.0))*bend)*0.01745329252, ct=cos(te);
-    vec3 rv=vec3(sin(comp)*ct, cos(comp)*ct, sin(te));
-    float d=acos(clamp(dot(rv, sd), -1.0, 1.0));
+    float bb=(1.0+dispX*(SUN_DISP[b]-1.0))*bend, te=(ap-bb)*0.01745329252, ct=cos(te), d;
+    vec3 rv=vec3(sin(comp)*ct, cos(comp)*ct, sin(te)), ov;
+    if(fn){ vec2 eu=fineEU(dAz, ap-bb, sunEl, apH-bb); ov=eS*eu.x+uS*eu.y; d=asinS(length(eu)); }
+    else{ ov=rv-sd*dot(rv, sd); d=acos(clamp(dot(rv, sd), -1.0, 1.0)); }
     // Each image's edge is spread over the gap to the next band's (or a pixel), so the rim is a
     // gradient rather than ten steps.
     float gap=max(dispX*abs(SUN_DISP[b]-SUN_DISP[min(b+1, 19)])*bend*0.01745329252, px);
@@ -213,7 +236,7 @@ vec4 sunDiskAt(float comp, float app, vec3 sd, float rd, out vec3 off){
     int k0=i*20+b, k1=k0+20;
     float t=mix(sunTau[k0/4][k0%4], sunTau[k1/4][k1%4], f);
     P+=sunW[b]*exp(-t-(t+sunOff)*extra)*cov;
-    if(d/sunRad<r){ r=d/sunRad; off=rv-sd*dot(rv, sd); }
+    if(d/sunRad<r){ r=d/sunRad; off=ov; }
   }
   return vec4(P, r);
 }
@@ -664,9 +687,17 @@ void main(){
     float rBg=pow(10.0, skyT.a*${LOGR_SPAN.toFixed(1)}+${LOGR_LO.toFixed(1)});
     float te=trueAlt(elevDeg), teR=te*0.01745329252, cth=cos(teR);
     vec3 src=vec3(sin(comp)*cth, cos(comp)*cth, sin(teR));
+    // Zoomed in (fineEU), the pixel's place from the image plane: its azimuth less the view's
+    // (dAzPx, radians) and its apparent altitude less the view's (dAppPx, degrees), both small
+    // and so known to a float's full relative precision; appF is its apparent altitude.
+    bool fine=fy<0.02;
+    vec2 fuv=((gl_FragCoord.xy/res)*2.0-1.0)*vec2(fy*res.x/max(res.y, 1.0), fy);
+    float fcp=cos(pitch), fsp=sin(pitch), fh=fcp-fuv.y*fsp, fw=fuv.x*fuv.x/(fh*fh);
+    float dAzPx=atan(fuv.x, fh), dAppPx=atan(fuv.y-fsp*fh*fw/(sqrt(1.0+fw)+1.0), sqrt(fh*fh+fuv.x*fuv.x)*fcp+(fsp+fuv.y*fcp)*fsp)*57.2957795;
+    float appF=fine?pitch*57.2957795+dAppPx:elevDeg, refF=refK*bennett(appF);
     bool inSun=false; float sunR=2.0; vec3 sunP=vec3(0.0), sunOffV=vec3(0.0);
     if(sunOn>0.5&&te>-1.5&&dot(src,sd)>cos(sunRad*2.5+0.03)){
-      vec4 sk=sunDiskAt(comp, elevDeg, sd, sunRad*57.2957795, sunOffV);
+      vec4 sk=sunDiskAt(comp, appF, sd, sunRad*57.2957795, sunOffV, fine, fineRel.x+dAzPx, dAppPx, fineRel.y);
       inSun=sk.x+sk.y+sk.z!=0.0; sunR=min(sk.w, 1.0); sunP=max(sk.rgb, vec3(0.0));
     }
     bool onBody=inSun, onMoon=false;
@@ -710,8 +741,10 @@ void main(){
       north=normalize(north);
       vec3 east=normalize(cross(north, md));
       // The limb has mountains and valleys; sunlight through the valleys makes Baily's beads.
-      float cm=dot(src,md);
-      bool inMoon=cm>cos(moonRad*1.01)&&acos(clamp(cm, -1.0, 1.0))<moonRad*(1.0+limbH(atan(dot(src,east), dot(src,north))));
+      float cm=dot(src,md), am=acos(clamp(cm, -1.0, 1.0));
+      vec3 mo=src; bool near=cm>cos(moonRad*1.01);
+      if(fine){ vec2 eu=fineEU(fineRel.z+dAzPx, te, moonEl, fineRel.w+dAppPx-refF); mo=azAxis(moonAz)*eu.x+altAxis(moonAz, moonEl)*eu.y; am=asinS(length(eu)); near=am<moonRad*1.01; }
+      bool inMoon=near&&am<moonRad*(1.0+limbH(atan(dot(mo,east), dot(mo,north))));
       if(inMoon){
         onBody=true; onMoon=true;
         {
@@ -719,7 +752,7 @@ void main(){
         // plus its own dim light.
         skyC=skyBase;
         float s=sin(moonRad);
-        float x=dot(src,east)/s, y=dot(src,north)/s, rr=sqrt(x*x+y*y);
+        float x=dot(mo,east)/s, y=dot(mo,north)/s, rr=sqrt(x*x+y*y);
         if(rr>1.0){ x/=rr; y/=rr; rr=1.0; }
         vec3 alb=texture(moonMap, vec2(x*0.5+0.5, y*0.5+0.5)).rgb;
         vec3 nrm=normalize(east*x+north*y-md*sqrt(max(1.0-rr*rr,0.0)));
@@ -781,8 +814,9 @@ void main(){
       vec3 cn=vec3(0.0, cos(latRad), sin(latRad)), nn=cn-sd*dot(cn, sd);
       nn=dot(nn, nn)<1e-6?vec3(1.0, 0.0, 0.0):normalize(nn);
       vec3 ee=normalize(cross(nn, sd));
-      float a=acos(clamp(dot(src, sd), -1.0, 1.0))/sunRad;
-      float pa=atan(dot(src, ee), dot(src, nn));
+      vec3 co=src; float a=acos(clamp(dot(src, sd), -1.0, 1.0))/sunRad;
+      if(fine){ vec2 eu=fineEU(fineRel.x+dAzPx, te, sunEl, fineRel.y+dAppPx-refF); co=azAxis(sunAz)*eu.x+altAxis(sunAz, sunEl)*eu.y; a=asinS(length(eu))/sunRad; }
+      float pa=atan(dot(co, ee), dot(co, nn));
       vec2 ring=vec2(cos(pa), sin(pa));
       float streak=vN(ring*3.0+vec2(17.0, 5.0))*0.7+vN(ring*9.0+vec2(3.0, 11.0))*0.3;
       float streamer=(0.25+1.6*streak*streak)*(0.5+0.5*abs(ring.y));
@@ -862,10 +896,7 @@ void main(){
       // blocks. There the offset from a body is taken on the image plane instead, from the pixel's
       // place less the body's, both small numbers known to a float's full relative precision, and
       // turned to a direction by the view's right and up axes, up squeezed by the refraction.
-      bool fine=fy<0.02;
-      float cyw=cos(yaw), syw=sin(yaw), cpt=cos(pitch), spt=sin(pitch);
-      vec3 axR=vec3(cyw, -syw, 0.0), axU=vec3(-syw*spt, -cyw*spt, cpt);
-      vec2 uvF=((gl_FragCoord.xy/res)*2.0-1.0)*vec2(fy*res.x/max(res.y, 1.0), fy);
+      vec3 axR=vec3(cos(yaw), -sin(yaw), 0.0), axU=vec3(-sin(yaw)*fsp, -cos(yaw)*fsp, fcp);
       for(int b=0;b<${BODY_MAX};b++){
         if(float(b)>=bodyCnt) break;
         vec4 P=bodyP[b], C=bodyC[b], L=bodyL[b], N=bodyN[b];
@@ -874,7 +905,7 @@ void main(){
         if(inSun && mod(N.w, 16.0)<7.5) continue;
         float sig=max(C.w*starPx, sigMin), reach=max(P.w*(ringed?2.3:1.0)+2.0*pxA, 4.0*sig);
         vec3 dd=src-P.xyz;
-        if(fine){ vec4 S=bodyS[b]; dd=axR*(uvF.x-S.x)+axU*((uvF.y-S.y)*S.z); }
+        if(fine){ vec4 S=bodyS[b]; dd=axR*(fuv.x-S.x)+axU*((fuv.y-S.y)*S.z); }
         float d2=dot(dd, dd);
         if(d2>reach*reach) continue;
         float rPx=P.w/pxA, diskK=smoothstep(1.0, 3.0, rPx), vis=1.0-smoothstep(lim-0.8, lim+0.2, L.w+dm-(kind>=5?moonGain:0.0));

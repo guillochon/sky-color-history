@@ -378,6 +378,8 @@ function paintVR(){
   gl.uniform3f(u.eye, vrX, vrY, ez);
   gl.uniform1f(u.sunAz, skyNow.sunAz); gl.uniform1f(u.sunEl, 90-skyNow.sza);
   gl.uniform1f(u.moonAz, skyNow.moon.az); gl.uniform1f(u.moonEl, skyNow.moon.el);
+  const wrapPi=x=>x-2*Math.PI*Math.round(x/(2*Math.PI));
+  gl.uniform4f(u.fineRel, wrapPi((vrYaw-skyNow.sunAz)*Math.PI/180), vrPitch-(90-skyNow.sza), wrapPi((vrYaw-skyNow.moon.az)*Math.PI/180), vrPitch-skyNow.moon.el);
   gl.uniform1f(u.moonRad, skyNow.moon.rad*DISK_SCALE); gl.uniform1f(u.moonOn, skyNow.moon.on?1:0);
   gl.uniform1f(u.latRad, LATDEG[dLat]*Math.PI/180);
   // The lunar eclipse's shadow table, sent once per epoch, and its place on the disk.
