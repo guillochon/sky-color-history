@@ -507,14 +507,15 @@ function renderDay(fast){
     g.addColorStop(0, `rgba(255,255,250,${beadW})`); g.addColorStop(0.15, `rgba(255,250,235,${0.6*beadW})`); g.addColorStop(1, 'rgba(255,250,235,0)');
     dctx.save(); dctx.beginPath(); dctx.arc(cx,cy,R,0,Math.PI*2); dctx.clip(); dctx.fillStyle=g; dctx.beginPath(); dctx.arc(bx,by,SUNR*3,0,Math.PI*2); dctx.fill(); dctx.restore();
   }
-  // What kind of eclipse this is, for the readouts.
+  // What kind of eclipse this is, for the readouts. The first and last percent keep a decimal, so a
+  // sliver of a bite never reads as 0% or 100% covered.
   let eclipse='', central=false;
   if(sunUp && cover>0.0005){
     central=sepDeg<=Math.abs(rMoon-rSun);
     if(central){
       const end=centralEnd(pageMs(), diskScale), left=end==null?0:Math.max(0, (end-pageMs())/1000);
       eclipse=(rMoon>=rSun?'total eclipse':'annular eclipse')+(end==null?'':` · ${Math.floor(left/60)}m ${String(Math.floor(left%60)).padStart(2,'0')}s left`);
-    }else eclipse=`partial eclipse · ${cover>0.99?(Math.floor(cover*1000)/10).toFixed(1):Math.round(cover*100)}% covered`;
+    }else eclipse=`partial eclipse · ${cover>0.99?(Math.floor(cover*1000)/10).toFixed(1):cover<0.01?Math.max(0.1, Math.round(cover*1000)/10).toFixed(1):Math.round(cover*100)}% covered`;
   }
   // Brightness as a share of the full Moon: a crescent is only a few percent.
   // In a lunar eclipse it can be far less, so small shares keep one figure, and the readout gives
