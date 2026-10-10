@@ -57,6 +57,10 @@ uniform vec4 beads[6];
 // its magnitude, N its north pole and its kind (0-4 Mercury to Saturn, 5 a moon), plus 8 when it
 // is nearer than the Sun. moonGain is what zooming in adds to the moons' limit (planets.js moonGain).
 uniform vec4 bodyP[${BODY_MAX}], bodyC[${BODY_MAX}], bodyL[${BODY_MAX}], bodyN[${BODY_MAX}]; uniform float bodyCnt, moonGain;
+// Moons' shadows that may fall on their planets (planets.js moonShadow): M the moon's place about
+// its planet in the planet's radii and w the planet's index among the bodies; K x the moon's radius
+// in the planet's, y the Sun's angular radius there.
+uniform vec4 shadowM[${SHADOW_MAX}], shadowK[${SHADOW_MAX}]; uniform float shadowCnt;
 float limbH(float pa){ return 0.002*sin(7.0*pa+1.3)+0.00167*sin(12.0*pa+4.1)+0.00133*sin(19.0*pa+2.2)+0.001*sin(29.0*pa+5.0)+0.00083*sin(41.0*pa+0.7)+0.00067*sin(57.0*pa+3.3)+0.0005*sin(83.0*pa+1.9); } // moon.js limbH
 uniform vec4 obj[12];
 uniform vec4 pond[8];
@@ -832,6 +836,15 @@ void main(){
         if(diskK>0.0){
           vec4 dk=bodyDisk(o, P.xyz, N.xyz, L.xyz, kind, rPx, C.rgb, x, t);
           vec3 dc=dk.rgb*dk.a;
+          if(dk.a>0.0) for(int k=0;k<${SHADOW_MAX};k++){
+            if(float(k)>=shadowCnt) break;
+            vec4 M=shadowM[k]; vec2 K=shadowK[k].xy;
+            if(abs(M.w-float(b))>0.5) continue;
+            vec3 q=x-M.xyz; float along=dot(q, L.xyz);
+            if(along>=0.0) continue;
+            float perp=length(q-along*L.xyz), spread=-along*K.y, pw=0.7/max(rPx, 1.0);
+            dc*=1.0-0.97*(1.0-smoothstep(max(K.x-spread, 0.0)-pw, K.x+spread+pw, perp));
+          }
           float vn=dot(P.xyz, N.xyz);
           if(kind==4 && abs(vn)>1e-4){
             // The rings, in the equator: lit on the Sun's side (seen from the other, only what light

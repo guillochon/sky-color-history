@@ -579,8 +579,8 @@ function drawAuroraVR(gl, st, c){
   gl.activeTexture(gl.TEXTURE0);
 }
 // The planets and moons (planets.js placePlanets) into the sky shader's bodies, at the Sun's and
-// Moon's enlargement.
-const BODY_U={P:new Float32Array(BODY_MAX*4), C:new Float32Array(BODY_MAX*4), L:new Float32Array(BODY_MAX*4), N:new Float32Array(BODY_MAX*4)};
+// Moon's enlargement, and the moons' shadows on them.
+const BODY_U={P:new Float32Array(BODY_MAX*4), C:new Float32Array(BODY_MAX*4), L:new Float32Array(BODY_MAX*4), N:new Float32Array(BODY_MAX*4), M:new Float32Array(SHADOW_MAX*4), K:new Float32Array(SHADOW_MAX*4)};
 function uploadBodies(gl, u){
   const list=(skyNow.bodies||[]).slice(0, BODY_MAX), {P, C, L, N}=BODY_U;
   list.forEach((b, i)=>{
@@ -592,4 +592,10 @@ function uploadBodies(gl, u){
   });
   gl.uniform4fv(u.bodyP, P); gl.uniform4fv(u.bodyC, C); gl.uniform4fv(u.bodyL, L); gl.uniform4fv(u.bodyN, N);
   gl.uniform1f(u.bodyCnt, list.length); gl.uniform1f(u.moonGain, moonGain());
+  let n=0;
+  list.forEach((b, i)=>{ for(const s of b.shadows||[]){
+    if(n>=SHADOW_MAX) return;
+    BODY_U.M.set(s.m, n*4); BODY_U.M[n*4+3]=i; BODY_U.K[n*4]=s.rm; BODY_U.K[n*4+1]=s.a; n++;
+  } });
+  gl.uniform4fv(u.shadowM, BODY_U.M); gl.uniform4fv(u.shadowK, BODY_U.K); gl.uniform1f(u.shadowCnt, n);
 }

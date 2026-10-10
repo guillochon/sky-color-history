@@ -50,14 +50,17 @@ const PL_AU_KM=149597870.7, LIGHT_DAY_AU=1/173.1446;
 // The major moons of Jupiter and Saturn: name, host (index in PLANETS), radius (km), absolute
 // magnitude H, orbit radius (km), mean longitude at J2000 TDB (degrees, in the host's equator
 // from its ascending node on the J2000 equator), mean motion (degrees a day) and a tint. Fit to JPL
-// Horizons over 1980-2060 as circles in the host's equator, to about 1 degree (Tethys, inclined
-// 1 degree, to 2.5); Titan's orbit is fit with its eccentricity (0.0287) and its perihelion's
-// longitude at J2000 and rate, to 0.03 degrees.
+// Horizons over 1980-2060 as circles in the host's equator. The Galilean moons add the largest
+// term of each's longitude (after Meeus, Astronomical Algorithms ch. 44: their resonance for Io
+// and Europa, the eccentricity for Ganymede and Callisto), as sine and cosine amplitudes (degrees)
+// of an argument at J2000 and its rate, which brings them to 0.01-0.07 degrees rms; Saturn's are
+// good to about 0.2 degrees (Tethys, inclined 1 degree, to 1.5); Titan's orbit is fit with its
+// eccentricity (0.0287) and its perihelion's longitude at J2000 and rate, to 0.03 degrees.
 const PLANET_MOONS=[
-  ['Io', 3, 1821.6, -1.68, 421768, 19.9493, 203.48895825, [1.0, 0.92, 0.66]],
-  ['Europa', 3, 1560.8, -1.41, 671106, 214.5054, 101.37472386, [1.0, 0.96, 0.88]],
-  ['Ganymede', 3, 2631.2, -2.09, 1070438, 221.7846, 50.31760747, [0.96, 0.93, 0.88]],
-  ['Callisto', 3, 2410.3, -1.05, 1882795, 80.9712, 21.57107272, [0.86, 0.82, 0.76]],
+  ['Io', 3, 1821.6, -1.68, 421768, 19.9493, 203.48895825, [1.0, 0.92, 0.66], null, [0.4728, 0, -389.1122, 204.22846878]],
+  ['Europa', 3, 1560.8, -1.41, 671106, 214.5047, 101.37472438, [1.0, 0.96, 0.88], null, [1.1066, 0.0392, -14.5584, 102.11423278]],
+  ['Ganymede', 3, 2631.2, -2.09, 1070438, 221.7855, 50.31760736, [0.96, 0.93, 0.88], null, [0.1885, -0.0703, 331.18, 50.310482]],
+  ['Callisto', 3, 2410.3, -1.05, 1882795, 80.9713, 21.57107270, [0.86, 0.82, 0.76], null, [0.8363, -0.0103, 87.45, 21.569231]],
   ['Tethys', 4, 531.1, 0.64, 294673, 187.8645, 190.69795524, [0.98, 0.98, 0.96]],
   ['Dione', 4, 561.4, 0.84, 377416, 176.9161, 131.53493034, [0.96, 0.96, 0.94]],
   ['Rhea', 4, 763.8, 0.14, 527068, 52.1768, 79.69004576, [0.96, 0.95, 0.92]],
@@ -66,12 +69,15 @@ const PLANET_MOONS=[
 // The bodies the walk-around view draws as disks (bodyP..bodyN in the sky shader): the planets, then
 // the moons that show.
 const BODY_MAX=PLANET_N+PLANET_MOONS.length;
+// The moons' shadows the sky shader takes at once (rarely more than three fall together).
+const SHADOW_MAX=6;
 function eqVec(ra, dec){ const r=Math.PI/180, c=Math.cos(dec*r); return [c*Math.cos(ra*r), c*Math.sin(ra*r), Math.sin(dec*r)]; }
 // Orbit plane of a moon: the host's equator, x toward its ascending node on the J2000 equator.
 function equatorAxes(ra, dec){ const k=eqVec(ra, dec), i=vnorm([-k[1], k[0], 0]); return {i, j:vcross(k, i), k}; }
 // A moon's place about its host (km, J2000 equatorial) t days after J2000.
 function moonOffset(m, ax, t){
-  const r=Math.PI/180, L=(m[5]+m[6]*t)*r, ecc=m[8];
+  const r=Math.PI/180, ecc=m[8], per=m[9], g=per?(per[2]+per[3]*t)*r:0;
+  const L=(m[5]+m[6]*t+(per?per[0]*Math.sin(g)+per[1]*Math.cos(g):0))*r;
   let lon=L, rad=m[4];
   if(ecc){
     const [e, w0, wd]=ecc, M=L-(w0+wd*t)*r;
@@ -113,7 +119,7 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
     const mag=planetMag(name, r, d, i, ringSinB);
     const p=horiz(q);
     const radDeg=Math.atan(Rkm/(d*PL_AU_KM))*180/Math.PI, show=planetDisplay(mag, tint);
-    const body={dir:p.dir, rad:radDeg*Math.PI/180, light:vnorm(horiz(eq(h.map(v=>-v))).dir), pole:horiz(pole).dir, kind:k, px:show.px, rgb:show.rgb, mag, front:d<R};
+    const body={dir:p.dir, rad:radDeg*Math.PI/180, light:vnorm(horiz(eq(h.map(v=>-v))).dir), pole:horiz(pole).dir, kind:k, px:show.px, rgb:show.rgb, mag, front:d<R, shadows:[]};
     if(p.alt>0){
       marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb, planet:name, mag, ra:p.ra, dec:p.dec, radDeg, lit:(1+Math.cos(i*Math.PI/180))/2, body, kind:k});
       bodies.push(body);
@@ -123,6 +129,14 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
     for(const m of PLANET_MOONS){
       if(m[1]!==k) continue;
       const off=moonOffset(m, ax, tM), along=vdot(off, qn);
+      // On the Sun's side and near enough its line through the host: its shadow may fall on the
+      // host. Kept in host radii in the horizon frame, with the moon's radius and the Sun's angular
+      // radius there, by which the penumbra widens with distance.
+      const sunSide=vdot(off, sunFrom);
+      if(sunSide>0&&Math.hypot(...vadd(off, vscale(sunFrom, -sunSide), [0, 0, 0]))<Rkm/(1-flat)+1.5*m[2]){
+        const om=Math.hypot(...off);
+        body.shadows.push({m:vscale(horiz(off).dir, om/Rkm), rm:m[2]/Rkm, a:696000/(r*PL_AU_KM)});
+      }
       // In the host's shadow (a cylinder of its radius away from the Sun): eclipsed.
       const sAlong=vdot(off, sunFrom), sPerp=vscale(vadd(off, vscale(sunFrom, -sAlong), [0, 0, 0]), 1/Rkm);
       if(sAlong<0&&Math.hypot(sPerp[0], sPerp[1], sPerp[2]/(1-flat))<1) continue;
@@ -168,6 +182,14 @@ function saturnRing(r, w){
   const C=s(1.239, 1.527), B=s(1.527, 1.951), D=s(1.951, 2.025), A=s(2.025, 2.267);
   return [0.18*C+(0.72+0.28*smooth01(1.55, 1.75, r))*B+0.12*D+0.62*A, 0.12*C+0.95*B+0.1*D+0.6*A];
 }
+// How much light reaches surface point x (host radii, horizon frame) past a moon's shadow s, the
+// Sun's way L: none in the umbra, all outside the penumbra, which widens with the moon's distance.
+function moonShadow(x, s, L, rPx){
+  const q=[x[0]-s.m[0], x[1]-s.m[1], x[2]-s.m[2]], along=vdot(q, L);
+  if(along>=0) return 1;
+  const perp=Math.hypot(q[0]-along*L[0], q[1]-along*L[1], q[2]-along*L[2]), spread=-along*s.a, pw=0.7/Math.max(rPx, 1);
+  return 1-0.97*(1-smooth01(Math.max(s.rm-spread, 0)-pw, s.rm+spread+pw, perp));
+}
 function bodyPixel(b, src, rad, rPx){
   const v=b.dir, n=b.pole, L=b.light, f=BODY_FLAT[b.kind], k=1/(1-f)-1, sr=Math.sin(rad);
   const cs=vdot(src, v), o=[(src[0]-v[0]*cs)/sr, (src[1]-v[1]*cs)/sr, (src[2]-v[2]*cs)/sr];
@@ -181,6 +203,7 @@ function bodyPixel(b, src, rad, rPx){
     const mu0=vdot(nrm, L), mu=Math.max(-vdot(nrm, v), 0.05), w=1.5/Math.max(rPx, 1);
     const km=BODY_MINN[b.kind], lit=smooth01(-w, w, mu0)*Math.min(Math.pow(Math.max(mu0, 0)+0.01, km)*Math.pow(mu, km-1), 1.3);
     dc=bodyAlbedo(b.kind, Math.asin(Math.max(-1, Math.min(1, vdot(nrm, n))))*180/Math.PI, b.tint).map(c=>c*lit*cov*BODY_GAIN[b.kind]);
+    for(const s of b.shadows||[]){ const sh=moonShadow(x, s, L, rPx); dc=dc.map(c=>c*sh); }
   }
   if(b.kind===4&&Math.abs(vnK)>1e-4){
     if(cov>0){ const ts=-vdot(x, n)/vdot(L, n); if(ts>0){ const sh=1-0.85*saturnRing(Math.hypot(...x.map((c, i)=>c+ts*L[i])), 0.02)[1]; dc=dc.map(c=>c*sh); } }
