@@ -54,6 +54,10 @@ const PLANET_BODY=[
   [24764, 0.0171, 299.36, 43.46],
 ];
 const PL_AU_KM=149597870.7, LIGHT_DAY_AU=1/173.1446;
+// Each planet's prime meridian, W at J2000 and its rate (degrees, degrees a day; IAU WGCCRE 2015),
+// for those drawn with longitudes: Mercury's, and Jupiter's System II (the clouds' and the Red
+// Spot's), not the IAU's System III.
+const PLANET_W=[[329.5988, 6.1385108], null, null, [43.3, 870.270], null, null, null];
 // The major moons of Jupiter and Saturn: name, host (index in PLANETS), radius (km), absolute
 // magnitude H, orbit radius (km), mean longitude at J2000 TDB (degrees, in the host's equator
 // from its ascending node on the J2000 equator), mean motion (degrees a day) and a tint. Fit to JPL
@@ -187,7 +191,9 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
         grs={...s, dir:horiz(vadd(vscale(ax.i, Math.cos(w)), vscale(ax.j, Math.sin(w)), [0, 0, 0])).dir};
       }
     }
-    const body={grs, dir:p.dir, rad:radDeg*Math.PI/180, light:vnorm(horiz(eq(h.map(v=>-v))).dir), pole:horiz(pole).dir, kind:k, px:show.px, rgb:show.rgb, mag, front:d<R, shadows:[], rings:ringed};
+    const Wk=PLANET_W[k], axk=equatorAxes(pra, pdec), Wr=Wk?(Wk[0]+Wk[1]*(tD-d*LIGHT_DAY_AU))*Math.PI/180:0;
+    const meridian=horiz(vadd(vscale(axk.i, Math.cos(Wr)), vscale(axk.j, Math.sin(Wr)), [0, 0, 0])).dir;
+    const body={grs, meridian, dir:p.dir, rad:radDeg*Math.PI/180, light:vnorm(horiz(eq(h.map(v=>-v))).dir), pole:horiz(pole).dir, kind:k, px:show.px, rgb:show.rgb, mag, front:d<R, shadows:[], rings:ringed};
     if(p.alt>0){
       marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb, planet:name, mag, ra:p.ra, dec:p.dec, radDeg, lit:(1+Math.cos(i*Math.PI/180))/2, body, kind:k, rings:ringed, unknown:!!phases, ageMa, grs});
       bodies.push(body);
@@ -216,7 +222,8 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
       if(!(mp.alt>0)) return;
       const mmag=m[3]+5*Math.log10(r*dm)+0.02*i+dimMag, ms=planetDisplay(mmag, m[7]);
       const mark={az:mp.az, el:mp.alt, px:ms.px, rgb:ms.rgb, planet:m[0], host:name, mag:mmag, ra:mp.ra, dec:mp.dec, radDeg:Math.atan(m[2]/(dm*PL_AU_KM))*180/Math.PI, lit:(1+Math.cos(i*Math.PI/180))/2, behind:along>0, rho, tint:m[7], unknown:!!phases};
-      mark.body={dir:mp.dir, rad:mark.radDeg*Math.PI/180, light:body.light, pole:body.pole, kind:BODY_MOON, px:ms.px, rgb:ms.rgb, mag:mmag, front:false, tint:m[7], mark};
+      // The moons turn synchronously: longitude 0 faces the host.
+      mark.body={dir:mp.dir, meridian:horiz(vscale(off, -1)).dir, rad:mark.radDeg*Math.PI/180, light:body.light, pole:body.pole, kind:BODY_MOON, px:ms.px, rgb:ms.rgb, mag:mmag, front:false, tint:m[7], mark};
       marks.push(mark);
       if(!(mark.behind&&rho<DISK_SCALE)) bodies.push(mark.body);
     });

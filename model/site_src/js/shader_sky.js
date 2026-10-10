@@ -24,6 +24,9 @@ uniform sampler2D sunMap; uniform vec4 sunOri;
 // next's weight: each is carried to now by the latitude's differential rotation and blended; w
 // the time in days modulo ten years, for the network, which turns the same way.
 uniform sampler2D sunMap2; uniform vec4 sunDrift;
+// The clocks of the fine detail drawn once zoomed in (vr_paint.js): x the granulation's, in
+// granule lifetimes (8 minutes) mod 4096; y days mod 2000, for Jupiter's winds.
+uniform vec4 fineT;
 uniform sampler2D mwTex;
 uniform vec4 toneU; // display curve: k, p, cap, cd/m² per unit r (color.js toneT)
 uniform float rCd,mwOn,mwScale,mwK,mwDB;
@@ -63,7 +66,8 @@ uniform vec4 beads[6];
 // is nearer than the Sun and 16 when Saturn has no rings. moonGain is what zooming in adds to the limit for the moons, Uranus and Neptune (planets.js moonGain).
 // S is where the body is on the view's image plane (xy, worked out in double precision) and the
 // refraction's squeeze of altitude there (z), from which a deep zoom places its disk (below).
-uniform vec4 bodyP[${BODY_MAX}], bodyC[${BODY_MAX}], bodyL[${BODY_MAX}], bodyN[${BODY_MAX}], bodyS[${BODY_MAX}]; uniform float bodyCnt, moonGain;
+// M is the direction of its prime meridian's point on the equator (planets.js meridian).
+uniform vec4 bodyP[${BODY_MAX}], bodyC[${BODY_MAX}], bodyL[${BODY_MAX}], bodyN[${BODY_MAX}], bodyS[${BODY_MAX}], bodyM[${BODY_MAX}]; uniform float bodyCnt, moonGain;
 // Moons' shadows that may fall on their planets (planets.js moonShadow): M the moon's place about
 // its planet in the planet's radii and w the planet's index among the bodies; K x the moon's radius
 // in the planet's, y the Sun's angular radius there.
@@ -248,6 +252,66 @@ vec4 sunDiskAt(float comp, float app, vec3 sd, float rd, out vec3 off, bool fn, 
 // Once the disk is large enough, the network of the supergranulation (cells about 30 Mm across,
 // bright at their edges) shows toward the limb too.
 vec3 h33(vec3 p){ p=fract(p*vec3(0.1031, 0.1030, 0.0973)); p+=dot(p, p.yxz+33.33); return fract((p.xxy+p.yxx)*p.zyx); }
+// The photosphere finer than the map (about 1,070 km a texel), drawn once a texel spans a few
+// pixels, after high-resolution images of the Sun (the Swedish 1-m Solar Telescope, DKIST):
+// granulation, convection cells about 1,300 km across, bright and rising inside, dark and sinking
+// in narrow lanes, living about eight minutes, the larger ones splitting from a dark knot at their
+// middle (exploding granules), with a finer level of fragments inside them; magnetic bright
+// points strung along the lanes in faculae; the penumbra's filaments, a few hundred km wide,
+// running from the umbra out across it; umbral dots in the umbra; and every boundary of the map's
+// spots made ragged by warping where it is read, a fractal edge in place of the texels' blur.
+// Voronoi distances to the nearest two of a jittered lattice's points round p, and the nearest
+// cell; the points drift with phase t, so the cells change shape as they live.
+vec2 sunVor(vec3 p, float t, out vec3 cell){
+  vec3 ip=floor(p); float f1=8.0, f2=8.0; cell=ip;
+  for(int k=0;k<27;k++){
+    vec3 g=ip+vec3(float(k%3)-1.0, float((k/3)%3)-1.0, float(k/9)-1.0), r=h33(g);
+    vec3 d=g+0.5+0.38*sin(6.2831853*(r+t*vec3(0.05, 0.07, 0.06)))-p;
+    float e=dot(d, d);
+    if(e<f1){ f2=f1; f1=e; cell=g; } else if(e<f2) f2=e;
+  }
+  return vec2(sqrt(f1), sqrt(f2));
+}
+// Granulation's intensity (a multiple of the mean) at P (unit vector, solar frame) and its lanes
+// (y, 1 in a lane), where a granule spans gpx pixels and Z is the cosine of the view angle.
+vec2 granulation(vec3 P, float gpx, float Z){
+  float T=fineT.x; vec3 cell, p=P*535.0;
+  // A smooth warp bends the cells' straight Voronoi edges into the rounded shapes of real granules.
+  p+=0.2*sin(p.yzx*1.3+p.zxy*0.7+T*0.3);
+  vec2 f=sunVor(p, T, cell);
+  vec3 r=h33(cell+17.0);
+  float life=fract(T*0.6+r.x), e=f.y-f.x;
+  float v=(0.72+0.34*sin(3.14159*life))*(0.55+0.45*smoothstep(0.0, 0.45, e));
+  float lane=1.0-smoothstep(0.02, 0.11, e);
+  v*=1.0-0.65*lane;
+  // A large granule late in its life splits from a dark knot at its middle.
+  if(r.y>0.78){ float ex=smoothstep(0.55, 1.0, life); v*=1.0-0.55*ex*(1.0-smoothstep(0.0, 0.32*ex+0.01, f.x)); }
+  float I=1.0+2.6*(v-0.70)*0.14*(0.35+0.65*Z);
+  // Fragments, a third the size, within the granules.
+  float k2=smoothstep(2.0, 6.0, gpx/3.0);
+  if(k2>0.0){ vec3 c2; vec2 g2=sunVor(P*1605.0+31.7, T*1.7, c2); I*=1.0+0.045*k2*(smoothstep(0.0, 0.3, g2.y-g2.x)-0.6); }
+  float k1=smoothstep(2.0, 5.0, gpx);
+  return vec2(mix(1.0, I, k1), lane*k1);
+}
+// The penumbra's filaments at map texel tc, running along dir (the way out from the umbra, in
+// texels with longitude foreshortened by cl), as a multiple of the penumbra's intensity: oriented
+// noise in each of the four nearest texels' own frames, blended, so the stripes follow dir as it
+// turns round the spot without shearing.
+float penFilaments(vec2 tc, vec2 dir, float cl, float ppt){
+  vec2 base=floor(tc-0.5)+0.5, w=tc-base, pr=vec2(-dir.y, dir.x);
+  float acc=0.0, ww=0.0;
+  float o1=smoothstep(1.5, 6.0, ppt), o2=smoothstep(3.0, 12.0, ppt), o3=smoothstep(6.0, 24.0, ppt);
+  for(int k=0;k<4;k++){
+    vec2 c=base+vec2(float(k&1), float(k>>1)), rel=(tc-c)*vec2(cl, 1.0);
+    float wk=((k&1)==1?w.x:1.0-w.x)*((k>>1)==1?w.y:1.0-w.y);
+    float s=dot(rel, pr), a=dot(rel, dir), hs=h12(mod(c, vec2(4096.0, 2048.0)))*97.0;
+    // Bright filaments a couple of hundred km wide (ridged noise across) and a few thousand long.
+    float r1=1.0-abs(2.0*vN(vec2(s*4.0+hs, a*0.22+hs*1.3))-1.0);
+    float f=o1*0.7*(r1*r1*r1-0.3)+o2*0.25*(vN(vec2(s*9.1-hs, a*0.5+hs))-0.5)+o3*0.15*(vN(vec2(s*19.0+hs*0.7, a*1.0-hs))-0.5);
+    acc+=wk*f; ww+=wk*wk;
+  }
+  return 1.0+1.6*acc/sqrt(max(ww, 0.25));
+}
 vec3 sunSurface(vec2 q, float pxR){
   float cP=cos(sunOri.x), sP=sin(sunOri.x), cB=cos(sunOri.y), sB=sin(sunOri.y);
   float X=q.x*cP-q.y*sP, Y=q.x*sP+q.y*cP, Z=sqrt(max(0.0, 1.0-X*X-Y*Y));
@@ -255,8 +319,30 @@ vec3 sunSurface(vec2 q, float pxR){
   // Differential rotation against the equator (sunspots.js diffRot), in turns a day.
   float s2=sin(lat)*sin(lat), dr=(-2.39*s2-1.78*s2*s2)/360.0, lon0=cmd/6.28318530718-sunOri.z;
   float lon=fract(lon0-dr*sunDrift.x), v=lat/3.14159265+0.5, pxT=pxR/sqrt(max(Z, 0.04))/6.28318530718;
-  vec4 t=textureLod(sunMap, vec2(lon, v), log2(max(1.0, float(textureSize(sunMap, 0).x)*pxT)));
-  if(sunDrift.z>0.0) t=mix(t, textureLod(sunMap2, vec2(fract(lon0-dr*sunDrift.y), v), log2(max(1.0, float(textureSize(sunMap2, 0).x)*pxT))), sunDrift.z);
+  float Wt=float(textureSize(sunMap, 0).x), ppt=1.0/max(Wt*pxT, 1e-6), cl=max(cos(lat), 0.02);
+  // Zoomed in, the map is read where a fractal warp of up to about a texel moves it, so the
+  // edges of spots and plages come out ragged on every scale down to the pixel.
+  // In a penumbra only the warp's part along the filaments (dir: outward from the umbra, up the
+  // gradient of a blurred copy of the map) is kept, so the edges fray but the filaments stay straight.
+  vec2 wo=vec2(0.0), uv0=vec2(lon, v), dir=vec2(0.0);
+  float kw=smoothstep(1.5, 6.0, ppt), gl=0.0;
+  if(kw>0.0){
+    float d=2.0/Wt;
+    float gx=dot(textureLod(sunMap, uv0+vec2(d/cl, 0.0), 2.0).rgb-textureLod(sunMap, uv0-vec2(d/cl, 0.0), 2.0).rgb, vec3(0.3333));
+    float gy=dot(textureLod(sunMap, uv0+vec2(0.0, d*2.0), 2.0).rgb-textureLod(sunMap, uv0-vec2(0.0, d*2.0), 2.0).rgb, vec3(0.3333));
+    dir=vec2(gx, gy); gl=length(dir); dir=gl>1e-5?dir/gl:vec2(0.0);
+    float Lb=dot(textureLod(sunMap, uv0, 2.0).rgb, vec3(0.2126, 0.7152, 0.0722)), penB=smoothstep(0.45, 0.6, Lb)*(1.0-smoothstep(0.88, 0.97, Lb));
+    vec2 tc=vec2(lon0*Wt, v*Wt*0.5), wv=vec2(0.0); float amp=0.55, fr=1.3;
+    for(int o=0;o<5;o++){
+      wv+=amp*smoothstep(1.0, 3.0, ppt/fr)*(vec2(vN(tc*fr+vec2(13.1, 7.7)), vN(tc*fr+vec2(3.7, 29.3)))-0.5);
+      amp*=0.5; fr*=2.17;
+    }
+    wv=mix(wv, dir*dot(wv, dir), penB*smoothstep(1e-4, 2e-3, gl));
+    wo=kw*wv/vec2(Wt*cl, Wt*0.5);
+  }
+  vec2 uv=uv0+wo;
+  vec4 t=textureLod(sunMap, uv, log2(max(1.0, Wt*pxT)));
+  if(sunDrift.z>0.0) t=mix(t, textureLod(sunMap2, vec2(fract(lon0-dr*sunDrift.y), v)+wo, log2(max(1.0, float(textureSize(sunMap2, 0).x)*pxT))), sunDrift.z);
   float w=1.0-Z, fac=t.a, c=9.48*Z*w*w*w;
   if(pxR<0.012){
     float cl=cos(lat), la=fract(lon0-dr*sunDrift.w)*6.28318530718;
@@ -274,7 +360,43 @@ vec3 sunSurface(vec2 q, float pxR){
                     mix(mix(h33(ip2+vec3(0,0,1)).x, h33(ip2+vec3(1,0,1)).x, fp.x), mix(h33(ip2+vec3(0,1,1)).x, h33(ip2+vec3(1,1,1)).x, fp.x), fp.y), fp.z);
     fac=max(fac, 0.3*(1.0-smoothstep(0.0, 0.45, sqrt(f2)-sqrt(f1)))*smoothstep(0.35, 0.75, clump)*smoothstep(0.012, 0.006, pxR));
   }
-  return pow(t.rgb, vec3(2.2))+fac*c*vec3(0.10, 0.13, 0.18);
+  vec3 I=pow(t.rgb, vec3(2.2));
+  // The map blurs each spot's edges across a texel; zoomed in, the ramps from umbra to penumbra and
+  // from penumbra to photosphere are squeezed into steps (frayed by the warp above), as sharp as
+  // they are on the Sun.
+  if(kw>0.0){
+    float L=dot(t.rgb, vec3(0.2126, 0.7152, 0.0722)), Ls=L;
+    if(L>0.40 && L<0.62) Ls=0.40+0.22/(1.0+exp(-(L-0.51)/0.012));
+    else if(L>0.84 && L<0.985) Ls=0.84+0.145/(1.0+exp(-(L-0.93)/0.007));
+    I*=pow(mix(1.0, Ls/max(L, 1e-3), kw), 2.2);
+  }
+  // A granule is 0.0019 of the radius across, foreshortened toward the limb.
+  float gpx=0.0019*sqrt(max(Z, 0.04))/pxR;
+  if(gpx>2.0){
+    float Lr=dot(t.rgb, vec3(0.2126, 0.7152, 0.0722));
+    float quiet=smoothstep(0.90, 0.985, Lr), umb=1.0-smoothstep(0.42, 0.6, Lr), pen=(1.0-quiet)*(1.0-umb);
+    float la=lon0*6.28318530718;
+    vec3 Ps=vec3(cl*cos(la), cl*sin(la), sin(lat));
+    float m=1.0;
+    if(quiet>0.0){
+      vec2 g=granulation(Ps, gpx, Z);
+      // Magnetic bright points in faculae: dots a couple of hundred km across, in the lanes, faint
+      // in white light near the disk's middle.
+      float bp=0.0, kf=smoothstep(0.05, 0.4, fac)*g.y;
+      if(kf>0.01 && gpx>12.0){ vec3 cb; vec2 fb=sunVor(Ps*3500.0+11.0, fineT.x*2.0, cb);
+        bp=kf*step(0.72, h33(cb+3.0).x)*exp(-fb.x*fb.x/0.05)*smoothstep(12.0, 30.0, gpx); }
+      m=mix(m, g.x*(1.0+0.35*bp), quiet);
+    }
+    if(pen>0.0 && ppt>1.5 && gl>1e-4) m=mix(m, penFilaments(uv0*vec2(Wt, Wt*0.5), dir, cl, ppt), pen*smoothstep(1e-4, 4e-3, gl));
+    if(umb>0.0){
+      // Umbral dots, a few hundred km across and about a thousand K hotter than the umbra round them.
+      float dpx=0.00043/pxR;
+      if(dpx>1.5){ vec3 cu; vec2 f=sunVor(Ps*2300.0+71.3, fineT.x*0.4, cu); float br=h33(cu+5.0).x;
+        m=mix(m, 1.0+2.2*step(0.45, br)*br*exp(-f.x*f.x/0.03), umb*smoothstep(1.5, 4.0, dpx)); }
+    }
+    I*=m;
+  }
+  return I+fac*c*vec3(0.10, 0.13, 0.18);
 }
 // A planet's cloud tops or ground at planetographic latitude lat (degrees): Mercury's grey rock,
 // Venus's clouds, Mars's ochre with its darker south and polar caps, Jupiter's belts and zones,
@@ -302,6 +424,120 @@ vec3 grsPaint(vec3 c, vec3 nrm, vec3 n, float lat){
   c=mix(c, vec3(0.95, 0.91, 0.82), 0.85*(1.0-smoothstep(1.2, 1.45, e)));
   return mix(c, vec3(0.80, 0.42, 0.30), grsAB.w*(1.0-smoothstep(0.8, 1.0, e))*(0.85+0.15*smoothstep(0.0, 0.7, e)));
 }
+// Jupiter close up (bodyDisk, once its disk is a few dozen pixels across), after Voyager, Cassini,
+// Juno and Hubble images: the belts' edges rolled up by the Kelvin-Helmholtz instability of the
+// shear between neighbouring jets into chains of curling billows, on four scales one inside the
+// next; turbulence carried along by the winds, rougher in the belts than in the zones; dark
+// festoons trailing from the North Equatorial Belt's southern edge into the Equatorial Zone, with
+// hot spots at their heads; and the chain of white ovals in the South South Temperate Belt.
+// The zonal wind (m/s, east positive) at planetographic latitude lat, the jets of the Cassini
+// profile (Porco et al. 2003, Science 299, 1541) smoothed to Gaussians, and the same in degrees of
+// longitude a day.
+float jG(float x, float c, float w){ float d=(x-c)/w; return exp(-d*d); }
+float jupWind(float lat){
+  return 140.0*jG(lat, 23.7, 1.6)-30.0*jG(lat, 18.0, 2.5)+105.0*jG(lat, 7.0, 3.5)+60.0*jG(lat, 0.0, 4.0)+105.0*jG(lat, -7.0, 3.5)
+        -55.0*jG(lat, -17.5, 2.5)+40.0*jG(lat, -26.5, 2.0)-25.0*jG(lat, -30.0, 2.0)+30.0*jG(lat, 31.0, 2.0)-20.0*jG(lat, 35.0, 2.0)+25.0*jG(lat, -35.0, 2.0);
+}
+float jupWindDeg(float lat){ return jupWind(lat)*0.06924/max(cos(lat*0.01745329252), 0.1); }
+// Bands and zones (bodyAlbedo's), with edges w degrees wide.
+float jupBelt(float lat, float w){
+  return bandOf(lat, 7.0, 18.0, w)+bandOf(lat, -21.0, -8.0, w)+0.55*(bandOf(lat, 24.0, 31.0, w)+bandOf(lat, -33.0, -26.0, w))+0.3*(bandOf(lat, 36.0, 42.0, w*1.3)+bandOf(lat, -44.0, -38.0, w*1.3));
+}
+vec3 jupColor(float lat, float belt){
+  return mix(mix(vec3(0.95, 0.91, 0.82), vec3(0.70, 0.53, 0.40), clamp(belt, 0.0, 1.0)), vec3(0.62, 0.60, 0.58), smoothstep(45.0, 70.0, abs(lat)));
+}
+// Value noise in longitude x (degrees, foreshortened) and latitude y, octaves from s0 degrees down
+// to twice the pixel, pxD degrees.
+float jupNoise(vec2 p, float s0, float pxD, float seed){
+  float a=0.5, s=s0, acc=0.0, ww=0.0;
+  for(int o=0;o<10;o++){
+    float k=smoothstep(1.5*pxD, 3.0*pxD, s);
+    if(k<=0.0) break;
+    acc+=a*k*(vN(p/s+seed+float(o)*7.3)-0.5); ww+=a;
+    a*=0.55; s*=0.5;
+  }
+  return acc/ww;
+}
+// One chain of Kelvin-Helmholtz billows along the boundary at latitude b, lam degrees apart, R in
+// radius: each point near one is turned about it by up to ang radians, most at its middle, which
+// rolls the boundary up into a spiral. q is (longitude, latitude) in degrees; cl the cosine of the latitude.
+vec2 khRoll(vec2 q, float b, float lam, float R, float ang, float seed, float cl){
+  float dy=q.y-b;
+  if(abs(dy)>3.0*R) return q;
+  float x=q.x/lam+seed, ix=floor(x+0.5), hj=h12(vec2(ix, seed*13.1)), hk=h12(vec2(seed*7.7, ix));
+  float cx=(ix+(hj-0.5)*0.6-seed)*lam, Rk=R*(0.6+0.7*hk);
+  vec2 d=vec2((q.x-cx)*cl, dy-(hk-0.5)*R*0.8);
+  // A quarter of the billows have not rolled up; the rest by differing amounts.
+  float a=ang*smoothstep(0.2, 0.45, hj)*(0.4+0.6*hj)*exp(-dot(d, d)/(Rk*Rk)), c=cos(a), s=sin(a);
+  d=vec2(c*d.x-s*d.y, s*d.x+c*d.y);
+  return vec2(cx+d.x/cl, b+(hk-0.5)*R*0.8+d.y);
+}
+// Jupiter's cloud tops at planetographic latitude lat and east longitude lon (System II, degrees),
+// pxD degrees of the surface to a pixel; T days (fineT.y).
+vec3 jupiterAlbedo(float lat, float lon, float pxD){
+  float w=clamp(pxD*2.0, 0.04, 1.5);
+  if(pxD>2.5) return jupColor(lat, jupBelt(lat, 1.5));
+  float T=fineT.y, cl=max(cos(lat*0.01745329252), 0.1), u=jupWindDeg(lat);
+  float beltness=clamp(jupBelt(lat, 2.0), 0.0, 1.0);
+  // Turbulence carried by the winds, in two copies half a period apart, each restarting when the
+  // other is at full strength, so the shear never smears it out (a flow map, period 4 days).
+  float ph=T/4.0, f1=fract(ph), f2=fract(ph+0.5), wA=1.0-abs(2.0*f1-1.0);
+  vec2 pA=vec2((lon-u*f1*4.0)*cl, lat), pB=vec2((lon-u*f2*4.0)*cl+41.0, lat+17.0);
+  float tn=mix(jupNoise(pB, 6.0, pxD, 3.1), jupNoise(pA, 6.0, pxD, 3.1), wA);
+  float tf=mix(jupNoise(pB*1.7, 2.0, pxD, 9.7), jupNoise(pA*1.7, 2.0, pxD, 9.7), wA);
+  // Zonal streaks: the same noise stretched four times along the winds.
+  float tz=mix(jupNoise(vec2(pB.x*0.25, pB.y), 3.0, pxD, 5.3), jupNoise(vec2(pA.x*0.25, pA.y), 3.0, pxD, 5.3), wA);
+  vec2 q=vec2(lon, lat+(1.0+2.6*beltness)*tn);
+  // The billows: at each boundary between a belt and a zone, up to four chains, each set turning the
+  // way of the shear's vorticity there and carried along at the wind of the boundary.
+  float B[12]=float[12](7.0, 18.0, 24.0, 31.0, 36.0, 42.0, -8.0, -21.0, -26.0, -33.0, -38.0, -44.0);
+  for(int i=0;i<12;i++){
+    float b=B[i];
+    if(abs(q.y-b)>5.0) continue;
+    float du=jupWind(b+0.5)-jupWind(b-0.5), sg=du>0.0?-1.0:1.0, st=clamp(abs(du)/25.0, 0.35, 1.0);
+    float cb=max(cos(b*0.01745329252), 0.1), x0=q.x-jupWindDeg(b)*T;
+    vec2 r=vec2(x0, q.y);
+    r=khRoll(r, b, 11.0, 1.5, 2.6*sg*st, float(i)*0.37, cb);
+    if(pxD<0.3) r=khRoll(r, b, 3.6, 0.5, 2.4*sg*st*smoothstep(0.3, 0.15, pxD), float(i)*0.71+0.5, cb);
+    if(pxD<0.1) r=khRoll(r, b, 1.2, 0.17, 2.2*sg*st*smoothstep(0.1, 0.05, pxD), float(i)*1.13+0.2, cb);
+    if(pxD<0.035) r=khRoll(r, b, 0.4, 0.06, 2.0*sg*st*smoothstep(0.035, 0.018, pxD), float(i)*1.71+0.9, cb);
+    q=vec2(r.x+jupWindDeg(b)*T, r.y);
+  }
+  float belt=jupBelt(q.y, w);
+  vec3 c=jupColor(q.y, belt);
+  // Festoons: from the North Equatorial Belt's southern edge (hot spots at their heads, about 7°N)
+  // trailing west and down into the Equatorial Zone, a dozen round the planet, moving with its wind.
+  if(lat>-1.0 && lat<9.0){
+    float xf=lon-jupWindDeg(6.5)*T, sF=clamp((6.8-q.y)/6.0, 0.0, 1.0);
+    float k0=floor(xf/30.0), fest=0.0, hot=0.0;
+    for(int j=0;j<2;j++){
+      float k=k0+float(j), hf=h12(vec2(k, 7.7)), lc=k*30.0+(hf-0.5)*8.0-(10.0+6.0*hf)*pow(sF, 1.3);
+      float dx=(xf-lc)*cl+1.5*tn*(1.0+sF), wd=2.2*(1.0-0.5*sF)+0.4, dh=(xf-k*30.0-(hf-0.5)*8.0)*cl;
+      fest=max(fest, exp(-dx*dx/(wd*wd))*smoothstep(-0.05, 0.15, sF)*(1.0-smoothstep(0.7, 1.0, sF))*step(0.25, hf)*clamp(0.6+2.4*tf+1.6*tz, 0.0, 1.4));
+      hot=max(hot, exp(-(dh*dh+(q.y-6.6)*(q.y-6.6))/2.2)*step(0.25, hf));
+    }
+    c=mix(c, vec3(0.40, 0.43, 0.50), 0.75*fest+0.4*hot);
+  }
+  // White ovals in the South South Temperate Belt, near 41°S.
+  if(lat>-46.0 && lat<-36.0){
+    float xo=lon-jupWindDeg(-41.0)*T, k=floor(xo/45.0+0.5), ho=h12(vec2(k, 3.3));
+    vec2 d=vec2((xo-k*45.0-(ho-0.5)*14.0)*cl/2.2, (q.y+41.0+(ho-0.5)*1.2)/1.4);
+    float e=length(d);
+    c=mix(c, c*0.82, 0.6*(1.0-smoothstep(1.0, 1.35, e))*smoothstep(0.85, 1.0, e)*step(0.3, ho));
+    c=mix(c, vec3(0.96, 0.95, 0.92), (1.0-smoothstep(0.75, 1.0, e))*step(0.3, ho));
+  }
+  // Barges: dark red-brown cyclones in the North Equatorial Belt's northern edge, near 15°N.
+  if(lat>11.0 && lat<19.0){
+    float xb=lon-jupWindDeg(15.5)*T, k=floor(xb/40.0+0.5), hb=h12(vec2(k, 9.1));
+    vec2 d=vec2((xb-k*40.0-(hb-0.5)*16.0)*cl/2.6, (q.y-15.5)/1.0);
+    c=mix(c, vec3(0.50, 0.30, 0.24), 0.8*(1.0-smoothstep(0.7, 1.0, length(d)))*step(0.45, hb));
+  }
+  // Cloud texture: brightness from the same turbulence, and streaks along the winds, darker and
+  // redder or paler in turn, both stronger in the belts.
+  c*=1.0+(0.16+0.12*beltness)*tf+(0.12+0.26*beltness)*tz;
+  c=mix(c, c*vec3(1.06, 0.95, 0.86), clamp(beltness*tz*3.0, 0.0, 1.0));
+  return c;
+}
 const float BODY_FLAT[8]=float[8](${BODY_FLAT.map(v=>v.toFixed(5)).join(', ')});
 // How bright each kind's disk is drawn, after its albedo, and its Minnaert k (planets.js BODY_GAIN, BODY_MINN).
 const float BODY_GAIN[8]=float[8](${BODY_GAIN.map(v=>v.toFixed(2)).join(', ')}), BODY_MINN[8]=float[8](${BODY_MINN.map(v=>v.toFixed(2)).join(', ')});
@@ -309,7 +545,7 @@ const float BODY_GAIN[8]=float[8](${BODY_GAIN.map(v=>v.toFixed(2)).join(', ')}),
 // sight v: its lit colour (rgb) and coverage (a), the surface point x and how far along v it lies
 // (t, toward the observer negative). The disk is the flattened spheroid about pole n, lit from L,
 // darkening toward the terminator and, by its Minnaert k, the limb; rPx is its radius in pixels.
-vec4 bodyDisk(vec3 o, vec3 v, vec3 n, vec3 L, int kind, float rPx, vec3 tint, out vec3 x, out float t){
+vec4 bodyDisk(vec3 o, vec3 v, vec3 n, vec3 L, int kind, float rPx, vec3 tint, vec4 M, out vec3 x, out float t){
   float f=BODY_FLAT[kind], k=1.0/(1.0-f)-1.0;
   vec3 op=o+k*dot(o, n)*n, vp=v+k*dot(v, n)*n;
   float a=dot(vp, vp), bh=dot(op, vp)/a, rho2=max(dot(op, op)-bh*bh*a, 0.0);
@@ -321,7 +557,10 @@ vec4 bodyDisk(vec3 o, vec3 v, vec3 n, vec3 L, int kind, float rPx, vec3 tint, ou
   float mu0=dot(nrm, L), mu=max(dot(nrm, -v), 0.05), w=1.5/max(rPx, 1.0);
   float km=BODY_MINN[kind], lit=smoothstep(-w, w, mu0)*min(pow(max(mu0, 0.0)+0.01, km)*pow(mu, km-1.0), 1.3);
   float lat=asin(clamp(dot(nrm, n), -1.0, 1.0))*57.2957795;
-  vec3 alb=bodyAlbedo(kind, lat, tint);
+  // East longitude (degrees) from the prime meridian.
+  vec3 mp=M.xyz-n*dot(M.xyz, n); mp=dot(mp, mp)>1e-8?normalize(mp):normalize(cross(n, abs(n.x)<0.9?vec3(1.0, 0.0, 0.0):vec3(0.0, 1.0, 0.0)));
+  float lon=atan(dot(nrm, cross(n, mp)), dot(nrm, mp))*57.2957795;
+  vec3 alb=kind==3?jupiterAlbedo(lat, lon, 57.2957795/max(rPx, 1.0)):bodyAlbedo(kind, lat, tint);
   if(kind==3 && grsAB.x>0.0) alb=grsPaint(alb, nrm, n, lat);
   return vec4(alb*lit*BODY_GAIN[kind], cov);
 }
@@ -920,14 +1159,14 @@ void main(){
         // src less its part along the body, from the offset: src-P.xyz*dot(src, P.xyz) is the same.
         vec3 o=(dd-P.xyz*dot(dd, P.xyz))/sin(P.w), x; float t;
         if(inSun){
-          vec4 dk=bodyDisk(o, P.xyz, N.xyz, L.xyz, kind, rPx, C.rgb, x, t);
+          vec4 dk=bodyDisk(o, P.xyz, N.xyz, L.xyz, kind, rPx, C.rgb, bodyM[b], x, t);
           skyC=mix(skyC, skyBase, dk.a*min(rPx, 1.0));
           continue;
         }
         if(vis<=0.0) continue;
         vec3 add=C.rgb*exp(-0.5*d2/(sig*sig))*(1.0-diskK)*dim;
         if(diskK>0.0){
-          vec4 dk=bodyDisk(o, P.xyz, N.xyz, L.xyz, kind, rPx, C.rgb, x, t);
+          vec4 dk=bodyDisk(o, P.xyz, N.xyz, L.xyz, kind, rPx, C.rgb, bodyM[b], x, t);
           vec3 dc=dk.rgb*dk.a;
           if(dk.a>0.0) for(int k=0;k<${SHADOW_MAX};k++){
             if(float(k)>=shadowCnt) break;

@@ -407,6 +407,8 @@ function paintVR(){
   const sm=syncSunTex(sunPx), so=sm&&sunOrientation(sm.A.key, astroDay()), sT=astroDay();
   gl.uniform4f(u.sunOri, so?so.P:0, so?so.B0:0, so?so.phase:0, so?1:0);
   gl.uniform4f(u.sunDrift, sm?sT-sm.A.D:0, sm&&sm.B?sT-sm.B.D:0, sm&&sm.B?sm.f:0, sT-3650*Math.floor(sT/3650));
+  const gT=sT*180; // granule lifetimes of 8 minutes
+  gl.uniform4f(u.fineT, gT-4096*Math.floor(gT/4096), sT-2000*Math.floor(sT/2000), 0, 0);
   gl.uniform1f(u.corona, skyNow.corona||0);
   gl.uniform1fv(u.coronaMap, skyNow.coronaMap||coronaMap(EP[dIdx].key)); gl.uniform1f(u.coronaRim, skyNow.coronaRim??1);
   // The night sky: the display curve, the Milky Way (uploaded once it is built), and limits.
@@ -760,7 +762,7 @@ function drawAuroraVR(gl, st, c){
 }
 // The planets and moons (planets.js placePlanets) into the sky shader's bodies, at the Sun's and
 // Moon's enlargement, and the moons' shadows on them.
-const BODY_U={P:new Float32Array(BODY_MAX*4), C:new Float32Array(BODY_MAX*4), L:new Float32Array(BODY_MAX*4), N:new Float32Array(BODY_MAX*4), S:new Float32Array(BODY_MAX*4), M:new Float32Array(SHADOW_MAX*4), K:new Float32Array(SHADOW_MAX*4)};
+const BODY_U={P:new Float32Array(BODY_MAX*4), C:new Float32Array(BODY_MAX*4), L:new Float32Array(BODY_MAX*4), N:new Float32Array(BODY_MAX*4), S:new Float32Array(BODY_MAX*4), Mr:new Float32Array(BODY_MAX*4), M:new Float32Array(SHADOW_MAX*4), K:new Float32Array(SHADOW_MAX*4)};
 // Only those whose disk, rings or glow can reach the screen: the rest would cost every sky pixel
 // a pass of the loop for nothing. The margin covers refraction (the shader places bodies by true
 // altitude) and a star's four-sigma glow.
@@ -769,7 +771,7 @@ function uploadBodies(gl, u){
   const edge=Math.atan(Math.hypot(fx, fy)), yw=vrYaw*Math.PI/180, pt=vrPitch*Math.PI/180;
   const fwd=[Math.sin(yw)*Math.cos(pt), Math.cos(yw)*Math.cos(pt), Math.sin(pt)];
   const onScreen=b=>b.dir[0]*fwd[0]+b.dir[1]*fwd[1]+b.dir[2]*fwd[2]>Math.cos(Math.min(edge+b.rad*DISK_SCALE*2.3+0.03, Math.PI));
-  const list=(skyNow.bodies||[]).filter(onScreen).slice(0, BODY_MAX), {P, C, L, N, S}=BODY_U;
+  const list=(skyNow.bodies||[]).filter(onScreen).slice(0, BODY_MAX), {P, C, L, N, S, Mr}=BODY_U;
   const cp=Math.cos(pt), sp=Math.sin(pt), cy=Math.cos(yw), sy=Math.sin(yw);
   list.forEach((b, i)=>{
     const o=i*4;
@@ -777,6 +779,7 @@ function uploadBodies(gl, u){
     C.set(b.rgb, o); C[o+3]=b.px;
     L.set(b.light, o); L[o+3]=b.mag;
     N.set(b.pole, o); N[o+3]=b.kind+(b.front?8:0)+(b.kind===4&&!b.rings?16:0);
+    Mr.set(b.meridian||[0, 0, 0], o); Mr[o+3]=b.map??-1;
     // Where it is on the image plane, seen at its apparent altitude: the sky shader's trueAlt
     // undone by Newton's method, which also gives the squeeze, true over apparent altitude.
     const d=b.dir, h=Math.asin(Math.max(-1, Math.min(1, d[2])))*180/Math.PI;
@@ -787,7 +790,7 @@ function uploadBodies(gl, u){
     if(depth>1e-3){ S[o]=(v[0]*cy-v[1]*sy)/depth; S[o+1]=(-v[0]*sy*sp-v[1]*cy*sp+v[2]*cp)/depth; } else { S[o]=S[o+1]=1e6; }
     S[o+2]=k;
   });
-  gl.uniform4fv(u.bodyP, P); gl.uniform4fv(u.bodyC, C); gl.uniform4fv(u.bodyL, L); gl.uniform4fv(u.bodyN, N); gl.uniform4fv(u.bodyS, S);
+  gl.uniform4fv(u.bodyP, P); gl.uniform4fv(u.bodyC, C); gl.uniform4fv(u.bodyL, L); gl.uniform4fv(u.bodyN, N); gl.uniform4fv(u.bodyS, S); gl.uniform4fv(u.bodyM, Mr);
   gl.uniform1f(u.bodyCnt, list.length); gl.uniform1f(u.moonGain, moonGain());
   let n=0;
   list.forEach((b, i)=>{ for(const s of b.shadows||[]){
