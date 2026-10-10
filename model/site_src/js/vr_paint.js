@@ -153,7 +153,10 @@ function glacierH(x, y, q, seed){
 }
 // q is [x, y, radius, height] as in sc.o; volc 0 mountain, 1 volcano, 2 glacier.
 function massifH(x, y, q, volc){
-  if(volc>1.5) return glacierH(x, y, q, wtex(q[0]*0.00041+0.37, q[1]*0.00041+0.37, 0));
+  if(volc>1.5){
+    const F=Math.fround, i=Math.floor(fract(F(F(q[0]*F(0.00041))+F(0.37)))*256), j=Math.floor(fract(F(F(q[1]*F(0.00041))+F(0.37)))*256);
+    return glacierH(x, y, q, weatherData()[(j*256+i)*4]/255);
+  }
   const R=q[2]*mix(1.28, 1.12, volc), H=q[3], s0=wtex(q[0]*0.00041+0.13, q[1]*0.00041+0.13, 0), s1=wtex(q[0]*0.00041+0.71, q[1]*0.00041+0.71, 1);
   const ox=Math.cos(s0*2*Math.PI), oy=Math.sin(s0*2*Math.PI), d=R*mix(0.09, 0.02, volc);
   let h=onePeak(x, y, q[0]+ox*d, q[1]+oy*d, R*0.88, H, volc, s0);

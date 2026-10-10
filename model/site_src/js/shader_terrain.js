@@ -113,10 +113,12 @@ float glacierH(vec2 p, vec4 q, float seed){
   return max(prof, 0.0)*smoothstep(0.0, 0.03, 1.0-u)*q.w;
 }
 // What massifH takes from the massif alone, worked out once per massif rather than per sample:
-// its two seeds and the direction the first sets, or a glacier's seed in x.
+// its two seeds and the direction the first sets, or a glacier's seed in x. The glacier's seed
+// is one texel, not filtered: its tier heights hash it, and massifH in vr_paint.js must get
+// the same value to stand the walker on them.
 vec4 massifSeed(vec4 q, float volc){
 #if GLACIERS
-  if(volc>1.5) return vec4(texture(weather, q.xy*0.00041+0.37).r, 0.0, 0.0, 0.0);
+  if(volc>1.5) return vec4(texelFetch(weather, ivec2(fract(q.xy*0.00041+0.37)*256.0), 0).r, 0.0, 0.0, 0.0);
 #endif
   float s0=texture(weather, q.xy*0.00041+0.13).r, ang=s0*6.2831853;
   return vec4(s0, texture(weather, q.xy*0.00041+0.71).g, cos(ang), sin(ang));
