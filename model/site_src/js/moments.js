@@ -7,21 +7,22 @@
 // with the radiant highest, at the visitor's own longitude (showers.js openStorm). Moments
 // that show one feature (clear: the eclipse, the supernova, an aurora, the Milky Way, the
 // satellites) open with clouds off, and the visitor's own setting returns on leaving VR; c or the
-// pad during the moment makes that the setting.
+// pad during the moment makes that the setting. Dates are in each epoch's own year (calendar.js
+// EPOCH_YEAR): year 0 (2000 underneath) for the older skies, 1815 and 2100 for theirs.
 const MOMENTS=[
-  {epoch:'hadean44', date:'2026-03-20', t:1050, title:'A Hadean evening, 4.4 Ga', sub:'Thirty bars of CO₂ under a young, faint Sun', art:'day'},
-  {epoch:'archean38', date:'2026-01-30', t:1410, look:[0, 22], clear:true, title:'Aurora over the young Earth, 3.8 Ga', sub:'Violet and pink: nitrogen glowing in air with no oxygen', art:'aurora'},
-  {epoch:'archean27', date:'2026-03-20', t:930, title:'Archean afternoon, 2.7 Ga', sub:'A pale orange organic haze, like Titan’s', art:'day'},
-  {epoch:'ordovician466', date:'2026-10-09', t:1324, look:[200, 18], clear:true, title:'Meteor storm and ring, 466 Ma', sub:'A shattered asteroid’s fragments, and perhaps a ring across the sky', art:'meteors'},
-  {epoch:'carbon30', date:'2026-07-08', t:1380, look:[180, 32], clear:true, title:'The Milky Way, 300 Ma', sub:'No city lights, and stars no one has catalogued', art:'galaxy'},
-  {epoch:'kpg66', date:'2026-03-20', t:720, title:'Noon after the asteroid', sub:'Soot from Chicxulub turns the sky dim amber', art:'day'},
-  {epoch:'geminga', date:'2026-01-15', t:1320, look:'sn', clear:true, title:'The Geminga supernova', sub:'342,000 years ago, a star in Orion as bright as the quarter Moon', art:'nova'},
-  {epoch:'volcanic', date:'2026-07-08', t:1380, look:[180, 32], title:'A town night in 1815', sub:'Oil lamps light the streets but barely touch the sky', art:'stars'},
+  {epoch:'hadean44', date:'2000-02-36', t:1015, title:'A Hadean evening, 4.4 Ga', sub:'Thirty bars of CO₂ under a young, faint Sun', art:'day'},
+  {epoch:'archean38', date:'2000-01-38', t:1410, look:[0, 22], clear:true, title:'Aurora over the young Earth, 3.8 Ga', sub:'Violet and pink: nitrogen glowing in air with no oxygen', art:'aurora'},
+  {epoch:'archean27', date:'2000-03-07', t:913, title:'Archean afternoon, 2.7 Ga', sub:'A pale orange organic haze, like Titan’s', art:'day'},
+  {epoch:'ordovician466', date:'2000-10-09', t:1324, look:[200, 18], clear:true, title:'Meteor storm and ring, 466 Ma', sub:'A shattered asteroid’s fragments, and perhaps a ring across the sky', art:'meteors'},
+  {epoch:'carbon30', date:'2000-06-31', t:1417, look:[180, 32], clear:true, title:'The Milky Way, 300 Ma', sub:'No city lights, and stars no one has catalogued', art:'galaxy'},
+  {epoch:'kpg66', date:'2000-04-01', t:720, title:'Noon after the asteroid', sub:'Soot from Chicxulub turns the sky dim amber', art:'day'},
+  {epoch:'geminga', date:'2000-01-07', t:1358, look:'sn', clear:true, title:'The Geminga supernova', sub:'342,000 years ago, a star in Orion as bright as the quarter Moon', art:'nova'},
+  {epoch:'volcanic', date:'1815-07-06', t:1392, look:[180, 32], title:'A town night in 1815', sub:'Oil lamps light the streets but barely touch the sky', art:'stars'},
   {epoch:'modern', date:'2026-07-08', t:1380, look:[180, 32], title:'A city night, today', sub:'Sodium and LED glow hides all but the brightest stars', art:'city'},
   {epoch:'modern', date:null, t:0, storm:true, clear:true, title:'A Leonid meteor storm', sub:'Over a thousand an hour from one point in Leo, even through city glow', art:'storm'},
   {epoch:'modern', date:null, eclipse:true, clear:true, title:'The next total eclipse', sub:'The corona, Baily’s beads, and a sunset all round the horizon', art:'eclipse'},
   {epoch:'modern', date:null, lunar:true, look:'moon', clear:true, title:'The next total lunar eclipse', sub:'A copper Moon, lit by every sunrise and sunset on Earth', art:'lunar'},
-  {epoch:'y2100', date:'2026-03-20', t:1180, look:[300, 28], clear:true, title:'Satellites at dusk, 2100', sub:'Megaconstellations and orbital datacenters still in sunlight', art:'sats'},
+  {epoch:'y2100', date:'2100-03-12', t:1167, look:[300, 28], clear:true, title:'Satellites at dusk, 2100', sub:'Megaconstellations and orbital datacenters still in sunlight', art:'sats'},
 ];
 const MOMENT_ART={
   lunar:'<defs><radialGradient id="mblood" cx=".35" cy=".3"><stop offset="0" stop-color="#b8653a"/><stop offset=".75" stop-color="#6e2a17"/><stop offset="1" stop-color="#4a1c12"/></radialGradient></defs><circle cx="60" cy="34" r="13" fill="url(#mblood)"/>',
