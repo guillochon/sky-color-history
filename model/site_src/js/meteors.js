@@ -332,7 +332,9 @@ function metScene(){
       const vis=metVisible(mtr, skyRAt(g0, Math.max(mid.el, 0), Math.atan2(mid.dir[0], mid.dir[1])*180/Math.PI)*rCd);
       if(vis>0.01&&mid.el>0){
         const f=Math.min(1, age/(m.train*0.4)), rgb=[0.55+0.6*f, 1.25-0.5*f, 0.45-0.2*f], d=metDisplay(mtr);
-        const x1=Math.min(1, x), pts=[]; for(let i=0;i<=8;i++){ const xi=0.3+(x1-0.3)*i/8, P=metPoint(m, xi), w=age*0.06*Math.sin(xi*9+m.id);
+        // The wiggle's phase comes from the meteor's start within its second (m.id is a string).
+        const ph=(m.t0-Math.floor(m.t0))*20*Math.PI;
+        const x1=Math.min(1, x), pts=[]; for(let i=0;i<=8;i++){ const xi=0.3+(x1-0.3)*i/8, P=metPoint(m, xi), w=age*0.06*Math.sin(xi*9+ph);
           const Q=vadd(P, [w, 0.6*w, 0], [0, 0, 0]), q=Math.hypot(...Q); pts.push([Q[0]/q, Q[1]/q, Q[2]/q]); }
         out.push({kind:1, m, pts, px:Math.min(d.px, 2.5)+age*0.02, amp:Math.min(0.6, d.amp)*vis, rgb});
       }
