@@ -2,11 +2,12 @@
 // MDIS MD3 colour mosaic (1000, 750 and 430 nm; USGS), Mars from Viking's colour mosaic (USGS), Io
 // from Galileo's colour over the Galileo and Voyager mosaic, Europa from the Galileo and Voyager
 // mosaic (grey, in Europa's tint), Ganymede from the Galileo and Voyager colour mosaic (all USGS
-// Astrogeology), and Tethys, Dione and Rhea from Cassini's colour maps (PIA18439, PIA18434,
-// PIA18438; NASA/JPL-Caltech/SSI/LPI). Callisto has no map of its whole sphere (nothing south of
-// about 60°S over a third of its longitudes), so it keeps its plain disk. Each map is turned to
-// start at longitude 0 (the IAU prime meridian; the moons' faces the host), east to the right; the
-// few gaps (Europa south of 83°S, slivers at other poles) filled from round about; the colours toned
+// Astrogeology), Callisto from the Galileo and Voyager mosaic (grey, in Callisto's tint; USGS), and
+// Tethys, Dione and Rhea from Cassini's colour maps (PIA18439, PIA18434, PIA18438;
+// NASA/JPL-Caltech/SSI/LPI). Each map is turned to start at longitude 0 (the IAU prime meridian;
+// the moons' faces the host), east to the right; the gaps (Europa south of 83°S, Callisto's south
+// polar region over a third of its longitudes, slivers at other poles) filled from round about,
+// smooth where there is no data; the colours toned
 // toward true colour, the Cassini and USGS colour composites reaching into the ultraviolet and
 // infrared; and each scaled to the same mean brightness (surfaces.py).
 //

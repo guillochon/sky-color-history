@@ -9,7 +9,8 @@ Sources, all public domain (NASA/USGS; Cassini maps NASA/JPL-Caltech/SSI/LPI):
   Europa    USGS Voyager / Galileo SSI 500 m mosaic, 1024 px JPG (nothing south of 83 S: filled)
   Ganymede  USGS Voyager / Galileo SSI colour mosaic 1.4 km, 1024 px JPG
   Tethys, Dione, Rhea  Cassini colour maps PIA18439, PIA18434, PIA18438 (Wikimedia 3840 px copies)
-  Callisto is left out: its mosaic has nothing south of about 60 S over a third of its longitudes.
+  Callisto  USGS Voyager / Galileo SSI 1 km mosaic, 1024 px JPG (grey, in Callisto's tint; nothing south
+            of about 60 S over a third of its longitudes, and slivers at the north pole: filled)
 Each map is turned so its left edge is longitude 0 (east to the right), its no-data pixels are
 filled from round about (push-pull over a pyramid, wrapping in longitude), its colour is toned
 down toward true colour by a factor per body, and it is scaled to a mean luminance of 0.45
@@ -31,10 +32,14 @@ BODIES = [
     ('io', f'{dl}/io/io.jpg', 180, 0.55, None),
     ('europa', f'{dl}/europa/europa.jpg', 0, 1.0, (1.0, 0.96, 0.88)),
     ('ganymede', f'{dl}/ganymede/ganymede.jpg', 0, 0.45, None),
+    ('callisto', f'{dl}/callisto/callisto.jpg', 0, 1.0, (0.86, 0.82, 0.76)),
     ('tethys', f'{dl}/tethys/tethys.jpg', 0, 0.22, None),
     ('dione', f'{dl}/dione/dione.jpg', 0, 0.22, None),
     ('rhea', f'{dl}/rhea/rhea.jpg', 0, 0.22, None),
 ]
+# Per body, a darker cut-off for no data near the poles and a wider margin round it: Callisto's
+# gaps are ringed by near-black compression fringes.
+GAP = {'callisto': (40, 6)}
 LUM = np.array([0.2126, 0.7152, 0.0722])
 
 
@@ -77,9 +82,13 @@ def fill(a, valid):
 def process(a, gray, left, sat, tint, size, name):
     if left:
         a = np.roll(a, -int(round(a.shape[1] * left / 360.0)) % a.shape[1], axis=1)
+    thr, grow = GAP.get(name, (2.5, 0))
     valid = a.max(axis=2) > 2.5 / 255.0
+    # The stricter cut-off only poleward of 55 degrees, where the gaps are; dark plains elsewhere stay.
+    rows = np.abs(90 - (np.arange(a.shape[0]) + 0.5) * 180 / a.shape[0]) > 55
+    valid[rows] &= a.max(axis=2)[rows] > thr / 255.0
     # Grow the gap a few pixels: the edges of no-data regions are often dark fringes.
-    g = 2 + a.shape[1] // 1024
+    g = 2 + a.shape[1] // 1024 + grow
     # Only sizeable black regions are gaps (an opening: erode, then dilate back and g further);
     # lone black pixels are shadows.
     inv = ~valid

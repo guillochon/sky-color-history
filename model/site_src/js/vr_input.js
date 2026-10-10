@@ -156,7 +156,7 @@ function vrRayAt(cx, cy, yawDeg, pitchDeg){
   const yaw=yawDeg*Math.PI/180, pitch=pitchDeg*Math.PI/180, cp=Math.cos(pitch), sp=Math.sin(pitch), cyw=Math.cos(yaw), syw=Math.sin(yaw);
   return vnorm([syw*cp+u*cyw-v*syw*sp, cyw*cp-u*syw-v*cyw*sp, sp+v*cp]);
 }
-// Zoom between a 0.008° and a 90° field of view about page point (cx, cy): the sky under that
+// Zoom between a 0.004° and a 90° field of view about page point (cx, cy): the sky under that
 // point stays under it. The wheel uses the same factor per notch. A pinch uses the fingers'
 // spread. With the look locked the wheel's point is the middle of the view.
 function zoomVRAbout(factor, cx, cy){
