@@ -1,8 +1,10 @@
-const VRFS=`#version 300 es
+const VRFS_SRC=`#version 300 es
 precision highp float;
-// VRFS_BOOT sets this to 0: sky and plain ground only, which compiles fast enough to show
-// while the full program compiles in the background.
+// VRFS_BOOT sets these to 0: sky and plain ground only, and none of the close-up detail (the
+// Sun's photosphere, Jupiter's clouds, the surface maps, planets' disks: they show as points),
+// which compiles fast enough to show while the full program compiles in the background.
 #define SCENERY 1
+#define DETAIL 1
 // Random values in red (vN); the first row's green, blue and alpha hold the lunar eclipse's table.
 uniform sampler2D noiseTex;
 uniform sampler2D sky; uniform sampler2D moonMap; uniform sampler2D starMap; uniform sampler2D starBin; uniform sampler2D starIdx; uniform sampler2D weather; uniform sampler2D hitInfo; uniform sampler2D hitNrm; uniform sampler2D shadowTex; uniform vec2 hitScale, shScale; uniform sampler2D roadCells; uniform vec4 roadBox; uniform vec2 roadDim; uniform vec2 res;
@@ -326,7 +328,7 @@ vec3 sunSurface(vec2 q, float pxR){
   // In a penumbra only the warp's part along the filaments (dir: outward from the umbra, up the
   // gradient of a blurred copy of the map) is kept, so the edges fray but the filaments stay straight.
   vec2 wo=vec2(0.0), uv0=vec2(lon, v), dir=vec2(0.0);
-  float kw=smoothstep(1.5, 6.0, ppt), gl=0.0;
+  float kw=DETAIL==1?smoothstep(1.5, 6.0, ppt):0.0, gl=0.0;
   if(kw>0.0){
     float d=2.0/Wt;
     float gx=dot(textureLod(sunMap, uv0+vec2(d/cl, 0.0), 2.0).rgb-textureLod(sunMap, uv0-vec2(d/cl, 0.0), 2.0).rgb, vec3(0.3333));
@@ -373,7 +375,7 @@ vec3 sunSurface(vec2 q, float pxR){
   }
   // A granule is 0.0019 of the radius across, foreshortened toward the limb.
   float gpx=0.0019*sqrt(max(Z, 0.04))/pxR;
-  if(gpx>2.0){
+  if(DETAIL==1 && gpx>2.0){
     float Lr=dot(t.rgb, vec3(0.2126, 0.7152, 0.0722));
     float quiet=smoothstep(0.90, 0.985, Lr), umb=1.0-smoothstep(0.42, 0.6, Lr), pen=(1.0-quiet)*(1.0-umb);
     float la=lon0*6.28318530718;
@@ -447,17 +449,21 @@ float jupBelt(float lat, float w){
 vec3 jupColor(float lat, float belt){
   return mix(mix(vec3(0.95, 0.91, 0.82), vec3(0.70, 0.53, 0.40), clamp(belt, 0.0, 1.0)), vec3(0.62, 0.60, 0.58), smoothstep(45.0, 70.0, abs(lat)));
 }
-// Value noise in longitude x (degrees, foreshortened) and latitude y, octaves from s0 degrees down
-// to twice the pixel, pxD degrees.
-float jupNoise(vec2 p, float s0, float pxD, float seed){
-  float a=0.5, s=s0, acc=0.0, ww=0.0;
+// Value noise in longitude x (degrees, foreshortened) and latitude y, three kinds in one loop of
+// octaves (the compiler keeps one copy of it), each down to twice the pixel, pxD degrees: x the
+// turbulence (from 6 degrees), y the finer texture (2 degrees, at 1.7 times the frequency), z the
+// zonal streaks (3 degrees, stretched four times along the winds).
+vec3 jupNoise(vec2 p, float pxD){
+  float a=0.5, s=1.0, ww=0.0; vec3 acc=vec3(0.0);
+  vec2 pz=vec2(p.x*0.25, p.y), pf=p*1.7;
   for(int o=0;o<10;o++){
-    float k=smoothstep(1.5*pxD, 3.0*pxD, s);
-    if(k<=0.0) break;
-    acc+=a*k*(vN(p/s+seed+float(o)*7.3)-0.5); ww+=a;
+    vec3 k=smoothstep(vec3(1.5*pxD), vec3(3.0*pxD), vec3(6.0, 2.0, 3.0)*s);
+    if(k.x<=0.0) break;
+    float so=float(o)*7.3;
+    acc+=a*k*(vec3(vN(p/(6.0*s)+3.1+so), vN(pf/(2.0*s)+9.7+so), vN(pz/(3.0*s)+5.3+so))-0.5); ww+=a;
     a*=0.55; s*=0.5;
   }
-  return acc/ww;
+  return acc/max(ww, 1e-4);
 }
 // One chain of Kelvin-Helmholtz billows along the boundary at latitude b, lam degrees apart, R in
 // radius: each point near one is turned about it by up to ang radians, most at its middle, which
@@ -484,10 +490,9 @@ vec3 jupiterAlbedo(float lat, float lon, float pxD){
   // other is at full strength, so the shear never smears it out (a flow map, period 4 days).
   float ph=T/4.0, f1=fract(ph), f2=fract(ph+0.5), wA=1.0-abs(2.0*f1-1.0);
   vec2 pA=vec2((lon-u*f1*4.0)*cl, lat), pB=vec2((lon-u*f2*4.0)*cl+41.0, lat+17.0);
-  float tn=mix(jupNoise(pB, 6.0, pxD, 3.1), jupNoise(pA, 6.0, pxD, 3.1), wA);
-  float tf=mix(jupNoise(pB*1.7, 2.0, pxD, 9.7), jupNoise(pA*1.7, 2.0, pxD, 9.7), wA);
-  // Zonal streaks: the same noise stretched four times along the winds.
-  float tz=mix(jupNoise(vec2(pB.x*0.25, pB.y), 3.0, pxD, 5.3), jupNoise(vec2(pA.x*0.25, pA.y), 3.0, pxD, 5.3), wA);
+  vec3 nz=vec3(0.0);
+  for(int k=0;k<2;k++) nz+=(k==0?1.0-wA:wA)*jupNoise(k==0?pB:pA, pxD);
+  float tn=nz.x, tf=nz.y, tz=nz.z;
   vec2 q=vec2(lon, lat+(1.0+2.6*beltness)*tn);
   // The billows: at each boundary between a belt and a zone, up to four chains, each set turning the
   // way of the shear's vorticity there and carried along at the wind of the boundary.
@@ -498,10 +503,14 @@ vec3 jupiterAlbedo(float lat, float lon, float pxD){
     float du=jupWind(b+0.5)-jupWind(b-0.5), sg=du>0.0?-1.0:1.0, st=clamp(abs(du)/25.0, 0.35, 1.0);
     float cb=max(cos(b*0.01745329252), 0.1), x0=q.x-jupWindDeg(b)*T;
     vec2 r=vec2(x0, q.y);
-    r=khRoll(r, b, 11.0, 1.5, 2.6*sg*st, float(i)*0.37, cb);
-    if(pxD<0.3) r=khRoll(r, b, 3.6, 0.5, 2.4*sg*st*smoothstep(0.3, 0.15, pxD), float(i)*0.71+0.5, cb);
-    if(pxD<0.1) r=khRoll(r, b, 1.2, 0.17, 2.2*sg*st*smoothstep(0.1, 0.05, pxD), float(i)*1.13+0.2, cb);
-    if(pxD<0.035) r=khRoll(r, b, 0.4, 0.06, 2.0*sg*st*smoothstep(0.035, 0.018, pxD), float(i)*1.71+0.9, cb);
+    // Each chain a third the size of the last, fading in as the pixel shrinks past it.
+    float lam=11.0, R=1.5, ang=2.6, sd0=0.37, sd1=0.0;
+    for(int c=0;c<4;c++){
+      float fade=c==0?1.0:smoothstep(R*0.6, R*0.3, pxD);
+      if(fade<=0.0) break;
+      r=khRoll(r, b, lam, R, ang*sg*st*fade, float(i)*sd0+sd1, cb);
+      lam/=3.06; R/=3.0; ang-=0.2; sd0+=0.42; sd1+=0.37;
+    }
     q=vec2(r.x+jupWindDeg(b)*T, r.y);
   }
   float belt=jupBelt(q.y, w);
@@ -562,7 +571,11 @@ vec4 bodyDisk(vec3 o, vec3 v, vec3 n, vec3 L, int kind, float rPx, vec3 tint, ve
   vec3 mp=M.xyz-n*dot(M.xyz, n); mp=dot(mp, mp)>1e-8?normalize(mp):normalize(cross(n, abs(n.x)<0.9?vec3(1.0, 0.0, 0.0):vec3(0.0, 1.0, 0.0)));
   float lon=atan(dot(nrm, cross(n, mp)), dot(nrm, mp))*57.2957795;
   // A body with a spacecraft map (M.w its index, surfaces.js) shows it, mipmapped to the pixel.
+#if DETAIL
   vec3 alb=kind==3?jupiterAlbedo(lat, lon, 57.2957795/max(rPx, 1.0)):M.w>-0.5?surfAt(int(M.w+0.5), lon, lat, log2(max(512.0/360.0*57.2957795/max(rPx, 1.0)/max(mu, 0.1), 1e-6))):bodyAlbedo(kind, lat, tint);
+#else
+  vec3 alb=bodyAlbedo(kind, lat, tint);
+#endif
   if(kind==3 && grsAB.x>0.0) alb=grsPaint(alb, nrm, n, lat);
   return vec4(alb*lit*BODY_GAIN[kind], cov);
 }
@@ -1157,10 +1170,11 @@ void main(){
         if(fine){ vec4 S=bodyS[b]; dd=axR*(fuv.x-S.x)+axU*((fuv.y-S.y)*S.z); }
         float d2=dot(dd, dd);
         if(d2>reach*reach) continue;
-        float rPx=P.w/pxA, diskK=smoothstep(1.0, 3.0, rPx), vis=1.0-smoothstep(lim-0.8, lim+0.2, L.w+dm-moonGain);
+        float rPx=P.w/pxA, diskK=DETAIL==1?smoothstep(1.0, 3.0, rPx):0.0, vis=1.0-smoothstep(lim-0.8, lim+0.2, L.w+dm-moonGain);
         // src less its part along the body, from the offset: src-P.xyz*dot(src, P.xyz) is the same.
         vec3 o=(dd-P.xyz*dot(dd, P.xyz))/sin(P.w), x; float t;
         if(inSun){
+          if(DETAIL==0) continue;
           vec4 dk=bodyDisk(o, P.xyz, N.xyz, L.xyz, kind, rPx, C.rgb, bodyM[b], x, t);
           skyC=mix(skyC, skyBase, dk.a*min(rPx, 1.0));
           continue;
@@ -1204,4 +1218,12 @@ void main(){
   }
   fragColor=vec4(col,1.0);
 }`;
-const VRFS_BOOT=VRFS.replace('#define SCENERY 1', '#define SCENERY 0');
+// ANGLE on Windows compiles through Direct3D, whose compiler unrolls a loop of constant count,
+// copying its body that many times, and inlines every call: the sky shader took over 15 seconds.
+// Each loop of four or more passes counts instead to its count plus loopZero, a uniform left at 0,
+// so it stays one loop.
+function keepLoops(src){
+  return src.replace(/for\(int (\w+)=0;\1<([0-9]+);\1\+\+\)/g, (m, v, n)=>+n>=4?`for(int ${v}=0;${v}<${n}+loopZero;${v}++)`:m)
+    .replace('precision highp float;', 'precision highp float;\nuniform int loopZero;');
+}
+const VRFS=keepLoops(VRFS_SRC), VRFS_BOOT=VRFS.replace('#define SCENERY 1', '#define SCENERY 0').replace('#define DETAIL 1', '#define DETAIL 0');
