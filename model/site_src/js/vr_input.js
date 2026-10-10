@@ -382,7 +382,7 @@ function vrProbeAsk(cx, cy, done){
   gl.bindBuffer(gl.PIXEL_PACK_BUFFER, ask.buf);
   gl.bufferData(gl.PIXEL_PACK_BUFFER, 64, gl.STREAM_READ);
   const reads={col:vrReadAsync(ask, null, x, y, false)};
-  if(vrScenery&&vrGL.hitInfo&&vrGL.hitMRT) reads.hit=vrReadAsync(ask, vrGL.hitFbo, x, y, true);
+  if(vrScenery&&vrGL.hitInfo&&vrGL.hitMRT) reads.hit=vrReadAsync(ask, vrGL.hitFbo, Math.floor(x*vrGL.hitW/c.width), Math.floor(y*vrGL.hitH/c.height), true);
   if(vrClouds&&vrGL.accumFbo&&vrGL.cw) reads.accum=vrReadAsync(ask, vrGL.accumFbo, Math.floor(x*vrGL.cw/c.width), Math.floor(y*vrGL.ch/c.height), !!vrGL.cloudHDR);
   if(skyNow.aur&&skyNow.aur.on){
     const d=vrRayAt(cx, cy, vrYaw, vrPitch), app=Math.asin(Math.max(-1, Math.min(1, d[2])))*180/Math.PI;
@@ -471,7 +471,7 @@ function vrProbe(cx, cy, throughCloud, px, view){
   const app=Math.asin(Math.max(-1, Math.min(1, d[2])))*180/Math.PI, el=trueAltDeg(app);
   let az=Math.atan2(d[0], d[1])*180/Math.PI; if(az<0) az+=360;
   const P={x, y, d, app, el, az};
-  const hit=px?px.hit:vrScenery&&vrGL.hitInfo&&vrGL.hitMRT?vrReadPixel(vrGL.hitFbo, x, y, true):null;
+  const hit=px?px.hit:vrScenery&&vrGL.hitInfo&&vrGL.hitMRT?vrReadPixel(vrGL.hitFbo, Math.floor(x*vrGL.hitW/c.width), Math.floor(y*vrGL.hitH/c.height), true):null;
   if(app<0||(hit&&hit[0]>0)){ P.ground=true; return P; }
   if(vrClouds&&vrGL.accumFbo&&vrGL.cw&&!throughCloud){
     const a=px?px.accum:vrReadPixel(vrGL.accumFbo, Math.floor(x*vrGL.cw/c.width), Math.floor(y*vrGL.ch/c.height), !!vrGL.cloudHDR), s=vrGL.cloudHDR?1:1/255;

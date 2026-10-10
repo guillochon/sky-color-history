@@ -234,10 +234,16 @@ float marchTown(vec3 ro, vec3 rd, float tMax, vec4 tw, out vec3 nOut, out float 
   return -1.0;
 }
 `;
+// With SHADOW_PASS the same source is the shadow pass: the land pass's distances and normals
+// depend only on the view, so they are kept while it holds still, and the Sun's shadow on the
+// land, which moves with the clock, is worked out from them in a pass of its own.
 const HITFS=`#version 300 es
 precision highp float;
 #ifndef GLACIERS
 #define GLACIERS 1
+#endif
+#ifndef SHADOW_PASS
+#define SHADOW_PASS 0
 #endif
 uniform sampler2D weather;
 uniform vec2 res;
@@ -249,8 +255,14 @@ uniform float scnCount, hillN;
 uniform int loopPad;
 uniform vec4 town[16];
 uniform float townN;
+#if SHADOW_PASS
+uniform sampler2D hitTex;
+uniform vec2 hitScale;
+out vec4 shadowOut;
+#else
 layout(location=0) out vec4 hitInfo;
 layout(location=1) out vec4 hitNrm;
+#endif
 ${TERR}
 float scnShadow(vec3 p, vec3 sd){
   if(sd.z<=0.04) return 1.0;
@@ -316,11 +328,22 @@ float ellT(vec3 ro,vec3 rd,vec2 c,float R,float H){
 }
 vec3 ellN(vec3 p,vec2 c,float R,float H){ return normalize(vec3((p.x-c.x)/(R*R),(p.y-c.y)/(R*R),p.z/(H*H))); }
 ${VIEW_RAY_GLSL}
+#if SHADOW_PASS
+// The shadow on what the hit buffers hold (land, massif or plain ground; towns, cones and boxes
+// stay unshadowed), at the point the land pass shaded.
+void main(){
+  vec3 rd=viewRay(gl_FragCoord.xy, res, fov, yaw, pitch), ro=eye;
+  vec4 info=texelFetch(hitTex, ivec2(gl_FragCoord.xy*hitScale), 0);
+  float sunA=sunAz*0.01745329252, sunZen=(90.0-sunEl)*0.01745329252;
+  vec3 sd=normalize(vec3(sin(sunA)*sin(sunZen), cos(sunA)*sin(sunZen), cos(sunZen)));
+  float t=info.r>0.0?info.r:(rd.z<0.0?-ro.z/rd.z:-1.0), sh=1.0;
+  if(t>0.0 && info.g<3.5){ vec3 p=ro+rd*t; sh=scnShadow(vec3(p.xy, max(p.z, 0.0)), sd); }
+  shadowOut=vec4(sh, 0.0, 0.0, 1.0);
+}
+#else
 void main(){
   vec3 rd=viewRay(gl_FragCoord.xy, res, fov, yaw, pitch);
   vec3 ro=eye;
-  float sunA=sunAz*0.01745329252, sunZen=(90.0-sunEl)*0.01745329252;
-  vec3 sd=normalize(vec3(sin(sunA)*sin(sunZen), cos(sunA)*sin(sunZen), cos(sunZen)));
   float tGround=rd.z<0.0?-ro.z/rd.z:1e8;
   float tObj=-1.0, kObj=0.0, iObj=0.0, tBest=1e8;
   vec3 nObj=vec3(0.0,0.0,1.0); vec4 qObj=vec4(0.0);
@@ -360,16 +383,15 @@ void main(){
     hitNrm=vec4(0.0, 0.0, 1.0, -1.0);
     return;
   }
-  float sh=1.0;
-  if(kShade<3.5) sh=scnShadow(vec3(pShade.xy, max(pShade.z, 0.0)), sd);
   if(hillWins){
-    hitInfo=vec4(tHill, 1.0, sh, rHill);
+    hitInfo=vec4(tHill, 1.0, 1.0, rHill);
     hitNrm=vec4(nOut, hHill);
   }else{
-    hitInfo=vec4(tObj, kObj, sh, iObj);
+    hitInfo=vec4(tObj, kObj, 1.0, iObj);
     hitNrm=vec4(nOut, -1.0);
   }
 }
+#endif
 `;
 // The town pass: reads the terrain pass's hit buffers (landInfo, landNrm) and writes them on,
 // with any tower, house, or tree that stands nearer.
@@ -393,8 +415,10 @@ layout(location=1) out vec4 hitNrm;
 ${HIT_COMMON}
 ${TOWN_GLSL}
 ${VIEW_RAY_GLSL}
+uniform vec2 landScale;
 void main(){
-  vec4 info=texelFetch(landInfo, ivec2(gl_FragCoord.xy), 0), nrm=texelFetch(landNrm, ivec2(gl_FragCoord.xy), 0);
+  ivec2 lp=ivec2(gl_FragCoord.xy*landScale);
+  vec4 info=texelFetch(landInfo, lp, 0), nrm=texelFetch(landNrm, lp, 0);
   hitInfo=info; hitNrm=nrm;
   vec3 rd=viewRay(gl_FragCoord.xy, res, fov, yaw, pitch), ro=eye;
   if(rd.z>=0.6) return;
@@ -408,8 +432,8 @@ void main(){
 }
 `;
 // g is '1' for glaciers; tr is two digits, towns and trees.
-function hitVariant(g){
-  return HITFS.replace('precision highp float;', 'precision highp float;\n#define GLACIERS '+g);
+function hitVariant(g, shadow){
+  return HITFS.replace('precision highp float;', 'precision highp float;\n#define GLACIERS '+g+(shadow?'\n#define SHADOW_PASS 1':''));
 }
 function townVariant(tr){
   return TOWNFS.replace('precision highp float;', 'precision highp float;\n#define TOWNS '+tr[0]+'\n#define TREES '+tr[1]);

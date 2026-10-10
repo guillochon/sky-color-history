@@ -4,7 +4,7 @@ precision highp float;
 // while the full program compiles in the background.
 #define SCENERY 1
 uniform sampler2D noiseTex;
-uniform sampler2D sky; uniform sampler2D moonMap; uniform sampler2D starMap; uniform sampler2D starBin; uniform sampler2D starIdx; uniform sampler2D weather; uniform sampler2D hitInfo; uniform sampler2D hitNrm; uniform vec2 res;
+uniform sampler2D sky; uniform sampler2D moonMap; uniform sampler2D starMap; uniform sampler2D starBin; uniform sampler2D starIdx; uniform sampler2D weather; uniform sampler2D hitInfo; uniform sampler2D hitNrm; uniform sampler2D shadowTex; uniform vec2 hitScale, shScale; uniform vec2 res;
 uniform float yaw,pitch,fov,sunAz,sunEl,sunRad,sunOn,nr,na,sunMu,showScn,mtnSnow;
 uniform float moonAz,moonEl,moonRad,moonOn,latRad,starPx,cloudCov,cloudScale,cloudDrift,cloudOn,clockH,snowCover,waterT,snOn;
 uniform vec3 snDir,snCol,snLight,mlDir,mlLight;
@@ -355,9 +355,10 @@ void main(){
   float compDeg=comp*57.2957795;
   float sunA=sunAz*0.01745329252;
   vec3 sd=azElDir(sunAz, sunEl);
-  vec4 hit=texelFetch(hitInfo, ivec2(gl_FragCoord.xy), 0);
-  vec4 hn=texelFetch(hitNrm, ivec2(gl_FragCoord.xy), 0);
-  float tBest=1e8, kBest=0.0, hBest=1.0, tLand=-1.0, shBest=hit.b;
+  ivec2 hp=ivec2(gl_FragCoord.xy*hitScale);
+  vec4 hit=texelFetch(hitInfo, hp, 0);
+  vec4 hn=texelFetch(hitNrm, hp, 0);
+  float tBest=1e8, kBest=0.0, hBest=1.0, tLand=-1.0, shBest=texelFetch(shadowTex, ivec2(gl_FragCoord.xy*shScale), 0).r;
   vec3 nBest=vec3(0.0,0.0,1.0), pBest=ro; vec4 qBest=vec4(0.0);
   bool hill=showScn>0.5 && hit.g>0.5 && hit.g<1.5 && hit.a>40.0;
   if(hill){

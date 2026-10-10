@@ -203,6 +203,7 @@ function hitPair(gl, w, h, a, b, fb){
     return t;
   };
   for(const k of [a, b]){ if(vrGL[k]) gl.deleteTexture(vrGL[k]); vrGL[k]=alloc(); }
+  vrGL.hitGen=(vrGL.hitGen||0)+1;
   gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, vrGL[a], 0);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, vrGL[b], 0);
@@ -210,6 +211,27 @@ function hitPair(gl, w, h, a, b, fb){
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   return ok;
 }
+// The Sun's shadow on the land (the shadow pass), one channel at the land pass's size.
+function ensureShadowTarget(w, h){
+  const gl=vrGL.gl;
+  if(vrGL.shW===w&&vrGL.shH===h&&vrGL.shadowTex) return vrGL.shadowOk;
+  if(vrGL.shadowTex) gl.deleteTexture(vrGL.shadowTex);
+  const t=vrGL.shadowTex=gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, t);
+  texParams(gl, gl.NEAREST, gl.NEAREST, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE);
+  if(vrGL.hitFloat) gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, w, h, 0, gl.RED, gl.FLOAT, null);
+  else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  vrGL.shadowFbo=vrGL.shadowFbo||gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.shadowFbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+  vrGL.shadowOk=gl.checkFramebufferStatus(gl.FRAMEBUFFER)===gl.FRAMEBUFFER_COMPLETE;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  vrGL.shW=w; vrGL.shH=h; vrGL.shadowKey='';
+  return vrGL.shadowOk;
+}
+// The land pass draws at no more than this many pixels per CSS pixel; the town pass, whose
+// edges are sharp, stays at the canvas's.
+const TERRAIN_DPR=1.5;
 // Whether a pool that moves (water, swamp, or magma) is on screen and within 6 km.
 function movingPoolInView(){
   if(!vrScenery || vrPitch-vrFov*0.5>0) return false;
@@ -384,41 +406,78 @@ function paintVR(){
     gl.activeTexture(gl.TEXTURE0);
   }
   perfEnd('setup');
+  // The land and town passes depend only on the view, the scene and their sizes, so while
+  // those hold they are not drawn again; the shadow pass follows the Sun on what they hold.
+  let shadowOn=false;
   if(vrGL.hitProg&&vrScenery){
-    ensureHitTarget(c.width, c.height);
+    const ts=Math.min(1, TERRAIN_DPR/Math.min(window.devicePixelRatio||1, 2));
+    const tw=Math.max(2, Math.round(c.width*ts)), th=Math.max(2, Math.round(c.height*ts)), hasTown=!!vrGL.townProg;
+    ensureHitTarget(hasTown?c.width:tw, hasTown?c.height:th);
     if(vrGL.hitMRT){
-      const town=!!vrGL.townProg&&ensureLandTarget(c.width, c.height);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, town?vrGL.landFbo:vrGL.hitFbo);
-      gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
-      gl.viewport(0,0,c.width,c.height);
-      perfPass('terrain');
-      gl.useProgram(vrGL.hitProg);
-      const hu=vrGL.hu; gl.uniform1f(hu.fov, vrFov*Math.PI/180);
-      if(vrGL.weather){ gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, vrGL.weather); }
-      gl.uniform2f(hu.res, c.width, c.height);
-      gl.uniform1f(hu.yaw, vrYaw*Math.PI/180); gl.uniform1f(hu.pitch, vrPitch*Math.PI/180);
-      gl.uniform3f(hu.eye, vrX, vrY, ez);
-      gl.uniform1f(hu.showScn, 1);
-      gl.uniform1f(hu.sunAz, skyNow.sunAz); gl.uniform1f(hu.sunEl, 90-skyNow.sza);
-      gl.uniform4fv(hu.obj, sc.o); gl.uniform1fv(hu.kind, sc.k);
-      gl.uniform4fv(hu.town, sc.t); gl.uniform1f(hu.townN, sc.tn);
-      gl.drawArrays(gl.TRIANGLES, 0, 6);
-      perfPassEnd('terrain');
-      if(town){
-        perfPass('town');
-        gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.hitFbo);
+      const town=hasTown&&ensureLandTarget(tw, th);
+      // Without a land pair the land pass draws straight into the hit pair, at its size.
+      const lw=town?tw:vrGL.hitW, lh=town?th:vrGL.hitH;
+      const geoKey=[vrYaw, vrPitch, vrFov, vrX, vrY, ez, c.width, c.height, lw, lh, vrGL.hitGen, EP[dIdx].key].join('|');
+      const gp=vrGL.geoProgs||[];
+      if(geoKey!==vrGL.geoKey||gp[0]!==vrGL.hitProg||gp[1]!==vrGL.townProg){
+        vrGL.geoKey=geoKey; vrGL.geoProgs=[vrGL.hitProg, vrGL.townProg];
+        perfPass('terrain');
+        gl.bindFramebuffer(gl.FRAMEBUFFER, town?vrGL.landFbo:vrGL.hitFbo);
         gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
-        gl.useProgram(vrGL.townProg);
-        const tu=vrGL.tu2;
-        gl.activeTexture(gl.TEXTURE10); gl.bindTexture(gl.TEXTURE_2D, vrGL.landInfo);
-        gl.activeTexture(gl.TEXTURE11); gl.bindTexture(gl.TEXTURE_2D, vrGL.landNrm);
-        gl.activeTexture(gl.TEXTURE0);
-        gl.uniform2f(tu.res, c.width, c.height); gl.uniform1f(tu.fov, vrFov*Math.PI/180);
-        gl.uniform1f(tu.yaw, vrYaw*Math.PI/180); gl.uniform1f(tu.pitch, vrPitch*Math.PI/180);
-        gl.uniform3f(tu.eye, vrX, vrY, ez);
-        gl.uniform4fv(tu.town, sc.t); gl.uniform1f(tu.townN, sc.tn);
+        gl.viewport(0,0,lw,lh);
+        gl.useProgram(vrGL.hitProg);
+        const hu=vrGL.hu; gl.uniform1f(hu.fov, vrFov*Math.PI/180);
+        if(vrGL.weather){ gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, vrGL.weather); }
+        gl.uniform2f(hu.res, lw, lh);
+        gl.uniform1f(hu.yaw, vrYaw*Math.PI/180); gl.uniform1f(hu.pitch, vrPitch*Math.PI/180);
+        gl.uniform3f(hu.eye, vrX, vrY, ez);
+        gl.uniform1f(hu.showScn, 1);
+        gl.uniform4fv(hu.obj, sc.o); gl.uniform1fv(hu.kind, sc.k);
+        gl.uniform4fv(hu.town, sc.t); gl.uniform1f(hu.townN, sc.tn);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
-        perfPassEnd('town');
+        perfPassEnd('terrain');
+        if(town){
+          perfPass('town');
+          gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.hitFbo);
+          gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
+          gl.viewport(0,0,c.width,c.height);
+          gl.useProgram(vrGL.townProg);
+          const tu=vrGL.tu2;
+          gl.activeTexture(gl.TEXTURE10); gl.bindTexture(gl.TEXTURE_2D, vrGL.landInfo);
+          gl.activeTexture(gl.TEXTURE11); gl.bindTexture(gl.TEXTURE_2D, vrGL.landNrm);
+          gl.activeTexture(gl.TEXTURE0);
+          gl.uniform2f(tu.res, c.width, c.height); gl.uniform1f(tu.fov, vrFov*Math.PI/180);
+          gl.uniform2f(tu.landScale, tw/c.width, th/c.height);
+          gl.uniform1f(tu.yaw, vrYaw*Math.PI/180); gl.uniform1f(tu.pitch, vrPitch*Math.PI/180);
+          gl.uniform3f(tu.eye, vrX, vrY, ez);
+          gl.uniform4fv(tu.town, sc.t); gl.uniform1f(tu.townN, sc.tn);
+          gl.drawArrays(gl.TRIANGLES, 0, 6);
+          perfPassEnd('town');
+        }
+      }
+      if(vrGL.shadowProg&&ensureShadowTarget(lw, lh)){
+        shadowOn=true;
+        const shKey=geoKey+'|'+skyNow.sunAz+'|'+skyNow.sza;
+        if(shKey!==vrGL.shadowKey||vrGL.shadowProgUsed!==vrGL.shadowProg){
+          vrGL.shadowKey=shKey; vrGL.shadowProgUsed=vrGL.shadowProg;
+          perfPass('shadow');
+          gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.shadowFbo);
+          gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
+          gl.viewport(0,0,lw,lh);
+          gl.useProgram(vrGL.shadowProg);
+          const su=vrGL.su;
+          gl.activeTexture(gl.TEXTURE10); gl.bindTexture(gl.TEXTURE_2D, vrGL.hitInfo);
+          if(vrGL.weather){ gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, vrGL.weather); }
+          gl.activeTexture(gl.TEXTURE0);
+          gl.uniform2f(su.res, lw, lh); gl.uniform1f(su.fov, vrFov*Math.PI/180);
+          gl.uniform2f(su.hitScale, vrGL.hitW/lw, vrGL.hitH/lh);
+          gl.uniform1f(su.yaw, vrYaw*Math.PI/180); gl.uniform1f(su.pitch, vrPitch*Math.PI/180);
+          gl.uniform3f(su.eye, vrX, vrY, ez);
+          gl.uniform1f(su.sunAz, skyNow.sunAz); gl.uniform1f(su.sunEl, 90-skyNow.sza);
+          gl.uniform4fv(su.obj, sc.o); gl.uniform1fv(su.kind, sc.k);
+          gl.drawArrays(gl.TRIANGLES, 0, 6);
+          perfPassEnd('shadow');
+        }
       }
       gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.drawBuffers([gl.BACK]);
       gl.viewport(0,0,c.width,c.height);
@@ -444,7 +503,10 @@ function paintVR(){
   const cu=cometUniforms();
   gl.uniform1f(u.cometN, cu.n);
   if(cu.n){ const cl=cometLin(); gl.uniform4fv(u.cometH, cu.H); gl.uniform4fv(u.cometK, cu.K); gl.uniform4fv(u.cometS, cu.S); gl.uniform4fv(u.cometI, cu.I); gl.uniform3fv(u.cometComa, cl.coma); gl.uniform3fv(u.cometDust, cl.dust); gl.uniform3fv(u.cometIon, cl.ion); }
-  gl.activeTexture(gl.TEXTURE10); gl.bindTexture(gl.TEXTURE_2D, vrGL.hitInfo||vrGL.noHitInfo); gl.activeTexture(gl.TEXTURE11); gl.bindTexture(gl.TEXTURE_2D, vrGL.hitInfo?vrGL.hitNrm:vrGL.noHitNrm); gl.activeTexture(gl.TEXTURE0);
+  gl.activeTexture(gl.TEXTURE10); gl.bindTexture(gl.TEXTURE_2D, vrGL.hitInfo||vrGL.noHitInfo); gl.activeTexture(gl.TEXTURE11); gl.bindTexture(gl.TEXTURE_2D, vrGL.hitInfo?vrGL.hitNrm:vrGL.noHitNrm);
+  gl.activeTexture(gl.TEXTURE14); gl.bindTexture(gl.TEXTURE_2D, shadowOn?vrGL.shadowTex:vrGL.noShadow); gl.activeTexture(gl.TEXTURE0);
+  gl.uniform2f(u.hitScale, vrGL.hitInfo?vrGL.hitW/c.width:0, vrGL.hitInfo?vrGL.hitH/c.height:0);
+  gl.uniform2f(u.shScale, shadowOn?vrGL.shW/c.width:0, shadowOn?vrGL.shH/c.height:0);
   // ensureHitTarget binds new hit textures on the active unit, which can be the sky's.
   gl.bindTexture(gl.TEXTURE_2D, tex);
   gl.drawArrays(gl.TRIANGLES, 0, 6);
@@ -454,7 +516,7 @@ function paintVR(){
     perfPass('clouds');
     vrGL.cloudFrame=(vrGL.cloudFrame||0)+1;
     if(vrGL.histKey!==EP[dIdx].key){ vrGL.histOk=false; vrGL.histKey=EP[dIdx].key; }
-    const cw=Math.max(2,Math.round(c.width*2/3)), ch=Math.max(2,Math.round(c.height*2/3));
+    const cw=Math.max(2,Math.round(c.width/2)), ch=Math.max(2,Math.round(c.height/2));
     const field=vrGL.field, cu=vrGL.cu;
     ensureCloudTarget(cw, ch);
     gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.cloudFbo);

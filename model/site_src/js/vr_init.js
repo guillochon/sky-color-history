@@ -54,8 +54,8 @@ function vrRestoreGL(gl){
 // Uniform locations, texture units, and fixed values for a sky program (boot or full).
 function setupSkyProg(gl, prog){
   gl.useProgram(prog);
-  const u=uniformLocs(gl, prog, ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','eye','nr','na','sunMu','showScn','mtnSnow','moonAz','moonEl','moonRad','moonOn','latRad','starPx','cloudCov','cloudScale','cloudDrift','cloudOn','clockH','pondN','snowCover','waterT','snOn','snDir','snCol','snLight','mlDir','mlLight','corona','coronaMap[0]','coronaRim','sunOri','sunDrift','toneU','rCd','mwOn','mwScale','mwK','mwDB','galX','galY','galZ','aurOn','haloK','haloSunLin','haloMoonLin','eclU','ringU','ringV','ringP','ringLin','metA[0]','metB[0]','metC[0]','metN','metFlash','cometH[0]','cometK[0]','cometS[0]','cometI[0]','cometN','cometComa','cometDust','cometIon','beads[0]','bodyP[0]','bodyC[0]','bodyL[0]','bodyN[0]','bodyCnt','moonGain','shadowM[0]','shadowK[0]','shadowCnt','grsDir','grsAB','refK','sunOff','sunTau[0]','sunW[0]','sunG','sunLay[0]','sunMir','pond[0]','gridN','roadN','grid[0]','road[0]','obj[0]','kind[0]']);
-  bindSamplers(gl, prog, [['sky',0],['moonMap',1],['sunMap',2],['sunMap2',8],['starMap',3],['starBin',4],['starIdx',5],['weather',7],['hitInfo',10],['hitNrm',11],['noiseTex',12],['mwTex',13],['aurTex',9],['eclTex',6]]);
+  const u=uniformLocs(gl, prog, ['res','yaw','pitch','fov','sunAz','sunEl','sunRad','sunOn','sunCol','ground','eye','nr','na','sunMu','showScn','mtnSnow','moonAz','moonEl','moonRad','moonOn','latRad','starPx','cloudCov','cloudScale','cloudDrift','cloudOn','clockH','pondN','snowCover','waterT','snOn','snDir','snCol','snLight','mlDir','mlLight','corona','coronaMap[0]','coronaRim','sunOri','sunDrift','toneU','rCd','mwOn','mwScale','mwK','mwDB','galX','galY','galZ','aurOn','haloK','haloSunLin','haloMoonLin','eclU','ringU','ringV','ringP','ringLin','metA[0]','metB[0]','metC[0]','metN','metFlash','cometH[0]','cometK[0]','cometS[0]','cometI[0]','cometN','cometComa','cometDust','cometIon','beads[0]','bodyP[0]','bodyC[0]','bodyL[0]','bodyN[0]','bodyCnt','moonGain','shadowM[0]','shadowK[0]','shadowCnt','grsDir','grsAB','refK','sunOff','sunTau[0]','sunW[0]','sunG','sunLay[0]','sunMir','pond[0]','gridN','roadN','grid[0]','road[0]','obj[0]','kind[0]','hitScale','shScale']);
+  bindSamplers(gl, prog, [['sky',0],['moonMap',1],['sunMap',2],['sunMap2',8],['starMap',3],['starBin',4],['starIdx',5],['weather',7],['hitInfo',10],['hitNrm',11],['noiseTex',12],['mwTex',13],['aurTex',9],['eclTex',6],['shadowTex',14]]);
   gl.uniform1f(u.fov, vrFov*Math.PI/180);
   gl.uniform1f(u.sunRad, SUN_RADIUS_DEG*DISK_SCALE*Math.PI/180);
   return u;
@@ -133,7 +133,7 @@ function setupVR(gl, vs, prog, skyJob, cloudJobs){
   const noHit=px=>{ const t=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 1, 1, 0, gl.RGBA, gl.FLOAT, new Float32Array(px)); return t; };
-  vrGL.noHitInfo=noHit([-1,0,1,0]); vrGL.noHitNrm=noHit([0,0,1,-1]);
+  vrGL.noHitInfo=noHit([-1,0,1,0]); vrGL.noHitNrm=noHit([0,0,1,-1]); vrGL.noShadow=noHit([1,1,1,1]);
   vrRestoreGL(gl);
   whenLinked(gl, [skyJob], fp=>{
     if(!fp||!vrGL) return;
@@ -143,7 +143,7 @@ function setupVR(gl, vs, prog, skyJob, cloudJobs){
     vrRestoreGL(gl); requestVR();
   });
   const hk=hitKeys(EP[dIdx].key);
-  compileHit(gl, hk.land); if(hk.town) compileHit(gl, hk.town);
+  compileHit(gl, hk.land); compileHit(gl, hk.shadow); if(hk.town) compileHit(gl, hk.town);
   // The aurora pass needs a float target.
   if(vrGL.hitFloat) whenLinked(gl, [glProgramAsync(gl, vs, AURFS)], ap=>{
     if(!ap||!vrGL) return;
@@ -163,22 +163,24 @@ function hitKeys(key){
   if(hitKeyCache[key]) return hitKeyCache[key];
   const z=ZONES[key]||[], k=sceneFor(key).k, has=(...kinds)=>z.some(s=>kinds.includes(s[2]));
   const tr=(has('city', 'hood')?'1':'0')+(has('hood', 'wood', 'carb', 'dead')?'1':'0');
-  return hitKeyCache[key]={land:'land'+(Array.from(k).some(v=>v>2.5&&v<3.5)?'1':'0'), town:tr==='00'?null:'town'+tr};
+  const g=Array.from(k).some(v=>v>2.5&&v<3.5)?'1':'0';
+  return hitKeyCache[key]={land:'land'+g, shadow:'shad'+g, town:tr==='00'?null:'town'+tr};
 }
 // Compile a land or town program in the background. Once the current epoch's are ready, the
 // other epochs' variants compile one at a time, so switching later is quick.
 function compileHit(gl, key){
   if(vrGL.hits[key]) return;
   vrGL.hits[key]='pending';
-  const land=key.startsWith('land'), job=glProgramAsync(gl, vrGL.vs, land?hitVariant(key[4]):townVariant(key.slice(4)));
+  const land=key.startsWith('land'), shadow=key.startsWith('shad');
+  const job=glProgramAsync(gl, vrGL.vs, land||shadow?hitVariant(key[4], shadow):townVariant(key.slice(4)));
   whenLinked(gl, [job], hp=>{
     if(!vrGL) return;
     if(!hp){ vrGL.hits[key]='failed'; return; }
-    vrGL.hits[key]={prog:hp, hu:land?setupHitProg(gl, hp):setupTownProg(gl, hp)};
+    vrGL.hits[key]={prog:hp, hu:land?setupHitProg(gl, hp):shadow?setupShadowProg(gl, hp):setupTownProg(gl, hp)};
     markSlow(job, hp, 'the landscape');
     vrRestoreGL(gl); requestVR();
     if(Object.values(vrGL.hits).includes('pending')) return;
-    const next=EP.flatMap(e=>{ const k=hitKeys(e.key); return k.town?[k.land, k.town]:[k.land]; }).find(k=>!vrGL.hits[k]);
+    const next=EP.flatMap(e=>{ const k=hitKeys(e.key); return k.town?[k.land, k.shadow, k.town]:[k.land, k.shadow]; }).find(k=>!vrGL.hits[k]);
     if(next) compileHit(gl, next);
   });
 }
@@ -188,13 +190,16 @@ function pickHit(gl){
   compileHit(gl, k.land);
   const v=vrGL.hits[k.land];
   if(v && v.prog){ vrGL.hitProg=v.prog; vrGL.hu=v.hu; }
+  compileHit(gl, k.shadow);
+  const s=vrGL.hits[k.shadow];
+  if(s && s.prog){ vrGL.shadowProg=s.prog; vrGL.su=s.hu; }
   if(!k.town){ vrGL.townProg=null; return; }
   compileHit(gl, k.town);
   const t=vrGL.hits[k.town];
   if(t && t.prog){ vrGL.townProg=t.prog; vrGL.tu2=t.hu; }
 }
 function setupTownProg(gl, tp){
-  const tu=uniformLocs(gl, tp, ['res','yaw','pitch','fov','eye','town[0]','townN']);
+  const tu=uniformLocs(gl, tp, ['res','yaw','pitch','fov','eye','town[0]','townN','landScale']);
   gl.useProgram(tp);
   bindSamplers(gl, tp, [['landInfo',10],['landNrm',11]]);
   gl.uniform1i(gl.getUniformLocation(tp,'loopPad'), 0);
@@ -210,6 +215,15 @@ function setupHitProg(gl, hp){
   gl.uniform1f(gl.getUniformLocation(hp,'hillN'), 8);
   gl.uniform1i(gl.getUniformLocation(hp,'loopPad'), 0);
   return hu;
+}
+function setupShadowProg(gl, sp){
+  const su=uniformLocs(gl, sp, ['res','yaw','pitch','fov','eye','sunAz','sunEl','obj[0]','kind[0]','hitScale']);
+  gl.useProgram(sp);
+  bindSamplers(gl, sp, [['weather',7],['hitTex',10]]);
+  gl.uniform1f(gl.getUniformLocation(sp,'scnCount'), 12);
+  gl.uniform1f(gl.getUniformLocation(sp,'hillN'), 8);
+  gl.uniform1i(gl.getUniformLocation(sp,'loopPad'), 0);
+  return su;
 }
 function setupCloudProgs(gl, cp, pp, tp, np){
   const vols=makeCloudVolumes(gl, np);
