@@ -647,13 +647,13 @@ function drawAuroraVR(gl, st, c){
   gl.bindTexture(gl.TEXTURE_2D, null);
   const f=auroraFrame(st), au=vrGL.au;
   gl.useProgram(vrGL.aurProg);
-  gl.activeTexture(gl.TEXTURE14); auroraTextures(gl, vrGL.aurStore, f.arcs, f.v);
+  gl.activeTexture(gl.TEXTURE14); auroraTextures(gl, vrGL.aurStore, f);
   gl.activeTexture(gl.TEXTURE15); gl.bindTexture(gl.TEXTURE_2D, vrGL.aurStore.aurRays);
   gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.aurFbo); gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
   gl.viewport(0, 0, w, h);
   gl.uniform2f(au.res, w, h); gl.uniform1f(au.fov, vrFov*Math.PI/180);
   gl.uniform1f(au.yaw, vrYaw*Math.PI/180); gl.uniform1f(au.pitch, vrPitch*Math.PI/180);
-  auroraSetUniforms(gl, au, st, f.t, new Float32Array(horizDir(skyNow.sunAz, 90-skyNow.sza)), f.shift);
+  auroraSetUniforms(gl, au, st, f.t, new Float32Array(horizDir(skyNow.sunAz, 90-skyNow.sza)), f);
   gl.drawArrays(gl.TRIANGLES, 0, 6);
   gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.drawBuffers([gl.BACK]); gl.viewport(0, 0, c.width, c.height);
   gl.useProgram(vrGL.prog);

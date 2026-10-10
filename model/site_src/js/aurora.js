@@ -163,8 +163,8 @@ const AUR_F=new Float64Array(AUR_N), AUR_WMID=new Float64Array(AUR_N), AUR_MLTW=
 // The arcs at real time t (seconds): per texel of longitude east of here, for each arc, its
 // offset poleward of its place in the oval (km), the offset's slope (km per degree of longitude), its
 // brightness, and how tall its rays reach.
-function auroraArcs(st, t){
-  const N=AUR_N, out=st.arcBuf||(st.arcBuf=new Float32Array(N*AUR_ARCS*4)), off=AUR_OFF;
+function auroraArcs(st, t, out=new Float32Array(AUR_N*AUR_ARCS*4)){
+  const N=AUR_N, off=AUR_OFF;
   const cosRef=Math.cos(st.refLat*Math.PI/180), C=360*KM_DEG*cosRef, dl=st.span/N;
   const cells=L=>Math.max(1, Math.round(C/L)), P1=cells(900), P2=cells(180), P3=cells(35), PE=cells(1400), PM=cells(220), PH=cells(9);
   for(let j=0;j<N;j++){
@@ -215,46 +215,55 @@ function aurRayCurve(rr){ const x=Math.min(1, Math.max(0, (rr-0.05)/0.7)); retur
 const AUR_RAY_MEAN=(()=>{ let s=0, n=0; for(let i=0;i<AUR_RAYS.length;i+=3) for(let j=0;j<AUR_RAYS.length;j+=97){ s+=aurRayCurve((0.7*AUR_RAYS[i]+0.3*AUR_RAYS[j])/255); n++; } return s/n; })();
 // Textures for the arcs and rays in a WebGL2 context; store keeps them per context. The arcs
 // are uploaded when version v is new.
-function auroraTextures(gl, store, arcs, v){
+function auroraTextures(gl, store, f){
   if(!store.aurArcs){
     const mk=()=>{ const t=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE); return t; };
     store.aurArcs=mk(); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, AUR_N, AUR_ARCS, 0, gl.RGBA, gl.FLOAT, null);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, AUR_N, 2*AUR_ARCS, 0, gl.RGBA, gl.FLOAT, null);
+    store.ids=[-1, -1];
     store.aurRays=mk(); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, 8192, 1, 0, gl.RED, gl.UNSIGNED_BYTE, AUR_RAYS);
     gl.generateMipmap(gl.TEXTURE_2D);
   }
   gl.bindTexture(gl.TEXTURE_2D, store.aurArcs);
-  if(store.v!==v){ gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, AUR_N, AUR_ARCS, gl.RGBA, gl.FLOAT, arcs); store.v=v; }
+  // Each snapshot has its slot (rows 0–3 or 4–7), uploaded once.
+  for(const s of [f.A, f.B]) if(store.ids[s.slot]!==s.id){ gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, s.slot*AUR_ARCS, AUR_N, AUR_ARCS, gl.RGBA, gl.FLOAT, s.buf); store.ids[s.slot]=s.id; }
 }
 // The arcs for now, shared by the dome and VR. Folds and brightness change over seconds, so the
-// arcs are rebuilt ten times a second; the rays move in the shader every frame (t). A playing
-// clock makes a new state every frame, so the arcs are kept by what shapes them, not by state:
-// between rebuilds the oval turns with the clock, and shift (degrees of longitude) carries the
-// arcs, built at an earlier mlt0, round with it.
-let aurFrame={t:-1, sk:'', mlt0:0, arcs:null, v:0};
+// arcs are built as snapshots a tenth of a second apart, and the shader blends the two either
+// side of now (mix), so they move smoothly; the rays move in the shader every frame (t). A
+// playing clock makes a new state every frame, so the snapshots are kept by what shapes the arcs,
+// not by state: as the oval turns with the clock, each snapshot's shift (degrees of longitude)
+// carries its arcs, built at an earlier mlt0, round with it.
+const AUR_STEP=0.1;
+let aurFrame={sk:'', k:NaN, A:null, B:null, id:0};
+function aurSnap(st, k, old){
+  const buf=old?old.buf:new Float32Array(AUR_N*AUR_ARCS*4);
+  return {id:++aurFrame.id, slot:k&1, mlt0:st.mlt0, buf:auroraArcs(st, k*AUR_STEP, buf)};
+}
 function auroraFrame(st){
-  const t=(performance.now()/1000)%21600, sk=[st.key, st.lat, st.refLat, st.span, st.seed].join('|');
-  let d=st.mlt0-aurFrame.mlt0; d=((d+12)%24+24)%24-12;
-  if(aurFrame.sk!==sk || Math.abs(aurFrame.t-t)>0.1 || Math.abs(d)>0.5){
-    if(aurFrame.arcs&&!st.arcBuf) st.arcBuf=aurFrame.arcs;
-    aurFrame={t, sk, mlt0:st.mlt0, arcs:auroraArcs(st, t), v:aurFrame.v+1}; d=0;
+  const t=(performance.now()/1000)%21600, k=Math.floor(t/AUR_STEP), sk=[st.key, st.lat, st.refLat, st.span, st.seed].join('|');
+  const F=aurFrame, wrap=d=>((d+12)%24+24)%24-12;
+  if(F.sk!==sk || !F.A || Math.abs(wrap(st.mlt0-F.A.mlt0))>0.5 || (k!==F.k && k!==F.k+1)){
+    F.A=aurSnap(st, k, F.A); F.B=aurSnap(st, k+1, F.B); F.k=k; F.sk=sk;
+  }else if(k===F.k+1){
+    const old=F.A; F.A=F.B; F.B=aurSnap(st, k+1, old); F.k=k;
   }
-  return {t, arcs:aurFrame.arcs, v:aurFrame.v, shift:d*15};
+  return {t, A:F.A, B:F.B, mix:t/AUR_STEP-k, shiftA:wrap(st.mlt0-F.A.mlt0)*15, shiftB:wrap(st.mlt0-F.B.mlt0)*15};
 }
 // Uniform locations for a program that includes AUR_GLSL.
-const AUR_UNIFORMS=['aurShift','aurRayK','aurW0','aurW1','aurRed','aurLat','aurMlt0','aurA','aurB','aurSpan','aurIv','aurDiff','aurT','aurRefLat','aurSub','aurVr','aurSpec','aurK','aurSun','aurNS'];
+const AUR_UNIFORMS=['aurShiftA','aurShiftB','aurMix','aurSlot','aurRayK','aurW0','aurW1','aurRed','aurLat','aurMlt0','aurA','aurB','aurSpan','aurIv','aurDiff','aurT','aurRefLat','aurSub','aurVr','aurSpec','aurK','aurSun','aurNS'];
 function auroraUniforms(gl, prog, arcsUnit, raysUnit){
   const u=uniformLocs(gl, prog, AUR_UNIFORMS);
   gl.useProgram(prog);
   bindSamplers(gl, prog, [['aurArcs', arcsUnit], ['aurRays', raysUnit]]);
   return u;
 }
-function auroraSetUniforms(gl, u, st, t, sunDir, shift=0){
-  gl.uniform1f(u.aurShift, shift);
+function auroraSetUniforms(gl, u, st, t, sunDir, f){
+  gl.uniform1f(u.aurShiftA, f.shiftA); gl.uniform1f(u.aurShiftB, f.shiftB); gl.uniform1f(u.aurMix, f.mix); gl.uniform1f(u.aurSlot, f.A.slot);
   // The rays' place along the arc, in turns of the ray texture (4,096 km) per hour of magnetic local
   // time, a whole number of turns round the oval.
   gl.uniform1f(u.aurRayK, Math.max(1, Math.round(360*KM_DEG*Math.cos(st.refLat*Math.PI/180)/4096))/24);
@@ -282,7 +291,9 @@ const glv=v=>v.map(x=>x.toExponential(4)).join(', ');
 const AUR_GLSL=`
 ${AIRMASS_GLSL}
 uniform sampler2D aurArcs; uniform sampler2D aurRays;
-uniform float aurShift;
+// The two arc snapshots either side of now: slot aurSlot holds the earlier, the other the
+// later, each carried round by its shift (degrees), blended by aurMix.
+uniform float aurShiftA, aurShiftB, aurMix, aurSlot;
 uniform float aurRayK, aurRed, aurLat, aurMlt0, aurA, aurB, aurW0, aurW1, aurSpan, aurIv, aurDiff, aurT, aurRefLat, aurSub, aurVr;
 uniform vec4 aurSpec, aurK;
 uniform vec3 aurSun;
@@ -306,14 +317,19 @@ float aurCirc(float a, float b){ return mod(a-b+36.0, 24.0)-12.0; }
 const float AUR_FR[4]=float[4](${AUR_ARC.map(a=>a[0].toFixed(2)).join(', ')});
 // Arc i at point P (Earth-centred km; ax the axis, m0 the meridian here): the signed distance
 // across its sheet (km), its texel a, and the point's place along the arc s (km).
+vec4 aurArc(int i, float lonD){
+  float la=lonD+aurShiftA, lb=lonD+aurShiftB, h=0.5*aurSpan, sa=aurSlot*4.0, sb=4.0-sa;
+  vec4 a=abs(la)<h?textureLod(aurArcs, vec2(la/aurSpan+0.5, (sa+float(i)+0.5)*0.125), 0.0):vec4(0.0);
+  vec4 b=abs(lb)<h?textureLod(aurArcs, vec2(lb/aurSpan+0.5, (sb+float(i)+0.5)*0.125), 0.0):vec4(0.0);
+  return mix(a, b, aurMix);
+}
 float aurArcD(int i, vec3 P, vec3 ax, vec3 m0, float cosRef, out float s, out vec4 a){
   float r=length(P), h=r-AUR_RE; vec3 n=P/r;
   float latR=asin(clamp(dot(n, ax), -1.0, 1.0));
   vec3 pp=n-ax*dot(n, ax);
   float lonD=atan(pp.x, dot(pp, m0))*57.2957795, mlt=aurMlt0+lonD/15.0, th=(mlt-12.0)*0.261799388;
   float latF=latR*57.2957795+(h-110.0)/(2.0*tan(max(latR, 0.05))*AUR_KMD);
-  float lonA=lonD+aurShift;
-  a=abs(lonA)<0.5*aurSpan?textureLod(aurArcs, vec2(lonA/aurSpan+0.5, (float(i)+0.5)*0.25), 0.0):vec4(0.0);
+  a=aurArc(i, lonD);
   float slope=(-(aurB+AUR_FR[i]*aurW1)*sin(th)*0.0174532925*AUR_KMD+a.g)/(AUR_KMD*max(cos(latR), 0.02));
   s=mlt*aurRayK;
   return ((latF-aurA-aurB*cos(th)-AUR_FR[i]*(aurW0+aurW1*cos(th)))*AUR_KMD-a.r)*inversesqrt(1.0+slope*slope);
@@ -358,8 +374,6 @@ vec4 auroraSpecies(vec3 rd, float pxAng){
     // The foot of this point's field line, at 110 km.
     float latF=lat+(h-110.0)/(2.0*tan(max(latR, 0.05))*AUR_KMD);
     float cusp=exp(-0.5*pow(aurCirc(mlt, 12.0)/2.2, 2.0));
-    float u=(lonD+aurShift)/aurSpan+0.5;
-    bool inWin=abs(lonD+aurShift)<0.5*aurSpan;
     float sKm=mlt*aurRayK;
     // A pixel's footprint along the arc, longer where the view runs along it, sets the rays' blur.
     float lodR=log2(max(t*pxAng/(0.5*max(length(cross(rd, normalize(cross(ax, n)))), 0.03)), 1.0));
@@ -367,7 +381,7 @@ vec4 auroraSpecies(vec3 rd, float pxAng){
     sunUp*=smoothstep(130.0, 220.0, hm);
     float hb=108.0-6.0*aurSub+45.0*cusp;
     for(int i=0;i<4;i++){
-      vec4 a=inWin?textureLod(aurArcs, vec2(u, (float(i)+0.5)*0.25), 0.0):vec4(0.0);
+      vec4 a=aurArc(i, lonD);
       float slope=((dlc+AUR_FR[i]*dhw)*AUR_KMD+a.g)/kmLon;
       float d=((latF-lc-AUR_FR[i]*hw)*AUR_KMD-a.r)*inversesqrt(1.0+slope*slope);
       if(k>0 && a.b>0.001 && (min(abs(d), abs(dPrev[i]))<110.0 || d*dPrev[i]<0.0)){
@@ -525,9 +539,9 @@ function auroraProbeDraw(gl, store, st, dir){
   }
   const pr=store.probe, f=auroraFrame(st);
   gl.useProgram(pr.p);
-  gl.activeTexture(gl.TEXTURE14); auroraTextures(gl, store, f.arcs, f.v);
+  gl.activeTexture(gl.TEXTURE14); auroraTextures(gl, store, f);
   gl.activeTexture(gl.TEXTURE15); gl.bindTexture(gl.TEXTURE_2D, store.aurRays);
-  auroraSetUniforms(gl, pr.u, st, f.t, new Float32Array(horizDir(skyNow.sunAz, 90-skyNow.sza)), f.shift);
+  auroraSetUniforms(gl, pr.u, st, f.t, new Float32Array(horizDir(skyNow.sunAz, 90-skyNow.sza)), f);
   gl.uniform3fv(pr.dir, new Float32Array(dir));
   gl.bindFramebuffer(gl.FRAMEBUFFER, pr.fb); gl.viewport(0, 0, 1, 1);
   if(gl.drawBuffers) gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
@@ -595,13 +609,13 @@ function drawDomeAurora(){
   const gl=domeAur.gl, st=skyNow&&skyNow.aur; if(!gl||!st||!st.on) return;
   const c=domeAur.canvas, u=domeAur.u, f=auroraFrame(st);
   gl.viewport(0, 0, c.width, c.height); gl.useProgram(domeAur.prog);
-  gl.activeTexture(gl.TEXTURE2); auroraTextures(gl, domeAur.store, f.arcs, f.v);
+  gl.activeTexture(gl.TEXTURE2); auroraTextures(gl, domeAur.store, f);
   gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, domeAur.store.aurRays);
   gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, domeAur.domeTex);
   gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, domeAur.skyTex);
   gl.uniform2f(u.res, c.width, c.height); const v=domeView(); gl.uniform3f(u.view, v.cx, c.height-v.cy, v.R); gl.uniform1f(u.nr, domeAur.nr); gl.uniform1f(u.na, domeAur.na);
   gl.uniform4f(u.toneU, skyNow.toneK, skyNow.toneP, 0.95, TOE_CD); gl.uniform1f(u.rCd, skyNow.rCd);
-  auroraSetUniforms(gl, u, st, f.t, new Float32Array(horizDir(skyNow.sunAz, 90-skyNow.sza)), f.shift);
+  auroraSetUniforms(gl, u, st, f.t, new Float32Array(horizDir(skyNow.sunAz, 90-skyNow.sza)), f);
   gl.drawArrays(gl.TRIANGLES, 0, 6);
 }
 // Keep the dome's aurora moving at about 30 frames a second while it can be seen.
