@@ -28,7 +28,7 @@ function placeStars(lat){
   placePlanets(lat, marks, bodies, epochKey, year, LST);
   if(epochKey==='y2100') placeSatellites(lat, tex, marks, up);
   // The cube cells are for the VR sky shader only.
-  const bins=vrOn?starBinsFor(up):{info:null, idx:null, count:0};
+  const bins=vrOn?starBinsFor(up, tex):{info:null, idx:null, count:0};
   return {tex, marks, bodies, bins:bins.info, idx:bins.idx, idxCount:bins.count};
 }
 // Sky luminance ratio at (el, az), interpolated in log from the dome grid (skyNow.rgrid, rows

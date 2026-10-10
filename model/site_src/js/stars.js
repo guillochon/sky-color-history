@@ -123,14 +123,17 @@ function starTypeLabel(t){
   const [sp, lum]=t.split(' ');
   return sp+' '+(STAR_LUM_WORD[lum]||'star');
 }
-function starBinsFor(up){
+// Each cell's stars are written into idx whole, two texels apiece (the star map's two rows:
+// direction and size, then colour and magnitude), so the sky shader reads a star where it
+// would otherwise read its index and then the star.
+function starBinsFor(up, tex){
   const pxMax=STAR_PX_ANCHOR*Math.pow(42, 0.22);
   const sig=pxMax*(VR_FOV_MAX*Math.PI/180)/Math.max(window.innerHeight, 1);
   const cutoff=Math.acos(Math.max(-1, Math.min(1, 1-8*sig*sig)))*180/Math.PI;
   const infl=Math.min(12, cutoff+0.8);
   const cosKeep=Math.cos((STAR_CELL_HD+infl)*Math.PI/180);
   const lists=Array.from({length:STAR_CELLS}, ()=>[]);
-  const cap=STAR_IDX_W*32;
+  const cap=STAR_IDX_W*32/2;
   let used=0;
   for(const s of up){
     for(let c=0;c<STAR_CELLS;c++){
@@ -148,8 +151,9 @@ function starBinsFor(up){
     const bin=lists[c], x=c%64, y=(c/64)|0, q=(y*64+x)*4;
     info[q]=cursor; info[q+1]=bin.length;
     for(let k=0;k<bin.length;k++){
-      const t=cursor+k, tx=t%STAR_IDX_W, ty=(t/STAR_IDX_W)|0;
-      idx[(ty*STAR_IDX_W+tx)*4]=bin[k];
+      const t=(cursor+k)*2, si=bin[k];
+      idx.set(tex.subarray(si*4, si*4+4), t*4);
+      idx.set(tex.subarray((STAR_MAP_W+si)*4, (STAR_MAP_W+si)*4+4), (t+1)*4);
     }
     cursor+=bin.length;
   }

@@ -4,7 +4,7 @@ precision highp float;
 // while the full program compiles in the background.
 #define SCENERY 1
 uniform sampler2D noiseTex;
-uniform sampler2D sky; uniform sampler2D moonMap; uniform sampler2D starMap; uniform sampler2D starBin; uniform sampler2D starIdx; uniform sampler2D weather; uniform sampler2D hitInfo; uniform sampler2D hitNrm; uniform sampler2D shadowTex; uniform vec2 hitScale, shScale; uniform vec2 res;
+uniform sampler2D sky; uniform sampler2D moonMap; uniform sampler2D starMap; uniform sampler2D starBin; uniform sampler2D starIdx; uniform sampler2D weather; uniform sampler2D hitInfo; uniform sampler2D hitNrm; uniform sampler2D shadowTex; uniform vec2 hitScale, shScale; uniform sampler2D roadCells; uniform vec4 roadBox; uniform vec2 roadDim; uniform vec2 res;
 uniform float yaw,pitch,fov,sunAz,sunEl,sunRad,sunOn,nr,na,sunMu,showScn,mtnSnow;
 uniform float moonAz,moonEl,moonRad,moonOn,latRad,starPx,cloudCov,cloudScale,cloudDrift,cloudOn,clockH,snowCover,waterT,snOn;
 uniform vec3 snDir,snCol,snLight,mlDir,mlLight;
@@ -129,6 +129,12 @@ float groundMottle(vec2 p, float foot){
 }
 // Roads (roads.js). x: how far outside the paving p is, in metres. y: 1 on a road's dashed centre
 // line. grid[i] is a town's (centre, radius, type), road[i] a segment between towns.
+void roadSeg(vec2 p, vec4 r, float foot, inout float d, inout float line){
+  vec2 pa=p-r.xy, ba=r.zw-r.xy;
+  if(abs(pa.x-ba.x*0.5)>abs(ba.x)*0.5+4.0 || abs(pa.y-ba.y*0.5)>abs(ba.y)*0.5+4.0) return;
+  float len=length(ba), h=clamp(dot(pa, ba)/(len*len), 0.0, 1.0), e=length(pa-ba*h)-3.4;
+  if(e<d){ d=e; line=(1.0-smoothstep(0.08, 0.08+foot, abs(e+3.4)))*step(fract(h*len/9.0), 0.4); }
+}
 vec2 roadAt(vec2 p, float foot){
   float d=1e4, line=0.0;
   for(int i=0;i<int(gridN);i++){
@@ -137,13 +143,21 @@ vec2 roadAt(vec2 p, float foot){
     vec2 sp=g.w<1.5?vec2(42.0):vec2(48.0, 120.0), s=abs(p-sp*floor(p/sp+0.5));
     d=min(d, min(s.x, s.y)-2.4);
   }
-  for(int i=0;i<int(roadN);i++){
-    vec4 r=road[i];
-    vec2 pa=p-r.xy, ba=r.zw-r.xy;
-    if(abs(pa.x-ba.x*0.5)>abs(ba.x)*0.5+4.0 || abs(pa.y-ba.y*0.5)>abs(ba.y)*0.5+4.0) continue;
-    float len=length(ba), h=clamp(dot(pa, ba)/(len*len), 0.0, 1.0), e=length(pa-ba*h)-3.4;
-    if(e<d){ d=e; line=(1.0-smoothstep(0.08, 0.08+foot, abs(e+3.4)))*step(fract(h*len/9.0), 0.4); }
+  if(roadN<0.5) return vec2(d, line);
+  // The cell's list (roads.js roadCellsFor), unless the footprint is too wide for it or the cell overflowed.
+  bool all=roadBox.w<0.5 || foot>64.0; // ROAD_FOOT
+  if(!all){
+    vec2 c=(p-roadBox.xy)/roadBox.z;
+    if(c.x<0.0||c.y<0.0||c.x>=roadDim.x||c.y>=roadDim.y) return vec2(d, line);
+    ivec2 ci=ivec2(c);
+    vec4 s0=texelFetch(roadCells, ivec2(ci.x*2, ci.y), 0)*255.0, s1=texelFetch(roadCells, ivec2(ci.x*2+1, ci.y), 0)*255.0;
+    if(s0.x>254.5) all=true;
+    else {
+      float sl[8]=float[8](s0.x, s0.y, s0.z, s0.w, s1.x, s1.y, s1.z, s1.w);
+      for(int k=0;k<8;k++){ int i=int(sl[k]+0.5)-1; if(i<0) break; roadSeg(p, road[i], foot, d, line); }
+    }
   }
+  if(all) for(int i=0;i<int(roadN);i++) roadSeg(p, road[i], foot, d, line);
   return vec2(d, line);
 }
 float massifRad(float R, float volc){ return volc>1.5?R*1.08:R*mix(1.28, 1.12, volc); }
@@ -353,6 +367,9 @@ void main(){
   float comp=atan(rd.x, rd.y); if(comp<0.0) comp+=6.28318530718;
   float elevDeg=asin(clamp(rd.z,-1.0,1.0))*57.2957795;
   float compDeg=comp*57.2957795;
+  // The width of the blend from ground to sky at the horizon, taken here where every pixel runs
+  // it, so the derivative is defined; below it the sky's work is skipped (its colour is unused).
+  float hw=max(fwidth(elevDeg),0.04);
   float sunA=sunAz*0.01745329252;
   vec3 sd=azElDir(sunAz, sunEl);
   ivec2 hp=ivec2(gl_FragCoord.xy*hitScale);
@@ -633,6 +650,8 @@ void main(){
     vec3 skyC=texture(sky, vec2(uTex, vTex)).rgb;
     float fog=1.0-exp(-tLand/18000.0);
     col=mix(gcol, skyC, clamp(fog, 0.0, 0.82));
+  }else if(elevDeg<=-hw){
+    col=gcol;
   }else{
     float uTex=(fract(compDeg/360.0)*na+0.5)/(na+1.0);
     float vTex=((90.0-max(elevDeg,0.0))/90.0*nr+0.5)/(nr+1.0);
@@ -809,9 +828,10 @@ void main(){
         int start=int(info.r+0.5), count=int(info.g+0.5);
         for(int k=0;k<96;k++){
           if(k>=count) break;
-          int id=start+k;
-          int si=int(texelFetch(starIdx, ivec2(id- (id/1024)*1024, id/1024), 0).r+0.5);
-          vec4 sp=texelFetch(starMap, ivec2(si, 0), 0);
+          // Two texels a star (stars.js starBinsFor): direction and size, then colour and magnitude.
+          int id=(start+k)*2;
+          ivec2 at=ivec2(id- (id/1024)*1024, id/1024);
+          vec4 sp=texelFetch(starIdx, at, 0);
           if(sp.w<=0.0) continue;
           // No narrower than about half a screen pixel, so a faint star does not shimmer as the view turns.
           float sig=max(sp.w*starPx, sigMin);
@@ -820,7 +840,7 @@ void main(){
           vec3 dd=src-sp.xyz; float d2=dot(dd, dd);
           if(d2>16.0*sig*sig) continue;
           float wgt=exp(-0.5*d2/(sig*sig));
-          vec4 sc=texelFetch(starMap, ivec2(si, 1), 0);
+          vec4 sc=texelFetch(starIdx, at+ivec2(1, 0), 0);
           skyC+=sc.rgb*wgt*(1.0-smoothstep(lim-0.8, lim+0.2, sc.a+dm))*dim;
         }
       }
@@ -886,8 +906,7 @@ void main(){
       }
     }
     if(metN>0.5 && te>-0.5) skyC=meteorsAt(skyC+metFlash, src, onBody);
-    float w=max(fwidth(elevDeg),0.04);
-    col=mix(gcol, skyC, smoothstep(-w,w,elevDeg));
+    col=mix(gcol, skyC, smoothstep(-hw,hw,elevDeg));
   }
   fragColor=vec4(col,1.0);
 }`;

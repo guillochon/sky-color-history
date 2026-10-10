@@ -148,3 +148,35 @@ function roadsFor(o, k, t, tn){
   }
   return out;
 }
+// The road segments near each 16 m cell, so the sky shader tests a few rather than all of them.
+// A segment is listed for a cell when it passes within ROAD_REACH of it: the paving and its
+// centre line reach no further than half a pixel's footprint past the 3.4 m half-width, so the
+// lists hold every road that can show on the ground in a cell while the footprint is under
+// ROAD_FOOT; past that (at the horizon) the shader tests them all. Each cell has eight slots,
+// two RGBA8 texels, holding segment index + 1 in index order (0 ends the list); a cell with more
+// than eight is marked 255 and tests them all.
+const ROAD_CELL=16, ROAD_FOOT=64, ROAD_REACH=ROAD_HW+0.5*ROAD_FOOT+4;
+function roadCellsFor(sc){
+  if(sc.cells!==undefined) return sc.cells;
+  if(!sc.rn) return sc.cells=null;
+  const C=ROAD_CELL, pad=ROAD_REACH+C;
+  let x0=Infinity, y0=Infinity, x1=-Infinity, y1=-Infinity;
+  for(let i=0;i<sc.rn;i++){ const r=sc.r.subarray(i*4, i*4+4); x0=Math.min(x0, r[0], r[2]); x1=Math.max(x1, r[0], r[2]); y0=Math.min(y0, r[1], r[3]); y1=Math.max(y1, r[1], r[3]); }
+  x0=Math.floor((x0-pad)/C)*C; y0=Math.floor((y0-pad)/C)*C;
+  const W=Math.ceil((x1+pad-x0)/C), H=Math.ceil((y1+pad-y0)/C), data=new Uint8Array(W*2*H*4), n=new Uint8Array(W*H);
+  const lim=ROAD_REACH+C*Math.SQRT1_2+0.5;
+  for(let i=0;i<sc.rn;i++){
+    const ax=sc.r[i*4], ay=sc.r[i*4+1], bx=sc.r[i*4+2], by=sc.r[i*4+3], dx=bx-ax, dy=by-ay, l2=Math.max(dx*dx+dy*dy, 1e-9);
+    const i0=Math.max(0, Math.floor((Math.min(ax, bx)-lim-x0)/C)), i1=Math.min(W-1, Math.floor((Math.max(ax, bx)+lim-x0)/C));
+    const j0=Math.max(0, Math.floor((Math.min(ay, by)-lim-y0)/C)), j1=Math.min(H-1, Math.floor((Math.max(ay, by)+lim-y0)/C));
+    for(let j=j0;j<=j1;j++) for(let c=i0;c<=i1;c++){
+      const px=x0+(c+0.5)*C-ax, py=y0+(j+0.5)*C-ay, h=Math.max(0, Math.min(1, (px*dx+py*dy)/l2));
+      if(Math.hypot(px-dx*h, py-dy*h)>lim) continue;
+      const cell=j*W+c, k=n[cell];
+      if(k===255) continue;
+      if(k>=8){ n[cell]=255; data[(j*W*2+c*2)*4]=255; continue; }
+      data[(j*W*2+c*2+(k>>2))*4+(k&3)]=i+1; n[cell]=k+1;
+    }
+  }
+  return sc.cells={data, W, H, x0, y0};
+}

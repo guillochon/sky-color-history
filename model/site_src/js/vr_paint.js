@@ -229,6 +229,20 @@ function ensureShadowTarget(w, h){
   vrGL.shW=w; vrGL.shH=h; vrGL.shadowKey='';
   return vrGL.shadowOk;
 }
+// The road cells (roads.js roadCellsFor) for the epoch's scene, uploaded when the scene changes.
+function syncRoadCells(gl, sc){
+  const rc=roadCellsFor(sc);
+  if(!rc) return null;
+  if(vrGL.roadFor!==rc){
+    gl.activeTexture(gl.TEXTURE15);
+    if(!vrGL.roadTex){ vrGL.roadTex=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, vrGL.roadTex); texParams(gl, gl.NEAREST, gl.NEAREST, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE); }
+    else gl.bindTexture(gl.TEXTURE_2D, vrGL.roadTex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, rc.W*2, rc.H, 0, gl.RGBA, gl.UNSIGNED_BYTE, rc.data);
+    gl.activeTexture(gl.TEXTURE0);
+    vrGL.roadFor=rc;
+  }
+  return rc;
+}
 // The land pass draws at no more than this many pixels per CSS pixel; the town pass, whose
 // edges are sharp, stays at the canvas's.
 const TERRAIN_DPR=1.5;
@@ -387,11 +401,10 @@ function paintVR(){
   gl.uniform1f(u.starPx, 0.35*(vrFov*Math.PI/180)/Math.max(window.innerHeight,1));
   uploadBodies(gl, u);
   if(skyNow.stars && vrGL.starTex && vrGL.starUploaded!==skyNow.gen){
-    gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, vrGL.starTex);
-    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, STAR_MAP_W, 2, gl.RGBA, gl.FLOAT, skyNow.stars);
+    // The stars themselves travel in their cells' lists (stars.js starBinsFor).
     gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, vrGL.starBinTex);
     gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 64, 6, gl.RGBA, gl.FLOAT, skyNow.starBins);
-    const rows=Math.max(1, Math.ceil(skyNow.starIdxCount/1024));
+    const rows=Math.max(1, Math.ceil(skyNow.starIdxCount*2/1024));
     gl.activeTexture(gl.TEXTURE5); gl.bindTexture(gl.TEXTURE_2D, vrGL.starIdxTex);
     gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 1024, rows, gl.RGBA, gl.FLOAT, skyNow.starIdx.subarray(0, 1024*rows*4));
     gl.activeTexture(gl.TEXTURE0);
@@ -504,7 +517,10 @@ function paintVR(){
   gl.uniform1f(u.cometN, cu.n);
   if(cu.n){ const cl=cometLin(); gl.uniform4fv(u.cometH, cu.H); gl.uniform4fv(u.cometK, cu.K); gl.uniform4fv(u.cometS, cu.S); gl.uniform4fv(u.cometI, cu.I); gl.uniform3fv(u.cometComa, cl.coma); gl.uniform3fv(u.cometDust, cl.dust); gl.uniform3fv(u.cometIon, cl.ion); }
   gl.activeTexture(gl.TEXTURE10); gl.bindTexture(gl.TEXTURE_2D, vrGL.hitInfo||vrGL.noHitInfo); gl.activeTexture(gl.TEXTURE11); gl.bindTexture(gl.TEXTURE_2D, vrGL.hitInfo?vrGL.hitNrm:vrGL.noHitNrm);
-  gl.activeTexture(gl.TEXTURE14); gl.bindTexture(gl.TEXTURE_2D, shadowOn?vrGL.shadowTex:vrGL.noShadow); gl.activeTexture(gl.TEXTURE0);
+  gl.activeTexture(gl.TEXTURE14); gl.bindTexture(gl.TEXTURE_2D, shadowOn?vrGL.shadowTex:vrGL.noShadow);
+  const rc=syncRoadCells(gl, sc);
+  gl.activeTexture(gl.TEXTURE15); gl.bindTexture(gl.TEXTURE_2D, rc?vrGL.roadTex:vrGL.noShadow); gl.activeTexture(gl.TEXTURE0);
+  gl.uniform4f(u.roadBox, rc?rc.x0:0, rc?rc.y0:0, ROAD_CELL, rc?1:0); gl.uniform2f(u.roadDim, rc?rc.W:0, rc?rc.H:0);
   gl.uniform2f(u.hitScale, vrGL.hitInfo?vrGL.hitW/c.width:0, vrGL.hitInfo?vrGL.hitH/c.height:0);
   gl.uniform2f(u.shScale, shadowOn?vrGL.shW/c.width:0, shadowOn?vrGL.shH/c.height:0);
   // ensureHitTarget binds new hit textures on the active unit, which can be the sky's.
@@ -663,8 +679,15 @@ function drawAuroraVR(gl, st, c){
 // The planets and moons (planets.js placePlanets) into the sky shader's bodies, at the Sun's and
 // Moon's enlargement, and the moons' shadows on them.
 const BODY_U={P:new Float32Array(BODY_MAX*4), C:new Float32Array(BODY_MAX*4), L:new Float32Array(BODY_MAX*4), N:new Float32Array(BODY_MAX*4), M:new Float32Array(SHADOW_MAX*4), K:new Float32Array(SHADOW_MAX*4)};
+// Only those whose disk, rings or glow can reach the screen: the rest would cost every sky pixel
+// a pass of the loop for nothing. The margin covers refraction (the shader places bodies by true
+// altitude) and a star's four-sigma glow.
 function uploadBodies(gl, u){
-  const list=(skyNow.bodies||[]).slice(0, BODY_MAX), {P, C, L, N}=BODY_U;
+  const c=gl.canvas, fy=Math.tan(vrFov*Math.PI/360), fx=fy*c.width/Math.max(c.height, 1);
+  const edge=Math.atan(Math.hypot(fx, fy)), yw=vrYaw*Math.PI/180, pt=vrPitch*Math.PI/180;
+  const fwd=[Math.sin(yw)*Math.cos(pt), Math.cos(yw)*Math.cos(pt), Math.sin(pt)];
+  const onScreen=b=>b.dir[0]*fwd[0]+b.dir[1]*fwd[1]+b.dir[2]*fwd[2]>Math.cos(Math.min(edge+b.rad*DISK_SCALE*2.3+0.03, Math.PI));
+  const list=(skyNow.bodies||[]).filter(onScreen).slice(0, BODY_MAX), {P, C, L, N}=BODY_U;
   list.forEach((b, i)=>{
     const o=i*4;
     P.set(b.dir, o); P[o+3]=b.rad*DISK_SCALE;
