@@ -518,17 +518,19 @@ function paintVR(){
     if(vrGL.histKey!==EP[dIdx].key){ vrGL.histOk=false; vrGL.histKey=EP[dIdx].key; }
     const cw=Math.max(2,Math.round(c.width/2)), ch=Math.max(2,Math.round(c.height/2));
     const field=vrGL.field, cu=vrGL.cu;
-    ensureCloudTarget(cw, ch);
+    // A checkerboard needs the temporal pass to fill in the pixels a frame leaves out.
+    ensureCloudTarget(cw, ch, !!vrGL.tempProg);
+    const cb=vrGL.cloudCB, par=vrGL.cloudFrame&1;
     gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.cloudFbo);
     gl.drawBuffers(vrGL.cloudMRT?[gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]:[gl.COLOR_ATTACHMENT0]);
-    gl.viewport(0,0,cw,ch); gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.viewport(0,0,vrGL.cloudMW,ch); gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT);
     gl.useProgram(vrGL.cloudProg); gl.uniform1f(cu.fov, vrFov*Math.PI/180);
     gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_3D, vrGL.noise);
     gl.activeTexture(gl.TEXTURE6); gl.bindTexture(gl.TEXTURE_3D, vrGL.noiseDetail);
     gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, vrGL.weather);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex);
     if(vrGL.hitInfo){ gl.activeTexture(gl.TEXTURE10); gl.bindTexture(gl.TEXTURE_2D, vrGL.hitInfo); gl.activeTexture(gl.TEXTURE0); }
-    gl.uniform2f(cu.res, cw, ch);
+    gl.uniform2f(cu.res, cw, ch); gl.uniform1f(cu.cbOn, cb?1:0); gl.uniform1f(cu.cbPar, par);
     gl.uniform1f(cu.yaw, vrYaw*Math.PI/180); gl.uniform1f(cu.pitch, vrPitch*Math.PI/180);
     gl.uniform3f(cu.eye, vrX, vrY, ez);
     gl.uniform1f(cu.sunAz, skyNow.sunAz); gl.uniform1f(cu.sunEl, 90-skyNow.sza);
@@ -556,7 +558,8 @@ function paintVR(){
       gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.accumFbo);
       gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
       gl.useProgram(vrGL.tempProg);
-      const tu=vrGL.tu; gl.uniform1f(tu.fov, vrFov*Math.PI/180);
+      gl.viewport(0,0,cw,ch);
+      const tu=vrGL.tu; gl.uniform1f(tu.fov, vrFov*Math.PI/180); gl.uniform1f(tu.cbOn, cb?1:0); gl.uniform1f(tu.cbPar, par);
       // A zoom changes the projection, so the history can't be reprojected.
       if(vrGL.histFov!==vrFov){ vrGL.histFov=vrFov; vrGL.histOk=false; }
       gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, vrGL.cloudTex);
@@ -581,8 +584,9 @@ function paintVR(){
     }
     if(vrLabels){ perfBeg('cloud mask'); readCloudMask(shown===vrGL.accumTex?vrGL.accumFbo:vrGL.cloudFbo); perfEnd('cloud mask'); }
     vrGL.prevYaw=vrYaw*Math.PI/180; vrGL.prevPitch=vrPitch*Math.PI/180; vrGL.prevEyeX=vrX; vrGL.prevEyeY=vrY; vrGL.prevEyeZ=ez;
-    // The march is jittered per frame; repaint a few times after the view settles so it converges.
-    if(viewKey!==vrGL.settleKey){ vrGL.settleKey=viewKey; vrGL.settle=48; }
+    // The march is jittered per frame; repaint a few times after the view settles so it converges,
+    // twice as many with a checkerboard, which marches each pixel every other frame.
+    if(viewKey!==vrGL.settleKey){ vrGL.settleKey=viewKey; vrGL.settle=cb?96:48; }
     if(vrGL.settle>0){ vrGL.settle--; requestVR(); }
     perfPass('composite');
     gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.drawBuffers([gl.BACK]); gl.viewport(0,0,c.width,c.height);
@@ -649,7 +653,7 @@ function drawAuroraVR(gl, st, c){
   gl.viewport(0, 0, w, h);
   gl.uniform2f(au.res, w, h); gl.uniform1f(au.fov, vrFov*Math.PI/180);
   gl.uniform1f(au.yaw, vrYaw*Math.PI/180); gl.uniform1f(au.pitch, vrPitch*Math.PI/180);
-  auroraSetUniforms(gl, au, st, f.t, new Float32Array(horizDir(skyNow.sunAz, 90-skyNow.sza)));
+  auroraSetUniforms(gl, au, st, f.t, new Float32Array(horizDir(skyNow.sunAz, 90-skyNow.sza)), f.shift);
   gl.drawArrays(gl.TRIANGLES, 0, 6);
   gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.drawBuffers([gl.BACK]); gl.viewport(0, 0, c.width, c.height);
   gl.useProgram(vrGL.prog);

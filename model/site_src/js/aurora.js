@@ -231,22 +231,30 @@ function auroraTextures(gl, store, arcs, v){
   if(store.v!==v){ gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, AUR_N, AUR_ARCS, gl.RGBA, gl.FLOAT, arcs); store.v=v; }
 }
 // The arcs for now, shared by the dome and VR. Folds and brightness change over seconds, so the
-// arcs are rebuilt ten times a second; the rays move in the shader every frame (t).
-let aurFrame={t:-1, st:null, arcs:null, v:0};
+// arcs are rebuilt ten times a second; the rays move in the shader every frame (t). A playing
+// clock makes a new state every frame, so the arcs are kept by what shapes them, not by state:
+// between rebuilds the oval turns with the clock, and shift (degrees of longitude) carries the
+// arcs, built at an earlier mlt0, round with it.
+let aurFrame={t:-1, sk:'', mlt0:0, arcs:null, v:0};
 function auroraFrame(st){
-  const t=(performance.now()/1000)%21600;
-  if(aurFrame.st!==st || Math.abs(aurFrame.t-t)>0.1){ aurFrame={t, st, arcs:auroraArcs(st, t), v:aurFrame.v+1}; }
-  return {t, arcs:aurFrame.arcs, v:aurFrame.v};
+  const t=(performance.now()/1000)%21600, sk=[st.key, st.lat, st.refLat, st.span, st.seed].join('|');
+  let d=st.mlt0-aurFrame.mlt0; d=((d+12)%24+24)%24-12;
+  if(aurFrame.sk!==sk || Math.abs(aurFrame.t-t)>0.1 || Math.abs(d)>0.5){
+    if(aurFrame.arcs&&!st.arcBuf) st.arcBuf=aurFrame.arcs;
+    aurFrame={t, sk, mlt0:st.mlt0, arcs:auroraArcs(st, t), v:aurFrame.v+1}; d=0;
+  }
+  return {t, arcs:aurFrame.arcs, v:aurFrame.v, shift:d*15};
 }
 // Uniform locations for a program that includes AUR_GLSL.
-const AUR_UNIFORMS=['aurRayK','aurW0','aurW1','aurRed','aurLat','aurMlt0','aurA','aurB','aurSpan','aurIv','aurDiff','aurT','aurRefLat','aurSub','aurVr','aurSpec','aurK','aurSun','aurNS'];
+const AUR_UNIFORMS=['aurShift','aurRayK','aurW0','aurW1','aurRed','aurLat','aurMlt0','aurA','aurB','aurSpan','aurIv','aurDiff','aurT','aurRefLat','aurSub','aurVr','aurSpec','aurK','aurSun','aurNS'];
 function auroraUniforms(gl, prog, arcsUnit, raysUnit){
   const u=uniformLocs(gl, prog, AUR_UNIFORMS);
   gl.useProgram(prog);
   bindSamplers(gl, prog, [['aurArcs', arcsUnit], ['aurRays', raysUnit]]);
   return u;
 }
-function auroraSetUniforms(gl, u, st, t, sunDir){
+function auroraSetUniforms(gl, u, st, t, sunDir, shift=0){
+  gl.uniform1f(u.aurShift, shift);
   // The rays' place along the arc, in turns of the ray texture (4,096 km) per hour of magnetic local
   // time, a whole number of turns round the oval.
   gl.uniform1f(u.aurRayK, Math.max(1, Math.round(360*KM_DEG*Math.cos(st.refLat*Math.PI/180)/4096))/24);
@@ -274,6 +282,7 @@ const glv=v=>v.map(x=>x.toExponential(4)).join(', ');
 const AUR_GLSL=`
 ${AIRMASS_GLSL}
 uniform sampler2D aurArcs; uniform sampler2D aurRays;
+uniform float aurShift;
 uniform float aurRayK, aurRed, aurLat, aurMlt0, aurA, aurB, aurW0, aurW1, aurSpan, aurIv, aurDiff, aurT, aurRefLat, aurSub, aurVr;
 uniform vec4 aurSpec, aurK;
 uniform vec3 aurSun;
@@ -303,7 +312,8 @@ float aurArcD(int i, vec3 P, vec3 ax, vec3 m0, float cosRef, out float s, out ve
   vec3 pp=n-ax*dot(n, ax);
   float lonD=atan(pp.x, dot(pp, m0))*57.2957795, mlt=aurMlt0+lonD/15.0, th=(mlt-12.0)*0.261799388;
   float latF=latR*57.2957795+(h-110.0)/(2.0*tan(max(latR, 0.05))*AUR_KMD);
-  a=abs(lonD)<0.5*aurSpan?textureLod(aurArcs, vec2(lonD/aurSpan+0.5, (float(i)+0.5)*0.25), 0.0):vec4(0.0);
+  float lonA=lonD+aurShift;
+  a=abs(lonA)<0.5*aurSpan?textureLod(aurArcs, vec2(lonA/aurSpan+0.5, (float(i)+0.5)*0.25), 0.0):vec4(0.0);
   float slope=(-(aurB+AUR_FR[i]*aurW1)*sin(th)*0.0174532925*AUR_KMD+a.g)/(AUR_KMD*max(cos(latR), 0.02));
   s=mlt*aurRayK;
   return ((latF-aurA-aurB*cos(th)-AUR_FR[i]*(aurW0+aurW1*cos(th)))*AUR_KMD-a.r)*inversesqrt(1.0+slope*slope);
@@ -348,8 +358,8 @@ vec4 auroraSpecies(vec3 rd, float pxAng){
     // The foot of this point's field line, at 110 km.
     float latF=lat+(h-110.0)/(2.0*tan(max(latR, 0.05))*AUR_KMD);
     float cusp=exp(-0.5*pow(aurCirc(mlt, 12.0)/2.2, 2.0));
-    float u=lonD/aurSpan+0.5;
-    bool inWin=abs(lonD)<0.5*aurSpan;
+    float u=(lonD+aurShift)/aurSpan+0.5;
+    bool inWin=abs(lonD+aurShift)<0.5*aurSpan;
     float sKm=mlt*aurRayK;
     // A pixel's footprint along the arc, longer where the view runs along it, sets the rays' blur.
     float lodR=log2(max(t*pxAng/(0.5*max(length(cross(rd, normalize(cross(ax, n)))), 0.03)), 1.0));
@@ -517,7 +527,7 @@ function auroraProbeDraw(gl, store, st, dir){
   gl.useProgram(pr.p);
   gl.activeTexture(gl.TEXTURE14); auroraTextures(gl, store, f.arcs, f.v);
   gl.activeTexture(gl.TEXTURE15); gl.bindTexture(gl.TEXTURE_2D, store.aurRays);
-  auroraSetUniforms(gl, pr.u, st, f.t, new Float32Array(horizDir(skyNow.sunAz, 90-skyNow.sza)));
+  auroraSetUniforms(gl, pr.u, st, f.t, new Float32Array(horizDir(skyNow.sunAz, 90-skyNow.sza)), f.shift);
   gl.uniform3fv(pr.dir, new Float32Array(dir));
   gl.bindFramebuffer(gl.FRAMEBUFFER, pr.fb); gl.viewport(0, 0, 1, 1);
   if(gl.drawBuffers) gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
@@ -591,7 +601,7 @@ function drawDomeAurora(){
   gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, domeAur.skyTex);
   gl.uniform2f(u.res, c.width, c.height); const v=domeView(); gl.uniform3f(u.view, v.cx, c.height-v.cy, v.R); gl.uniform1f(u.nr, domeAur.nr); gl.uniform1f(u.na, domeAur.na);
   gl.uniform4f(u.toneU, skyNow.toneK, skyNow.toneP, 0.95, TOE_CD); gl.uniform1f(u.rCd, skyNow.rCd);
-  auroraSetUniforms(gl, u, st, f.t, new Float32Array(horizDir(skyNow.sunAz, 90-skyNow.sza)));
+  auroraSetUniforms(gl, u, st, f.t, new Float32Array(horizDir(skyNow.sunAz, 90-skyNow.sza)), f.shift);
   gl.drawArrays(gl.TRIANGLES, 0, 6);
 }
 // Keep the dome's aurora moving at about 30 frames a second while it can be seen.

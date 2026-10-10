@@ -159,25 +159,29 @@ function takeCloudMask(){
   };
   return true;
 }
-function ensureCloudTarget(w, h){
+// With cb (checkerboard, which needs the temporal pass), the march's targets are half as wide.
+function ensureCloudTarget(w, h, cb){
   const gl=vrGL.gl;
-  if(vrGL.cw===w&&vrGL.ch===h) return;
-  vrGL.cw=w; vrGL.ch=h; vrGL.histOk=false;
-  const hdr=!!vrGL.cloudHDR;
+  if(vrGL.cw===w&&vrGL.ch===h&&vrGL.cloudCBAsked===cb) return;
+  vrGL.cw=w; vrGL.ch=h; vrGL.histOk=false; vrGL.cloudCBAsked=cb;
+  const hdr=!!vrGL.cloudHDR, mw=cb?Math.ceil(w/2):w;
   for(const key of ['cloudTex','metaTex','accumTex','histTex']){ if(vrGL[key]) gl.deleteTexture(vrGL[key]); }
-  vrGL.cloudTex=allocCloudTex(gl, w, h, hdr);
+  vrGL.cloudTex=allocCloudTex(gl, mw, h, hdr);
   vrGL.accumTex=allocCloudTex(gl, w, h, hdr);
   vrGL.histTex=allocCloudTex(gl, w, h, hdr);
   vrGL.metaTex=gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, vrGL.metaTex);
   texParams(gl, gl.NEAREST, gl.NEAREST, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE);
-  if(hdr) gl.texImage2D(gl.TEXTURE_2D, 0, gl.R16F, w, h, 0, gl.RED, gl.HALF_FLOAT, null);
-  else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  if(hdr) gl.texImage2D(gl.TEXTURE_2D, 0, gl.R16F, mw, h, 0, gl.RED, gl.HALF_FLOAT, null);
+  else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, mw, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
   gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.cloudFbo);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, vrGL.cloudTex, 0);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, vrGL.metaTex, 0);
   vrGL.cloudMRT=gl.checkFramebufferStatus(gl.FRAMEBUFFER)===gl.FRAMEBUFFER_COMPLETE;
   if(!vrGL.cloudMRT) gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, null, 0);
+  // Without the depth target there is no temporal pass to put a checkerboard together.
+  vrGL.cloudCB=cb&&vrGL.cloudMRT; vrGL.cloudMW=vrGL.cloudCB?mw:w;
+  if(cb&&!vrGL.cloudMRT){ gl.bindFramebuffer(gl.FRAMEBUFFER, null); vrGL.cw=0; ensureCloudTarget(w, h, false); vrGL.cloudCBAsked=cb; return; }
   gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.accumFbo);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, vrGL.accumTex, 0);
   gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.histFbo);

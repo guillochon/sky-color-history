@@ -24,6 +24,10 @@ uniform sampler2D hitInfo;
 uniform vec2 res;
 uniform float yaw,pitch,fov,sunAz,sunEl,sunMu,showScn,cloudCov,cloudScale,cloudDrift,cloudTime,cloudFrame,nr,na;
 uniform float cloudType,cloudBase,cloudTop,cloudCirrus,useHDR,cloudDeck;
+// Checkerboard: with cbOn the target is half as wide, and each frame marches every other pixel
+// of the res-sized view, the other half on the next frame (cbPar alternates); the temporal pass
+// puts them together.
+uniform float cbOn, cbPar;
 uniform vec3 snDir,snLight,mlDir,mlLight;
 uniform vec3 sunCol,groundCol,eye;
 layout(location=0) out vec4 fragColor;
@@ -119,7 +123,9 @@ vec3 nightScatter(vec3 p, vec3 rd, vec3 dir, vec3 light){
 }
 ${VIEW_RAY_GLSL}
 void main(){
-  vec3 rd=viewRay(gl_FragCoord.xy, res, fov, yaw, pitch);
+  vec2 fc=gl_FragCoord.xy;
+  if(cbOn>0.5) fc.x=floor(fc.x)*2.0+mod(floor(fc.y)+cbPar, 2.0)+0.5;
+  vec3 rd=viewRay(fc, res, fov, yaw, pitch);
   vec3 ro=eye;
   float sunA=sunAz*0.01745329252, sunZen=(90.0-sunEl)*0.01745329252;
   vec3 sd=normalize(vec3(sin(sunA)*sin(sunZen), cos(sunA)*sin(sunZen), cos(sunZen)));
@@ -131,7 +137,7 @@ void main(){
   if(tIn<0.0||tOut<tIn) return;
   float tHit=1e8;
   if(showScn>0.5){
-    vec4 occ=texture(hitInfo, gl_FragCoord.xy/res);
+    vec4 occ=texture(hitInfo, fc/res);
     if(occ.g>0.5 && occ.r>0.0) tHit=occ.r;
   }
   if(tHit<tIn) return;
@@ -155,7 +161,9 @@ void main(){
 
   // Interleaved gradient noise, moved across the screen each frame (not just
   // offset), so successive frames decorrelate and the history averages it away.
-  vec2 jp=gl_FragCoord.xy+5.588238*mod(cloudFrame, 64.0);
+  // A checkerboard marches each pixel every other frame; count its own frames, so it still
+  // steps through all 64 offsets rather than every other one.
+  vec2 jp=fc+5.588238*mod(cbOn>0.5?floor(cloudFrame*0.5):cloudFrame, 64.0);
   float ign=fract(52.9829189*fract(dot(jp, vec2(0.06711056, 0.00583715))));
   float t=tIn, T=1.0, tAcc=0.0, wAcc=0.0;
   float dt=clamp(t*0.007, 35.0, 700.0);

@@ -228,7 +228,7 @@ function setupShadowProg(gl, sp){
 function setupCloudProgs(gl, cp, pp, tp, np){
   const vols=makeCloudVolumes(gl, np);
   if(!vols){ console.warn('cloud noise build failed'); return; }
-  const names=['res','yaw','pitch','fov','eye','sunAz','sunEl','sunCol','sunMu','showScn','cloudCov','cloudScale','cloudDrift','cloudTime','cloudFrame','nr','na','cloudType','cloudBase','cloudTop','cloudCirrus','useHDR','groundCol','sunVis','cityUp','cloudDeck','snDir','snLight','mlDir','mlLight'];
+  const names=['res','yaw','pitch','fov','eye','sunAz','sunEl','sunCol','sunMu','showScn','cloudCov','cloudScale','cloudDrift','cloudTime','cloudFrame','nr','na','cloudType','cloudBase','cloudTop','cloudCirrus','useHDR','groundCol','sunVis','cityUp','cloudDeck','snDir','snLight','mlDir','mlLight','cbOn','cbPar'];
   const cu=uniformLocs(gl, cp, [...names, 'obj[0]', 'kind[0]']);
   const weather=ensureWeather(gl);
   const hdr=!!gl.getExtension('EXT_color_buffer_float');
@@ -240,7 +240,7 @@ function setupCloudProgs(gl, cp, pp, tp, np){
   gl.useProgram(pp); bindSamplers(gl, pp, [['cloudTex',2],['hitInfo',10]]); gl.uniform1f(compU.fov, vrFov*Math.PI/180);
   let tu=null;
   if(tp){
-    tu=uniformLocs(gl, tp, ['res','yaw','pitch','prevYaw','prevPitch','fov','histValid','histW','eye','prevEye']);
+    tu=uniformLocs(gl, tp, ['res','yaw','pitch','prevYaw','prevPitch','fov','histValid','histW','eye','prevEye','cbOn','cbPar']);
     gl.useProgram(tp);
     bindSamplers(gl, tp, [['currTex',2],['histTex',9],['metaTex',8]]);
     gl.uniform1f(tu.fov, vrFov*Math.PI/180);
