@@ -326,7 +326,7 @@ vec3 azAxis(float az){ float a=az*0.01745329252; return vec3(cos(a), -sin(a), 0.
 vec3 altAxis(float az, float h){ float a=az*0.01745329252, hr=h*0.01745329252; return vec3(-sin(a)*sin(hr), -cos(a)*sin(hr), cos(hr)); }
 // With fn, the ray's offsets from the Sun come from fineEU: dAz in azimuth (radians), dApp its
 // apparent altitude less the view's (degrees), dH the view's altitude less the Sun's.
-vec4 sunDiskAt(float comp, float app, vec3 sd, float rd, out vec3 off, bool fn, float dAz, float dApp, float dH){
+vec4 sunDiskAt(float comp, float app, vec3 sd, float rd, out vec3 off, out float covM, bool fn, float dAz, float dApp, float dH){
   float wob=sunMir.w*(0.6*sin(comp*1432.4+waterT*2.1)+0.4*sin(comp*3610.0-waterT*3.3))*exp(-max(app, 0.0)/rd), ap=app+wob;
   float extra=0.0, apH=dH+dApp+wob; // apH: ap less the Sun's true altitude
   if(sunMir.x>0.0 && ap<sunMir.x){ apH=sunMir.x-sunEl+(sunMir.x-ap)*sunMir.y; ap=sunMir.x+(sunMir.x-ap)*sunMir.y; extra=sunMir.z; }
@@ -345,7 +345,7 @@ vec4 sunDiskAt(float comp, float app, vec3 sd, float rd, out vec3 off, bool fn, 
   float a=clamp(app, 0.0, 30.0), f; int i=0;
   for(int k=1;k<9;k++) if(a>SUN_APPS[k]) i=k;
   f=(a-SUN_APPS[i])/(SUN_APPS[i+1]-SUN_APPS[i]);
-  vec3 P=vec3(0.0); float r=2.0; off=vec3(0.0);
+  vec3 P=vec3(0.0); float r=2.0; off=vec3(0.0); covM=0.0;
   for(int b=0;b<20;b++){
     float bb=(1.0+dispX*(SUN_DISP[b]-1.0))*bend, te=(ap-bb)*0.01745329252, ct=cos(te), d;
     vec3 rv=vec3(sin(comp)*ct, cos(comp)*ct, sin(te)), ov;
@@ -362,9 +362,13 @@ vec4 sunDiskAt(float comp, float app, vec3 sd, float rd, out vec3 off, bool fn, 
     int k0=i*20+b, k1=k0+20;
     float t=mix(sunTau[k0/4][k0%4], sunTau[k1/4][k1%4], f);
     P+=sunW[b]*exp(-t-(t+sunOff)*extra)*cov;
-    r=min(r, d/sunRad);
+    r=min(r, d/sunRad); covM=max(covM, cov);
   }
-  return vec4(P, r);
+  // The light as if the outermost image covered the whole pixel, and covM how much of it it does:
+  // the edge pixel is the disk's colour over the sky by its coverage, not a dimmer disk (which,
+  // drawn over the sky, would ring the Sun with a line darker than both). The images' own spread
+  // at the horizon, the coloured rims, is kept in their ratios.
+  return vec4(P/max(covM, 1e-6), r);
 }
 // The photosphere at q (disk radii, x toward celestial east, y north) as multipliers of linear
 // R, G, B, pxR disk radii to a pixel (sunspots.js sunSurfaceAt): the map's spots raised to the
@@ -900,14 +904,14 @@ void main(){
     float fcp=cos(pitch), fsp=sin(pitch), fh=fcp-fuv.y*fsp, fw=fuv.x*fuv.x/(fh*fh);
     float dAzPx=atan(fuv.x, fh), dAppPx=atan(fuv.y-fsp*fh*fw/(sqrt(1.0+fw)+1.0), sqrt(fh*fh+fuv.x*fuv.x)*fcp+(fsp+fuv.y*fcp)*fsp)*57.2957795;
     float appF=fine?pitch*57.2957795+dAppPx:elevDeg, refF=refK*bennett(appF);
-    bool inSun=false; float sunR=2.0; vec3 sunP=vec3(0.0), sunOffV=vec3(0.0);
+    bool inSun=false; float sunR=2.0, sunCov=0.0; vec3 sunP=vec3(0.0), sunOffV=vec3(0.0);
     // The glare's share: whole while the Sun is small in the view (up to about 50 degrees across),
     // easing out over a factor of thirty in zoom, gone once the disk nearly fills it (under 2
     // degrees), where the surface is worth seeing. The glare is so bright it stays white until it
     // is down to a fraction, so it falls fastest at first, to spread what shows over the zoom.
     float glareK=sunGlare*pow(1.0-clamp(log(sunRad/fy/0.04)/log(30.0), 0.0, 1.0), 2.5);
     if(sunOn>0.5&&te>-1.5&&dot(src,sd)>cos(sunRad*2.5+0.03)){
-      vec4 sk=sunDiskAt(comp, appF, sd, sunRad*57.2957795, sunOffV, fine, fineRel.x+dAzPx, dAppPx, fineRel.y);
+      vec4 sk=sunDiskAt(comp, appF, sd, sunRad*57.2957795, sunOffV, sunCov, fine, fineRel.x+dAzPx, dAppPx, fineRel.y);
       inSun=sk.x+sk.y+sk.z!=0.0; sunR=min(sk.w, 1.0); sunP=max(sk.rgb, vec3(0.0));
     }
     bool onBody=inSun, onMoon=false;
@@ -947,7 +951,7 @@ void main(){
         vec3 hot=mix(lin/max(lm, 1e-6), vec3(1.0), 0.6);
         dsk=mix(dsk, hot, glareK); op=mix(op, 1.0, glareK);
       }
-      skyC=lin2s3(mix(sl, dsk, op));
+      skyC=lin2s3(mix(sl, dsk, op*sunCov));
     }
     if(moonOn>0.5&&te>-1.2){
       vec3 md=azElDir(moonAz, moonEl);
