@@ -114,7 +114,8 @@ function enterVR(fromLink){
       else history.pushState({vr:1},'',url);
       vrLinkKey=EP[dIdx].key+'|'+dLat+'|'+Math.floor(minutes);
     }
-    renderDay(false);
+    // The sky model only: the page's dome is hidden behind VR, and exitVR draws it again.
+    renderDay(true);
     adoptPlayRate();
     setTimeout(()=>{ vrRelock=false; }, 700);
     if(!musicMuted) startVRMusic();
