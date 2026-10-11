@@ -11,7 +11,7 @@ moonImg.src='moon.jpg';
 // The Milky Way map takes a moment, so it is built once the page is up; the nebulae and galaxies
 // are fetched then too.
 // Within two seconds even if the page is never idle (the walk-around view draws continuously).
-(window.requestIdleCallback||setTimeout)(()=>{ buildMilkyWay(); renderDay(); loadDso(); }, {timeout:2000});
+(window.requestIdleCallback||setTimeout)(()=>{ buildMilkyWay(); requestRender(); loadDso(); }, {timeout:2000});
 showEpoch(dIdx); renderDay(); warm();
 if(openVR) enterVR(true);
 // The VR shaders compile in the background a few seconds after the page is up.

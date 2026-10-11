@@ -296,4 +296,4 @@ function syncMoonTex(){
   vrGL.moonSrc=src; return true;
 }
 function uploadMoon(){ if(syncMoonTex()&&vrOn) paintVR(); }
-moonImg.onload=()=>{ moonReady=true; uploadMoon(); renderDay(); warmMoonFaces(); };
+moonImg.onload=()=>{ moonReady=true; uploadMoon(); requestRender(); warmMoonFaces(); };

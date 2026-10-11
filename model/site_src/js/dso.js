@@ -54,7 +54,7 @@ function loadDso(){
     dsoPx=ctx.getImageData(0, 0, img.width, img.height);
     cv.width=cv.height=0;
     dsoImg=img;
-    renderDay();
+    requestRender();
   };
   img.src=DSO_IMG;
 }

@@ -46,7 +46,7 @@ function loadDay(key){
 function dayReady(...keys){
   const miss=keys.filter(k=>!DAY.epochs[k]);
   if(!miss.length) return true;
-  Promise.all(miss.map(loadDay)).then(()=>{ if(miss.every(k=>DAY.epochs[k])) renderDay(); });
+  Promise.all(miss.map(loadDay)).then(()=>{ if(miss.every(k=>DAY.epochs[k])) requestRender(); });
   return false;
 }
 function dayPending(){ return EP.some(e=>dayLoads[DAY.files[e.key]] && !DAY.epochs[e.key]); }

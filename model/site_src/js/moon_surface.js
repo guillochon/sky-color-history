@@ -220,7 +220,9 @@ function moltenFace(){
 // The older faces are made while the page is idle, so changing epoch does not wait for them.
 function warmMoonFaces(){
   const keys=['carbon30', 'archean38', 'hadean40'], next=()=>{ const k=keys.shift(); if(!k) return; moonSurface(k); (window.requestIdleCallback||setTimeout)(next); };
-  (window.requestIdleCallback||setTimeout)(next);
+  // Each face takes 0.1-0.15 s; they wait until the page has been up a while, so the first
+  // second is the page's own.
+  setTimeout(()=>(window.requestIdleCallback||setTimeout)(next), 8000);
 }
 // Mare volcanism: fissures feeding the flood basalts fountained lava at about 1,400 K, as bright
 // per square kilometre as the sunlit Moon and far redder. A few to a hundred square kilometres of
