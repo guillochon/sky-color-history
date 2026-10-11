@@ -17,7 +17,7 @@ OUT = Path(sys.argv[1]) if len(sys.argv) > 1 else HERE.parent / 'latex' / 'figur
 OUT.mkdir(parents=True, exist_ok=True)
 # The epochs that keep today's air (Year 2100, the supernovae) reuse the modern figures.
 order = [k for k in gr.order if k not in gr.SAME_AIR]
-ages = {'protoearth455':'4.55 Ga','hadean45':'4.50 Ga','hadean44':'4.4 Ga','hadean40':'4.0 Ga','archean38':'3.8 Ga','archean27thin':'2.7 Ga\nthin haze','archean27':'2.7 Ga\nthick haze','archean27vthick':'2.7 Ga\nv. thick','proterozoic22':'2.2 Ga','snowball07':'700 Ma','ordovician466':'466 Ma','carbon30':'300 Ma','kpg66':'66 Ma','volcanic':'1815','ozonehole':'1980–2000','modern':'today','modernpoll':'today\npolluted'}
+ages = {'protoearth455':'4.55 Ga','hadean45':'4.50 Ga','hadean40':'4.0 Ga','archean38':'3.8 Ga','archean27thin':'2.7 Ga\nthin haze','archean27':'2.7 Ga\nthick haze','archean27vthick':'2.7 Ga\nv. thick','proterozoic22':'2.2 Ga','snowball07':'700 Ma','ordovician466':'466 Ma','carbon30':'300 Ma','kpg66':'66 Ma','volcanic':'1815','ozonehole':'1980–2000','modern':'today','modernpoll':'today\npolluted'}
 
 def srgb2lin(c): c=np.asarray(c); return np.where(c<=0.04045, c/12.92, ((c+0.055)/1.055)**2.4)
 def lin2srgb(c): c=np.clip(c,0,1); return np.where(c<=0.0031308, 12.92*c, 1.055*c**(1/2.4)-0.055)

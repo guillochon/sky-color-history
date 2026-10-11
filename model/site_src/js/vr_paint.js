@@ -21,7 +21,6 @@ const WATER=[[30,350,'water',120],[95,600,'water',220],[320,500,'water',180],[60
 const ZONES={
   protoearth455:[[30,330,'magma',110],[95,520,'magma',170],[320,430,'magma',140],[255,1300,'magma',300],[40,1500,'magma',320],[160,800,'magma',200]],
   hadean45:[[30,330,'magma',90],[95,520,'magma',150],[320,430,'water',120],[255,1300,'magma',260],[40,1500,'water',300]],
-  hadean44:[[30,330,'magma',90],[95,520,'magma',150],[320,430,'magma',120],[255,1300,'magma',260],[40,1500,'magma',300]],
   hadean40:[[30,330,'water',100],[95,520,'magma',140],[320,430,'water',130],[255,1300,'water',280],[40,1500,'magma',260]],
   archean38:WATER, archean27thin:WATER, archean27:WATER, archean27vthick:WATER,
   proterozoic22:[[20,520,'water',180],[300,720,'water',250],[100,480,'water',120]],
@@ -72,7 +71,7 @@ function buildScene(key){ // [bearing deg, distance m, radius m, height m, kind]
   if(key==='snowball07') return spots(ICE);
   if(key==='carbon30') return spots(TREES);
   if(TOWNS[key]) return spots(TOWN_MTNS);
-  if(key==='protoearth455'||key==='hadean45'||key==='hadean44'||key==='hadean40'||key==='archean38'||key==='archean27thin'||key==='archean27'||key==='archean27vthick'||key==='volcanic') return spots(VOLC);
+  if(key==='protoearth455'||key==='hadean45'||key==='hadean40'||key==='archean38'||key==='archean27thin'||key==='archean27'||key==='archean27vthick'||key==='volcanic') return spots(VOLC);
   return spots(PEAKS);
 }
 function fract(x){ return x-Math.floor(x); }

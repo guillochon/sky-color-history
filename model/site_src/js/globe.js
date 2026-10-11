@@ -52,7 +52,6 @@ function drawGlobeAt(pos){ // blend between neighboring epochs
 const WIKI={
   protoearth455:['Nice model','https://en.wikipedia.org/wiki/Nice_model'],
   hadean45:['Giant-impact hypothesis','https://en.wikipedia.org/wiki/Giant-impact_hypothesis'],
-  hadean44:['Hadean','https://en.wikipedia.org/wiki/Hadean'],
   hadean40:['Hadean','https://en.wikipedia.org/wiki/Hadean'],
   archean38:['Eoarchean','https://en.wikipedia.org/wiki/Eoarchean'],
   archean27thin:['Neoarchean','https://en.wikipedia.org/wiki/Neoarchean'],

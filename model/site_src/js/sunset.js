@@ -37,7 +37,7 @@ function sunBandsAt(app, off=0){
 //   the surface, and the bottom of the Sun meets its own inverted image: the omega.
 // The cold surface of Snowball Earth makes inversions common and inferior mirages rare; the warm
 // oceans of the Hadean and Archean the reverse.
-const MIRAGE_ODDS={snowball07:[0.05, 0.75], protoearth455:[0.55, 0.2], hadean45:[0.55, 0.2], hadean44:[0.55, 0.2], hadean40:[0.55, 0.2], archean38:[0.5, 0.25],
+const MIRAGE_ODDS={snowball07:[0.05, 0.75], protoearth455:[0.55, 0.2], hadean45:[0.55, 0.2], hadean40:[0.55, 0.2], archean38:[0.5, 0.25],
   archean27thin:[0.5, 0.25], archean27:[0.5, 0.25], archean27vthick:[0.5, 0.25]};
 let sunsetCache=null;
 function sunsetLayers(rd){

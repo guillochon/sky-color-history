@@ -44,8 +44,8 @@ const SP_FRAUN_T=Float32Array.from(SP_LAM, l=>SP_FRAUN.reduce((t, [c, d, s])=>t*
 const SP_TAU_O2=Float32Array.from(SP_LAM, l=>(l>=759&&l<=770?2.0*(l<762?1:0.25+0.75*(770-l)/8):0)+(l>=686.5&&l<=694?0.55*(l<689?1:(694-l)/5):0));
 const SP_TAU_H2O=Float32Array.from(SP_LAM, l=>0.25*Math.exp(-0.5*((l-725)/5)**2));
 // O2 relative to today's 21%, and the water column relative to today's.
-const SP_O2={protoearth455:0, hadean45:0, hadean44:0, hadean40:0, archean38:0, archean27thin:0, archean27:0, archean27vthick:0, proterozoic22:0.01, snowball07:0.1, ordovician466:0.81, carbon30:1.57};
-const SP_H2O={hadean45:4, protoearth455:1.5, hadean44:4, snowball07:0.2};
+const SP_O2={protoearth455:0, hadean45:0, hadean40:0, archean38:0, archean27thin:0, archean27:0, archean27vthick:0, proterozoic22:0.01, snowball07:0.1, ordovician466:0.81, carbon30:1.57};
+const SP_H2O={hadean45:4, protoearth455:1.5, snowball07:0.2};
 // The night's sources, each to unit luminance.
 const SP_SUN5772=spNorm(spPlanck(5772));
 const SP_AIRGLOW=spNorm(spAdd([1, spLines([[557.7, 250], [589.0, 40], [589.6, 25], [630.0, 50], [636.4, 16]])],

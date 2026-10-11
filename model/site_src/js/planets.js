@@ -116,7 +116,7 @@ const PRE_INSTABILITY={protoearth455:true, hadean45:true};
 const LOST_NEPTUNIAN=key=>!!PRE_INSTABILITY[key];
 const MOON_EPOCHS={
   Triton:key=>!PRE_INSTABILITY[key], Kymo:LOST_NEPTUNIAN, Galene:LOST_NEPTUNIAN, Thetis:LOST_NEPTUNIAN, Amphitrite:LOST_NEPTUNIAN,
-  Chrysalis:key=>(PLANET_AGE_MA[key]||0)>=300, Harmonia:key=>key==='hadean44'||key==='hadean40'||key==='archean38',
+  Chrysalis:key=>(PLANET_AGE_MA[key]||0)>=300, Harmonia:key=>key==='hadean40'||key==='archean38',
 };
 function moonIn(m, key){ const f=MOON_EPOCHS[m[0]]; return !f||f(key); }
 // Bodies that are hypothetical, or named here: the note their label's spectrum carries.
@@ -203,7 +203,7 @@ function zoomedDisplay(o){ return o.tint?planetDisplay(o.mag-moonGain(), o.tint)
 // moving on from there with the date; Jupiter's moons share one offset, keeping their resonance.
 // The orbits' shapes are today's: known back to about 50 Myr (La2010; Zeebe & Lourens 2019), only
 // statistically before.
-const PLANET_AGE_MA={protoearth455:4550, hadean45:4500, hadean44:4400, hadean40:4000, archean38:3800, archean27thin:2700, archean27:2700, archean27vthick:2700, proterozoic22:2200, snowball07:700, ordovician466:466, carbon30:300, kpg66:66, zetaoph:1.78, geminga:0.342};
+const PLANET_AGE_MA={protoearth455:4550, hadean45:4500, hadean40:4000, archean38:3800, archean27thin:2700, archean27:2700, archean27vthick:2700, proterozoic22:2200, snowball07:700, ordovician466:466, carbon30:300, kpg66:66, zetaoph:1.78, geminga:0.342};
 // Saturn's rings may be young: their mass and how little meteoroid dust darkens them put them at
 // 100-400 Myr (Iess et al. 2019; Kempf et al. 2023), though whether they are is still argued.
 // They are drawn from Chrysalis's break-up, about 160 Myr ago, on, and left out before, where

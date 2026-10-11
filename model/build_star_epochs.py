@@ -140,7 +140,7 @@ for key, years in EPOCHS.items():
 # stand-ins (see below). The three 2.7 Ga epochs share one sky.
 ORBIT_EPOCHS = {'kpg66': 66e6, 'carbon30': 300e6, 'ordovician466': 466e6, 'snowball07': 700e6, 'proterozoic22': 2.2e9,
                 'archean27thin': 2.7e9, 'archean27': 2.7e9, 'archean27vthick': 2.7e9,
-                'archean38': 3.8e9, 'hadean40': 4.0e9, 'hadean44': 4.4e9, 'hadean45': 4.5e9, 'protoearth455': 4.55e9}
+                'archean38': 3.8e9, 'hadean40': 4.0e9, 'hadean45': 4.5e9, 'protoearth455': 4.55e9}
 TRACE_MAX = 1e8                       # trace catalogue stars only this far back
 # Main-sequence mass at subclass 0 and at the end of each class (solar masses).
 MASS = {'O': (40, 20), 'B': (17, 3.0), 'A': (2.6, 1.7), 'F': (1.6, 1.1), 'G': (1.1, 0.85), 'K': (0.85, 0.6), 'M': (0.5, 0.2)}

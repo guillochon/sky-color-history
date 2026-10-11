@@ -351,7 +351,8 @@ function clearVRLink(){
 }
 function applyLink(){
   const q=new URLSearchParams(location.search);
-  const ep=q.get('epoch');
+  // The 4.4 Ga sky was merged into the 4.50 Ga one; old links to it open that.
+  const ep=q.get('epoch')==='hadean44'?'hadean45':q.get('epoch');
   if(ep){
     let idx=EP.findIndex(e=>e.key===ep);
     if(idx<0 && /^\d+$/.test(ep)) idx=+ep;

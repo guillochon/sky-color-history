@@ -29,7 +29,6 @@ function sunspotLib(){
   const SUN_ACT={
     protoearth455: {age:0.017, prot:1.6,  cover:0.10,   cap:0.45, lat:[25, 80], cyc:0,    depth:0.2,  size:1200, fac:1.0, alon:0.7},
     hadean45:      {age:0.067, prot:3.1,  cover:0.09,   cap:0.40, lat:[22, 75], cyc:0,    depth:0.22, size:1000, fac:1.2, alon:0.65},
-    hadean44:      {age:0.17, prot:4.9,  cover:0.08,   cap:0.35, lat:[20, 72], cyc:0,    depth:0.25, size:900, fac:1.5, alon:0.6},
     hadean40:      {age:0.57, prot:9.0,  cover:0.04,   cap:0.20, lat:[15, 65], cyc:5,    depth:0.3,  size:500, fac:2.5, alon:0.4},
     archean38:     {age:0.77, prot:10.4, cover:0.03,   cap:0.10, lat:[10, 60], cyc:6,    depth:0.4,  size:400, fac:3,   alon:0.3},
     archean27thin: {age:1.87, prot:16.2, cover:0.01,   cap:0,    lat0:40,      cyc:8,    depth:0.7,  size:200, fac:6,   alon:0.1},

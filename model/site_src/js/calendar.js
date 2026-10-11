@@ -2,9 +2,9 @@
 // The year is the same length in seconds in every epoch: the Earth's orbit is set by the Sun's
 // mass, and the planets do not drift. (The Sun has lost well under 1% of its mass to its wind
 // since the Archean, which would make the year then at most 2% shorter; that is left out.) A
-// year of shorter days holds more of them: 368 at 66 Ma, 562 at 2.7 Ga, 713 in the Early Hadean.
+// year of shorter days holds more of them: 368 at 66 Ma, 562 at 2.7 Ga, 1,486 in the Early Hadean.
 // Epochs with 24-hour days keep the Gregorian calendar, so their dates and eclipses are real.
-// The others count twelve equal months of 30 to 60 days; year lengths alternate so the calendar
+// The others count twelve equal months of 30 to 124 days; year lengths alternate so the calendar
 // keeps step with the seasons, and year 2000 starts where the Gregorian 2000 does.
 const TROPICAL_YEAR=365.24219;
 const MONTH_NAMES=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];

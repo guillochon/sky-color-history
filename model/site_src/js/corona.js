@@ -11,8 +11,8 @@
 // edge-on just outside the limb, is pink: Hα with Hβ, He I D3 and Ca II H and K.
 //
 // The young Sun spun faster and was far more active. Its X-ray luminosity goes with age τ as
-// τ^-1.5 (Güdel, Guinan & Skinner 1997, ApJ 483, 947), about 140 times today's when the Sun was
-// 170 Myr old (4.4 Ga), and its coronal temperature as L_X^0.26: 5 MK then, against 1.5 MK today.
+// τ^-1.5 (Güdel, Guinan & Skinner 1997, ApJ 483, 947), about 530 times today's when the Sun was
+// 70 Myr old (4.5 Ga), and its coronal temperature as L_X^0.26: 7.7 MK then, against 1.5 MK today.
 // Taken here (estimates; young suns of one age differ several-fold with their starting spin):
 //   - K: the electron column near the limb as the square root of L_X (the X rays go as density
 //     squared), reaching further out the hotter the gas: heights above the limb stretched by
@@ -23,7 +23,7 @@
 //     gas is near its temperature (spread 0.2 dex about the mean).
 //   - Chromosphere: as L_X^0.25; chromospheric emission rises more slowly than X rays.
 // The disk itself, and so all of this, is dimmer per area for a cooler Sun: luminance as T_eff^4.6.
-const CORONA_GA={protoearth455:4.55, hadean45:4.5, hadean44:4.4, hadean40:4.0, archean38:3.8, archean27thin:2.7, archean27:2.7, archean27vthick:2.7, proterozoic22:2.2, snowball07:0.7, ordovician466:0.466, carbon30:0.3, kpg66:0.066};
+const CORONA_GA={protoearth455:4.55, hadean45:4.5, hadean40:4.0, archean38:3.8, archean27thin:2.7, archean27:2.7, archean27vthick:2.7, proterozoic22:2.2, snowball07:0.7, ordovician466:0.466, carbon30:0.3, kpg66:0.066};
 const SUN_B0=1.87e9; // today's mean disk luminance above the air, cd/m²: 1.27e5 lux over 6.80e-5 sr
 // [nm, equivalent width today near the limb (nm, against K), log T of formation, name]
 const CORONA_LINES=[[530.3, 2.0, 6.25, 'Fe XIV'], [637.4, 1.0, 6.0, 'Fe X'], [569.4, 0.05, 6.65, 'Ca XV']];

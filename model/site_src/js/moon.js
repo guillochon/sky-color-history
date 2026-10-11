@@ -40,7 +40,7 @@ const MOON_RE={
   modern:60.14, modernpoll:60.14, ozonehole:60.14, y2100:60.14, volcanic:60.14, geminga:60.14, zetaoph:60.14,
   kpg66:59.93, carbon30:58.56, ordovician466:58.21, snowball07:57.71,
   proterozoic22:50.98, archean27thin:47.60, archean27:47.60, archean27vthick:47.60,
-  archean38:40.4, hadean40:39.8, hadean44:38.7, hadean45:8.0
+  archean38:40.4, hadean40:39.8, hadean45:8.0
 };
 // Before the giant impact there is no Moon: the proto-Earth of 4.55 Ga.
 const MOONLESS={protoearth455:true};
@@ -53,13 +53,14 @@ const MOON_EQUATORIAL={hadean45:true};
 // along the distances above with the tidal model of Ćuk, Hamilton, Lock & Stewart 2016 (Nature
 // 539, 402). Earth's tides tilt the orbit less as the Moon recedes, and tides raised in the Moon
 // damp it, most strongly near 33 Earth radii, where the Moon's own tilt swings large: so the
-// orbit was a little steeper then, 5.5° at 2.7 Ga and 5.9° at 4.4 Ga (5.8–6.3° for a Moon three
-// times stiffer or more dissipative). The 17–30° and more those papers find for the young
-// Moon belong to before 33 Earth radii, older than any epoch here.
+// orbit was a little steeper then, 5.5° at 2.7 Ga and 5.8° at 4.0 Ga (a little more for a Moon
+// stiffer or more dissipative). The 17–30° and more those papers find for the young
+// Moon belong to before 33 Earth radii, older than any epoch here but 4.5 Ga, whose Moon is in
+// the equator's plane (MOON_EQUATORIAL).
 const MOON_INC_NOW=5.1454;
 const MOON_INC={
   carbon30:5.18, ordovician466:5.19, snowball07:5.20, proterozoic22:5.37,
-  archean27thin:5.46, archean27:5.46, archean27vthick:5.46, archean38:5.75, hadean40:5.80, hadean44:5.93
+  archean27thin:5.46, archean27:5.46, archean27vthick:5.46, archean38:5.75, hadean40:5.80
 };
 const MOON_R_KM=1737.4, EARTH_R_KM=6378.14;
 // Length of the solar day in hours, from the Moon distances above: the Earth-Moon angular
@@ -69,7 +70,7 @@ const MOON_R_KM=1737.4, EARTH_R_KM=6378.14;
 const DAY_HOURS={
   kpg66:23.8, carbon30:22.6, ordovician466:22.3, snowball07:21.9, proterozoic22:17.4,
   archean27thin:15.6, archean27:15.6, archean27vthick:15.6,
-  archean38:12.8, hadean40:12.6, hadean44:12.3, hadean45:5.9,
+  archean38:12.8, hadean40:12.6, hadean45:5.9,
   // How fast the proto-Earth turned before the impact cannot be known; half a day is a guess.
   protoearth455:12
 };
@@ -91,7 +92,7 @@ function limbH(pa){ return 0.002*Math.sin(7*pa+1.3)+0.00167*Math.sin(12*pa+4.1)+
 function moonRadiusAt(r){ return Math.atan(MOON_R_KM/(r*EARTH_R_KM))*180/Math.PI; }
 // Apparent solar radius for the Sun's mean anomaly M: the mean radius over the Earth-Sun distance in AU,
 // times the epoch's Sun over today's (gen_site.py sun_radius, from its luminosity and temperature:
-// 0.90 at 4.4 Ga, 0.93 at 2.7 Ga, 0.98 at 700 Ma). SUN_RADIUS_DEG stays the drawings' scale.
+// 0.90 at 4.5 Ga, 0.93 at 2.7 Ga, 0.98 at 700 Ma). SUN_RADIUS_DEG stays the drawings' scale.
 function sunRadiusAt(M){ return SUN_RADIUS_DEG*((EP[dIdx]&&EP[dIdx].sunR)||1)/(1.00014-0.01671*cosd(M)-0.00014*cosd(2*M)); }
 function rev(x){ x%=360; return x<0?x+360:x; }
 function sind(x){ return Math.sin(x*Math.PI/180); }
@@ -148,8 +149,9 @@ function moonEquatorial(d, rate=1, inc=MOON_INC_NOW, eqPlane=false){
 const DN_UNIX=dayNumber(1970,1,1,0), DN_NEW0=dayNumber(2000,1,6,18.23);
 // A closer Moon goes round faster: by Kepler's third law its angular speed goes as the
 // distance to the power -1.5 (the 2000 new Moon is kept as the reference). The month is then
-// 27.6 days of today's at 700 Ma, 22.6 at 2.2 Ga, 20.3 at 2.7 Ga and 14.7 at 4.4 Ga: 28 to 31
+// 27.6 days of today's at 700 Ma, 22.6 at 2.2 Ga, 20.3 at 2.7 Ga and 15.3 at 4.0 Ga: 28 to 31
 // of each epoch's own shorter days, and 18 months a year at 2.7 Ga, as tidal rhythmites suggest.
+// At 4.5 Ga, 8 Earth radii out, it is 1.33 days, 5.4 of that epoch's own.
 function moonRate(){ return Math.pow(MOON_RE_NOW/(MOON_RE[EP[dIdx].key]||MOON_RE_NOW), 1.5); }
 function synodic(){ return 360/(13.17639648*moonRate()-0.98564736); }
 function dayOfMs(ms){ return DN_UNIX+ms/86400000; }

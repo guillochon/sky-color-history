@@ -48,9 +48,9 @@ SECTIONS = [
 "variability. Older, quieter stars like today's Sun brighten with activity, dominated by bright faculae (Shapiro "
 "et al. 2014; Reinhold et al. 2019), because spot area grows faster with activity than facular area does (Nemec "
 "et al. 2022). The Sun's rotation follows the slow-rotator sequence it most likely took (Gallet &amp; Bouvier "
-"2013): 4.9 days at 4.4 Ga, 16 at 2.7 Ga, 23 at 700 Ma.",
+"2013): 3.1 days at 4.5 Ga, 16 at 2.7 Ga, 23 at 700 Ma.",
 "Fast rotators carry spots at high latitudes and large cool polar caps, as Doppler images of young solar analogs "
-"show (Barnes et al. 2005), so the Hadean and early Archean Suns have their spots between 10° and 72° and caps "
+"show (Barnes et al. 2005), so the Hadean and early Archean Suns have their spots between 10° and 75° and caps "
 "round the poles. A regular cycle sets in at a few hundred million years (Katsova 2020); from 2.7 Ga the spots "
 "emerge in a butterfly pattern, from mid-latitudes toward the equator over each cycle (Hathaway 2011), on cycles "
 "lengthening from 8 to 11 years. On Gregorian dates the modern epochs follow the real cycles, each cycle's sunspot "
@@ -71,18 +71,20 @@ SECTIONS = [
 "map's resolution of 1,000 km.",
 "A spot about an arcminute across, some 500 millionths of the hemisphere, is the smallest the eye can see unaided "
 "through a haze or a filter (Vaquero 2007). Today one is on the disk about one day in 25, mostly near solar "
-"maximum; in the Proterozoic every other day; in the Archean and Hadean always, about 23 at once at 4.4 Ga. Spots "
+"maximum; in the Proterozoic every other day; in the Archean and Hadean always, about 30 at once at 4.5 Ga. Spots "
 "then take about 3% off the Sun's light, and they gather toward the poles, darkening the top and bottom of the "
-"disk. The young Sun's shape does not change visibly: rotating in 5 days flattens it by only 0.02%, and even a "
+"disk. The young Sun's shape does not change visibly: rotating in 3 days flattens it by only 0.05%, and even a "
 "1-day rotation by 0.5%, 5 arcseconds on a 32-arcminute disk."]],
 ['Moonlight and the Moon', [
 "Moonlight is the same sky model with the Moon in place of the Sun, scaled by the lunar phase (the Allen phase law "
 "with the opposition surge, as in Krisciunas &amp; Schaefer 1991) and by the inverse square of the Earth–Moon "
 "distance, which follows Farhat et al. (2022) back to 2.2 Ga and reaches about 70% of today's by 3.2 Ga (Eulenfeld "
-"&amp; Heubeck 2023): 47.6 Earth radii at 2.7 Ga and 38.7 at 4.4 Ga. The full Moon was then up to 2.4 times as "
-"bright and 1.55 times as wide. Holding the Earth–Moon angular momentum fixed gives days of 23.8 hours at 66 Ma, "
-"17.4 at 2.2 Ga, 15.6 at 2.7 Ga and about 12½ in the Hadean, matching Farhat et al.; the closer Moon also went "
-"round faster, so a month was 20 of today's days at 2.7 Ga and 15 at 4.4 Ga, still 28 to 31 of the shorter days.",
+"&amp; Heubeck 2023): 47.6 Earth radii at 2.7 Ga and 39.8 at 4.0 Ga, when the full Moon was up to 2.3 times as "
+"bright and 1.5 times as wide. At 4.5 Ga, ten million years after the giant impact, it was only 8 Earth radii out "
+"(Korenaga 2023): 56 times as bright and 7.5 times as wide. Holding the Earth–Moon angular momentum fixed gives days of 23.8 hours at 66 Ma, "
+"17.4 at 2.2 Ga, 15.6 at 2.7 Ga and about 12½ at 4.0 Ga, matching Farhat et al., and 5.9 at 4.5 Ga; the closer Moon also went "
+"round faster, so a month was 20 of today's days at 2.7 Ga and 15 at 4.0 Ga, still 28 to 31 of the shorter days, and "
+"at 4.5 Ga only 32 hours.",
 "The Moon's face changes too. Its dark maria are basalt that flooded the great basins from about 3.9 Ga, most of "
 "it by 3.3 Ga (Hiesinger et al. 2011), so each mare is darkened from a date just before its oldest dated basalt: "
 "at 3.8 Ga Tranquillitatis is two-thirds dark while Imbrium is still a bright basin, and in the Hadean the near side "
@@ -97,12 +99,12 @@ SECTIONS = [
 "measured (Sharp, Lloyd &amp; Silverman 1966; Shaw et al. 2026). The Hadean and hazy Archean totality skies are "
 "therefore that era's dusk, peach or amber rather than the deep blue of a modern eclipse.",
 "The corona follows the Sun's age. A younger Sun spun faster and was far more active: its X-ray output goes as "
-"age to the −1.5 (Güdel, Guinan &amp; Skinner 1997), about 140 times today's at 4.4 Ga, and its coronal "
-"temperature with it, 5 MK against 1.5 MK. Today's corona (Baumbach 1937: electron-scattered K light near the limb, "
+"age to the −1.5 (Güdel, Guinan &amp; Skinner 1997), about 530 times today's at 4.5 Ga, and its coronal "
+"temperature with it, 7.7 MK against 1.5 MK. Today's corona (Baumbach 1937: electron-scattered K light near the limb, "
 "dust-scattered F light beyond about 2.3 solar radii) is scaled accordingly: a denser, more extended K corona, an F "
 "corona that follows the era's zodiacal dust, stronger coronal lines (the green Fe XIV and red Fe X, joined by "
 "yellow Ca XV in the hot young corona) and a brighter pink chromosphere. These scalings are estimates. The young "
-"Sun was also smaller (0.90 of today's radius at 4.4 Ga) while the Moon was closer, so early eclipses hide the inner "
+"Sun was also smaller (0.90 of today's radius at 4.5 Ga) while the Moon was closer, so early eclipses hide the inner "
 "corona: at 3.8 Ga the Moon looks 1.5 times the Sun's width, and from 2.2 Ga back every central eclipse is total. "
 "Through the 30-bar Hadean air, at 7.6 magnitudes of extinction per airmass, the corona does not show at all."]],
 
@@ -132,16 +134,20 @@ SECTIONS = [
 "skimming the ground and goes dark: at 3.8 Ga the center of the shadow is a hundred million times fainter than its "
 "its edge, a dark core in a glowing ring. And the 30-bar Hadean air is so refractive that below about 27 km its "
 "rays are trapped and run round the planet, while the upper air bends light strongly enough to fill the whole "
-"umbra: the Hadean Moon in totality is an even, deep red, V = −1.7 at 38.7 Earth radii.",
+"umbra of a Moon some 39 Earth radii out, an even, deep red at V = −1.7; but the Moon of 4.5 Ga, only 8 Earth radii "
+"out, sits well inside the focus, and at mid-eclipse it is gone, V = +12.",
 "The shadow's geometry follows the distances and the young Sun's size. The umbra was 3.1 Moon widths across at "
-"4.4 Ga against 2.7 today, and with twice as many full Moons a year, total lunar eclipses came nearly three times as "
-"often, while totality itself lasted at most 104 to 109 minutes in every epoch (table below). The rate also depends on "
+"4.0 Ga against 2.7 today, and with twice as many full Moons a year, total lunar eclipses came nearly three times as "
+"often, while totality itself lasted at most 104 to 109 minutes in every epoch from 4.0 Ga on (table below). At 4.5 Ga "
+"the Moon, inside about 17 Earth radii, orbits in the plane of the Earth's equator, its shadow is 3.6 Moon widths "
+"across and it races through it: around each equinox every full Moon is eclipsed, some 3,900 total eclipses a "
+"century, none longer than an hour. The rate also depends on "
 "the tilt of the Moon's orbit. It was a little steeper then: integrating today's 5.145° back along the distance "
 "history with the tidal model of Ćuk et al. (2016), in which Earth's tides flatten the orbit as the Moon recedes "
-"and tides raised in the Moon damp it, gives 5.46° at 2.7 Ga and 5.93° at 4.4 Ga (5.8 to 6.3° for a Moon three "
-"times stiffer or more dissipative). The much larger tilts that model and Downey, Nimmo &amp; Matsuyama (2022) need "
+"and tides raised in the Moon damp it, gives 5.46° at 2.7 Ga and 5.80° at 4.0 Ga (a little more for a Moon "
+"stiffer or more dissipative). The much larger tilts that model and Downey, Nimmo &amp; Matsuyama (2022) need "
 "for the young Moon belong to before the Cassini-state transition near 33 Earth radii, older than any epoch here "
-"(<em>lunar_inclination.py</em>).",
+"but 4.5 Ga, whose Moon is in the equator's plane (<em>lunar_inclination.py</em>).",
 "The ephemeris is checked against the almanac. For the total eclipses of 2022, 2025, 2026 and 2029, contact times "
 "fall within 2 to 7 minutes of the NASA catalog (Espenak &amp; Meeus 2009) and umbral magnitudes within 0.04 (for "
 "2029 June 26, 1.831 against 1.844); over 2000–2100 the page finds 144 umbral and 84 total eclipses, against the "
@@ -210,7 +216,7 @@ SECTIONS = [
 "epoch's air: the metals of the meteoroid, a hotter component that grows with speed, and the air's own emission, "
 "oxygen and nitrogen today or carbon monoxide bands in a CO₂-rich air, which no one has measured. And in the "
 "Early Hadean's 30 bar every density level sits higher, so meteors burn about 22 km higher up.",
-"The rate follows the lunar cratering record (Neukum et al. 2001): about 3,000 times today's at 4.4 Ga, 500 at "
+"The rate follows the lunar cratering record (Neukum et al. 2001): about 10,000 times today's at 4.5 Ga, in the giant impact's debris, 500 at "
 "4.0 Ga and 120 at 3.8 Ga, of slow, yellow-orange fireballs from a main-belt-like population (Strom et al. 2015; "
 "Marchi et al. 2014), with impact flashes on the closer Moon's dark side; twice today's at 2.7 Ga; and a hundred "
 "times today's fireballs at 466 Ma, after the L-chondrite parent body broke up (Schmitz et al. 2019).",
@@ -223,7 +229,7 @@ SECTIONS = [
 "outbursts at today's rate, about 0.5 a year above ZHR 100 and one in 45 years above 10,000. Their number is taken "
 "to follow the comets that feed them: three quarters from short-period comets, a quarter from long-period ones "
 "(only about a fifth of known streams have an identified parent; Ye &amp; Jenniskens 2022), giving about 30 times "
-"today's at 4.4 Ga, 5 at 4.0 Ga, today's by 2 Ga and 1.75 at 1.78 Ma, in the comet shower after a star's passage. "
+"today's at 4.5 Ga, 5 at 4.0 Ga, today's by 2 Ga and 1.75 at 1.78 Ma, in the comet shower after a star's passage. "
 "No published work estimates showers in the early Solar System, so these are estimates, and in the bombardment "
 "they hardly show against the sporadic rate."]],
 
@@ -236,8 +242,8 @@ SECTIONS = [
 "at most 0.00015: lost in the blue by day, a low arch at night cut by the Earth's shadow, and at the equator a "
 "source of slow, grazing fireballs from the west.",
 "Comets in the modern-era skies are the real ones on their real dates, from JPL's orbits; elsewhere they are drawn "
-"at the rate of their time, about one naked-eye comet a year today, 30 times that at 4.4 Ga after the giant planets "
-"scattered the comet disk, falling to today's level by about 2 Ga, and 0.6 of today's in the quiet Phanerozoic "
+"at the rate of their time, about one naked-eye comet a year today, 30 times that at 4.5 Ga while the giant planets "
+"eroded and then scattered the comet disk, falling to today's level by about 2 Ga, and 0.6 of today's in the quiet Phanerozoic "
 "epochs, since today's sky may still hold the comet shower from the star HD 7977 (Kaib &amp; Raymond 2026). Their "
 "heads and tails are dimmed by each epoch's air like the stars."]],
 
@@ -253,7 +259,7 @@ SECTIONS = [
 # counts from its groups, sampled weekly over three cycles, or 1996-2026 on the real ones).
 SUNSPOT_HEAD = ['Epoch', 'Sun’s age', 'Rotation', 'Spot coverage', 'Spots emerge at', 'Cycle', 'Days with a naked-eye spot']
 SUNSPOT = [
-['4.4 Ga Hadean', '0.17 Gyr', '4.9 d', '8% (6–10%)', '20–72°; polar caps above 74°', 'none', 'all (about 23 at once)'],
+['4.5 Ga Hadean', '0.07 Gyr', '3.1 d', '9% (7–11%)', '22–75°; polar caps above 72°', 'none', 'all (about 30 at once)'],
 ['4.0 Ga Hadean', '0.57 Gyr', '9.0 d', '4% (2.9–5.3%)', '15–65°; caps above 81°', 'about 5 yr, shallow', 'all (about 14)'],
 ['3.8 Ga Archean', '0.77 Gyr', '10.4 d', '3% (1.9–4.3%)', '10–60°; caps above 85°', 'about 6 yr', 'all (about 11)'],
 ['2.7 Ga Archean', '1.87 Gyr', '16 d', '1% (0.3–1.8%)', 'from 40° toward the equator', '8 yr', '83%'],
@@ -273,7 +279,7 @@ SUNSPOT_CAPTION = ("Sunspots by epoch, from the site's spot model. Coverage is t
 # day.js AIRGLOW_O/AIRGLOW_CO2 and EXT_K, aurora.js AURORA_EPOCH, meteors.js MET_EPOCH, debris.js ZODI).
 PHENOMENA_HEAD = ['Epoch', 'Refraction', 'Airglow', 'Starlight extinction (mag/airmass)', 'Aurora', 'Meteors', 'Zodiacal light']
 PHENOMENA = [
-['4.4 Ga Hadean', '47× (trapped)', 'violet CO₂ glow only', '7.6: no stars', 'oval near 45°; green CO₂ line, faint N₂', '3,000×', '1,000×'],
+['4.5 Ga Hadean', '47× (trapped)', 'violet CO₂ glow only', '7.6: no stars', 'oval near 41°; green CO₂ line, faint N₂', '10,000×', '2,000×'],
 ['4.0 Ga Hadean', '1.8×', 'violet CO₂ glow only', '0.35', 'oval near 47°; violet and pink N₂', '500×', '300×'],
 ['3.8 Ga Archean', '0.97×', 'violet CO₂ glow only', '0.25', 'oval near 50°; violet and pink N₂', '120×', '50×'],
 ['2.7 Ga Archean', '0.90×', 'violet CO₂ glow only', '0.25–1.8 with the haze', 'oval near 54°; violet and pink N₂', '2×', '1.5×'],
@@ -310,12 +316,13 @@ LUNAR_CAPTION = ("Lunar eclipses by epoch. The umbra's diameter is in Moon width
                  "enlargement. V and the mean surface brightness are for the Moon centered in the shadow, from the "
                  "model's shadow and the Moon's distance; a dark night sky is about 22 mag/arcsec². Counts are the "
                  "page's own over a hundred years of dates (2000–2100), so they carry a few percent of noise from the "
-                 "eclipse cycles. Orbit tilt from lunar_inclination.py.")
+                 "eclipse cycles. Orbit tilt from lunar_inclination.py; at 4.5 Ga the Moon orbits in the plane of the Earth's "
+                 "equator, so its tilt to the ecliptic is the obliquity.")
 
 FIG_CAPTION = ("The Moon in the Earth's shadow at nine epochs, on today's lunar surface. Top: centered in the shadow, "
                "with its V magnitude, each drawn as the page draws it, for an eye adapted to that Moon's brightest part. "
                "Middle: just inside the umbra, its limb at 0.95 of the umbral radius, all at one exposure so their light "
-               "compares: today's ozone leaves a cool gray-blue edge, the ozone-free Archean and Hadean edges are orange, "
+               "compares: today's ozone leaves a cool gray-blue edge, the ozone-free Archean edge is orange and the Hadean's deep red, "
                "and under the Tambora veil, the thick haze and the K–Pg soot the umbra is dark to its edge. Bottom: the "
                "light across the shadow, against the full Moon, with distance in units of each epoch's umbral radius.")
 

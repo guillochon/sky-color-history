@@ -70,8 +70,8 @@ for k in order:
 
 
 globe_grid = ''
-gl = ['modern','archean38','archean27','hadean44','snowball07','carbon30','kpg66','volcanic']
-short = {'modern':'Modern','archean38':'3.8 Ga, clear Archean','archean27':'2.7 Ga, hazy Archean','hadean44':'4.4 Ga, 30-bar CO$_2$','snowball07':'700 Ma, Snowball','carbon30':'300 Ma, Carboniferous','kpg66':'66 Ma, impact winter','volcanic':'1815, volcanic year'}
+gl = ['modern','archean38','archean27','hadean45','snowball07','carbon30','kpg66','volcanic']
+short = {'modern':'Modern','archean38':'3.8 Ga, clear Archean','archean27':'2.7 Ga, hazy Archean','hadean45':'4.5 Ga, 30-bar CO$_2$','snowball07':'700 Ma, Snowball','carbon30':'300 Ma, Carboniferous','kpg66':'66 Ma, impact winter','volcanic':'1815, volcanic year'}
 for i,k in enumerate(gl):
     globe_grid += f"\\begin{{minipage}}[t]{{0.235\\linewidth}}\\centering\\includegraphics[width=\\linewidth]{{figures/globe_{k}.png}}\\\\[-1pt]{{\\scriptsize\\sffamily\\bfseries {short[k]}}}\\end{{minipage}}"
     globe_grid += "\\hfill\n" if i not in (3,7) else "\\\\[6pt]\n"
@@ -140,7 +140,7 @@ main = r"""\PassOptionsToPackage{table}{xcolor}
 \twocolumn[
 \begin{@twocolumnfalse}
 \vspace*{-6mm}
-{\color{sky}\fontsize{28}{30}\selectfont\bfseries The color of Earth's sky,\\ 4.4 billion years to today\par}
+{\color{sky}\fontsize{28}{30}\selectfont\bfseries The color of Earth's sky,\\ 4.5 billion years to today\par}
 \vspace{6pt}
 {\large\color{ink} What the sky looked like from the ground---straight up and at the horizon, at the equator and the poles, at noon and at dusk---at """ + NUMBER_WORDS[len(order)] + r""" moments in Earth's history, reconstructed with a spectral radiative-transfer model; and the rest of its sky, from the green flash and the eclipsed Moon to airglow, aurorae and meteors.\par}
 \vspace{4pt}
@@ -160,7 +160,7 @@ main = r"""\PassOptionsToPackage{table}{xcolor}
 \textbf{3.} Before the Great Oxidation Event there was no ozone, so every twilight ended in a cream zenith. The first ozone layer turns that zenith pale blue; the deep blue dusk needs a near-modern column.\\
 \textbf{4.} Snowball Earth had the bluest sky in Earth's history; the K--Pg impact winter had no sunsets at all.\\
 \textbf{5.} The zenith-to-horizon color gradient is the single best diagnostic of an atmosphere's state: largest in clean air, gone under haze or soot, reversed under volcanic sulfate.\\
-\textbf{6.} The eclipsed Moon is copper today, orange-rimmed before there was ozone, an even deep red through the Hadean CO$_2$, dark-cored when the Moon was close, and gone under the K--Pg soot, the thick Archean haze or a Tambora veil.\\
+\textbf{6.} The eclipsed Moon is copper today, orange-rimmed before there was ozone, dark-cored when the Moon was close, only a deep red rim through the Hadean CO$_2$, and gone under the K--Pg soot, the thick Archean haze or a Tambora veil.\\
 \textbf{7.} Before the Great Oxidation the nights were darker and violet: no oxygen airglow, nitrogen aurorae reaching the mid-latitudes, and meteors with no glowing trains.
 \end{tcolorbox}
 
@@ -170,7 +170,7 @@ main = r"""\PassOptionsToPackage{table}{xcolor}
 \section*{How the colors were computed}
 """ + sec('How the colors were computed') + r"""
 
-\textbf{The young Sun.} The Sun is treated as a blackbody whose effective temperature and luminosity follow standard solar-evolution tracks: 5,560\,K and 70\% of today's output at 4.4\,Ga, rising through 5,620\,K (75\%) at 3.8\,Ga, 5,660\,K (80\%) at 2.7\,Ga and 5,700\,K (85\%) at 2.2\,Ga to 5,772\,K today (Table~\ref{tab:epochs}). The color effect is small: a 5,560\,K Sun is only about 200\,K cooler in color temperature than the modern one, a difference that is barely perceptible side by side and is swamped by atmospheric effects ten to a hundred times larger. The brightness effect is not small, and is why the early-epoch skies are rendered dimmer. Fraunhofer lines and the young Sun's ultraviolet excess, which matter for haze photochemistry but not for visible color, are ignored.
+\textbf{The young Sun.} The Sun is treated as a blackbody whose effective temperature and luminosity follow standard solar-evolution tracks: 5,530\,K and 68\% of today's output at 4.5\,Ga, rising through 5,620\,K (75\%) at 3.8\,Ga, 5,660\,K (80\%) at 2.7\,Ga and 5,700\,K (85\%) at 2.2\,Ga to 5,772\,K today (Table~\ref{tab:epochs}). The color effect is small: a 5,560\,K Sun is only about 200\,K cooler in color temperature than the modern one, a difference that is barely perceptible side by side and is swamped by atmospheric effects ten to a hundred times larger. The brightness effect is not small, and is why the early-epoch skies are rendered dimmer. Fraunhofer lines and the young Sun's ultraviolet excess, which matter for haze photochemistry but not for visible color, are ignored.
 
 The model is provided as the Python source \texttt{skymodel.py}; \texttt{run\_epochs.py} produces the sky colors and \texttt{limb\_grid.py} the limb and disk colors for the renderings. Epoch atmospheres are summarized in Table~\ref{tab:epochs}.
 
@@ -180,7 +180,7 @@ The model is provided as the Python source \texttt{skymodel.py}; \texttt{run\_ep
 \rowcolors{2}{rowa}{white}
 \begin{tabularx}{\textwidth}{@{}lYrrrrrrr@{}}\toprule
 Epoch & Gas (bar) & O$_3$ (DU) & AOD & Haze & Sulfate & Soot & $T_{\rm eff}$ (K) & $L_\odot$ \\ \midrule
-4.4 Ga Hadean & CO$_2$ 30, N$_2$ 1, H$_2$O 0.3 & 0 & 0.30 & -- & -- & -- & 5560 & 0.70 \\
+4.5 Ga Hadean & CO$_2$ 30, N$_2$ 1, H$_2$O 0.3 & 0 & 0.30 & -- & -- & -- & 5532 & 0.68 \\
 4.0 Ga Hadean & N$_2$ 1, CO$_2$ 0.5 & 0 & 0.15 & -- & -- & -- & 5600 & 0.72 \\
 3.8 Ga Archean & N$_2$ 0.8, CO$_2$ 0.1, CH$_4$ 0.001 & 0 & 0.08 & -- & -- & -- & 5620 & 0.75 \\
 2.7 Ga thin haze & N$_2$ 0.8, CO$_2$ 0.05, CH$_4$ 0.003 & 0 & 0.08 & 0.15 & -- & -- & 5660 & 0.80 \\

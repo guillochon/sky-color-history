@@ -11,9 +11,9 @@ HERE = Path(__file__).resolve().parent
 LIMB = dict(gr.LIMB)
 DAY = json.loads((HERE / 'daycycle.json').read_text(encoding='utf-8'))
 PROSE = gr.PROSE
-order = ['protoearth455','hadean45','hadean44','hadean40','archean38','archean27thin','archean27','archean27vthick','proterozoic22','snowball07','ordovician466','carbon30','kpg66','zetaoph','geminga','volcanic','ozonehole','modern','modernpoll','y2100']
+order = ['protoearth455','hadean45','hadean40','archean38','archean27thin','archean27','archean27vthick','proterozoic22','snowball07','ordovician466','carbon30','kpg66','zetaoph','geminga','volcanic','ozonehole','modern','modernpoll','y2100']
 ages = {**gr.ages, 'volcanic': '1815 CE', 'modern': 'Today', 'modernpoll': 'Today'}
-short = {'protoearth455':'Proto-Earth','hadean45':'Newborn Moon','hadean44':'Early Hadean','hadean40':'Late Hadean','archean38':'Early Archean','archean27thin':'Thin haze','archean27':'Thick haze','archean27vthick':'Very thick haze','proterozoic22':'Post-oxidation','snowball07':'Snowball Earth','ordovician466':'Meteor storm','carbon30':'Carboniferous','kpg66':'Impact winter','zetaoph':'ζ Oph supernova','geminga':'Geminga supernova','volcanic':'Volcanic year','modern':'Clean air','modernpoll':'Polluted city','ozonehole':'Ozone hole','y2100':'Year 2100'}
+short = {'protoearth455':'Proto-Earth','hadean45':'Early Hadean','hadean40':'Late Hadean','archean38':'Early Archean','archean27thin':'Thin haze','archean27':'Thick haze','archean27vthick':'Very thick haze','proterozoic22':'Post-oxidation','snowball07':'Snowball Earth','ordovician466':'Meteor storm','carbon30':'Carboniferous','kpg66':'Impact winter','zetaoph':'ζ Oph supernova','geminga':'Geminga supernova','volcanic':'Volcanic year','modern':'Clean air','modernpoll':'Polluted city','ozonehole':'Ozone hole','y2100':'Year 2100'}
 # gen_report adds the epochs that keep today's air (Year 2100 and the supernovae). Their globes
 # are today's, so the page is given the key of the modern limb instead of a copy (color.js).
 byk = gr.byk

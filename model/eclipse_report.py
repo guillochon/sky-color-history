@@ -18,16 +18,17 @@ DANJON = 1+1/85
 V_FULL = -12.73                         # the full Moon at today's mean distance (moon.js MOON_V_FULL)
 
 # Per epoch: the page's counts over 2000-2100 (lunar_eclipse.js, run in the page), the orbit's
-# tilt (lunar_inclination.py) and the longest totality, in minutes.
-COUNTS = {'hadean44': (456, 230, 104), 'hadean40': (438, 218, 106), 'archean38': (420, 211, 105),
+# tilt (lunar_inclination.py; at 4.5 Ga the Moon orbits in the Earth's equator, 23.44° to the
+# ecliptic) and the longest totality, in minutes.
+COUNTS = {'hadean45': (7080, 3916, 57), 'hadean40': (438, 218, 106), 'archean38': (420, 211, 105),
           'archean27': (286, 137, 109), 'proterozoic22': (226, 124, 106), 'snowball07': (172, 77, 108),
           'ordovician466': (171, 74, 106), 'carbon30': (167, 76, 107), 'kpg66': (149, 71, 107),
           'volcanic': (144, 84, 107), 'modern': (144, 84, 107)}
-TILT = {'hadean44': 5.93, 'hadean40': 5.80, 'archean38': 5.75, 'archean27': 5.46, 'proterozoic22': 5.37,
+TILT = {'hadean45': 23.44, 'hadean40': 5.80, 'archean38': 5.75, 'archean27': 5.46, 'proterozoic22': 5.37,
         'snowball07': 5.20, 'ordovician466': 5.19, 'carbon30': 5.18, 'kpg66': 5.15, 'volcanic': 5.15, 'modern': 5.15}
 LABEL = {'modern': 'Today', 'volcanic': '1815 (Tambora)', 'kpg66': '66 Ma impact winter', 'carbon30': '300 Ma',
          'ordovician466': '466 Ma', 'snowball07': '700 Ma Snowball', 'proterozoic22': '2.2 Ga', 'archean27': '2.7 Ga thick haze',
-         'archean27thin': '2.7 Ga thin haze', 'archean38': '3.8 Ga', 'hadean40': '4.0 Ga', 'hadean44': '4.4 Ga'}
+         'archean27thin': '2.7 Ga thin haze', 'archean38': '3.8 Ga', 'hadean40': '4.0 Ga', 'hadean45': '4.5 Ga'}
 
 
 def rec(key):
@@ -72,7 +73,7 @@ def central(key):
 def table_rows():
     """[label, umbra in Moon widths, V at mid-eclipse, surface brightness, tilt, umbral and total eclipses a century, longest totality]."""
     rows = []
-    for key in ['modern', 'volcanic', 'kpg66', 'carbon30', 'ordovician466', 'snowball07', 'proterozoic22', 'archean27', 'archean38', 'hadean40', 'hadean44']:
+    for key in ['modern', 'volcanic', 'kpg66', 'carbon30', 'ordovician466', 'snowball07', 'proterozoic22', 'archean27', 'archean38', 'hadean40', 'hadean45']:
         Ym, V, sb = central(key)
         u, t, m = COUNTS[key]
         rows.append([LABEL[key], umbra(key)/MOON_ER, V, sb, TILT[key], u, t, m])
@@ -119,7 +120,7 @@ def edge_cx(key):
     return EDGE*umbra(key)/MOON_ER-1.0
 
 
-FIG_KEYS = ['modern', 'carbon30', 'snowball07', 'proterozoic22', 'archean38', 'hadean44', 'volcanic', 'archean27', 'kpg66']
+FIG_KEYS = ['modern', 'carbon30', 'snowball07', 'proterozoic22', 'archean38', 'hadean45', 'volcanic', 'archean27', 'kpg66']
 
 
 def figure(path=None):
@@ -143,7 +144,7 @@ def figure(path=None):
     fig.text(0.008, 0.80, 'centred in\nthe shadow', color='#c9ccd2', fontsize=7, va='center', rotation=90, ha='left', linespacing=1.0)
     fig.text(0.008, 0.535, 'inside the\numbra\'s edge', color='#c9ccd2', fontsize=7, va='center', rotation=90, ha='left', linespacing=1.0)
     ax = fig.add_subplot(gs[2, :]); ax.set_facecolor(BG)
-    cols = {'modern': '#e8a46a', 'snowball07': '#7fb2e5', 'proterozoic22': '#b9d98b', 'archean38': '#f07a4a', 'hadean44': '#d6453a', 'volcanic': '#9a9aa6', 'archean27': '#a5743d'}
+    cols = {'modern': '#e8a46a', 'snowball07': '#7fb2e5', 'proterozoic22': '#b9d98b', 'archean38': '#f07a4a', 'hadean45': '#d6453a', 'volcanic': '#9a9aa6', 'archean27': '#a5743d'}
     for key, c in cols.items():
         r = rec(key); rho = np.linspace(0, r['rhoMax'], 400); Y, _ = shadow_at(r, rho)
         ax.plot(rho/umbra(key), np.log10(np.maximum(Y, 1e-14)), color=c, lw=1.4, label=LABEL[key])

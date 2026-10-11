@@ -31,7 +31,7 @@ from skymodel import LAM, R_E, spec_to_XYZ, M_XYZ2RGB
 HERE = Path(__file__).resolve().parent
 
 # The page's epochs (gen_site.py order) and the air each one's shadow is computed with.
-ORDER = ['protoearth455', 'hadean45', 'hadean44', 'hadean40', 'archean38', 'archean27thin', 'archean27', 'archean27vthick', 'proterozoic22',
+ORDER = ['protoearth455', 'hadean45', 'hadean40', 'archean38', 'archean27thin', 'archean27', 'archean27vthick', 'proterozoic22',
          'snowball07', 'ordovician466', 'carbon30', 'kpg66', 'zetaoph', 'geminga', 'volcanic', 'ozonehole',
          'modern', 'modernpoll', 'y2100']
 SHADOW_AIR = {k: k for k in epochs.BY_KEY}
@@ -39,7 +39,7 @@ SHADOW_AIR.update(zetaoph='modern', geminga='modern', y2100='modern', ozonehole=
 # Mean Earth-Moon distance in Earth radii, as moon.js MOON_RE.
 MOON_RE = dict(modern=60.14, kpg66=59.93, carbon30=58.56, ordovician466=58.21, snowball07=57.71,
                proterozoic22=50.98, archean27thin=47.60, archean27=47.60, archean27vthick=47.60,
-               archean38=40.4, hadean40=39.8, hadean44=38.7, hadean45=8.0)
+               archean38=40.4, hadean40=39.8, hadean45=8.0)
 SUN_RADIUS_DEG = 0.2666
 AU_KM = 1.495979e8
 # Surface refractivity (n-1)·1e6 at STP and 550 nm per bar of each gas (gen_site.py REFRAC),

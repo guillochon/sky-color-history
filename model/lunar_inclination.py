@@ -20,7 +20,7 @@ import numpy as np
 HIST = [(0, 60.14), (66, 59.93), (300, 58.56), (466, 58.21), (700, 57.71), (2200, 50.98),
         (2700, 47.60), (3200, 42.10), (3800, 40.4), (4000, 39.8), (4400, 38.7)]
 EPOCH_MA = dict(kpg66=66, carbon30=300, ordovician466=466, snowball07=700, proterozoic22=2200,
-                archean27=2700, archean38=3800, hadean40=4000, hadean44=4400)
+                archean27=2700, archean38=3800, hadean40=4000)
 I_NOW = 5.145
 K2, Q = 0.024, 38.0
 ME_MM = 81.30

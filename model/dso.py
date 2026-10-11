@@ -147,7 +147,7 @@ for o in O:
     o['fov'] = max(o['fov'], round(ext * 1.2, 3))
 
 # Years before J2000 of each epoch (build_star_epochs.py, gen_report.py).
-EPOCH_YEARS = {'protoearth455': 4.55e9, 'hadean45': 4.5e9, 'hadean44': 4.4e9, 'hadean40': 4.0e9, 'archean38': 3.8e9, 'archean27thin': 2.7e9, 'archean27': 2.7e9,
+EPOCH_YEARS = {'protoearth455': 4.55e9, 'hadean45': 4.5e9, 'hadean40': 4.0e9, 'archean38': 3.8e9, 'archean27thin': 2.7e9, 'archean27': 2.7e9,
                'archean27vthick': 2.7e9, 'proterozoic22': 2.2e9, 'snowball07': 7e8, 'ordovician466': 4.66e8,
                'carbon30': 3e8, 'kpg66': 6.6e7, 'zetaoph': 1.78e6, 'geminga': 3.42e5, 'volcanic': 185.0,
                'ozonehole': 10.0, 'modern': 0.0, 'modernpoll': 0.0, 'y2100': -100.0}
@@ -490,7 +490,7 @@ def places():
                 s *= max(age - max(years, 0), 0) / age
             out[i][key] = [round(ra, 4), round(dec, 4), round(s, 4), round(f, 3)]
     for i in ('M31', 'LMC', 'M81'):
-        print(i, ' '.join(f"{k}:{v[2]:.2f}" for k, v in out[i].items() if k in ('hadean44', 'archean27', 'snowball07', 'kpg66', 'modern')))
+        print(i, ' '.join(f"{k}:{v[2]:.2f}" for k, v in out[i].items() if k in ('hadean45', 'archean27', 'snowball07', 'kpg66', 'modern')))
     return out
 
 

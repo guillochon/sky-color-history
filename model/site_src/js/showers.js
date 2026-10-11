@@ -172,7 +172,7 @@ function showerFromRow(row){
 let SHOWER_LIST=null;
 function showerList(){ return SHOWER_LIST||(SHOWER_LIST=SHOWERS.map(showerFromRow)); }
 // The short-period comets relative to today's (see above).
-const SHOWER_J={protoearth455:30, hadean45:30, hadean44:30, hadean40:5, archean38:4, archean27thin:1.5, archean27:1.5, archean27vthick:1.5, proterozoic22:1.2};
+const SHOWER_J={protoearth455:30, hadean45:30, hadean40:5, archean38:4, archean27thin:1.5, archean27:1.5, archean27vthick:1.5, proterozoic22:1.2};
 function showerFactor(key){ return 0.75*(SHOWER_J[key]??1)+0.25*(COMET_RATE[key]??1); }
 // The showers of epoch key: today's list in the modern-era skies, or the epoch's own.
 const SHOWER_SETS={};

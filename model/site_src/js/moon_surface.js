@@ -1,7 +1,7 @@
 /* ---------- the Moon's face through time ---------- */
 // Ages (Ma) of the epochs whose Moon looked different from today's.
 const MOON_MA={hadean45:4500, kpg66:66, carbon30:300, ordovician466:466, snowball07:700, proterozoic22:2200,
-  archean27thin:2700, archean27:2700, archean27vthick:2700, archean38:3800, hadean40:4000, hadean44:4400};
+  archean27thin:2700, archean27:2700, archean27vthick:2700, archean38:3800, hadean40:4000};
 // The dark maria are basalt that flooded the great basins from about 3.9 Ga, most of it by 3.3 Ga
 // (Hiesinger et al. 2011, GSA Special Paper 477): before then the near side was bright highland
 // crust from limb to limb. They did not darken together. Each mare here has a date its floor
@@ -219,7 +219,7 @@ function moltenFace(){
 }
 // The older faces are made while the page is idle, so changing epoch does not wait for them.
 function warmMoonFaces(){
-  const keys=['carbon30', 'archean38', 'hadean44'], next=()=>{ const k=keys.shift(); if(!k) return; moonSurface(k); (window.requestIdleCallback||setTimeout)(next); };
+  const keys=['carbon30', 'archean38', 'hadean40'], next=()=>{ const k=keys.shift(); if(!k) return; moonSurface(k); (window.requestIdleCallback||setTimeout)(next); };
   (window.requestIdleCallback||setTimeout)(next);
 }
 // Mare volcanism: fissures feeding the flood basalts fountained lava at about 1,400 K, as bright

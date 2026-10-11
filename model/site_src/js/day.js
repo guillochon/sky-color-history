@@ -168,8 +168,8 @@ const NIGHT_NATURAL=1.71e-4, NIGHT_XY=[0.310, 0.330];
 //     so their luminance is about 15% of today's airglow (band shape: a Gaussian at 450 nm, 45 nm
 //     wide, xy 0.145, 0.120).
 const NIGHT_REST_XY=[0.3265, 0.3361], AIRGLOW_XY=[0.294, 0.324], HERZBERG_XY=[0.145, 0.120], AIRGLOW_SHARE=0.5;
-const AIRGLOW_O={protoearth455:0, hadean45:0, proterozoic22:0.3, snowball07:0.8, ordovician466:0.9, archean27thin:0, archean27:0, archean27vthick:0, archean38:0, hadean40:0, hadean44:0};
-const AIRGLOW_CO2={protoearth455:0.15, hadean45:0.15, archean27thin:0.15, archean27:0.15, archean27vthick:0.15, archean38:0.15, hadean40:0.15, hadean44:0.15};
+const AIRGLOW_O={protoearth455:0, hadean45:0, proterozoic22:0.3, snowball07:0.8, ordovician466:0.9, archean27thin:0, archean27:0, archean27vthick:0, archean38:0, hadean40:0};
+const AIRGLOW_CO2={protoearth455:0.15, hadean45:0.15, archean27thin:0.15, archean27:0.15, archean27vthick:0.15, archean38:0.15, hadean40:0.15};
 // The natural night sky at the zenith outside the air (cd/m², XYZ) for epoch key.
 function nightNatural(key){
   const fo=AIRGLOW_O[key]??1, fc=AIRGLOW_CO2[key]||0, out=[0,0,0];
@@ -188,7 +188,7 @@ const SKYGLOW={modern:[3.09e-3, 0.44, 0.40], modernpoll:[4.94e-3, 0.45, 0.40], o
 // its dust 0.85 magnitudes. All three are dimmed at the zenith by the excess over clean air, and more toward the horizon.
 // The soot of the impact winter absorbs what it removes; elsewhere the haze mostly scatters it
 // back into the diffuse sky, so only the soot also darkens the airglow's diffuse glow.
-const EXT_K={hadean45:7.6, protoearth455:0.85, hadean44:7.6, hadean40:0.35, archean27:0.8, archean27vthick:1.8, kpg66:2.3, volcanic:0.7, modernpoll:0.8};
+const EXT_K={hadean45:7.6, protoearth455:0.85, hadean40:0.35, archean27:0.8, archean27vthick:1.8, kpg66:2.3, volcanic:0.7, modernpoll:0.8};
 function extK(key){ return EXT_K[key]||0.25; }
 // Transmission at the zenith relative to clean air, and the part of it lost to absorption.
 function extZenith(key){ return Math.pow(10, -0.4*(extK(key)-0.25)); }

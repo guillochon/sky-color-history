@@ -24,8 +24,8 @@
 // Through time (meteor rate relative to today at the same brightness):
 //   - The bombardment: Neukum et al. 2001's lunar chronology gives 7,900 times today at 4.4 Ga,
 //     490 at 4.0 and 124 at 3.8 Ga; whether the flux fell steadily from the Moon's birth
-//     (Morbidelli et al. 2018) or rose again near 4.1 Ga, those are the rates. Taken as 3,000,
-//     500 and 120. The impactors then had a main-belt-like size distribution (Strom et al. 2015),
+//     (Morbidelli et al. 2018) or rose again near 4.1 Ga, those are the rates. Taken as 500
+//     and 120 at 4.0 and 3.8 Ga. The impactors then had a main-belt-like size distribution (Strom et al. 2015),
 //     richer in large bodies, so fireballs make up more of them; and before 4.15 Ga they hit at
 //     about 16 km/s (Marchi et al. 2014), so most meteors were slow and yellow-orange.
 //   - 2.7 Ga: twice today, from the long tail of leftovers and the E-belt (Bottke et al. 2012);
@@ -46,7 +46,6 @@
 const MET_EPOCH={
   protoearth455:{F:30000, rf:3.0, rb:2.0, mix:{aster:0.9, iso:0.1}, dh:9, flash:1},
   hadean45:{F:10000, rf:3.0, rb:2.0, mix:{aster:0.85, iso:0.15}, dh:22, flash:1},
-  hadean44:{F:3000, rf:3.0, rb:2.0, mix:{aster:0.85, iso:0.15}, dh:22, flash:1},
   hadean40:{F:500, rf:3.0, rb:2.1, mix:{aster:0.6, apex:0.15, iso:0.25}, flash:1},
   archean38:{F:120, rf:3.0, rb:2.15, mix:{aster:0.6, apex:0.15, helion:0.1, antihelion:0.1, iso:0.05}, flash:1},
   archean27thin:{F:2, mix:{aster:0.3}}, archean27:{F:2, mix:{aster:0.3}}, archean27vthick:{F:2, mix:{aster:0.3}},
