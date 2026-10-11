@@ -38,14 +38,14 @@ function moonElAt(ms){
 // The first umbral eclipse (with total set, the first total one) whose phase starts after
 // afterMs with the Moon at least 5° up at its middle, searched full Moon by full Moon.
 // Returns {start, end, mid, total}.
-function findNextLunarEclipse(afterMs, total){
+// With back, the last one starting before afterMs instead.
+function findNextLunarEclipse(afterMs, total, back=false){
   if(noMoon()) return null;
   const msOf=d=>(d-DN_UNIX)*86400000, gr=(Math.sqrt(5)-1)/2, f=ms=>lunarGap(ms, total);
   const P=synodic();
-  let k=Math.floor((dayOfMs(afterMs)-DN_NEW0)/P-0.5)-1;
-  const kEnd=k+Math.ceil((total?40:12)*TROPICAL_YEAR/P)+2;
-  for(;k<=kEnd;k++){
-    const t0=msOf(DN_NEW0+(k+0.5)*P), span=0.15*P*86400000;
+  const k0=Math.floor((dayOfMs(afterMs)-DN_NEW0)/P-0.5)+(back?1:-1), nK=Math.ceil((total?40:12)*TROPICAL_YEAR/P)+2;
+  for(let i=0;i<=nK;i++){
+    const k=back?k0-i:k0+i, t0=msOf(DN_NEW0+(k+0.5)*P), span=0.15*P*86400000;
     let a=t0-span, b=t0+span, c=b-gr*(b-a), e=a+gr*(b-a), fc=f(c), fe=f(e);
     for(let i=0;i<34;i++){
       if(fc<fe){ b=e; e=c; fe=fc; c=b-gr*(b-a); fc=f(c); }
@@ -58,7 +58,7 @@ function findNextLunarEclipse(afterMs, total){
     const start=hi; lo=mid; hi=t0+span;
     for(let i=0;i<26;i++){ const m=(lo+hi)/2; if(f(m)<0) lo=m; else hi=m; }
     const end=lo;
-    if(start<=afterMs || moonElAt((start+end)/2)<5) continue;
+    if((back?start>=afterMs:start<=afterMs) || moonElAt((start+end)/2)<5) continue;
     return {start, end, mid, total:lunarGap(mid, true)<0};
   }
   return null;
@@ -153,17 +153,20 @@ function lunarSpectrumAt(lu, x, y, lam){
 }
 // Jump to 30 minutes before the next umbral eclipse, or with total set to 5 minutes before the
 // next totality, the Moon in view. Pressing again from that lead moves on to the one after.
-function jumpNextLunarEclipse(total){
+// With back, the one before: it starts before now, so not the one this jump left the view just short of.
+function jumpNextLunarEclipse(total, back=false){
   if(dayPlaying){ dayPlaying=false; adoptPlayRate(); hplay.textContent='Play'; hplay.setAttribute('aria-pressed','false'); syncVRPad(); }
   const lead=(total?5:30)*60*1000;
   let after=pageMs()+1000, ev=null;
-  for(let n=0;n<12;n++){
+  if(back) ev=findNextLunarEclipse(pageMs()-1000, total, true);
+  else for(let n=0;n<12;n++){
     ev=findNextLunarEclipse(after, total);
     if(!ev) break;
     if(Math.abs(ev.start-lead-(after-1000))>90*1000) break;
     after=ev.start+1000;
   }
-  if(!ev){ vrNote=noMoon()?'no Moon yet: it forms in a giant impact some tens of millions of years later':total?'no total lunar eclipse in the next forty years':'no lunar eclipse in the next twelve years'; if(vrOn) paintVR(); else document.getElementById('recl').textContent=vrNote; return; }
+  const when=back?'last':'next';
+  if(!ev){ vrNote=noMoon()?'no Moon yet: it forms in a giant impact some tens of millions of years later':total?`no total lunar eclipse in the ${when} forty years`:`no lunar eclipse in the ${when} twelve years`; if(vrOn) paintVR(); else document.getElementById('recl').textContent=vrNote; return; }
   const at=pageAt(dayOfMs(ev.start-lead));
   document.getElementById('moonDate').value=at.date;
   minutes=at.min;

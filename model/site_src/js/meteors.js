@@ -306,8 +306,13 @@ function metImpacts(t){
 // 4 s before it, facing where it comes down, playing in real time so it is seen to fall. Most epochs
 // have none: today, by the distribution here, one strikes within 1,100 km about once in 1,600 years.
 function jumpNextImpact(back){
-  const key=EP[dIdx].key, t=astroDay()*86400, I=metImpacts(back?t-10:t+5), list=back?I.prev:I.next;
-  const m=list[0];
+  // The first after now (past the one this jump left the view 4 s short of), or the last before
+  // it, from the strikes listed; listed afresh about now when the list runs out that way.
+  const key=EP[dIdx].key, t=astroDay()*86400, tq=back?t:t+5;
+  const pickFrom=I=>{ let best=null;
+    for(const q of I.prev.concat(I.next)) if(back?q.t0<tq&&(!best||q.t0>best.t0):q.t0>tq&&(!best||q.t0<best.t0)) best=q; return best; };
+  let I=metImpacts(tq), m=pickFrom(I);
+  if(!m||(back?m===I.prev[I.prev.length-1]:m===I.next[I.next.length-1])){ MET_IMP.id=''; I=metImpacts(tq); m=pickFrom(I); }
   if(!m){
     // Only stony and asteroidal meteoroids reach the ground (metPath): not the apex and toroidal ones.
     const E=metEpoch(key), mixAll=Object.values(E.mix).reduce((a, b)=>a+b, 0);

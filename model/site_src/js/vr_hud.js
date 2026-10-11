@@ -296,17 +296,20 @@ function stepEpoch(d){
 // Jump to 30 minutes before the next eclipse, or with central set to 5 minutes before the next
 // total or annular phase. Pressing again from that lead moves on to the one after.
 // With totalOnly, annular eclipses are passed over too.
-function jumpNextEclipse(central, totalOnly){
+// With back, the one before: it starts before now, so not the one this jump left the view just short of.
+function jumpNextEclipse(central, totalOnly, back=false){
   if(dayPlaying){ dayPlaying=false; adoptPlayRate(); hplay.textContent='Play'; hplay.setAttribute('aria-pressed','false'); syncVRPad(); }
   const lead=(central?5:30)*60*1000;
-  let after=pageMs()+1000, ev=null;
+  let after=pageMs()+1000, before=pageMs()-1000, ev=null;
   for(let n=0;n<12;n++){
-    ev=findNextEclipse(after, central);
+    ev=back?findNextEclipse(before, central, true):findNextEclipse(after, central);
     if(!ev) break;
+    if(back){ if(!(totalOnly && ev.type!=='total')) break; before=ev.start-1000; continue; }
     if(Math.abs(ev.start-lead-(after-1000))>90*1000 && !(totalOnly && ev.type!=='total')) break;
     after=ev.start+1000;
   }
-  if(!ev){ vrNote=noMoon()?'no Moon yet: it forms in a giant impact some tens of millions of years later':central?'no total or annular eclipse in the next forty years':'no eclipse in the next eight years'; if(vrOn) paintVR(); else document.getElementById('recl').textContent=vrNote; return; }
+  const when=back?'last':'next';
+  if(!ev){ vrNote=noMoon()?'no Moon yet: it forms in a giant impact some tens of millions of years later':central?`no total or annular eclipse in the ${when} forty years`:`no eclipse in the ${when} eight years`; if(vrOn) paintVR(); else document.getElementById('recl').textContent=vrNote; return; }
   const at=pageAt(dayOfMs(ev.start-lead));
   document.getElementById('moonDate').value=at.date;
   minutes=at.min;

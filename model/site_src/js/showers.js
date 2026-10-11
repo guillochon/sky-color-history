@@ -306,18 +306,28 @@ function showerAltsAt(d, ra, dec, lat){
 // Jump to the next shower maximum (ZHR 10 or more) or outburst: for a maximum, to the hour of
 // that night when the radiant stands highest in a dark sky, weighted by the activity; for an
 // outburst, to 15 minutes before its peak. The view turns to the radiant.
-function jumpNextShower(){
+// With back, the shower (or storm) before: its peak more than 0.6 day before now, so not the one
+// this jump left the view at.
+function jumpNextShower(back=false){
   if(dayPlaying){ dayPlaying=false; adoptPlayRate(); hplay.textContent='Play'; hplay.setAttribute('aria-pressed','false'); syncVRPad(); }
   const key=EP[dIdx].key, d0=astroDay(), lat=LATDEG[dLat], ev=[];
   for(const sh of showerSet(key)) if(sh.Z>=10){
+    if(back){
+      let d=dayOfSolarLon(sh.lmax, d0-0.6-180/0.98565);
+      while(d>=d0-0.6) d-=TROPICAL_YEAR;
+      while(d+TROPICAL_YEAR<d0-0.6) d+=TROPICAL_YEAR;
+      ev.push({d, sh, storm:null});
+      continue;
+    }
     let d=dayOfSolarLon(sh.lmax, d0+0.6+180/0.98565);
     while(d<=d0+0.6) d+=TROPICAL_YEAR;
     while(d-TROPICAL_YEAR>d0+0.6) d-=TROPICAL_YEAR;
     ev.push({d, sh, storm:null});
   }
-  for(const st of stormsNear(key, d0+TROPICAL_YEAR, TROPICAL_YEAR)) if(st.d>d0+0.5/24) ev.push({d:st.d, sh:st.sh, storm:st});
+  if(back){ for(const st of stormsNear(key, d0-TROPICAL_YEAR, TROPICAL_YEAR)) if(st.d<d0-0.5/24) ev.push({d:st.d, sh:st.sh, storm:st}); }
+  else for(const st of stormsNear(key, d0+TROPICAL_YEAR, TROPICAL_YEAR)) if(st.d>d0+0.5/24) ev.push({d:st.d, sh:st.sh, storm:st});
   if(!ev.length) return;
-  ev.sort((a, b)=>a.d-b.d);
+  ev.sort((a, b)=>back?b.d-a.d:a.d-b.d);
   const e=ev[0], sh=e.sh;
   let at=e.d, ra, dec;
   if(e.storm){

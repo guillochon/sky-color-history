@@ -162,13 +162,13 @@ function eclipseGap(ms, central, scale=DISK_SCALE){
 // The first eclipse starting after afterMs with the Sun up, searched new Moon by new Moon:
 // any overlap of the disks as drawn in VR, or with central set a total or annular phase.
 // Returns {start, end, type} or null.
-function findNextEclipse(afterMs, central){
+// With back, the last one starting before afterMs instead.
+function findNextEclipse(afterMs, central, back=false){
   if(noMoon()) return null;
   const msOf=d=>(d-DN_UNIX)*86400000, gr=(Math.sqrt(5)-1)/2, f=ms=>eclipseGap(ms, central);
-  let k=Math.round((dayOfMs(afterMs)-DN_NEW0)/synodic())-1;
-  const kEnd=k+Math.ceil((central?40:8)*TROPICAL_YEAR/synodic())+2;
-  for(;k<=kEnd;k++){
-    const t0=msOf(lunation(k).t0), span=0.3*86400000;
+  const k0=Math.round((dayOfMs(afterMs)-DN_NEW0)/synodic())+(back?1:-1), nK=Math.ceil((central?40:8)*TROPICAL_YEAR/synodic())+2;
+  for(let i=0;i<=nK;i++){
+    const k=back?k0-i:k0+i, t0=msOf(lunation(k).t0), span=0.3*86400000;
     let a=t0-span, b=t0+span, c=b-gr*(b-a), e=a+gr*(b-a), fc=f(c), fe=f(e);
     for(let i=0;i<30;i++){
       if(fc<fe){ b=e; e=c; fe=fc; c=b-gr*(b-a); fc=f(c); }
@@ -181,7 +181,7 @@ function findNextEclipse(afterMs, central){
     const start=hi; lo=mid; hi=t0+span;
     for(let i=0;i<24;i++){ const m=(lo+hi)/2; if(f(m)<0) lo=m; else hi=m; }
     const end=lo;
-    if(start<=afterMs || !sunUpDuring(start, end)) continue;
+    if((back?start>=afterMs:start<=afterMs) || !sunUpDuring(start, end)) continue;
     const g=eclipseAt(mid);
     return {start, end, type:central?(g.rM>g.rS?'total':'annular'):'partial'};
   }

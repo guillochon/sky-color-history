@@ -255,6 +255,10 @@ document.addEventListener('pointerlockchange', ()=>{
   if(vrRelock){ lockLook(); return; }
   vrLeaveUnlessAway(()=>document.pointerLockElement!==vrc&&!vrInspect);
 });
+// Shift and ctrl (or ⌘) held, for the key legend: the jumps go back and the steps change while they are.
+function vrMods(e){ const v=document.getElementById('vr'); v.classList.toggle('mod-shift', !!e.shiftKey); v.classList.toggle('mod-ctrl', !!(e.ctrlKey||e.metaKey)); }
+document.addEventListener('keydown', vrMods); document.addEventListener('keyup', vrMods);
+window.addEventListener('blur', ()=>document.getElementById('vr').classList.remove('mod-shift', 'mod-ctrl'));
 document.addEventListener('keyup',e=>{ if(e.key==='Shift') vrHeld.delete('shift'); else vrHeld.delete(e.key.length===1?e.key.toLowerCase():e.key); });
 window.addEventListener('blur',()=>{ vrHeld.clear(); endStick(); });
 document.addEventListener('keydown',e=>{
@@ -279,11 +283,12 @@ document.addEventListener('keydown',e=>{
     }
     if(e.key==='ArrowUp'||e.key===']'){ e.preventDefault(); stepEpoch(1); return; }
     if(e.key==='ArrowDown'||e.key==='['){ e.preventDefault(); stepEpoch(-1); return; }
-    if(k==='e'&&!e.repeat){ e.preventDefault(); jumpNextEclipse(false); return; }
-    if(k==='t'&&!e.repeat){ e.preventDefault(); jumpNextEclipse(true); return; }
-    if(k==='u'&&!e.repeat){ e.preventDefault(); jumpNextLunarEclipse(false); return; }
-    if(k==='b'&&!e.repeat){ e.preventDefault(); jumpNextLunarEclipse(true); return; }
-    if(k==='n'&&!e.repeat){ e.preventDefault(); jumpNextShower(); return; }
+    // The jumps go to the next event, or with shift the one before.
+    if(k==='e'&&!e.repeat){ e.preventDefault(); jumpNextEclipse(false, false, e.shiftKey); return; }
+    if(k==='t'&&!e.repeat){ e.preventDefault(); jumpNextEclipse(true, false, e.shiftKey); return; }
+    if(k==='u'&&!e.repeat){ e.preventDefault(); jumpNextLunarEclipse(false, e.shiftKey); return; }
+    if(k==='b'&&!e.repeat){ e.preventDefault(); jumpNextLunarEclipse(true, e.shiftKey); return; }
+    if(k==='n'&&!e.repeat){ e.preventDefault(); jumpNextShower(e.shiftKey); return; }
     if(k==='i'&&!e.repeat){ e.preventDefault(); jumpNextImpact(e.shiftKey); return; }
     if((k==='1'||k==='2'||k==='3')&&!e.repeat){ e.preventDefault(); setPlaySpeed(SPEED_KEYS[k]); return; }
     return;
@@ -300,8 +305,8 @@ document.addEventListener('keydown',e=>{
   const k=e.key.length===1?e.key.toLowerCase():e.key;
   const act={' ':()=>{ if(!e.repeat) hplay.click(); }, ArrowRight:()=>stepMinutes(5), ArrowLeft:()=>stepMinutes(-5),
     ArrowUp:()=>stepEpoch(1), ']':()=>stepEpoch(1), ArrowDown:()=>stepEpoch(-1), '[':()=>stepEpoch(-1),
-    e:()=>{ if(!e.repeat) jumpNextEclipse(false); }, t:()=>{ if(!e.repeat) jumpNextEclipse(true); },
-    u:()=>{ if(!e.repeat) jumpNextLunarEclipse(false); }, b:()=>{ if(!e.repeat) jumpNextLunarEclipse(true); }, n:()=>{ if(!e.repeat) jumpNextShower(); },
+    e:()=>{ if(!e.repeat) jumpNextEclipse(false, false, e.shiftKey); }, t:()=>{ if(!e.repeat) jumpNextEclipse(true, false, e.shiftKey); },
+    u:()=>{ if(!e.repeat) jumpNextLunarEclipse(false, e.shiftKey); }, b:()=>{ if(!e.repeat) jumpNextLunarEclipse(true, e.shiftKey); }, n:()=>{ if(!e.repeat) jumpNextShower(e.shiftKey); },
     f:()=>{ if(!e.repeat) openFind(); }, l:()=>{ if(!e.repeat){ vrLabels=!vrLabels; syncVRPad(); requestRender(); } },
     1:()=>setPlaySpeed('real'), 2:()=>setPlaySpeed('default'), 3:()=>setPlaySpeed('fast')}[k];
   if(act){ e.preventDefault(); act(); }
