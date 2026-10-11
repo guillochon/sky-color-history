@@ -35,7 +35,7 @@ SHOTS = {
     'sats2100':     dict(moment='Satellites at dusk, 2100'),
     # Telescope views, framed by the find tool and zoomed past it.
     'jupiter':      dict(epoch='modern', date='2026-10-11', t=240, look={'find': 'Jupiter'}, zoom=0.55, clouds=False, wait=8000),
-    'saturn':       dict(epoch='modern', date='2026-10-11', t=1320, look={'find': 'Saturn'}, zoom=0.6, clouds=False, wait=8000),
+    'saturn':       dict(epoch='modern', date='2026-10-11', t=1320, look={'find': 'Saturn'}, zoom=0.2, clouds=False, wait=10000),
 }
 
 JS_HIDE = """(()=>{const s=document.createElement('style');s.textContent='.vrui,.vrhud,.vrtop,.vrbot,.vrkeys,.vrpad,.vrnote,.vrmini,.vrwalk,.vrstick,#vrtip,#vrload,#vrprep,#sunmark,#moonmark,#snmark{display:none!important}';document.head.appendChild(s);return 1})()"""
@@ -58,8 +58,11 @@ def js_shot(s):
   }
   for(let i=0;i<120&&!vrOn;i++) await sl(250);
   await sl(2500);
+  // Entering starts the clock, sometimes only after the shaders load: paused once it has started.
+  for(let i=0;i<40&&!dayPlaying;i++) await sl(250);
   if(dayPlaying) document.getElementById('hplay').click();
-  if(S.look&&S.look.find){ findStart(%s); await sl(9000); vrFind=null; }
+  // The flight may not have ended; the view is then centered on the found thing itself.
+  if(S.look&&S.look.find){ const T=%s; findStart(T); await sl(9000); vrFind=null; const w=findWhere(T); if(w){ vrYaw=w.az; vrPitch=Math.asin(w.d[2])*180/Math.PI; } }
   if(S.fov) vrFov=S.fov; else if(S.zoom) vrFov*=S.zoom;
   if(S.look&&!S.look.find&&!S.moment){ vrYaw=S.look[0]; vrPitch=S.look[1]; }
   requestVR(); await sl(S.wait||5000);

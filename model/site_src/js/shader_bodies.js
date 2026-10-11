@@ -32,7 +32,7 @@ vec3 grsPaint(vec3 c, vec3 nrm, vec3 n, float lat){
   c=mix(c, vec3(0.95, 0.91, 0.82), 0.85*(1.0-smoothstep(1.2, 1.45, e)));
   return mix(c, vec3(0.80, 0.42, 0.30), grsAB.w*(1.0-smoothstep(0.8, 1.0, e))*(0.85+0.15*smoothstep(0.0, 0.7, e)));
 }
-// Saturn's colour with the season (bodyDisk, planets.js satSeason), sl the sine of the Sun's latitude
+// Saturn's color with the season (bodyDisk, planets.js satSeason), sl the sine of the Sun's latitude
 // on it: the winter hemisphere, out of the Sun, clears of the haze that yellows the summer one and
 // shows bluish, as Cassini saw the north in 2004-2009 (it turned golden again by about 2016). The
 // change lags the season by several years; drawn without the lag.
@@ -51,7 +51,7 @@ vec3 satSeason(vec3 c, float lat, float sl){
 // hot spots at their heads; barges; the chain of white ovals in the South South Temperate Belt;
 // and the bands wandering, darkening and stirring along their length.
 // Saturn the same flow with its own winds and bands (one program has one of them, DETAIL_JUP or
-// DETAIL_SAT), after Cassini's images: calmer, its colours muted by the haze above the clouds, finer
+// DETAIL_SAT), after Cassini's images: calmer, its colors muted by the haze above the clouds, finer
 // banding toward the poles; the hexagon about the north pole; the polar vortices; the ribbon wave
 // on the jet at 47°N; the storms of Storm Alley at 40°S.
 // The zonal wind (m/s, east positive) at planetographic latitude lat as a sum of Gaussian jets;
@@ -185,7 +185,7 @@ vec2 khRoll(vec2 q, float b, float N, float R, float ang, float seed, float cl){
 // longitude, or the sine of the Sun's latitude on Saturn; T days (fineT.y). The clouds are a
 // tracer: each point is turned by the billows, then followed back along the eddies' streamlines
 // and round the Red Spot, which roll the edges of the belts and zones and the finer banding within
-// them into curls and filaments, sheared out along the winds; the colour is the banding where it
+// them into curls and filaments, sheared out along the winds; the color is the banding where it
 // ends up. Then Jupiter's festoons and hot spots, barges and white ovals, or Saturn's hexagon,
 // polar vortices, ribbon and storms.
 vec3 cloudAlbedo(float lat, float lon, float pxD, float aux){
@@ -351,7 +351,7 @@ vec3 cloudAlbedo(float lat, float lon, float pxD, float aux){
   // The hexagon: the jet at 78°N meanders in a standing wave of six (Godfrey 1988), fixed in
   // System III, its sides 13,800 km long, at 77.7°N midway along each and 75.9°N at its corners
   // (where its corners lie in longitude is not known here). The jet itself a dark lane, a little
-  // ragged; inside it the clouds bluish-grey in the north's winter, golden by its summer (Cassini,
+  // ragged; inside it the clouds bluish-gray in the north's winter, golden by its summer (Cassini,
   // 2012-2016).
   float pc=90.0-abs(lat), sg=sign(lat), fw=max(pxD, 0.3);
   if(lat>65.0){

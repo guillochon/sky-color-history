@@ -182,6 +182,19 @@ JUPITER = [
 ]
 
 SATURN = [
+"Saturn close up is drawn as Jupiter is, a tracer stirred by the same flow, with its own winds, bands and "
+"colors. The winds are Cassini's at the cloud tops in 2004–2009 (García-Melendo et al. 2011), fit by twenty "
+"Gaussian jets to 6 m/s rms in System III, which also turns the planet: the broad equatorial jet near "
+"400 m/s, and narrower jets alternating with latitude toward the poles. The belts lie where the wind falls "
+"off poleward, as Jupiter's do, the broad pair at 18–32° and fainter, narrower ones beyond. Saturn's haze "
+"mutes all of it, so the eddies stir about half as hard as Jupiter's, the billows turn less, and the hues "
+"vary a half to a third as much. Around the north pole the jet at 78°N meanders in a standing wave of six, "
+"the hexagon (Godfrey 1988), golden inside in the northern summer and bluish gray in the winter; both poles "
+"have a vortex with a dark eye and a bright wall, a thin ribbon wave runs along the jet at 47°N, and small "
+"bright storms rise in Storm Alley near 40°S. The winter hemisphere, out of the Sun, shows bluish at any "
+"size, as Cassini saw the north before 2009. That change lags the season by several years, and the lag is "
+"not drawn.",
+
 "Saturn's rings are drawn from the Cassini radio occultation of 3 May 2005 (Marouf et al.), its optical "
 "depth at 10 km resolution from the C ring to the outer A ring, corrected to visible light in the C ring, "
 "the Cassini division and the outer A ring by the Ka-band occultation (whose sub-centimetre particles "
@@ -189,7 +202,10 @@ SATURN = [
 "al. 1984): lit from the Sun's side it shines by its depth and particle brightness, the A ring 0.7 of the "
 "B ring's and the C ring and Cassini division half of it and grayer; seen from the unlit side only light "
 "passing through it shows, so the B ring is black and the C ring and Cassini division glow. The rings "
-"shadow the globe and the globe the rings, and edge-on they thin below a pixel.",
+"shadow the globe, and the globe shadows the rings with its oblate outline and a penumbra the Sun's width. "
+"Near the equinoxes, when the Sun is low over the rings, they shadow the moons too: a moon passing behind "
+"them is banded by their shadow and dimmed by what they let through, Mimas by up to 4 magnitudes deep in "
+"the B ring's. Edge-on, the rings thin below a pixel.",
 
 "The rings are young. How young is still argued, 100 to 400 million years (Iess et al. 2019; Kempf et al. "
 "2023), and the page takes the account of Wisdom et al. (2022): an icy moon the size of Iapetus, named "
@@ -433,14 +449,14 @@ INTRO = [
 
 "The site computes what it shows as realistically as it can while still loading in seconds and running "
 "smoothly in a browser, and where the two conflict it compromises. Some compromises stand in for physics too "
-"costly to run. Jupiter's clouds are a tracer stirred by a flow made of noise, shaped by the measured winds and "
-"rolled into eddies and billows, a proxy for the planet's true three-dimensional hydrodynamics rather than a "
-"simulation of it; its animation repeats over a 2000-day cycle. The sky's multiple scattering is a two-stream "
+"costly to run. Jupiter's and Saturn's clouds are a tracer stirred by a flow made of noise, shaped by the measured "
+"winds and rolled into eddies and billows, a proxy for the planets' true three-dimensional hydrodynamics rather "
+"than a simulation of it; the animation repeats over a 2000-day cycle. The sky's multiple scattering is a two-stream "
 "approximation rather than a full Monte Carlo transfer, computed ahead of time on a grid of Sun heights and "
 "interpolated between them. The clouds are scenery, procedural volumes lit by the model's sky rather than the "
 "output of a climate model, and the Milky Way is a model of its structure rather than a photograph. The "
 "photosphere's granulation and the Moon's craters' shadows are drawn from procedural cells and a limited march "
-"toward the Sun, and the close-up detail of Jupiter, the Sun and the spacecraft maps is built only when the view "
+"toward the Sun, and the close-up detail of Jupiter, Saturn, the Sun and the spacecraft maps is built only when the view "
 "zooms in on them. Other compromises are made for the eye: the Sun and Moon are drawn at four times their size, "
 "the sunset's colors are spread further apart than they are, and the Sun's limb darkening is softened. Each "
 "section says where its subject is measured, modeled or approximated.",
