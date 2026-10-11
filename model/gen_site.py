@@ -182,6 +182,8 @@ PARTS = [
     'js/stars_epochs.js',
     'js/constellations.js',
     'js/planets.js',
+    'js/ring_profile.js',
+    'js/rings.js',
     'js/stars.js',
     'js/milkyway.js',
     'js/dso.js',

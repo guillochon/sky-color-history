@@ -351,7 +351,7 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
   // The walk-around view draws at most BODY_MAX bodies, the brightest on screen first.
   bodies.sort((a, b)=>a.mag-b.mag);
 }
-// The dome's version of the sky shader's bodyDisk, bodyAlbedo and saturnRing: the colour (before the
+// The dome's version of the sky shader's bodyDisk, bodyAlbedo and saturnRing (rings.js satRingAt): the colour (before the
 // air, times its coverage) of body b where the view ray is src, drawn rad radians across its radius
 // and rPx pixels.
 // The kinds of body: the planets in order (0-6), then any moon.
@@ -385,11 +385,6 @@ function grsPaint(c, g, nrm, n, lat){
   c=mix3(c, [0.95, 0.91, 0.82], 0.85*(1-smooth01(1.2, 1.45, e)));
   return mix3(c, [0.80, 0.42, 0.30], g.k*(1-smooth01(0.8, 1.0, e))*(0.85+0.15*smooth01(0.0, 0.7, e)));
 }
-function saturnRing(r, w){
-  const s=(e0, e1)=>smooth01(e0-w, e0+w, r)-smooth01(e1-w, e1+w, r);
-  const C=s(1.239, 1.527), B=s(1.527, 1.951), D=s(1.951, 2.025), A=s(2.025, 2.267);
-  return [0.18*C+(0.72+0.28*smooth01(1.55, 1.75, r))*B+0.12*D+0.62*A, 0.12*C+0.95*B+0.1*D+0.6*A];
-}
 // How much light reaches surface point x (host radii, horizon frame) past a moon's shadow s, the
 // Sun's way L: none in the umbra, all outside the penumbra, which widens with the moon's distance.
 function moonShadow(x, s, L, rPx){
@@ -417,12 +412,14 @@ function bodyPixel(b, src, rad, rPx){
     for(const s of b.shadows||[]){ const sh=moonShadow(x, s, L, rPx); dc=dc.map(c=>c*sh); }
   }
   if(b.kind===4&&b.rings&&Math.abs(vnK)>1e-4){
-    if(cov>0){ const ts=-vdot(x, n)/vdot(L, n); if(ts>0){ const sh=1-0.85*saturnRing(Math.hypot(...x.map((c, i)=>c+ts*L[i])), 0.02)[1]; dc=dc.map(c=>c*sh); } }
-    const tr=-on/vnK, xr=o.map((c, i)=>c+tr*v[i]), rg=saturnRing(Math.hypot(...xr), 0.8/rPx/Math.max(Math.abs(vnK), 0.03));
+    const tab=satRingTableFor(b), ln=vdot(L, n);
+    if(cov>0){ const ts=-vdot(x, n)/ln; if(ts>0){ const sh=1-satRingAt(tab, Math.hypot(...x.map((c, i)=>c+ts*L[i])), Math.max(0.8/rPx/Math.max(Math.abs(ln), 0.05), 0.0015))[2]; dc=dc.map(c=>c*sh); } }
+    const tr=-on/vnK, xr=o.map((c, i)=>c+tr*v[i]), rg=satRingAt(tab, Math.hypot(...xr), 0.8/rPx/Math.max(Math.abs(vnK), 0.03));
     if(rg[1]>0){
-      const s=vdot(xr, L), sh=s<0?smooth01(0.97, 1.03, Math.hypot(...xr.map((c, i)=>c-s*L[i]))):1;
-      const rb=rg[0]*sh*(vdot(L, n)*vnK<0?1:0.12), ro=rg[1]*smooth01(0, 0.03, Math.abs(vnK)), rc=[0.86*rb, 0.78*rb, 0.64*rb];
-      dc=tr<t?rc.map((c, i)=>c*ro+dc[i]*(1-ro)):dc.map((c, i)=>c+rc[i]*ro*(1-cov));
+      const s=vdot(xr, L), sh=s<0?smooth01(0.97, 1.03, Math.hypot(...xr.map((c, i)=>c-s*L[i]))):1, fade=smooth01(0, 0.03, Math.abs(vnK));
+      const g=Math.max(0, Math.min(1, rg[3]/Math.max(rg[0], 1e-6))), rb=rg[0]*sh*fade, ro=rg[1]*fade;
+      const rc=[0.86, 0.78, 0.64].map((c, i)=>(c+([0.74, 0.73, 0.70][i]-c)*g)*rb);
+      dc=tr<t?rc.map((c, i)=>c+dc[i]*(1-ro)):dc.map((c, i)=>c+rc[i]*(1-cov));
     }
   }
   return dc;

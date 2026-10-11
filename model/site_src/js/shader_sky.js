@@ -1095,7 +1095,7 @@ void main(){
         int kind=int(mod(N.w, 8.0)+0.5);
         bool ringed=kind==4 && N.w<15.5;
         if(inSun && mod(N.w, 16.0)<7.5) continue;
-        float sig=max(C.w*starPx, sigMin), reach=max(P.w*(ringed?2.3:1.0)+2.0*pxA, 4.0*sig);
+        float sig=max(C.w*starPx, sigMin), reach=max(P.w*(ringed?2.35:1.0)+2.0*pxA, 4.0*sig);
         vec3 dd=src-P.xyz;
         if(fine){ vec4 S=bodyS[b]; dd=axR*(fuv.x-S.x)+axU*((fuv.y-S.y)*S.z); }
         float d2=dot(dd, dd);

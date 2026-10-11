@@ -253,14 +253,9 @@ vec4 bodyDisk(vec3 o, vec3 v, vec3 n, vec3 L, int kind, float rPx, vec3 tint, ve
 #endif
   return vec4(alb*lit*BODY_GAIN[kind], cov);
 }
-// Saturn's rings at r planet radii, w the radial blur: brightness (x) and opacity (y) of the C ring,
-// the B ring (brightest in its outer half), the Cassini division and the A ring.
-vec2 saturnRing(float r, float w){
-  float C=smoothstep(1.239-w, 1.239+w, r)-smoothstep(1.527-w, 1.527+w, r), B=smoothstep(1.527-w, 1.527+w, r)-smoothstep(1.951-w, 1.951+w, r);
-  float D=smoothstep(1.951-w, 1.951+w, r)-smoothstep(2.025-w, 2.025+w, r), A=smoothstep(2.025-w, 2.025+w, r)-smoothstep(2.267-w, 2.267+w, r);
-  return vec2(0.18*C+mix(0.72, 1.0, smoothstep(1.55, 1.75, r))*B+0.12*D+0.62*A, 0.12*C+0.95*B+0.1*D+0.6*A);
-}
-`;
+// Saturn's rings (rings.js): saturnRing(r, w), the measured rings at r planet radii averaged over
+// r±w, shaded for the day.
+${SAT_RING_GLSL}`;
 const BODYFS_SRC=`#version 300 es
 precision highp float;
 #define DETAIL_JUP 1
@@ -351,16 +346,18 @@ void main(){
   float vn=dot(bP.xyz, bN.xyz);
   if(ringed && abs(vn)>1e-4){
     // The rings, in the equator: lit on the Sun's side (seen from the other, only what light
-    // gets through), dark in the planet's shadow, and casting their own shadow on it.
-    vec3 Lr=bL.xyz;
-    if(dk.a>0.0){ float ts=-dot(x, bN.xyz)/dot(Lr, bN.xyz); if(ts>0.0) dc*=1.0-0.85*saturnRing(length(x+ts*Lr), 0.02).y; }
+    // gets through), dark in the planet's shadow, and casting their own shadow on it, blurred by
+    // a pixel's width and the Sun's (0.0015 planet radii across the gap).
+    vec3 Lr=bL.xyz; float ln=dot(Lr, bN.xyz);
+    if(dk.a>0.0){ float ts=-dot(x, bN.xyz)/ln; if(ts>0.0) dc*=1.0-saturnRing(length(x+ts*Lr), max(0.8/rPx/max(abs(ln), 0.05), 0.0015)).z; }
     float tr=-dot(o, bN.xyz)/vn; vec3 xr=o+tr*bP.xyz;
-    vec2 rg=saturnRing(length(xr), 0.8/rPx/max(abs(vn), 0.03));
+    vec4 rg=saturnRing(length(xr), 0.8/rPx/max(abs(vn), 0.03));
     if(rg.y>0.0){
-      float s=dot(xr, Lr), sh=s<0.0?smoothstep(0.97, 1.03, length(xr-s*Lr)):1.0;
-      vec3 rc=vec3(0.86, 0.78, 0.64)*rg.x*sh*(dot(Lr, bN.xyz)*vn<0.0?1.0:0.12);
-      float ro=rg.y*smoothstep(0.0, 0.03, abs(vn));
-      dc=tr<t?rc*ro+dc*(1.0-ro):dc+rc*ro*(1.0-dk.a);
+      // Nearly edge-on, the rings are thinner than a pixel.
+      float s=dot(xr, Lr), sh=s<0.0?smoothstep(0.97, 1.03, length(xr-s*Lr)):1.0, fade=smoothstep(0.0, 0.03, abs(vn));
+      vec3 rc=mix(vec3(0.86, 0.78, 0.64), vec3(0.74, 0.73, 0.70), clamp(rg.w/max(rg.x, 1e-6), 0.0, 1.0))*rg.x*sh*fade;
+      float ro=rg.y*fade;
+      dc=tr<t?rc+dc*(1.0-ro):dc+rc*(1.0-dk.a);
     }
   }
   // Added to what is behind, except a moon on the near side of its planet (bN.w past 32), which
@@ -375,6 +372,6 @@ const BODY_UNIFORMS=['res','hitScale','yaw','pitch','fov','showScn','refK','rCd'
   'bP','bC','bL','bN','bS','bM','shadowM[0]','shadowK[0]','shadowCnt','sunQ','moonQ'];
 function setupBodyProg(gl, p){
   gl.useProgram(p);
-  bindSamplers(gl, p, [['sky',0],['noiseTex',12],['hitInfo',10],['dsoTex',6]]);
+  bindSamplers(gl, p, [['sky',0],['noiseTex',12],['hitInfo',10],['dsoTex',6],['satRingTex',16]]);
   return {p, u:uniformLocs(gl, p, BODY_UNIFORMS)};
 }

@@ -909,7 +909,7 @@ function drawBodies(gl){
   list.map((b, i)=>i).sort((a, c)=>(list[a].kind===BODY_MOON)-(list[c].kind===BODY_MOON)).forEach(i=>{
     const b=list[i], rPx=b.rad*DISK_SCALE/pxA, Sx=BODY_U.S[i*4], Sy=BODY_U.S[i*4+1];
     if(rPx<1||Math.abs(Sx)>1e5) return;
-    const cx=(Sx/fx*0.5+0.5)*W, cy=(Sy/fy*0.5+0.5)*H, r=rPx*(b.rings?2.3:1)*1.05+3;
+    const cx=(Sx/fx*0.5+0.5)*W, cy=(Sy/fy*0.5+0.5)*H, r=rPx*(b.rings?2.35:1)*1.05+3;
     const x0=Math.max(0, Math.floor(cx-r)), y0=Math.max(0, Math.floor(cy-r)), x1=Math.min(W, Math.ceil(cx+r)), y1=Math.min(H, Math.ceil(cy+r));
     if(x1<=x0||y1<=y0) return;
     const code=surfCode(b.map), pr=(b.kind===3&&bp.jup)||(code>-0.5&&bp.map)||bp.base, u=pr.u;
@@ -938,6 +938,7 @@ function drawBodies(gl){
       gl.uniform4fv(u.shadowM, M); gl.uniform4fv(u.shadowK, K);
     }
     gl.uniform1f(u.shadowCnt, sh.length);
+    if(b.kind===4&&b.rings) syncSatRingTex(gl, b);
     gl.scissor(x0, y0, x1-x0, y1-y0);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
   });
