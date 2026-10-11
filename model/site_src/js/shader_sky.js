@@ -1019,9 +1019,13 @@ void main(){
       // over the Moon too until an eclipse is well along.
       float a=acos(clamp(dot(src, glareDir), -1.0, 1.0)), r=max(a/sunRad-1.0, 0.0);
       vec3 lin=s2lin3(sunCol); lin/=max(max(lin.r, max(lin.g, lin.b)), 1e-6);
-      float I=2.5*exp(-r*1.6)+0.5/(1.0+r*r*0.5)+0.15*exp(-a/0.25);
-      vec3 hc=mix(lin, vec3(1.0), 0.6*exp(-r*1.2));
-      skyC=lin2s3(clamp(s2lin3(skyC)+hc*I*glareK*(onMoon?glareMoon:1.0), 0.0, 1.0));
+      // The sky about the Sun is as bright as the display shows already; the eye, stopped down by
+      // the Sun, sees it dimmer, so it is darkened a little, most near the Sun and fading over a
+      // few tens of degrees. The glare then takes it toward white without reaching it, so the
+      // disk stays the brightest thing.
+      float I=1.2*exp(-r*4.0)+0.15/(1.0+r*r)+0.05*exp(-a/0.25);
+      vec3 hc=mix(lin, vec3(1.0), 0.6*exp(-r*1.2)), sl=s2lin3(skyC)*(inSun?1.0:1.0-0.25*glareK*exp(-a/0.4));
+      skyC=lin2s3(sl+(1.0-sl)*(1.0-exp(-hc*I*glareK*(onMoon?glareMoon:1.0))));
     }
     if(beads[0].w>0.0 && te>-1.0){
       // Baily's beads and the diamond ring: glare around each piece of photosphere still
