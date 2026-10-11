@@ -94,12 +94,12 @@ function moonTexPixels(m){
 // The limb: at each of LIMB_N position angles (from north through east, as moon.js limbH), how far
 // the skyline stands out from the sphere, as a share of its radius: the highest of the ground along
 // that angle from 6° behind the limb to 6° in front of it, projected on the sky, so it changes as
-// the Moon librates. Its height is drawn three times over (LIMB_X), as the made-up profile was, so
-// Baily's beads show on the enlarged disk (DISK_SCALE). Made again when the Moon has turned by
+// the Moon librates. Its height is drawn twice over (LIMB_X), so Baily's beads show on the
+// enlarged disk (DISK_SCALE). Made again when the Moon has turned by
 // 0.06° or so; moonLimbGen counts the profiles.
-const LIMB_N=1024, LIMB_X=3, LIMB_RANGE=0.03, moonLimbProf=new Float32Array(LIMB_N);
+const LIMB_N=1024, LIMB_X=2, LIMB_RANGE=0.03, moonLimbProf=new Float32Array(LIMB_N);
 let moonLimbKey='', moonLimbGen=0;
-for(let i=0;i<LIMB_N;i++) moonLimbProf[i]=limbFake(i/LIMB_N*2*Math.PI);
+for(let i=0;i<LIMB_N;i++) moonLimbProf[i]=limbFake(i/LIMB_N*2*Math.PI)*LIMB_X/3;
 function moonLimbSync(mo){
   if(!mo||!mo.ax) return;
   const relief=moonReliefOn(), b=moonBasis(mo), ax=mo.ax, body=v=>[vdot(v, ax.E), vdot(v, ax.P), vdot(v, ax.M)];
@@ -107,8 +107,9 @@ function moonLimbSync(mo){
   const key=relief?nB.concat(mB).map(x=>Math.round(x*1000)).join(','):MOON_MOLTEN[EP[dIdx].key]?'molten':'made-up';
   if(key===moonLimbKey) return;
   moonLimbKey=key; moonLimbGen++;
-  // The made-up profile, and a third of it for the molten Moon's low rafts.
-  if(!relief){ const s=MOON_MOLTEN[EP[dIdx].key]?0.3:1; for(let i=0;i<LIMB_N;i++) moonLimbProf[i]=s*limbFake(i/LIMB_N*2*Math.PI); return; }
+  // The made-up profile (drawn at three times real relief, so scaled to LIMB_X), and a third of
+  // that for the molten Moon's low rafts.
+  if(!relief){ const s=(MOON_MOLTEN[EP[dIdx].key]?0.3:1)*LIMB_X/3; for(let i=0;i<LIMB_N;i++) moonLimbProf[i]=s*limbFake(i/LIMB_N*2*Math.PI); return; }
   const R=moonRelief, lo=MOON_RELIEF[0]/MOON_R_KM, k=(MOON_RELIEF[1]-MOON_RELIEF[0])/255/MOON_R_KM;
   const NF=193, fc=new Float64Array(NF), fs=new Float64Array(NF);
   for(let j=0;j<NF;j++){ const f=(j-(NF-1)/2)/16*Math.PI/180; fc[j]=Math.cos(f); fs[j]=Math.sin(f); }

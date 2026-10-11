@@ -117,8 +117,8 @@ function limbH(pa){
   return moonLimbProf[i%LIMB_N]*(1-f)+moonLimbProf[(i+1)%LIMB_N]*f;
 }
 // Until the heights are in, and for the molten Moon, mountains and valleys from a few fixed waves:
-// real limb relief is about 0.2% of the radius, and this is about three times that, as the real
-// profile is drawn.
+// real limb relief is about 0.2% of the radius, and this is about three times that (moon_surface.js
+// scales it to LIMB_X, as the real profile is drawn).
 function limbFake(pa){ return 0.002*Math.sin(7*pa+1.3)+0.00167*Math.sin(12*pa+4.1)+0.00133*Math.sin(19*pa+2.2)+0.001*Math.sin(29*pa+5.0)+0.00083*Math.sin(41*pa+0.7)+0.00067*Math.sin(57*pa+3.3)+0.0005*Math.sin(83*pa+1.9); }
 // Apparent lunar radius at a distance of r Earth radii from the observer.
 function moonRadiusAt(r){ return Math.atan(MOON_R_KM/(r*EARTH_R_KM))*180/Math.PI; }

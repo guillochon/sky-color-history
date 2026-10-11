@@ -162,7 +162,9 @@ vec2 reliefLight(vec3 b, vec3 sB, vec3 vB, float px){
   float dE=(moonH(uv+vec2(st/ts.x, 0.0), lod)-moonH(uv-vec2(st/ts.x, 0.0), lod))/(2.0*aE*cl*R);
   float dN=(moonH(uv-vec2(0.0, st/ts.y), lod)-moonH(uv+vec2(0.0, st/ts.y), lod))/(2.0*aN*R);
   vec3 n=normalize(b-dE*tE-dN*tN);
-  float m0=dot(n, sB), m0s=dot(b, sB), ls=max(m0, 0.0)/(max(m0, 0.0)+max(dot(n, vB), 0.02)), sh=1.0;
+  // With the Sun more than 8.6° below the sphere's horizon no ground sees it: the highest stands
+  // 20 km over the lowest, and sqrt(2·20/1737) is 0.15.
+  float m0=dot(n, sB), m0s=dot(b, sB), ls=max(m0, 0.0)/(max(m0, 0.0)+max(dot(n, vB), 0.02)), sh=m0s>-0.15?1.0:0.0;
   if(m0s>-0.15&&m0s<0.4){
     vec3 dT=normalize(sB-b*m0s);
     float e0=asin(m0s), h0=moonH(uv, lod), occ=-1.0, s=1.5*aN;
