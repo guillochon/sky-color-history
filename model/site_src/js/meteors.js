@@ -288,6 +288,27 @@ function metBin(s, b, store=true){
   if(store) MET.cache.set(id, got);
   return got;
 }
+// A ground strike's explosion at sky time t, or null before it or once it has gone. The energy is
+// the meteoroid's kinetic energy, Y in megatons of TNT (4.184e15 J). Scaled from nuclear tests
+// (Glasstone & Dolan 1977) as impact studies do (Collins, Melosh & Marcus 2005): the fireball
+// grows to about 1 km × Y^0.4 and radiates some 30% of the energy in a pulse lasting about
+// 8 s × Y^0.4, cooling from about 6,500 K to 2,000 K; the blast wave spreads as a Sedov wave,
+// r = 1.03 (E/ρ)^(1/5) t^(2/5), until it slows to 400 m/s and then at the speed of sound, and in
+// moist air a condensation cloud forms behind it near the burst; the hot cloud rises to a cap about
+// 18 km × Y^0.2 high in 2–4 minutes and spreads to some 6 km × Y^0.35 across, then drifts with the
+// winds and fades over half an hour to an hour (contrails.js ctImpacts draws it).
+function impactAt(m, t){
+  const age=t-(m.t0+m.T);
+  if(!(age>=0)) return null;
+  const E=0.5*m.mass*1e-3*(m.v*1e3)**2, Y=E/4.184e15, life=Math.min(5400, 2400*Math.pow(Y, 0.2));
+  if(age>life) return null;
+  const P=metPoint(m, 1), up=vnorm([P[0], P[1], P[2]+MET_RE]);
+  const tau=Math.min(60, 8*Math.pow(Y, 0.4)), Rf=1000*Math.pow(Y, 0.4), x=age/tau;
+  // The thermal pulse, W: up within the first 15% of it, then down; its shape integrates to 0.425.
+  const L=0.3*E/tau/0.425*(x<0.15?x/0.15:Math.exp(-(x-0.15)/0.35));
+  const tTr=Math.pow(1.03*Math.pow(E/1.2, 0.2)/1000, 1/0.6), rs=age<tTr?1.03*Math.pow(E/1.2, 0.2)*Math.pow(age, 0.4):1000*tTr+340*(age-tTr);
+  return {age, E, Y, life, base:P.map(v=>v*1000), up, tau, Rf, L, temp:2000+4500*Math.exp(-x/0.6), rs};
+}
 // The ground strikes about sky time t: the 10 before it and the 10 after, looked for up to 30 years
 // either way in the fourth stream. Kept until the epoch or place changes or t leaves the span
 // they cover; made again in idle time after a change (metTick), so a jump needs no search.
@@ -502,6 +523,23 @@ function metUniforms(){
     if(s.kind===0){ put(s.head, s.tail, s.px*pxRad, 0, s.rgb, Math.min(1, s.amp)); if(s.mag<-5){ const E=Math.pow(10, -0.4*(s.mag+13.99)); if(E>flash){ flash=E; flashRGB=s.rgb; fire={dir:s.head, mag:s.mag, rgb:s.rgb}; } } }
     else if(s.kind===1){ for(let i=0;i<s.pts.length-1;i+=2) put(s.pts[Math.min(i+2, s.pts.length-1)], s.pts[i], s.px*pxRad*0.6, 1, s.rgb, s.amp*0.7); }
     else{ const rad=skyNow.moon.radDeg*DISK_SCALE; if(flashLit(s.f, rad)<=0.1){ const d=flashDir(s.f, rad); put(d, d, s.px*pxRad, 2, s.rgb, s.amp); } }
+  }
+  // Impact fireballs: a glowing ball as wide as the fireball is, its light as from a body of that
+  // power (at about 90 lm/W, as from a 6,000 K glow). The air near the horizon takes most of the
+  // direct light, but scatters a tenth or so of it on toward us as a glow over that side of the sky,
+  // as twilight does (a twentieth with the ball below the horizon); the brightest lights the scene
+  // as a fireball does.
+  const key=EP[dIdx].key, eye=[vrX||0, vrY||0, 0];
+  for(const m of MET.bolides||[]) if(m.ground){
+    const S=impactAt(m, MET.now);
+    if(!S||!(S.L>0)||S.age>S.tau*4) continue;
+    const c=vadd(S.base, vscale(S.up, S.Rf*0.8+60*S.age), vscale(eye, -1)), d=Math.hypot(...c), dir=c.map(v=>v/d);
+    const el=Math.asin(dir[2])*180/Math.PI, top=Math.asin((c[2]+S.Rf)/d)*180/Math.PI;
+    const m0=-14.18-2.5*Math.log10(Math.max(S.L*90/(4*Math.PI*d*d), 1e-30)), through=Math.pow(10, -0.4*(starThroughAir(m0, Math.max(el, 0), key)-m0));
+    const mag=m0-2.5*Math.log10(Math.max(top<0?0:el<0?0.3*through:through, top<0?0.05:0.1));
+    const rgb=starTint(S.temp).map(v=>Math.min(2.4, v));
+    if(mag<-5){ const Ef=Math.pow(10, -0.4*(mag+13.99)); if(Ef>flash){ flash=Ef; flashRGB=rgb; fire={dir, mag, rgb}; } }
+    if(top>0) put(dir, dir, Math.max(S.Rf/d, pix), 3, rgb, Math.min(1, Math.max(0, (8-mag)/10)));
   }
   // Comet heads (comets.js), as stars are drawn: kind 3, a point hidden by the Sun and Moon.
   for(const C of (skyNow.comets||[])){

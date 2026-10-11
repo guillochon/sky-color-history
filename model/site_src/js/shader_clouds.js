@@ -159,21 +159,24 @@ void contrailsAt(vec3 ro, vec3 rd, float tHit, float ign, float pixA, vec3 sd, v
       if(length(ro+rd*tc-cp)>3.2*smax) continue;
       vec3 n1=normalize(cross(ud, vec3(0.0, 0.0, 1.0))+vec3(1.0e-5, 0.0, 0.0)), n2=cross(n1, ud);
       // Peak extinction, for an optical depth tau seen from below.
-      float k0=tau/(2.5066*svE), hw=min(3.2*smax/max(sqrt(den), 0.08), 60.0*smax);
-      float sinS=sqrt(max(1.0-dot(sd, ud)*dot(sd, ud), 0.0)), dtS=2.0*hw/6.0, tt=tc-hw+dtS*ign;
+      // Half the path through it: across the tube, or along it as far as it goes past its ends.
+      float k0=tau/(2.5066*svE), hw=min(3.2*smax/max(sqrt(den), 0.02), 0.5*(L+6.4*smax)/max(abs(b), 0.02));
+      float sinS=sqrt(max(1.0-dot(sd, ud)*dot(sd, ud), 0.0)), dtS=2.0*hw/8.0, tt=tc-hw+dtS*ign, em=mix(D.z, D.w, x);
       float alt=cp.z+dot(cp.xy, cp.xy)/(2.0*6.371e6);
       vec3 sunP=sunBase*smoothstep(-250.0, 250.0, alt-shadowAlt);
       // The air between: thinner above, so a trail high up is clearer than a cloud as far away.
       float se=max(alt/max(tc, 1.0), 1.0e-3), fog=(1.0-exp(-8000.0/se*(1.0-exp(-max(alt, 0.0)/8000.0))/38000.0))*0.85;
       vec3 tint=mix(vec3(1.0), vec3(0.86, 0.79, 0.70), dust);
-      for(int k=0;k<6;k++){
+      for(int k=0;k<8;k++){
         vec3 q=ro+rd*tt-A.xyz; float al=dot(q, ud); vec3 rv=q-ud*al;
-        float y1=dot(rv, n1)/sgE, y2=dot(rv, n2)/svE, g=exp(-0.5*(y1*y1+y2*y2));
+        // Past a trail's two ends it fades over its width, rounding them.
+        float ov=(j==0?max(-al, 0.0):0.0)+(j==ns-1?max(al-L, 0.0):0.0);
+        float y1=dot(rv, n1)/sgE, y2=dot(rv, n2)/svE, g=exp(-0.5*(y1*y1+y2*y2+ov*ov/(sgE*sgE)));
         if(g>0.01 && tt>0.0){
           // Billows as the clouds have, fixed in the air that carries the trail: they fray its
           // edges, and the core stays whole. The path through the noise runs aslant, so its repeats
           // do not line up along the trail.
-          float lam=mix(1400.0, 6000.0, dust), along=mix(C.z, C.w, clamp(al/L, 0.0, 1.0))/lam;
+          float lam=mix(1400.0, 6000.0, dust), along=(mix(C.z, C.w, clamp(al/L, 0.0, 1.0))+al-clamp(al, 0.0, L))/lam;
           vec4 n=textureLod(noiseBase, vec3(along, y1*sgE/lam+along*0.381, y2*svE*1.6/lam+along*0.2361)+vec3(seed*17.0, seed*5.0, 0.37+seed), 0.0);
           float pw=(n.r-0.62)/0.23, wf=(n.g*0.5+n.b*0.3+n.a*0.2-0.30)/0.36;
           float shp=0.4+0.6*sat((pw*0.55+wf*0.45-0.5)*1.5+0.5);
@@ -186,6 +189,8 @@ void contrailsAt(vec3 ro, vec3 rd, float tHit, float ign, float pixA, vec3 sd, v
               vec3 nd=m==0?mlDir:m==1?snDir:fbDir, nl=m==0?mlLight:m==1?snLight:fbLight;
               if(nl.g>0.0005) Lc+=toLin(nl)*0.6*phase(dot(rd, nd))*exp(-tauS*0.5)*tint;
             }
+            // An impact's cloud glows with the fireball's heat at first.
+            Lc+=vec3(1.0, 0.42, 0.12)*em;
             Lc=mix(Lc, skyC, fog);
             float ext=exp(-dn*dtS), a=1.0-ext;
             col+=T*a*Lc; tAcc+=tt*T*a; wAcc+=T*a; T*=ext;

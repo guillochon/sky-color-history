@@ -163,20 +163,57 @@ function ctBolides(T){
       const tau=tau0*c*Math.pow(sg0/sg, 0.8)*(1-Math.exp(-a/2))*Math.exp(-((a/life)**2));
       pts.push({p:[P[0]*1000+dr[0]+wx, P[1]*1000+dr[1]+wy, P[2]*1000], sg, sv:sg*0.8, tau, along:m.L*1000*x});
     }
-    // Newest last for the meteor; the shader does not mind the order.
+    // Newest last for the meteor; the shader does not mind the order (and kind 1, the dust's tint).
     out.push({kind:1, seed:(m.t0*0.618)%1, pts});
+  }
+  return out;
+}
+// Ground strikes' clouds (meteors.js impactAt): the rising stem and cap of hot dust and vapour, the
+// condensation ring the blast wave leaves as it spreads, and the dust it raises at its foot, all as
+// trails. Each part drifts with the wind at its height; the stem and cap glow with the fireball's
+// heat at first (glow).
+function ctImpacts(T){
+  const out=[];
+  for(const m of MET.bolides||[]) if(m.ground){
+    const S=impactAt(m, T);
+    if(!S) continue;
+    const {age, Y, base, up}=S, a=Math.abs(up[2])<0.9?[0, 0, 1]:[1, 0, 0], e1=vnorm(vcross(a, up)), e2=vcross(up, e1);
+    const at=(h, x, y)=>{ const dr=ctDrift(h, age); return [base[0]+up[0]*h+e1[0]*x+e2[0]*y+dr[0], base[1]+up[1]*h+e1[1]*x+e2[1]*y+dr[1], base[2]+up[2]*h+e1[2]*x+e2[2]*y]; };
+    const H=Math.min(45000, 18000*Math.pow(Y, 0.2)), tr=100+40*Math.pow(Y, 0.1), hc=Math.max(S.Rf*0.8, H*(1-Math.exp(-age/tr)));
+    const R0=6000*Math.pow(Y, 0.35), Rc=Math.max(S.Rf, R0*(1-Math.exp(-age/(1.5*tr))))+3*age, fade=Math.exp(-((age/S.life)**2));
+    const glow=4*Math.exp(-age/(1.5*S.tau)), seed=(m.t0*0.618)%1;
+    // The stem, from the ground to under the cap, and the cap, a flattened ball (a segment a couple of
+    // metres long, which the shader rounds over its width).
+    const stem=[];
+    // It forms as the fireball lifts off the ground, over the thermal pulse, widest at its foot.
+    const sTau=3*fade*Math.min(1, R0/Rc)*smooth01(0.5*S.tau, 2*S.tau, age);
+    for(let i=0;i<=4;i++){ const h=(hc-0.3*Rc)*i/4, sg=(0.12*Rc+0.25*S.Rf)*(1+0.7*(1-i/4)); stem.push({p:at(Math.max(0, h), 0, 0), sg, sv:sg, tau:sTau, along:h, glow:glow*(0.4+0.6*i/4)}); }
+    if(sTau>0.002) out.push({kind:1, seed, pts:stem});
+    const c0=at(hc, 0, 0);
+    const capPt=s=>({p:[c0[0]+s, c0[1], c0[2]], sg:Rc, sv:0.35*Rc, tau:6*fade*Math.min(1, (R0/Rc)**2), along:s, glow});
+    out.push({kind:1, seed:seed+0.31, pts:[capPt(-1), capPt(1)]});
+    // The condensation ring behind the blast wave, while it is near enough the burst to form, and
+    // the dust swept up at its foot, slower and lingering.
+    // A ring is 24 segments, as two halves of 12, so its bends leave no gaps where it is seen edge on.
+    const ring=(r, h, sg, tau, kind, s)=>{ for(let half=0;half<2;half++){ const pts=[]; for(let i=0;i<=12;i++){ const q=Math.PI*(half+i/12); pts.push({p:at(h, r*Math.cos(q), r*Math.sin(q)), sg, sv:sg*0.7, tau, along:r*q, glow:0}); } out.push({kind, seed:s, pts}); } };
+    // The condensation cloud is a dome over the burst, three rings up it here.
+    const rMax=8000*Math.pow(Y, 1/3);
+    if(S.rs<rMax*1.5) for(const a of [0.26, 0.79, 1.31]) ring(S.rs*Math.cos(a), 0.8*S.rs*Math.sin(a), 0.05*S.rs+150, 0.5*Math.exp(-S.rs/rMax), 0, seed+0.57+a);
+    // The base surge, a low wall of dust thick enough that its ends round off.
+    const rb=Math.min(S.rs, 2.5*R0);
+    ring(rb, 0.06*rb+200, 0.14*rb+300, 1.2*fade*Math.min(1, R0/Math.max(rb, 1)), 1, seed+0.73);
   }
   return out;
 }
 // The trails at sky time T, nearest and thickest first, packed for the cloud pass: a header row per
 // trail (bounding sphere; first segment row, segments, kind, seed), then a row per segment (the ends
-// with their σ; optical depths and distances along; vertical σ).
+// with their σ; optical depths and distances along; vertical σ and glow).
 function contrailData(T){
   const key=EP[dIdx].key+'|'+dLat+'|'+T+'|'+((vrGL&&vrGL.field)?vrGL.field.cirrus:0)+'|'+(MET.bolides||[]).length;
   if(key===CT.key) return CT;
   CT.key=key; CT.T=T;
   if(CT.flights.size>400){ const lo=Math.floor((T-CT_LOOK)/CT_BIN)-2; for(const k of CT.flights.keys()) if(+k.slice(k.lastIndexOf('|')+1)<lo) CT.flights.delete(k); }
-  const trails=ctJets(T).concat(ctBolides(T)).map(t=>{
+  const trails=ctJets(T).concat(ctBolides(T), ctImpacts(T)).map(t=>{
     let tmax=0, dmin=Infinity; for(const q of t.pts){ tmax=Math.max(tmax, q.tau); dmin=Math.min(dmin, Math.hypot(...q.p)); }
     t.score=tmax/(1+dmin/40000); return t;
   }).filter(t=>t.score>0.002).sort((a, b)=>b.score-a.score);
@@ -193,7 +230,7 @@ function contrailData(T){
     D.set([c[0], c[1], c[2], r+4*smax+200, row, t.pts.length-1, t.kind, t.seed], nc*16);
     for(let i=0;i<t.pts.length-1;i++, row++){
       const A=t.pts[i], B=t.pts[i+1];
-      D.set([A.p[0], A.p[1], A.p[2], A.sg, B.p[0], B.p[1], B.p[2], B.sg, A.tau, B.tau, A.along, B.along, A.sv, B.sv, 0, 0], row*16);
+      D.set([A.p[0], A.p[1], A.p[2], A.sg, B.p[0], B.p[1], B.p[2], B.sg, A.tau, B.tau, A.along, B.along, A.sv, B.sv, A.glow||0, B.glow||0], row*16);
     }
     nc++;
   }
