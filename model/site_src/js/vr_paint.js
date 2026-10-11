@@ -832,7 +832,14 @@ function shaftUpload(gl, cu){
     sh.comps.slice(0, m).forEach((c, i)=>{ P.set([c[0], c[1], c[2], c[3]], i*4); E.set(c.slice(4, 7), i*3); S.set(c.slice(7, 10), i*3); });
     vrGL.shaftU={n:m, P, E, S}; vrGL.shaftEp=dIdx;
   }
-  gl.activeTexture(gl.TEXTURE17); gl.bindTexture(gl.TEXTURE_3D, vrGL.shaftTex); gl.activeTexture(gl.TEXTURE0);
+  gl.activeTexture(gl.TEXTURE17); gl.bindTexture(gl.TEXTURE_3D, vrGL.shaftTex);
+  // Which part of the sky is sunlight and which moonlight, sent with each new sky.
+  if(!vrGL.srcTex){ vrGL.srcTex=gl.createTexture(); gl.activeTexture(gl.TEXTURE18); gl.bindTexture(gl.TEXTURE_2D, vrGL.srcTex); texParams(gl, gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE); vrGL.srcGen=-1; }
+  gl.activeTexture(gl.TEXTURE18); gl.bindTexture(gl.TEXTURE_2D, vrGL.srcTex);
+  if(vrGL.srcGen!==skyNow.gen){ gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, skyNow.na+1, skyNow.nr+1, 0, gl.RGBA, gl.UNSIGNED_BYTE, skyNow.srcShare); vrGL.srcGen=skyNow.gen; }
+  gl.activeTexture(gl.TEXTURE0);
+  const mo=skyNow.moon;
+  gl.uniform3fv(cu.shMoon, new Float32Array(horizDir(mo.az, mo.el)));
   const U=vrGL.shaftU;
   gl.uniform1f(cu.shN, U.n); gl.uniform4fv(cu.shPart, U.P); gl.uniform3fv(cu.shExt, U.E); gl.uniform3fv(cu.shSca, U.S);
 }

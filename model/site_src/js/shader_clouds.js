@@ -210,8 +210,9 @@ void contrailsAt(vec3 ro, vec3 rd, float tHit, float ign, float pixA, vec3 sd, v
     }
   }
 }
-// Crepuscular rays. The air below the clouds and between them is lit by the Sun except where a
-// cloud shades it, and there it loses the sunlight it would have scattered toward us. shTab holds
+// Crepuscular rays, and the Moon's. The air below the clouds and between them is lit by the Sun
+// except where a cloud shades it, and there it loses the sunlight it would have scattered toward
+// us. The moonlit sky is the Sun's sky field taken at the Moon (day.js), so the same holds for it. shTab holds
 // the share of the sky's light in each direction that the air below ${SHAFT.zmax} km scatters
 // straight from the Sun (shafts.py; by the Sun's altitude, the view's, and the azimuth from the
 // Sun); the rest, the light of many scatterings and of the air above, no cloud shades. Along the
@@ -223,6 +224,10 @@ uniform highp sampler3D shTab;
 uniform vec4 shPart[6];
 uniform vec3 shExt[6], shSca[6];
 uniform float shN;
+// The Moon's direction, and the share of the sky's light on its grid (as the sky texture's) that
+// is the Sun's (r) and the Moon's (g); the rest is the night sky's own, which no cloud shades.
+uniform vec3 shMoon;
+uniform sampler2D shSrc;
 // Always 0: added to the rays' loop bounds so the Direct3D compiler keeps them as loops rather than
 // unrolling cloudShape into every step (shader_terrain.js).
 uniform int shPad;
@@ -257,18 +262,17 @@ float shCloudTau(vec3 p, float alt0, vec3 sd){
   }
   return tau*0.05;
 }
-// The layer that dims the sky behind the clouds, premultiplied display colour and alpha, for the
-// sky's display colour skyD along rd. ign is the frame's jitter.
-vec4 shaftLayer(vec3 ro, vec3 rd, vec3 sd, vec3 skyD, float ign){
-  if(shN<0.5) return vec4(0.0);
+// The share of a source's sky light along rd that the clouds' shadows take away, for the source
+// (the Sun or the Moon) in direction sd. ign is the frame's jitter.
+vec3 shaftFrac(vec3 ro, vec3 rd, vec3 sd, float ign){
   float elv=asin(clamp(rd.z, -1.0, 1.0))*57.2957795, sunE=asin(clamp(sd.z, -1.0, 1.0))*57.2957795;
   float daz=abs(atan(rd.x, rd.y)-atan(sd.x, sd.y)); if(daz>3.14159265) daz=6.28318531-daz;
   float sx=(sign(sunE)*sqrt(abs(sunE))-(${SHAFT.sunMin}))/(${SHAFT.sunMax-SHAFT.sunMin});
   vec3 tc=(vec3(sqrt(daz/3.14159265), sqrt(max(elv, 0.0)/90.0), clamp(sx, 0.0, 1.0))*vec3(${SHAFT.na-1}.0, ${SHAFT.nv-1}.0, ${SHAFT.ns-1}.0)+0.5)/vec3(${SHAFT.na}.0, ${SHAFT.nv}.0, ${SHAFT.ns}.0);
   vec3 share=texture(shTab, tc).rgb;
-  if(max(share.r, max(share.g, share.b))<0.01) return vec4(0.0);
+  if(max(share.r, max(share.g, share.b))<0.01) return vec3(0.0);
   float tEnd=shellT(ro, rd, ${SHAFT.zmax*1000}.0);
-  if(tEnd<0.0) return vec4(0.0);
+  if(tEnd<0.0) return vec3(0.0);
   tEnd=min(tEnd, 3.0e5);
   float cosT=dot(rd, sd), ray=0.0596831*(1.0+cosT*cosT);
   float shadowAlt=sd.z<0.0?6.371e6*(inversesqrt(1.0-sd.z*sd.z)-1.0):-1.0e9;
@@ -306,7 +310,20 @@ vec4 shaftLayer(vec3 ro, vec3 rd, vec3 sd, vec3 skyD, float ign){
     if(alt<shadowAlt) continue;
     wAll+=w; lit+=i<18||sd.z<0.17?w*exp(-shCloudTau(p, alt, sd)):w;
   }
-  vec3 frac=share*clamp(1.0-lit/max(wAll, vec3(1e-30)), 0.0, 1.0);
+  return share*clamp(1.0-lit/max(wAll, vec3(1e-30)), 0.0, 1.0);
+}
+// The layer that dims the sky behind the clouds, premultiplied display colour and alpha, for the
+// sky's display colour skyD along rd: the Sun's rays and the Moon's, each over its part of the sky.
+vec4 shaftLayer(vec3 ro, vec3 rd, vec3 sd, vec3 skyD, float ign){
+  if(shN<0.5) return vec4(0.0);
+  float comp=atan(rd.x, rd.y); if(comp<0.0) comp+=6.28318530718;
+  float el=asin(clamp(rd.z, -1.0, 1.0))*57.2957795;
+  vec2 part=texture(shSrc, vec2((fract(comp/6.28318530718)*na+0.5)/(na+1.0), ((90.0-max(el, 0.0))/90.0*nr+0.5)/(nr+1.0))).rg;
+  vec3 frac=vec3(0.0);
+  for(int s=0;s<2+shPad;s++){
+    float k=s==0?part.r:part.g;
+    if(k>0.01) frac+=k*shaftFrac(ro, rd, s==0?sd:shMoon, ign);
+  }
   // In display values the sky goes to skyD·(1-frac)^(1/2.2): an alpha for the channel dimmed
   // most, and the colour the others keep put back.
   vec3 keep=pow(1.0-frac, vec3(1.0/2.2));

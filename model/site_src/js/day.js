@@ -363,21 +363,24 @@ function renderDay(fast){
   // The sky on the grid, in XYZ: the night sky, then the Sun's field, the Moon's, and the ring.
   const grid=DOME_XYZ, S=DOME_TMP, slices=denseSlices(ep.key, dayLat()), sunF=sunVis*sunFlux;
   let Ymax=1e-30, Yhold=1e-30, Ysun=1e-30;
+  // The share of each cell's light that is the Sun's and the Moon's, for their rays through the
+  // clouds (shader_clouds.js shaftLayer).
+  const srcShare=new Uint8Array(NG*4);
   const zAbs=zodiOn?absZenith(ep.key):0;
   for(let ir=0;ir<=NR;ir++){ const vz=90*ir/NR, vzc=Math.min(vz,88), nr=night[ir], rg=ring?ring[Math.min(NR, Math.round(vz/90*NR))]:null;
     const el=90-vz, zExt=zodiOn?0.4+0.6*extinction(el, ekD):0;
     for(let ia=0;ia<=NA;ia++){ const comp=360*ia/NA;
-      let X0=nr[0], X1=nr[1], X2=nr[2];
+      let X0=nr[0], X1=nr[1], X2=nr[2], Ys=0, Ym=0;
       if(!(sunSrc.fade<=0)){
         let azr=Math.abs(comp-sunSrc.az); if(azr>180) azr=360-azr;
         domeSample(slices, ep.key, dayLat(), sunSrc.si, sunSrc.st, vzc, azr, S);
-        if(sunF>0){ const f=sunSrc.fade*sunF; X0+=S[0]*f; X1+=S[1]*f; X2+=S[2]*f; }
+        if(sunF>0){ const f=sunSrc.fade*sunF; X0+=S[0]*f; X1+=S[1]*f; X2+=S[2]*f; Ys=S[1]*f; }
         const y=S[1]*sunSrc.fade; if(y>Ysun) Ysun=y; if(S[1]>Yhold) Yhold=S[1];
       }
       if(!(moonSrc.fade<=0)){
         let azr=Math.abs(comp-moonSrc.az); if(azr>180) azr=360-azr;
         domeSample(slices, ep.key, dayLat(), moonSrc.si, moonSrc.st, vzc, azr, S);
-        if(mScale>0){ const f=moonSrc.fade*mScale; X0+=S[0]*f; X1+=S[1]*f; X2+=S[2]*f; }
+        if(mScale>0){ const f=moonSrc.fade*mScale; X0+=S[0]*f; X1+=S[1]*f; X2+=S[2]*f; Ym=S[1]*f; }
       }
       for(const pl of planetLights){
         if(pl.src.fade<=0) continue;
@@ -390,6 +393,7 @@ function renderDay(fast){
       if(ringSky){ X0+=ringSky[0]; X1+=ringSky[1]; X2+=ringSky[2]; }
       if(X1>Ymax) Ymax=X1;
       const o=(ir*NC+ia)*3; grid[o]=X0; grid[o+1]=X1; grid[o+2]=X2;
+      srcShare[o/3*4]=Math.round(255*Ys/Math.max(X1, 1e-30)); srcShare[o/3*4+1]=Math.round(255*Ym/Math.max(X1, 1e-30));
     }
   }
   const Ybase=past>0?Yhold:Math.max(Ysun,Ymax);
@@ -557,7 +561,7 @@ function renderDay(fast){
   const fullPct=r=>{ const p=r*100; return (p<1e-3 ? 'under 0.001' : p<0.1 ? p.toPrecision(1) : p<10 ? p.toFixed(1) : Math.round(p))+'%'; };
   const sn=supernovaPlace(LATDEG[dLat]);
   if(!fast) drawSupernovaOnDome(sn);
-  skyNow={colgrid, nr:NR, na:NA, sza, sunAz, sunRGB, sunVis, lunar, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE*1.5+35/60*refK(), moon, corona, coronaMap:cMap, coronaRim:cRim, beads, eclipse:eclipse||(lunar&&moon.on?lunar.text:''), central, rgrid, cityUp:cityUplight(ep.key, Yref, k, p), Yref, toneK:k, toneP:p, rCd:Yref*cdu, gal:mwMap?galacticBasis(LATDEG[dLat]):null, dso:dsoList, extK:ek, stars:stars.tex, starMarks:stars.marks, bodies:stars.bodies, starBins:stars.bins, starIdx:stars.idx, starIdxCount:stars.idxCount, sn, moonRel:mScale/MOON_SUN_FULL, mScale, sunFlux, halo:haloVR, ring:ringVR, ecl, comets, aur:auroraState(ep.key, LATDEG[dLat], minutes, rgrid[0]*Yref*cdu), gen:++skyGen};
+  skyNow={colgrid, nr:NR, na:NA, sza, sunAz, sunRGB, sunVis, lunar, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE*1.5+35/60*refK(), moon, corona, coronaMap:cMap, coronaRim:cRim, beads, eclipse:eclipse||(lunar&&moon.on?lunar.text:''), central, rgrid, cityUp:cityUplight(ep.key, Yref, k, p), Yref, toneK:k, toneP:p, rCd:Yref*cdu, gal:mwMap?galacticBasis(LATDEG[dLat]):null, dso:dsoList, extK:ek, stars:stars.tex, starMarks:stars.marks, bodies:stars.bodies, starBins:stars.bins, starIdx:stars.idx, starIdxCount:stars.idxCount, sn, srcShare, moonRel:mScale/MOON_SUN_FULL, mScale, sunFlux, halo:haloVR, ring:ringVR, ecl, comets, aur:auroraState(ep.key, LATDEG[dLat], minutes, rgrid[0]*Yref*cdu), gen:++skyGen};
   document.getElementById('raur').textContent=auroraReadout(skyNow.aur);
   document.getElementById('rmet').textContent=meteorReadout();
   document.getElementById('rcomet').textContent=cometReadout();
