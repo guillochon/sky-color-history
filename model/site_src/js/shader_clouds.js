@@ -121,6 +121,79 @@ vec3 nightScatter(vec3 p, vec3 rd, vec3 dir, vec3 light){
   float tau=(s1*280.0+s2*620.0)*0.05, c=dot(rd, dir);
   return toLin(light)*0.6*(exp(-tau)*phase(c)+0.4*exp(-tau*0.3)*phase(c*0.55));
 }
+// Contrails and superbolide dust trails (contrails.js): tubes of cloud along a path, a row per
+// trail in ctTex (bounding sphere; first segment row, segments, kind, seed) and a row per segment.
+uniform highp sampler2D ctTex;
+uniform float ctN;
+// Adds the trails along rd, nearer than tHit, to col, T, tAcc and wAcc as the march does, each
+// already taken into the haze before skyC. pixA is a pixel's angle.
+void contrailsAt(vec3 ro, vec3 rd, float tHit, float ign, float pixA, vec3 sd, vec3 sunBase, float shadowAlt, vec3 amb, vec3 skyC, float ph0, float ph1, float ph2,
+                 inout vec3 col, inout float T, inout float tAcc, inout float wAcc){
+  for(int c=0;c<${CT_C};c++){
+    if(float(c)>=ctN||T<0.02) break;
+    vec4 H0=texelFetch(ctTex, ivec2(0, c), 0), H1=texelFetch(ctTex, ivec2(1, c), 0);
+    vec3 oc=ro-H0.xyz; float hb=dot(oc, rd), hc=dot(oc, oc)-H0.w*H0.w;
+    if(hc>0.0 && (hb>0.0 || hb*hb<hc)) continue;
+    int s0=int(H1.x), ns=int(H1.y);
+    float dust=H1.z, seed=H1.w;
+    for(int j=0;j<16;j++){
+      if(j>=ns||T<0.02) break;
+      int row=s0+j;
+      vec4 A=texelFetch(ctTex, ivec2(0, row), 0), B=texelFetch(ctTex, ivec2(1, row), 0);
+      vec4 C=texelFetch(ctTex, ivec2(2, row), 0), D=texelFetch(ctTex, ivec2(3, row), 0);
+      if(max(C.x, C.y)<0.002) continue;
+      vec3 u=B.xyz-A.xyz; float L=length(u);
+      if(L<1.0) continue;
+      vec3 ud=u/L, w=ro-A.xyz;
+      float b=dot(rd, ud), den=max(1.0-b*b, 1.0e-6), sp=(dot(ud, w)-b*dot(rd, w))/den;
+      // Each point of a trail belongs to one segment; its two ends are capped.
+      if((sp<0.0 && j>0) || (sp>=L && j<ns-1)) continue;
+      sp=clamp(sp, 0.0, L);
+      vec3 cp=A.xyz+ud*sp; float tc=dot(cp-ro, rd), x=sp/L;
+      if(tc<=0.0 || tc>tHit) continue;
+      // A trail thinner than a pixel is spread to one, as faint, so it does not flicker.
+      float sg=mix(A.w, B.w, x), sv=mix(D.x, D.y, x), pm=pixA*tc*0.8, sgE=max(sg, pm), svE=max(sv, pm);
+      float tau=mix(C.x, C.y, x)*sv/svE, smax=max(sgE, svE);
+      if(length(ro+rd*tc-cp)>3.2*smax) continue;
+      vec3 n1=normalize(cross(ud, vec3(0.0, 0.0, 1.0))+vec3(1.0e-5, 0.0, 0.0)), n2=cross(n1, ud);
+      // Peak extinction, for an optical depth tau seen from below.
+      float k0=tau/(2.5066*svE), hw=min(3.2*smax/max(sqrt(den), 0.08), 60.0*smax);
+      float sinS=sqrt(max(1.0-dot(sd, ud)*dot(sd, ud), 0.0)), dtS=2.0*hw/6.0, tt=tc-hw+dtS*ign;
+      float alt=cp.z+dot(cp.xy, cp.xy)/(2.0*6.371e6);
+      vec3 sunP=sunBase*smoothstep(-250.0, 250.0, alt-shadowAlt);
+      // The air between: thinner above, so a trail high up is clearer than a cloud as far away.
+      float se=max(alt/max(tc, 1.0), 1.0e-3), fog=(1.0-exp(-8000.0/se*(1.0-exp(-max(alt, 0.0)/8000.0))/38000.0))*0.85;
+      vec3 tint=mix(vec3(1.0), vec3(0.86, 0.79, 0.70), dust);
+      for(int k=0;k<6;k++){
+        vec3 q=ro+rd*tt-A.xyz; float al=dot(q, ud); vec3 rv=q-ud*al;
+        float y1=dot(rv, n1)/sgE, y2=dot(rv, n2)/svE, g=exp(-0.5*(y1*y1+y2*y2));
+        if(g>0.01 && tt>0.0){
+          // Billows as the clouds have, fixed in the air that carries the trail: they fray its
+          // edges, and the core stays whole. The path through the noise runs aslant, so its repeats
+          // do not line up along the trail.
+          float lam=mix(1400.0, 6000.0, dust), along=mix(C.z, C.w, clamp(al/L, 0.0, 1.0))/lam;
+          vec4 n=textureLod(noiseBase, vec3(along, y1*sgE/lam+along*0.381, y2*svE*1.6/lam+along*0.2361)+vec3(seed*17.0, seed*5.0, 0.37+seed), 0.0);
+          float pw=(n.r-0.62)/0.23, wf=(n.g*0.5+n.b*0.3+n.a*0.2-0.30)/0.36;
+          float shp=0.4+0.6*sat((pw*0.55+wf*0.45-0.5)*1.5+0.5);
+          float dn=k0*1.5*sat(remap(shp, 1.0-g, 1.0, 0.0, 1.0));
+          if(dn>0.0){
+            float tauS=k0*g*1.25*sgE/max(sinS, 0.15);
+            vec3 S=sunP*(exp(-tauS)*ph0+0.5*exp(-tauS*0.3)*ph1+0.2*exp(-tauS*0.1)*ph2);
+            vec3 Lc=(S+amb)*tint;
+            for(int m=0;m<2;m++){
+              vec3 nd=m==0?mlDir:snDir, nl=m==0?mlLight:snLight;
+              if(nl.g>0.0005) Lc+=toLin(nl)*0.6*phase(dot(rd, nd))*exp(-tauS*0.5)*tint;
+            }
+            Lc=mix(Lc, skyC, fog);
+            float ext=exp(-dn*dtS), a=1.0-ext;
+            col+=T*a*Lc; tAcc+=tt*T*a; wAcc+=T*a; T*=ext;
+          }
+        }
+        tt+=dtS;
+      }
+    }
+  }
+}
 ${VIEW_RAY_GLSL}
 void main(){
   vec2 fc=gl_FragCoord.xy;
@@ -233,16 +306,18 @@ void main(){
     }
   }
 
-  float alpha=1.0-T;
-  if(alpha<0.004) return;
-  float tMean=tAcc/max(wAcc, 1.0e-5);
-  vec3 c=col/alpha;
   float comp=atan(rd.x, rd.y); if(comp<0.0) comp+=6.28318530718;
   float elevDeg=asin(clamp(rd.z,-1.0,1.0))*57.2957795;
   vec3 skyC=toLin(texture(sky, vec2((fract(comp*57.2957795/360.0)*na+0.5)/(na+1.0), ((90.0-max(elevDeg,0.0))/90.0*nr+0.5)/(nr+1.0))).rgb);
   // Air between us and the cloud: distant clouds take on the sky behind them.
-  float fog=1.0-exp(-tMean/38000.0);
-  c=mix(c, skyC, fog*0.85);
+  float a0=1.0-T;
+  if(a0>1.0e-4) col=mix(col/a0, skyC, (1.0-exp(-tAcc/max(wAcc, 1.0e-5)/38000.0))*0.85)*a0;
+  // The contrails, above the clouds and the cirrus.
+  if(ctN>0.5 && T>0.02) contrailsAt(ro, rd, tHit, ign, 2.0*tan(fov*0.5)/res.y, sd, sunBase, shadowAlt, mix(ambBot, ambTop, 0.75)+bounce, skyC, ph0, ph1, ph2, col, T, tAcc, wAcc);
+  float alpha=1.0-T;
+  if(alpha<0.004) return;
+  float tMean=tAcc/max(wAcc, 1.0e-5);
+  vec3 c=col/alpha;
   // Soft shoulder instead of per-channel clipping, then back to display values.
   // Per channel, so an overexposed warm highlight goes to white, not to peach.
   c=mix(c, 0.6+0.4*(1.0-exp(-(c-0.6)/0.4)), step(0.6, c));

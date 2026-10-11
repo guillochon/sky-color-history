@@ -217,8 +217,10 @@ const FLASH_Q10=0.5, FLASH_R=2.5;
 // still glowing, and the bright ones, rarer but with trains that can last minutes, over 160 s.
 // Scrubbing back to a moment brings back its meteors, and pausing freezes them. Played in real
 // time they fall at their true pace; faster, each frame is a snapshot of whatever is in the air.
-const MET={list:[], gone:[], flashes:[], now:0, Tpage:0, drawnT:null, last:0, raf:0, timer:0, hover:null, ptr:null, cache:new Map(), dark:{}};
-const MET_SPLIT=-1, MET_LOOK=[60, 160];
+// A third stream, made a minute at a time and looked back over 90 minutes, holds the superbolides
+// (brighter than CT_BOLIDE), whose dust trails stay in the sky long after them (contrails.js).
+const MET={list:[], gone:[], flashes:[], bolides:[], now:0, Tpage:0, drawnT:null, last:0, raf:0, timer:0, hover:null, ptr:null, cache:new Map(), dark:{}};
+const MET_SPLIT=-1, MET_LOOK=[60, 160, 5400], MET_BIN=[1, 1, 60];
 // The faintest meteor worth making, for the darkest sky the epoch has (no Moon, no Sun): its zenith
 // limit for meteors, and the faintest absolute magnitude that could reach it from overhead.
 function metDark(key){
@@ -236,19 +238,20 @@ function metFrameAt(T){
   try{ return eclipticFrame(LATDEG[dLat]); } finally{ minutes=save; }
 }
 function metPoisson(l){ if(!(l>0)) return 0; if(l>40) return Math.max(0, Math.round(l+Math.sqrt(l)*metGauss())); let n=0, p=Math.exp(-l), s=p; const u=metRand(); while(u>s&&n<200){ n++; p*=l/n; s+=p; } return n; }
-// The meteors (and lunar flashes) of second b in stream s, made once and kept.
+// The meteors (and lunar flashes) of bin b in stream s (a second, or a minute in stream 2), made once and kept.
 function metBin(s, b){
   const ep=EP[dIdx], key=ep.key, id=key+'|'+dLat+'|'+s+'|'+b;
   let got=MET.cache.get(id);
   if(got) return got;
   got={met:[], fl:[]};
-  const E=metEpoch(key), D=metDark(key), lo=s?-Infinity:MET_SPLIT, hi=s?Math.min(MET_SPLIT, D.Mcut):D.Mcut;
+  const E=metEpoch(key), D=metDark(key), lo=[MET_SPLIT, CT_BOLIDE, -Infinity][s], hi=[D.Mcut, Math.min(MET_SPLIT, D.Mcut), CT_BOLIDE][s];
+  const T0=b*MET_BIN[s], dT=MET_BIN[s];
   metRng=mulberry32(metHash(id));
   try{
     if(hi>lo||s){
-      const F=metFrameAt(b), ctx={key, k:extK(key), mShow:D.mShow, air:ep.air||{O:0.21, N:0.79, C:0, O2:0.21}};
-      const rate=MET_Q1*E.F*(metCum(E, hi)-(s?0:metCum(E, lo)))/3600;
-      const keep=(m, i)=>{ if(m){ m.t0=b+metRand(); m.id=id+'|'+i; got.met.push(m); } };
+      const F=metFrameAt(T0), ctx={key, k:extK(key), mShow:D.mShow, air:ep.air||{O:0.21, N:0.79, C:0, O2:0.21}};
+      const rate=MET_Q1*E.F*(metCum(E, hi)-(lo===-Infinity?0:metCum(E, lo)))/3600*dT;
+      const keep=(m, i)=>{ if(m){ m.t0=T0+dT*metRand(); m.id=id+'|'+i; got.met.push(m); } };
       const n=Math.min(metPoisson(rate), 2000);
       for(let i=0;i<n;i++) keep(metMake(E, F, lo, hi, ctx), i);
       // Ring debris, at the equator only: very slow, nearly horizontal, from the west.
@@ -265,7 +268,7 @@ function metBin(s, b){
       }
       if(E.flash&&!s) flashBin(got, b, E, key, D, id);
       // Showers (showers.js), last, so the sporadics of the second stay as they were.
-      showerBin(got, b, s, lo, hi, E, ctx, F, id);
+      if(s<2) showerBin(got, b, s, lo, hi, E, ctx, F, id);
     }
   }finally{ metRng=Math.random; }
   MET.cache.set(id, got);
@@ -294,20 +297,21 @@ function flashLit(f, radDeg){ const l=moonLitAt(flashDir(f, radDeg), radDeg); re
 function metTick(now){
   MET.last=now;
   MET.Tpage=astroDay()*86400;
-  const t=MET.now=MET.Tpage, list=[], gone=[], flashes=[];
-  for(let s=0;s<2;s++) for(let b=Math.floor(t-MET_LOOK[s]);b<=Math.floor(t);b++){
+  const t=MET.now=MET.Tpage, list=[], gone=[], flashes=[], bolides=[];
+  for(let s=0;s<3;s++) for(let b=Math.floor((t-MET_LOOK[s])/MET_BIN[s]);b<=Math.floor(t/MET_BIN[s]);b++){
     const got=metBin(s, b);
     for(const m of got.met){
       if(m.t0>t) continue;
       const end=m.t0+m.T;
       if(t<=end+Math.max(m.wake, m.train)) list.push(m);
       if(t>end&&t-end<3) gone.push(m);
+      if(s===2) bolides.push(m);
     }
     for(const f of got.fl) if(f.t0<=t&&t<f.t0+f.T+0.4) flashes.push(f);
   }
-  MET.list=list; MET.gone=gone; MET.flashes=flashes;
-  // Keep about the last few minutes' seconds, wherever the clock has been.
-  if(MET.cache.size>3000){ const lo=t-400, hi=t+400; for(const [k, v] of MET.cache){ const b=+k.slice(k.lastIndexOf('|')+1); if(b<lo||b>hi) MET.cache.delete(k); } if(MET.cache.size>3000) MET.cache.clear(); }
+  MET.list=list; MET.gone=gone; MET.flashes=flashes; MET.bolides=bolides;
+  // Keep about the last few minutes' seconds (and the bolides' 90 minutes), wherever the clock has been.
+  if(MET.cache.size>3000){ for(const [k, v] of MET.cache){ const q=k.split('|'), s=+q[q.length-2], b=+q[q.length-1]*MET_BIN[s]; if(b<t-400-MET_LOOK[s]||b>t+400) MET.cache.delete(k); } if(MET.cache.size>3000) MET.cache.clear(); }
 }
 // What is lit now, in the horizon frame, for both views: streaks (head, a wake behind it, with
 // display colour and size), trains and flashes. pxScale turns display pixels into the view's.

@@ -256,7 +256,7 @@ function showerBin(got, b, s, lo, hi, E, ctx, F, id){
     const p=altaz(F.lat, a.dec, rev(F.lst-a.ra));
     if(p.alt<-11) continue;
     const Es={F:1, rf:a.r, rb:a.r, mix:{}, dh:E.dh, ring:0, flash:0};
-    const rate=showerQ(a.r)*a.Z*(metCum(Es, hi)-(s?0:metCum(Es, lo)))/3600, n=Math.min(metPoisson(rate), 20000);
+    const rate=showerQ(a.r)*a.Z*(metCum(Es, hi)-(lo===-Infinity?0:metCum(Es, lo)))/3600, n=Math.min(metPoisson(rate), 20000);
     if(!n) continue;
     const rd=horizDir(p.az, p.alt), sd=a.storm?0.4:1.5, tag=a.storm?'t':'s';
     for(let i=0;i<n;i++){

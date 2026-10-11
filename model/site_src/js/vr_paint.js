@@ -667,6 +667,8 @@ function paintVR(){
     gl.uniform1f(cu.sunVis, skyNow.sunVis==null?1:skyNow.sunVis);
     gl.uniform3fv(cu.cityUp, skyNow.cityUp||new Float32Array(3));
     gl.uniform4fv(cu.obj, sc.o); gl.uniform1fv(cu.kind, sc.k);
+    // Contrails and bolide dust trails (contrails.js).
+    gl.uniform1f(cu.ctN, contrailUpload(gl));
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     perfPassEnd('clouds');
     let shown=vrGL.cloudTex;

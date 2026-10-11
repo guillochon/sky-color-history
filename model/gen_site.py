@@ -186,6 +186,7 @@ PARTS = [
     'js/spectrum.js',
     'js/meteors.js',
     'js/showers.js',
+    'js/contrails.js',
     'js/satellites.js',
     'js/comets.js',
     'js/dome_bodies.js',
