@@ -33,21 +33,24 @@ vec3 grsPaint(vec3 c, vec3 nrm, vec3 n, float lat){
   return mix(c, vec3(0.80, 0.42, 0.30), grsAB.w*(1.0-smoothstep(0.8, 1.0, e))*(0.85+0.15*smoothstep(0.0, 0.7, e)));
 }
 // Jupiter close up (bodyDisk, once its disk is a few dozen pixels across), after Voyager, Cassini,
-// Juno and Hubble images: the belts' edges rolled up by the Kelvin-Helmholtz instability of the
-// shear between neighbouring jets into chains of curling billows, on four scales one inside the
-// next; turbulence carried along by the winds, rougher in the belts than in the zones; dark
+// Juno and Hubble images: the clouds a tracer stirred by eddies and drawn out by the jets, so the
+// belts and zones and the finer banding within them are marbled into curls and filaments, rougher
+// in the belts than in the zones; the belts' edges rolled up by the Kelvin-Helmholtz instability
+// of the shear between neighbouring jets into chains of curling billows; the Red Spot a vortex in
+// the same flow, winding the clouds round it into its collar, with its turbulent wake; dark
 // festoons trailing from the North Equatorial Belt's southern edge into the Equatorial Zone, with
 // hot spots at their heads; barges; the chain of white ovals in the South South Temperate Belt;
-// the bands wandering, darkening and stirring along their length; and the Red Spot's spiral
-// streaks, collar, hollow and wake (grsPaintFine).
+// and the bands wandering, darkening and stirring along their length.
 // The zonal wind (m/s, east positive) at planetographic latitude lat, the jets of the Cassini
 // profile (Porco et al. 2003, Science 299, 1541) smoothed to Gaussians, and the same in degrees of
 // longitude a day.
-float jG(float x, float c, float w){ float d=(x-c)/w; return exp(-d*d); }
-float jupWind(float lat){
-  return 140.0*jG(lat, 23.7, 1.6)-30.0*jG(lat, 18.0, 2.5)+105.0*jG(lat, 7.0, 3.5)+60.0*jG(lat, 0.0, 4.0)+105.0*jG(lat, -7.0, 3.5)
-        -55.0*jG(lat, -17.5, 2.5)+40.0*jG(lat, -26.5, 2.0)-25.0*jG(lat, -30.0, 2.0)+30.0*jG(lat, 31.0, 2.0)-20.0*jG(lat, 35.0, 2.0)+25.0*jG(lat, -35.0, 2.0);
+// jupWindS is the same smoothed over s degrees, each Gaussian widened and lowered to keep its area.
+float jG(float x, float c, float w, float s){ float W=sqrt(w*w+s*s), d=(x-c)/W; return w/W*exp(-d*d); }
+float jupWindS(float lat, float s){
+  return 140.0*jG(lat, 23.7, 1.6, s)-30.0*jG(lat, 18.0, 2.5, s)+105.0*jG(lat, 7.0, 3.5, s)+60.0*jG(lat, 0.0, 4.0, s)+105.0*jG(lat, -7.0, 3.5, s)
+        -55.0*jG(lat, -17.5, 2.5, s)+40.0*jG(lat, -26.5, 2.0, s)-25.0*jG(lat, -30.0, 2.0, s)+30.0*jG(lat, 31.0, 2.0, s)-20.0*jG(lat, 35.0, 2.0, s)+25.0*jG(lat, -35.0, 2.0, s);
 }
+float jupWind(float lat){ return jupWindS(lat, 0.0); }
 float jupWindDeg(float lat){ return jupWind(lat)*0.06924/max(cos(lat*0.01745329252), 0.1); }
 // Bands and zones (bodyAlbedo's), with edges w degrees wide.
 float jupBelt(float lat, float w){
@@ -56,28 +59,51 @@ float jupBelt(float lat, float w){
 vec3 jupColor(float lat, float belt){
   return mix(mix(vec3(0.95, 0.91, 0.82), vec3(0.70, 0.53, 0.40), clamp(belt, 0.0, 1.0)), vec3(0.62, 0.60, 0.58), smoothstep(45.0, 70.0, abs(lat)));
 }
-// Noise round Jupiter in cells of which 128 (the noise texture's period) make the full circle of
-// longitude, so it wraps seamlessly and never repeats; latitude in Mercator measure, so the cells
-// stay round. X, Y in those cells; three kinds in one loop of octaves (the compiler keeps one copy),
-// each down to twice the pixel (pxC cells): x the turbulence, y a finer texture, z streaks four
-// times longer along the winds than across. The turbulence moves the bands' edges, so its octaves
-// fall off faster than they shrink: its slope stays under one and an edge never folds over itself.
-vec3 jupNoise(vec2 P, float pxC){
-  vec3 a=vec3(0.5), ww=vec3(0.0), acc=vec3(0.0); float f=1.0;
-  for(int o=0;o<10;o++){
-    vec2 k=smoothstep(vec2(1.5*pxC), vec2(3.0*pxC), vec2(1.0, 0.25)/f);
-    if(k.x<=0.0) break;
-    float so=float(o)*7.3;
-    acc+=a*vec3(k.x, k.x, k.y)*(vec3(vN(P*f+3.1+so), vN(P*f*2.0+9.7+so), vN(vec2(P.x, P.y*4.0)*f+5.3+so))-0.5); ww+=a;
-    a*=vec3(0.4, 0.55, 0.55); f*=2.0;
-  }
-  return acc/max(ww, 1e-4);
+// Value noise and its gradient at p, from hashed values at whole cells, N cells round in x, so
+// it wraps seamlessly about the planet at any whole N.
+vec3 vNg(vec2 p, float N){
+  vec2 i=floor(p), f=fract(p), u=f*f*(3.0-2.0*f), du=6.0*f*(1.0-f);
+  float x0=mod(i.x, N), x1=mod(i.x+1.0, N);
+  float a=h12(vec2(x0, i.y)), b=h12(vec2(x1, i.y)), c=h12(vec2(x0, i.y+1.0)), d=h12(vec2(x1, i.y+1.0)), k=a-b-c+d;
+  return vec3(a+(b-a)*u.x+(c-a)*u.y+k*u.x*u.y, du*vec2(b-a+k*u.y, c-a+k*u.x));
 }
 // Slow change along the bands: sinusoids of 2, 3 and 5 waves round the planet, their phases
 // drifting with latitude, between 0 and 1.
 float jupSlow(float lon, float lat, float seed){
   float L=lon*0.01745329252;
   return 0.5+0.5*(0.5*sin(2.0*L+seed*6.1+lat*0.21)+0.3*sin(3.0*L+seed*2.3-lat*0.17)+0.2*sin(5.0*L+seed*4.7+lat*0.31));
+}
+// Positions round Jupiter are in cells of which 128 (the noise texture's period) make the full
+// circle of longitude, so noise of whole multiples of them wraps seamlessly, and latitude in
+// Mercator measure, so the cells stay round: jupY and jupLat turn latitude to and from it.
+float jupY(float lat){ return log(tan(0.785398+clamp(lat, -84.0, 84.0)*0.00872665))*20.371833; }
+float jupLat(float Y){ return (2.0*atan(exp(Y/20.371833))-1.5707963)*57.2957795; }
+// The eddies' stream function at P (cells) and its gradient: three octaves of noise, cells three
+// times as long along the winds as across, each scaled so that all turn alike, the finer a little
+// weaker; an octave fades out before its eddies shrink under a few pixels (pxC cells). The eddies
+// drift at u (cells a day), in two copies half a period apart, each restarting when the other is
+// at full strength, so the shear never smears them out.
+vec3 jupPsi(vec2 P, float u, float pxC, float T){
+  float ph=T/3.0, f1=fract(ph), wA=1.0-abs(2.0*f1-1.0);
+  vec3 g=vec3(0.0);
+  // One loop over both copies and the octaves of each (D3D keeps a loop of six as a loop).
+  for(int j=0;j<6;j++){
+    float k=float(j/3), o=float(j-3*(j/3)), fk=fract(ph+0.5*k), wk=k<0.5?wA:1.0-wA;
+    vec2 Q=vec2(P.x-u*fk*3.0+k*41.0, P.y+k*17.0), f=vec2(0.5, 1.5)*exp2(o);
+    vec3 n=vNg(Q*f+o*7.3, 128.0*f.x);
+    g+=wk*smoothstep(2.0*pxC, 5.0*pxC, 1.0/f.x)*pow(0.8, o)/(f.x*f.y)*vec3(n.x-0.5, n.yz*f);
+  }
+  return g/max(sqrt(wA*wA+(1.0-wA)*(1.0-wA)), 0.5);
+}
+// How strongly the eddies stir at q (cells): most in the belts and their edges and toward the
+// poles, less in the zones, coming and going along the bands; not at all in the Red Spot (gC,
+// gA as in jupiterAlbedo) and its collar, and most west of it, in the South Equatorial Belt, its
+// turbulent wake.
+float jupStir(vec2 q, vec2 gC, vec2 gA){
+  float la=jupLat(q.y);
+  vec2 E=vec2(mod(q.x-gC.x+64.0, 128.0)-64.0, q.y-gC.y)/gA, wq=vec2((E.x+2.8)/1.8, (E.y-0.35)/0.75);
+  float s=(0.55+0.65*clamp(jupBelt(la, 3.0), 0.0, 1.0)+0.5*smoothstep(40.0, 60.0, abs(la)))*(0.55+0.9*jupSlow(q.x*2.8125, la, 2.0));
+  return grsAB.x>0.0?s*(1.0+1.6*exp(-dot(wq, wq)))*smoothstep(1.0, 1.7, length(E)):s;
 }
 // One chain of Kelvin-Helmholtz billows along the boundary at latitude b, N to the circle of
 // longitude (so the chain closes on itself), R in radius: each point near one is turned about it by
@@ -90,76 +116,147 @@ vec2 khRoll(vec2 q, float b, float N, float R, float ang, float seed, float cl){
   float hj=h12(vec2(id, seed*13.1)), hk=h12(vec2(seed*7.7, id));
   float cx=(ix+(hj-0.5)*0.3-seed)*lam, Rk=R*(0.6+0.5*hk);
   vec2 d=vec2((q.x-cx)*cl, dy-(hk-0.5)*R*0.8);
-  // Many billows have not rolled up; the rest by differing amounts.
+  // A few billows have not rolled up; the rest by differing amounts.
   // Faded to nothing before the edge of the billow's cell, so neighbours meet without a step.
-  float win=1.0-smoothstep(0.32, 0.48, abs(x-ix));
-  float a=ang*smoothstep(0.3, 0.55, hj)*(0.4+0.6*hj)*exp(-dot(d, d)/(Rk*Rk))*win, c=cos(a), s=sin(a);
+  float win=(1.0-smoothstep(0.32, 0.48, abs(x-ix)))*(1.0-smoothstep(2.0*R, 3.0*R, abs(dy)));
+  float a=ang*smoothstep(0.05, 0.3, hj)*(0.4+0.6*hj)*exp(-dot(d, d)/(Rk*Rk))*win, c=cos(a), s=sin(a);
   d=vec2(c*d.x-s*d.y, s*d.x+c*d.y);
   return vec2(cx+d.x/cl, b+(hk-0.5)*R*0.8+d.y);
 }
 // Jupiter's cloud tops at planetographic latitude lat and east longitude lon (System II, degrees),
-// pxD degrees of the surface to a pixel; T days (fineT.y).
-vec3 jupiterAlbedo(float lat, float lon, float pxD){
-  float w=clamp(pxD*2.0, 0.04, 1.5);
-  if(pxD>2.5) return jupColor(lat, jupBelt(lat, 1.5));
-  float T=fineT.y, cl=max(cos(lat*0.01745329252), 0.1), u=jupWindDeg(lat);
-  float beltness=clamp(jupBelt(lat, 2.0), 0.0, 1.0);
-  // Turbulence carried by the winds, in two copies half a period apart, each restarting when the
-  // other is at full strength, so the shear never smears it out (a flow map, period 4 days).
-  float ph=T/4.0, f1=fract(ph), f2=fract(ph+0.5), wA=1.0-abs(2.0*f1-1.0);
-  float Y=log(tan(0.785398+clamp(lat, -80.0, 80.0)*0.00872665))*20.371833, pxC=pxD*0.355556/cl;
-  vec2 pA=vec2((lon-u*f1*4.0)*0.355556, Y), pB=vec2((lon-u*f2*4.0)*0.355556+41.0, Y+17.0);
-  vec3 nz=vec3(0.0);
-  for(int k=0;k<2;k++) nz+=(k==0?1.0-wA:wA)*jupNoise(k==0?pB:pA, pxC);
-  float tn=nz.x, tf=nz.y, tz=nz.z;
-  // The bands wander a degree or so along their length, and their turbulence comes and goes.
-  float s1=jupSlow(lon-u*T*0.05, lat, 1.0), s2=jupSlow(lon, lat, 2.0);
-  vec2 q=vec2(lon, lat+(2.0*s1-1.0)*0.9+(0.4+0.8*beltness)*(0.6+0.8*s2)*tn);
-  // The billows: at each boundary between a belt and a zone, up to four chains, each set turning the
-  // way of the shear's vorticity there and carried along at the wind of the boundary, active along
-  // some stretches of it and quiet along others.
+// pxD degrees of the surface to a pixel, the Red Spot at longitude glon; T days (fineT.y). The
+// clouds are a tracer: each point is turned by the billows, then followed back along the eddies'
+// streamlines and round the Red Spot, which roll the edges of the belts and zones and the finer
+// banding within them into curls and filaments, sheared out along the winds; the colour is the
+// banding where it ends up. Then the festoons and hot spots, barges and white ovals.
+vec3 jupiterAlbedo(float lat, float lon, float pxD, float glon){
+  // The Red Spot (grsAB: its length and width in degrees, its latitude and redness; glon its
+  // longitude) in cells: its middle, its half-axes, and where a point is in them.
+  bool grs=grsAB.x>0.0;
+  vec2 gC=vec2(glon*0.355556, jupY(grsAB.z)), gA=0.177778*vec2(grsAB.x, grsAB.y/cos(grsAB.z*0.01745329252));
+  vec2 E0=vec2(mod(lon*0.355556-gC.x+64.0, 128.0)-64.0, jupY(lat)-gC.y)/gA;
+  float e0=grs?length(E0):1e3;
+  float w=clamp(pxD*2.0, 0.25, 1.5);
+  if(pxD>2.5) return mix(jupColor(lat, jupBelt(lat, 1.5)), vec3(0.80, 0.42, 0.30), grsAB.w*(1.0-smoothstep(0.8, 1.0, e0)));
+  float T=fineT.y, cl=max(cos(lat*0.01745329252), 0.1), pxC=pxD*0.355556/cl;
+  // The bands wander a degree or so along their length, and darken along some stretches.
+  float s1=jupSlow(lon-jupWindDeg(lat)*T*0.05, lat, 1.0), s2=jupSlow(lon, lat, 2.0);
+  // Stirring: strongest in the belts and their edges and toward the poles, calmer in the zones.
+  // The billows: at each boundary between a belt and a zone, two chains, the second a third the
+  // size of the first, each turning the way of the shear's vorticity there and carried along at
+  // the wind of the boundary, active along some stretches of it and quiet along others and near
+  // the Red Spot; a chain fades in once a billow spans several pixels.
+  vec2 q=vec2(lon, lat);
   float B[12]=float[12](7.0, 18.0, 24.0, 31.0, 36.0, 42.0, -8.0, -21.0, -26.0, -33.0, -38.0, -44.0);
   for(int i=0;i<12;i++){
     float b=B[i];
-    if(abs(q.y-b)>5.0) continue;
+    if(abs(q.y-b)>7.5) continue;
     float du=jupWind(b+0.5)-jupWind(b-0.5), sg=du>0.0?-1.0:1.0, st=clamp(abs(du)/25.0, 0.35, 1.0);
     float cb=max(cos(b*0.01745329252), 0.1), x0=q.x-jupWindDeg(b)*T;
-    st*=smoothstep(0.25, 0.65, jupSlow(x0, b, 3.0+float(i)*0.71));
+    st*=smoothstep(0.1, 0.4, jupSlow(x0, b, 3.0+float(i)*0.71))*smoothstep(1.2, 2.0, e0);
     vec2 r=vec2(x0, q.y);
-    // Each chain a third the size of the last, fading in once a billow spans a dozen pixels or so:
-    // a spiral any smaller can't be drawn and would alias into combs.
-    float N=33.0, R=1.5, ang=2.6, sd0=0.37, sd1=0.0;
-    for(int c=0;c<4;c++){
-      float fade=smoothstep(R*0.22, R*0.11, pxD);
+    float N=24.0, R=2.5, ang=5.0, sd0=0.37, sd1=0.0;
+    for(int c=0;c<2;c++){
+      float fade=smoothstep(R*0.3, R*0.15, pxD);
       if(fade<=0.0) break;
       r=khRoll(r, b, N, R, ang*sg*st*fade, float(i)*sd0+sd1, cb);
-      N*=3.0; R/=3.0; ang-=0.2; sd0+=0.42; sd1+=0.37;
+      N*=3.0; R/=3.0; ang-=0.3; sd0+=0.42; sd1+=0.37;
     }
     q=vec2(r.x+jupWindDeg(b)*T, r.y);
   }
-  float belt=jupBelt(q.y, w);
-  vec3 c=jupColor(q.y, belt);
-  // The belts darker and redder along some stretches than others.
+  q=vec2(q.x*0.355556, jupY(q.y));
+  // Each step of the way back, everything that moves the clouds is taken where they are then, not
+  // where they end up, so the steps make a flow and the clouds are never folded over themselves.
+  for(int s=0;s<16;s++){
+    float la=jupLat(q.y), cq=max(cos(la*0.01745329252), 0.1);
+    // The eddies drift with the wind smoothed over a few degrees: carried by the narrow jets
+    // themselves they would be sheared into hairlines.
+    vec3 g=jupPsi(q, jupWindS(la, 4.0)*0.06924/cq*0.355556, pxC, T);
+    vec2 E=vec2(mod(q.x-gC.x+64.0, 128.0)-64.0, q.y-gC.y)/gA;
+    float e=grs?length(E):1e3, x=max(e-0.95, 0.0);
+    // Along the streamlines of the eddies' stream function times their strength, which keeps the
+    // flow from crowding the clouds into creases; and the jets' own shear (against the smoothed
+    // wind) drawing what they stir out along the bands, though not across the Red Spot's edge.
+    // The strength here and a twentieth of a cell east and north, in one loop (a loop of four
+    // stays a loop in D3D, which would copy the function three times over).
+    float Sv[3];
+    for(int j=0;j<4;j++){ if(j==3) break; Sv[j]=jupStir(q+0.05*vec2(j==1, j==2), gC, gA); }
+    float S=Sv[0], Sx=(Sv[1]-S)*20.0, Sy=(Sv[2]-S)*20.0;
+    q+=0.05*vec2(-(S*g.z+g.x*Sy), S*g.y+g.x*Sx)+smoothstep(1.0, 1.7, e)*vec2(0.0025*(jupWind(la)-jupWindS(la, 4.0)), 0.0);
+    // The Red Spot, an anticyclone, turning the clouds about it along its ellipses: faster toward
+    // its edge, so what it draws in winds into spirals, and dying away beyond it.
+    if(e<2.0){
+      float a=-0.375*(0.7+0.3*smoothstep(0.3, 0.85, e))*exp(-x*x/0.08);
+      E=vec2(mod(q.x-gC.x+64.0, 128.0)-64.0, q.y-gC.y)/gA;
+      E=mat2(cos(a), sin(a), -sin(a), cos(a))*E; q=gC+E*gA;
+    }
+  }
+  // And its inside turning as a whole, once in about six days, all but its rim (gT, where the
+  // turning dies away and would wind the clouds ever tighter).
+  float gT=1.0;
+  if(grs){
+    vec2 E=vec2(mod(q.x-gC.x+64.0, 128.0)-64.0, q.y-gC.y)/gA;
+    float eT=length(E), a=-1.047*T*(1.0-smoothstep(0.86, 0.93, eT));
+    gT=1.0-smoothstep(0.84, 0.88, eT)*(1.0-smoothstep(0.92, 0.95, eT));
+    E=mat2(cos(a), sin(a), -sin(a), cos(a))*E; q=gC+E*gA;
+  }
+  float la=jupLat(q.y)+(2.0*s1-1.0)*0.9;
+  float belt=jupBelt(la, w);
+  vec3 c=jupColor(la, belt);
+  // Finer banding within the belts and zones, from noise in the carried latitude, and patches
+  // along them, both carried with the clouds; a band too fine for the pixels is left out.
+  float yq=q.y, k1=smoothstep(1.5, 3.0, 0.4/pxC), k2=smoothstep(1.5, 3.0, 0.15/pxC);
+  float dye=0.6*(vNg(vec2(yq*0.8, 3.0), 1e4).x-0.5)+0.5*k1*(vNg(vec2(yq*2.0, 9.0), 1e4).x-0.5)+0.35*k2*(vNg(vec2(yq*6.0, 1.0), 1e4).x-0.5)
+           +0.5*k1*(vNg(q*vec2(1.0, 2.5)+5.0, 128.0).x-0.5)+0.3*k2*(vNg(q*vec2(3.0, 7.0)+2.0, 384.0).x-0.5);
+  // Each band, and each finer band within it, a slightly different hue: redder or yellower,
+  // greyer or bluer, a little lighter or darker, and so along its length, all carried with the
+  // clouds like the banding itself.
+  vec3 hv=vec3(vNg(vec2(yq*1.2, 21.0), 1e4).x, vNg(vec2(yq*3.0, 33.0), 1e4).x, vNg(q*vec2(1.0, 3.0)+40.0, 128.0).x)-0.5;
+  hv.yz*=k1;
+  c*=1.0+(0.5+0.5*belt)*(hv.x*vec3(0.10, -0.02, -0.14)+hv.y*vec3(0.04, 0.05, -0.10)+hv.z*vec3(-0.06, -0.02, 0.08)+0.08*(hv.x+hv.y));
+  // Close up the zones whiter and the belts more orange; the belts darker and redder along some
+  // stretches than others, and at their edges; the polar regions mottled.
+  float pol=smoothstep(34.0, 56.0, abs(la));
+  c*=mix(vec3(0.98, 1.0, 1.04), vec3(1.06, 0.97, 0.86), belt*(1.0-pol));
+  c=mix(c, vec3(0.62, 0.57, 0.50), 0.8*pol);
   c=mix(c, c*vec3(0.92, 0.86, 0.82), belt*(s2-0.4));
+  float bw=clamp(jupBelt(la, max(w, 1.2)), 0.0, 1.0);
+  c*=1.0-0.2*bw*(1.0-bw)*4.0;
+  // In the belts, brown streaks and pale filaments; in the zones, white and pale blue-grey.
+  c=mix(c, c*vec3(0.80, 0.70, 0.62), belt*clamp(-dye*2.5, 0.0, 1.0));
+  c=mix(c, vec3(0.94, 0.92, 0.86), belt*smoothstep(0.08, 0.3, dye)*0.75*(1.0-0.7*pol));
+  c=mix(c, vec3(0.74, 0.77, 0.82), (1.0-belt)*smoothstep(0.08, 0.3, -dye)*0.45*(1.0-pol));
+  c*=1.0+(0.12+0.4*pol)*mix(1.0-belt, 1.0, pol)*dye;
+  // The Red Spot: what the vortex holds is red, deepest toward its edge, streaked by the same
+  // clouds wound into it, with a darker rim; round it the pale Red Spot Hollow, which the belt
+  // north of it bends away from.
+  if(grs){
+    float e=length(vec2(mod(q.x-gC.x+64.0, 128.0)-64.0, q.y-gC.y)/gA), ins=1.0-smoothstep(0.93, 1.0, e);
+    c=mix(c, vec3(0.94, 0.92, 0.87), 0.75*(1.0-smoothstep(1.1, 1.45, e+0.25*dye))*(1.0-ins));
+    vec3 red=mix(vec3(0.88, 0.55, 0.38), vec3(0.80, 0.38, 0.25), smoothstep(0.2, 0.8, e));
+    red*=(1.0+0.5*dye*gT)*(1.0-0.22*smoothstep(0.8, 0.95, e));
+    red=mix(red, vec3(0.92, 0.70, 0.55), smoothstep(0.12, 0.35, dye)*0.45*(1.0-smoothstep(0.6, 0.85, e)));
+    c=mix(c, red, grsAB.w*ins);
+  }
   // The North Equatorial Belt's southern edge, about 7°N: dark blue-grey hot spots, gaps in the
   // clouds a few degrees long, and from some of them thin festoons curving west and down across the
   // Equatorial Zone; a dozen round the planet at uneven spacing, moving with its wind.
   if(lat>-1.0 && lat<9.5){
-    float xf=lon-jupWindDeg(6.5)*T, sF=clamp((7.0-q.y)/6.5, 0.0, 1.0);
+    float xf=lon-jupWindDeg(6.5)*T, sF=clamp((7.0-la)/6.5, 0.0, 1.0);
     float k0=floor(xf/30.0), fest=0.0, hot=0.0;
     for(int j=0;j<2;j++){
       float k=k0+float(j), hf=h12(vec2(mod(k, 12.0), 7.7)), hg=h12(vec2(mod(k, 12.0), 3.1)), x0=k*30.0+(hf-0.5)*16.0;
       float lc=x0-(14.0+12.0*hg)*pow(sF, 1.2);
-      float dx=(xf-lc)*cl+0.8*tn*(1.0+sF), wd=0.9*(1.0-0.5*sF)+0.25, dh=(xf-x0)*cl;
-      fest=max(fest, exp(-dx*dx/(wd*wd))*smoothstep(0.05, 0.2, sF)*(1.0-smoothstep(0.55, 0.95, sF))*step(0.45, hf)*clamp(0.7+2.0*tf, 0.0, 1.2));
-      hot=max(hot, exp(-dh*dh/(4.0+5.0*hg)-(q.y-7.0)*(q.y-7.0)/0.5)*step(0.25, hf));
+      float dx=(xf-lc)*cl+1.6*dye*(1.0+sF), wd=0.9*(1.0-0.5*sF)+0.25, dh=(xf-x0)*cl;
+      fest=max(fest, exp(-dx*dx/(wd*wd))*smoothstep(0.05, 0.2, sF)*(1.0-smoothstep(0.55, 0.95, sF))*step(0.45, hf));
+      hot=max(hot, exp(-dh*dh/(4.0+5.0*hg)-(la-7.0)*(la-7.0)/0.5)*step(0.25, hf));
     }
-    c=mix(c, vec3(0.50, 0.53, 0.58), 0.45*fest+0.55*hot);
+    c=mix(c, vec3(0.50, 0.55, 0.62), 0.5*fest+0.55*hot);
   }
   // White ovals in the South South Temperate Belt, near 41°S, eight cells round, some empty.
   if(lat>-46.0 && lat<-36.0){
     float xo=lon-jupWindDeg(-41.0)*T, k=floor(xo/45.0+0.5), ho=h12(vec2(mod(k, 8.0), 3.3));
-    vec2 d=vec2((xo-k*45.0-(ho-0.5)*20.0)*cl/2.2, (q.y+41.0+(ho-0.5)*1.2)/1.4);
+    vec2 d=vec2((xo-k*45.0-(ho-0.5)*20.0)*cl/2.2, (lat+41.0+(ho-0.5)*1.2)/1.4);
     float e=length(d);
     c=mix(c, c*0.85, 0.5*(1.0-smoothstep(1.0, 1.35, e))*smoothstep(0.85, 1.0, e)*step(0.4, ho));
     c=mix(c, vec3(0.96, 0.95, 0.92), (1.0-smoothstep(0.75, 1.0, e))*step(0.4, ho));
@@ -167,50 +264,8 @@ vec3 jupiterAlbedo(float lat, float lon, float pxD){
   // Barges: dark red-brown cyclones in the North Equatorial Belt's northern edge, near 15°N.
   if(lat>11.0 && lat<19.0){
     float xb=lon-jupWindDeg(15.5)*T, k=floor(xb/40.0+0.5), hb=h12(vec2(mod(k, 9.0), 9.1));
-    vec2 d=vec2((xb-k*40.0-(hb-0.5)*20.0)*cl/2.6, (q.y-15.5)/1.0);
+    vec2 d=vec2((xb-k*40.0-(hb-0.5)*20.0)*cl/2.6, (lat-15.5)/1.0);
     c=mix(c, vec3(0.50, 0.30, 0.24), 0.7*(1.0-smoothstep(0.6, 1.0, length(d)))*step(0.55, hb));
-  }
-  // Cloud texture: brightness from the same turbulence, and streaks along the winds, darker and
-  // redder or paler in turn in the belts; the zones mostly paler, white plumes rather than smudges.
-  float zt=(0.12+0.10*beltness)*tf+0.26*beltness*tz+(1.0-beltness)*0.10*max(tz, -0.1);
-  c*=1.0+zt;
-  c=mix(c, c*vec3(1.06, 0.95, 0.86), clamp(beltness*tz*3.0, 0.0, 1.0));
-  return c;
-}
-// The Red Spot close up (after Juno, Voyager and Hubble): an anticyclone turning counterclockwise
-// once in about six days at its edge, slower inside, its clouds drawn into spiral streaks; a paler
-// orange-pink middle, the deepest red in a collar near the edge, a thin dark rim, and round it the
-// pale Red Spot Hollow; to the west a turbulent wake in the South Equatorial Belt.
-vec3 grsPaintFine(vec3 c, vec3 nrm, vec3 n, float lat, float pxD){
-  vec3 a=normalize(nrm-n*dot(nrm, n)), d=normalize(grsDir-n*dot(grsDir, n));
-  float dl=atan(dot(cross(d, a), n), dot(d, a))*57.2957795;
-  vec2 E=vec2(dl/(0.5*grsAB.x), (lat-grsAB.z)/(0.5*grsAB.y));
-  float e=length(E), T=fineT.y, pxE=pxD/(0.5*grsAB.y);
-  // The wake: rough light and dark streaks west of the spot and a little north of its middle.
-  vec2 wq=vec2((E.x+2.4)/1.9, (E.y-0.35)/0.7);
-  float wake=exp(-dot(wq, wq))*smoothstep(0.9, 1.4, e);
-  if(wake>0.01){
-    // Filaments drawn out along the flow, three times longer than wide, folded by a slower swirl.
-    vec2 wp=vec2(dl*0.35-T*1.5, lat*1.6+0.6*sin(dl*0.4+T*0.7));
-    float wn=vN(wp+11.0)-0.5+0.5*(vN(wp*2.3+vec2(3.0, 7.0))-0.5);
-    c=mix(c, wn>0.0?vec3(0.93, 0.90, 0.84):c*0.75, 0.75*wake*smoothstep(0.05, 0.3, abs(wn)));
-  }
-  float hol=1.0-smoothstep(1.15, 1.5, e+0.12*(vN(E*3.0+T*0.2)-0.5));
-  c=mix(c, vec3(0.95, 0.92, 0.86), 0.8*hol);
-  if(e<1.12){
-    // Spiral streaks: long arcs (ten cells round, eighteen across the radius) about the middle, the
-    // angle turned by the rotation (faster outward) and wound with radius. Two copies half a turn
-    // apart, each faded out where its angle wraps, so no seam shows.
-    float om=1.05*smoothstep(0.15, 0.9, e), u=fract((atan(E.y, E.x)+om*T+2.2*e*e)/6.2831853);
-    float k1=smoothstep(1.5*pxE, 3.0*pxE, 1.0/18.0), k2=smoothstep(1.5*pxE, 3.0*pxE, 1.0/54.0), w1=1.0-abs(2.0*u-1.0);
-    vec2 s1=vec2(u*10.0, e*18.0), s2=vec2(fract(u+0.5)*10.0+50.0, e*18.0);
-    float st=w1*(k1*(vN(s1)-0.5)+0.5*k2*(vN(s1*3.0+7.0)-0.5))+(1.0-w1)*(k1*(vN(s2)-0.5)+0.5*k2*(vN(s2*3.0+7.0)-0.5));
-    vec3 red=mix(vec3(0.86, 0.56, 0.42), vec3(0.80, 0.40, 0.28), smoothstep(0.1, 0.55, e));
-    red=mix(red, vec3(0.66, 0.28, 0.20), smoothstep(0.6, 0.85, e)*(1.0-smoothstep(0.92, 1.0, e)));
-    red*=1.0+0.45*st;
-    float inside=1.0-smoothstep(0.96, 1.04, e+0.04*st);
-    c=mix(c, c*0.78, 0.6*smoothstep(0.9, 1.0, e)*(1.0-smoothstep(1.03, 1.12, e)));
-    c=mix(c, red, grsAB.w*inside);
   }
   return c;
 }
@@ -240,15 +295,13 @@ vec4 bodyDisk(vec3 o, vec3 v, vec3 n, vec3 L, int kind, float rPx, vec3 tint, ve
   float pxS=57.2957795/max(rPx, 1.0)/max(mu, 0.08);
   vec3 alb=bodyAlbedo(kind, lat, tint);
 #if DETAIL_JUP
-  if(kind==3) alb=jupiterAlbedo(lat, lon, pxS);
+  if(kind==3) alb=jupiterAlbedo(lat, lon, pxS, atan(dot(grsDir, cross(n, mp)), dot(grsDir, mp))*57.2957795);
 #endif
 #if DETAIL_MAP
   // A body with a spacecraft map (M.w its code, surfaces.js) shows it, mipmapped to the pixel.
   if(M.w>-0.5) alb=surfAt(M.w, lon, lat, log2(max(512.0/360.0*pxS, 1e-6)));
 #endif
-#if DETAIL_JUP
-  if(kind==3 && grsAB.x>0.0) alb=grsPaintFine(alb, nrm, n, lat, pxS);
-#else
+#if !DETAIL_JUP
   if(kind==3 && grsAB.x>0.0) alb=grsPaint(alb, nrm, n, lat);
 #endif
   return vec4(alb*lit*BODY_GAIN[kind], cov);
