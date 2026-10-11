@@ -920,8 +920,8 @@ function drawAuroraVR(gl, st, c){
 }
 // The planets' and moons' disks (shader_bodies.js), after the sky pass: for each body in view more
 // than a pixel across (uploadBodies' list), a draw clipped to the box round it, by the program for
-// its close-up detail when that is compiled (Jupiter's clouds; a mapped body's map once it is in),
-// else the plain one; added to the sky, or blended over it for a planet in front of the Sun.
+// its close-up detail when that is compiled (Jupiter's or Saturn's clouds; a mapped body's map once
+// it is in), else the plain one; added to the sky, or blended over it for a planet in front of the Sun.
 function drawBodies(gl){
   const bp=vrGL.bodyProg, list=vrGL.bodyList;
   if(!bp||!bp.base||!list||!list.length) return;
@@ -937,7 +937,7 @@ function drawBodies(gl){
     const cx=(Sx/fx*0.5+0.5)*W, cy=(Sy/fy*0.5+0.5)*H, r=rPx*(b.rings?2.35:1)*1.05+3;
     const x0=Math.max(0, Math.floor(cx-r)), y0=Math.max(0, Math.floor(cy-r)), x1=Math.min(W, Math.ceil(cx+r)), y1=Math.min(H, Math.ceil(cy+r));
     if(x1<=x0||y1<=y0) return;
-    const code=surfCode(b.map), pr=(b.kind===3&&bp.jup)||(code>-0.5&&bp.map)||bp.base, u=pr.u;
+    const code=surfCode(b.map), pr=(b.kind===3&&bp.jup)||(b.kind===4&&bp.sat)||(code>-0.5&&bp.map)||bp.base, u=pr.u;
     if(pr!==used){
       used=pr; gl.useProgram(pr.p);
       gl.uniform2f(u.res, W, H); gl.uniform2f(u.hitScale, vrGL.hitInfo?vrGL.hitW/W:0, vrGL.hitInfo?vrGL.hitH/H:0);
@@ -956,6 +956,7 @@ function drawBodies(gl){
     gl.uniform4f(u.bN, b.pole[0], b.pole[1], b.pole[2], b.kind+(b.front?8:0)+(b.kind===4&&!b.rings?16:0)+(b.over?32:0));
     gl.uniform4f(u.bS, Sx, Sy, BODY_U.S[i*4+2], 0);
     const m=b.meridian||[0, 0, 0]; gl.uniform4f(u.bM, m[0], m[1], m[2], code);
+    const rs=b.ring; gl.uniform4f(u.bR, rs?rs.c[0]:0, rs?rs.c[1]:0, rs?rs.c[2]:0, rs?rs.rm:0); gl.uniform4f(u.bRN, rs?rs.n[0]:0, rs?rs.n[1]:0, rs?rs.n[2]:1, rs?rs.a:0);
     const sh=(b.shadows||[]).slice(0, SHADOW_MAX);
     if(sh.length){
       const M=new Float32Array(SHADOW_MAX*4), K=new Float32Array(SHADOW_MAX*4);
@@ -964,6 +965,7 @@ function drawBodies(gl){
     }
     gl.uniform1f(u.shadowCnt, sh.length);
     if(b.kind===4&&b.rings) syncSatRingTex(gl, b);
+    else if(b.ring) syncSatRingTex(gl, b.ring.host);
     gl.scissor(x0, y0, x1-x0, y1-y0);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
   });
@@ -1001,12 +1003,13 @@ function uploadBodies(gl, u){
     if(depth>1e-3){ S[o]=(v[0]*cy-v[1]*sy)/depth; S[o+1]=(-v[0]*sy*sp-v[1]*cy*sp+v[2]*cp)/depth; } else { S[o]=S[o+1]=1e6; }
     S[o+2]=k;
   });
-  // Close enough for detail: Jupiter's clouds past a couple of dozen pixels' radius, a body's map
-  // past a few (which fetches that body's map alone, surfaces.js). Only for a disk within the view
-  // itself (by its place on the image plane, refracted), not the margin: a moon just outside would
-  // never draw, and its note never go.
+  // Close enough for detail: Jupiter's or Saturn's clouds past a couple of dozen pixels' radius, a
+  // body's map past a few (which fetches that body's map alone, surfaces.js). Only for a disk within
+  // the view itself (by its place on the image plane, refracted), not the margin: a moon just outside
+  // would never draw, and its note never go.
   const inView=i=>{ const r=Math.tan(list[i].rad*DISK_SCALE); return Math.abs(S[i*4])<fx+r&&Math.abs(S[i*4+1])<fy+r; };
   if(list.some((b, i)=>b.kind===3&&radPx(b)>20&&inView(i))) wantDetail(gl, 'jup');
+  if(list.some((b, i)=>b.kind===4&&radPx(b)>20&&inView(i))) wantDetail(gl, 'sat');
   list.forEach((b, i)=>{ if(b.map&&radPx(b)>5&&inView(i)){ wantSurface(b.map); wantDetail(gl, 'map'); } });
   gl.uniform4fv(u.bodyP, P); gl.uniform4fv(u.bodyC, C); gl.uniform4fv(u.bodyL, L); gl.uniform4fv(u.bodyN, N); gl.uniform4fv(u.bodyS, S); gl.uniform4fv(u.bodyM, Mr);
   gl.uniform1f(u.bodyCnt, list.length); gl.uniform1f(u.moonGain, moonGain());

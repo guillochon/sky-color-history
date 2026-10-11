@@ -55,9 +55,9 @@ const PLANET_BODY=[
 ];
 const PL_AU_KM=149597870.7, LIGHT_DAY_AU=1/173.1446;
 // Each planet's prime meridian, W at J2000 and its rate (degrees, degrees a day; IAU WGCCRE 2015),
-// for those drawn with longitudes: Mercury's, Mars's, and Jupiter's System II (the clouds' and the Red
-// Spot's), not the IAU's System III.
-const PLANET_W=[[329.5988, 6.1385108], null, [176.630, 350.89198226], [43.3, 870.270], null, null, null];
+// for those drawn with longitudes: Mercury's, Mars's, Jupiter's System II (the clouds' and the Red
+// Spot's), not the IAU's System III, and Saturn's System III (its winds' and the hexagon's).
+const PLANET_W=[[329.5988, 6.1385108], null, [176.630, 350.89198226], [43.3, 870.270], [38.90, 810.7939024], null, null];
 // The major moons of Jupiter and Saturn: name, host (index in PLANETS), radius (km), absolute
 // magnitude H, orbit radius (km), mean longitude at J2000 TDB (degrees, in the host's equator
 // from its ascending node on the J2000 equator), mean motion (degrees a day) and a tint. Fit to JPL
@@ -331,20 +331,38 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
       // In the host's shadow (a cylinder of its radius away from the Sun): eclipsed.
       const sAlong=vdot(off, sunFrom), sPerp=vscale(vadd(off, vscale(sunFrom, -sAlong), [0, 0, 0]), 1/Rkm);
       if(sAlong<0&&Math.hypot(sPerp[0], sPerp[1], sPerp[2]/(1-flat))<1) return;
+      // A moon of Saturn the rings may shade, near the equinoxes, when the Sun is low over them: on
+      // five chords across its disk, from its south to its north, where the line to the Sun crosses
+      // them and what they let through there, blurred by the Sun's disk from that far (Saturn radii,
+      // stretched across the rings by their slant). Their mean dims the moon; the bodies' shader
+      // draws the shadow across its disk (ring).
+      let ring=null, ringT=1;
+      const ln=vdot(sunFrom, pole);
+      if(ringed&&Math.abs(ln)>1e-4){
+        const sa=696000/(r*PL_AU_KM), tab=satRingTableFor(body);
+        let sum=0;
+        for(let c=-2;c<=2;c++){
+          const p=vadd(off, vscale(pole, 0.4*c*m[2]), [0, 0, 0]), ts=-vdot(p, pole)/ln;
+          const T=ts>0?1-satRingAt(tab, Math.hypot(...vadd(p, vscale(sunFrom, ts), [0, 0, 0]))/Rkm, (0.2*m[2]+ts*sa)/Rkm/Math.abs(ln))[2]:1;
+          sum+=T/5;
+          if(T<0.999) ring={c:vscale(horiz(off).dir, Math.hypot(...off)/Rkm), rm:m[2]/Rkm, n:body.pole, a:sa, host:body};
+        }
+        ringT=sum;
+      }
       // Its offset across the sky in host radii, the polar one stretched by the flattening, so 1 is the limb.
       const perp=vadd(off, vscale(qn, -along), [0, 0, 0]), pp=vdot(perp, pole), eqP=vadd(perp, vscale(pole, -pp), [0, 0, 0]);
       const rho=Math.hypot(Math.hypot(...eqP), pp/(1-flat))/Rkm;
       const pos=q.map((v, n)=>v*PL_AU_KM+off[n]), dm=Math.hypot(...pos)/PL_AU_KM;
       const mp=horiz(pos);
       if(!(mp.alt>0)) return;
-      let mmag=m[3]+5*Math.log10(r*dm)+0.02*i+dimMag;
+      let mmag=m[3]+5*Math.log10(r*dm)+0.02*i+dimMag-2.5*Math.log10(Math.max(ringT, 1e-3));
       // Iapetus's trailing side is ten times as bright as its leading one: V 10.2 at western
       // elongation, 11.9 at eastern, when it moves away from us or toward us.
       if(m[0]==='Iapetus') mmag-=0.85*vdot(qn, vnorm(vcross(pl.k, off)));
       const ms=planetDisplay(mmag, m[7]);
       const mark={az:mp.az, el:mp.alt, px:ms.px, rgb:ms.rgb, planet:m[0], host:name, mag:mmag, ra:mp.ra, dec:mp.dec, radDeg:Math.atan(m[2]/(dm*PL_AU_KM))*180/Math.PI, dist:dm, lit:(1+Math.cos(i*Math.PI/180))/2, behind:along>0, rho, tint:m[7], unknown:!!phases, ageMa};
       // The moons turn synchronously: longitude 0 faces the host, about their orbit's pole.
-      mark.body={dir:mp.dir, meridian:horiz(vscale(off, -1)).dir, map:SURF_FILES[m[0]]?m[0]:null, rad:mark.radDeg*Math.PI/180, light:body.light, pole:m[10]?horiz(pl.k).dir:body.pole, kind:BODY_MOON, px:ms.px, rgb:ms.rgb, mag:mmag, front:false, over:!mark.behind, tint:m[7], mark};
+      mark.body={dir:mp.dir, meridian:horiz(vscale(off, -1)).dir, map:SURF_FILES[m[0]]?m[0]:null, rad:mark.radDeg*Math.PI/180, light:body.light, pole:m[10]?horiz(pl.k).dir:body.pole, kind:BODY_MOON, px:ms.px, rgb:ms.rgb, mag:mmag, front:false, over:!mark.behind, tint:m[7], ring, mark};
       marks.push(mark);
       if(!(mark.behind&&rho<DISK_SCALE)) bodies.push(mark.body);
     });
@@ -397,6 +415,11 @@ function bodyAlbedo(kind, lat, tint){
   if(kind===4) return mix3(mix3([0.93, 0.85, 0.64], [0.78, 0.68, 0.50], 0.5*(bandOf(lat, 18, 32, 3)+bandOf(lat, -32, -18, 3))), [0.70, 0.70, 0.64], smooth01(55, 75, Math.abs(lat)));
   const m=Math.max(...tint, 1e-4); return tint.map(c=>c/m*0.85);
 }
+// Saturn's winter hemisphere bluish (shader_bodies.js satSeason), sl the sine of the Sun's latitude.
+function satSeason(c, lat, sl){
+  const w=Math.min(1, Math.max(0, -sl*Math.sign(lat)/0.45))*smooth01(20, 45, Math.abs(lat));
+  return mix3(c, [0.62, 0.74, 0.86], 0.5*w);
+}
 // The Red Spot on Jupiter at surface normal nrm (pole n, planetographic latitude lat): the pale
 // hollow it pushes into the South Equatorial Belt, and the spot itself.
 function grsPaint(c, g, nrm, n, lat){
@@ -428,15 +451,28 @@ function bodyPixel(b, src, rad, rPx){
     const lat=Math.asin(Math.max(-1, Math.min(1, vdot(nrm, n))))*180/Math.PI;
     let alb=bodyAlbedo(b.kind, lat, b.tint);
     if(b.grs) alb=grsPaint(alb, b.grs, nrm, n, lat);
+    if(b.kind===4) alb=satSeason(alb, lat, vdot(n, L));
     dc=alb.map(c=>c*lit*cov*BODY_GAIN[b.kind]);
     for(const s of b.shadows||[]){ const sh=moonShadow(x, s, L, rPx); dc=dc.map(c=>c*sh); }
+    // A moon of Saturn in the rings' shadow (the bodies' shader's).
+    const R=b.ring;
+    if(R){
+      const X=R.c.map((c, i)=>c+R.rm*x[i]), ln=vdot(L, R.n), ts=-vdot(X, R.n)/ln;
+      if(Math.abs(ln)>1e-4&&ts>0){ const sh=1-satRingAt(satRingTableFor(R.host), Math.hypot(...X.map((c, i)=>c+ts*L[i])), Math.max(R.rm/Math.max(rPx, 1), ts*R.a)/Math.max(Math.abs(ln), 0.02))[2]; dc=dc.map(c=>c*sh); }
+    }
   }
   if(b.kind===4&&b.rings&&Math.abs(vnK)>1e-4){
     const tab=satRingTableFor(b), ln=vdot(L, n);
     if(cov>0){ const ts=-vdot(x, n)/ln; if(ts>0){ const sh=1-satRingAt(tab, Math.hypot(...x.map((c, i)=>c+ts*L[i])), Math.max(0.8/rPx/Math.max(Math.abs(ln), 0.05), 0.0015))[2]; dc=dc.map(c=>c*sh); } }
     const tr=-on/vnK, xr=o.map((c, i)=>c+tr*v[i]), rg=satRingAt(tab, Math.hypot(...xr), 0.8/rPx/Math.max(Math.abs(vnK), 0.03));
     if(rg[1]>0){
-      const s=vdot(xr, L), sh=s<0?smooth01(0.97, 1.03, Math.hypot(...xr.map((c, i)=>c-s*L[i]))):1, fade=smooth01(0, 0.03, Math.abs(vnK));
+      // Saturn's shadow on them, the globe's outline seen from the Sun (the bodies' shader's).
+      const s=vdot(xr, L), fade=smooth01(0, 0.03, Math.abs(vnK));
+      let sh=1;
+      if(s<0){
+        const e1=vnorm(vcross(n, L)), e2=vcross(L, e1), q=xr.map((c, i)=>c-s*L[i]), c=1-BODY_FLAT[4], pb=Math.sqrt(c*c*(1-ln*ln)+ln*ln), pw=Math.max(1/rPx, -s*0.00049);
+        sh=smooth01(1-pw, 1+pw, Math.hypot(vdot(q, e1), vdot(q, e2)/pb));
+      }
       const g=Math.max(0, Math.min(1, rg[3]/Math.max(rg[0], 1e-6))), rb=rg[0]*sh*fade, ro=rg[1]*fade;
       const rc=[0.86, 0.78, 0.64].map((c, i)=>(c+([0.74, 0.73, 0.70][i]-c)*g)*rb);
       dc=tr<t?rc.map((c, i)=>c+dc[i]*(1-ro)):dc.map((c, i)=>c+rc[i]*(1-cov));

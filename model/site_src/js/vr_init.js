@@ -37,11 +37,11 @@ const vrSlow=new Map();
 function markSlow(job, prog, label){ if(prog && job.cold) vrSlow.set(prog, label); }
 // The close-up detail, a piece at a time: wantDetail(gl, f) asks for piece f, and its program is
 // compiled and, once linked, used: 'sun' a sky program with the Sun's photosphere (shader_sky.js
-// skyDetail), put in place of the one drawing; 'jup' or 'map' a program for the bodies' pass
-// (shader_bodies.js bodyFS) drawing Jupiter or the mapped bodies, beside the plain one. The compile
-// can hold up the screen, so a note naming the piece goes up first and stays until the program's
-// first draw (paintVR).
-const VR_DETAIL_NAMES={sun:"the Sun's surface", jup:"Jupiter's clouds", map:'the surface maps'};
+// skyDetail), put in place of the one drawing; 'jup', 'sat' or 'map' a program for the bodies' pass
+// (shader_bodies.js bodyFS) drawing Jupiter, Saturn or the mapped bodies, beside the plain one. The
+// compile can hold up the screen, so a note naming the piece goes up first and stays until the
+// program's first draw (paintVR).
+const VR_DETAIL_NAMES={sun:"the Sun's surface", jup:"Jupiter's clouds", sat:"Saturn's clouds", map:'the surface maps'};
 function wantDetail(gl, f){
   if(!vrGL) return;
   const w=vrGL.detailWant||(vrGL.detailWant=new Set());
