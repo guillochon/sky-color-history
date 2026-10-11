@@ -430,7 +430,9 @@ function metFlash(E, tint){
   const rB=skyNow.rgrid[0], rA=0.027*E/skyNow.rCd;
   if(rA<rB*0.02) return null;
   const tB=toneT(rB, skyNow.toneK, skyNow.toneP, 0.95), tN=toneT(rB+rA, skyNow.toneK, skyNow.toneP, 0.95), y=0.2126*tint[0]+0.7152*tint[1]+0.0722*tint[2]||1;
-  return tint.map(c=>Math.max(0, g(Math.min(1, tB+(tN-tB)*c/y))-g(tB)));
+  // Near the display's white the tint gives way to white, as overexposed light does.
+  const wt=smooth01(0.7, 1, tN);
+  return tint.map(c=>Math.max(0, g(Math.min(1, tB+(tN-tB)*(c/y*(1-wt)+wt)))-g(tB)));
 }
 // The walk-around view: up to MET_GL entries as uniforms.
 const MET_GL=24;

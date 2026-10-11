@@ -613,14 +613,20 @@ function paintVR(){
   // Meteors and lunar flashes (meteors.js), as they are this instant.
   const mu=metUniforms();
   gl.uniform1f(u.metN, mu.n); gl.uniform3fv(u.metFlash, mu.flash||[0, 0, 0]);
-  // The brightest fireball lights the scene from its head: at night as the Moon does (nightLight's
-  // scale; the full Moon's magnitude gives the full Moon's light), by day in proportion to the Sun.
-  // Its magnitude is already through the air.
-  const fire=mu.fire, fbRel=fire?Math.pow(10, -0.4*(fire.mag-MOON_V_FULL)):0;
-  const fbF=fire?Math.min(2, 0.6*Math.sqrt(fbRel)*night+Math.pow(10, -0.4*(fire.mag+26.74))*(1-night)):0, fbMx=fire?Math.max(...fire.rgb)||1:1;
+  // The brightest fireball lights the scene from its head, in two parts. As sunlight, in
+  // proportion to its brightness against the Sun's, without limit, so one brighter than the Sun
+  // outshines it, day or night. And at night, when the eye has adapted, as moonlight (nightLight's
+  // scale: the full Moon's magnitude gives about the full Moon's light), easing off as it nears
+  // the Sun's light. Its magnitude is already through the air. The clouds take the two together.
+  const fire=mu.fire, fbMx=fire?Math.max(...fire.rgb)||1:1, tint=fire?fire.rgb.map(c=>c/fbMx):[0, 0, 0];
+  const fbSunRel=fire?Math.pow(10, -0.4*(fire.mag-MOON_V_SUN)):0, fbN=fire?1.5*(1-Math.exp(-0.4*Math.sqrt(Math.pow(10, -0.4*(fire.mag-MOON_V_FULL)))))*night:0;
   vrGL.fbDir=new Float32Array(fire?fire.dir:[0, 0, 1]);
-  vrGL.fbLight=new Float32Array(fire?fire.rgb.map(c=>c/fbMx*fbF):[0, 0, 0]);
-  gl.uniform3fv(u.fbDir, vrGL.fbDir); gl.uniform3fv(u.fbLight, vrGL.fbLight);
+  vrGL.fbLight=new Float32Array(tint.map(c=>c*fbN));
+  // As the clouds light by the Sun (3.2 times its colour) through nightScatter's 0.6 and toLin.
+  vrGL.fbCloud=new Float32Array(tint.map(c=>Math.pow(Math.pow(c*fbN, 2.2)+c*fbSunRel*3.2/0.6, 1/2.2)));
+  gl.uniform3fv(u.fbDir, vrGL.fbDir); gl.uniform3fv(u.fbLight, vrGL.fbLight); gl.uniform3fv(u.fbSun, new Float32Array(tint.map(c=>c*fbSunRel)));
+  // groundRGB's ground under a white Sun overhead, without the sky's light.
+  if(fbSunRel>0.001) gl.uniform3fv(u.groundDay, new Float32Array((LAND[EP[dIdx].key]||[.2, .18, .14]).map(a=>Math.min(1, a*(1.25*255+16)/255))));
   if(mu.n){ gl.uniform4fv(u.metA, mu.A); gl.uniform4fv(u.metB, mu.B); gl.uniform4fv(u.metC, mu.C); }
   // Comets (comets.js).
   const cu=cometUniforms();
@@ -671,7 +677,7 @@ function paintVR(){
     gl.uniform1f(cu.cloudType, field.type); gl.uniform1f(cu.cloudDeck, field.deck);
     gl.uniform3fv(cu.snLight, vrGL.snLight||new Float32Array(3)); if(vrGL.snDir) gl.uniform3fv(cu.snDir, vrGL.snDir);
     gl.uniform3fv(cu.mlLight, vrGL.mlLight||new Float32Array(3)); if(vrGL.mlDir) gl.uniform3fv(cu.mlDir, vrGL.mlDir);
-    gl.uniform3fv(cu.fbLight, vrGL.fbLight||new Float32Array(3)); if(vrGL.fbDir) gl.uniform3fv(cu.fbDir, vrGL.fbDir); gl.uniform1f(cu.cloudBase, field.base); gl.uniform1f(cu.cloudTop, field.top); gl.uniform1f(cu.cloudCirrus, field.cirrus);
+    gl.uniform3fv(cu.fbLight, vrGL.fbCloud||new Float32Array(3)); if(vrGL.fbDir) gl.uniform3fv(cu.fbDir, vrGL.fbDir); gl.uniform1f(cu.cloudBase, field.base); gl.uniform1f(cu.cloudTop, field.top); gl.uniform1f(cu.cloudCirrus, field.cirrus);
     gl.uniform1f(cu.useHDR, vrGL.cloudHDR?1:0);
     gl.uniform1f(cu.sunVis, skyNow.sunVis==null?1:skyNow.sunVis);
     gl.uniform3fv(cu.cityUp, skyNow.cityUp||new Float32Array(3));
@@ -730,10 +736,10 @@ function paintVR(){
     gl.uniform1f(pu.yaw, vrYaw*Math.PI/180); gl.uniform1f(pu.pitch, vrPitch*Math.PI/180);
     gl.uniform3f(pu.eye, vrX, vrY, ez);
     gl.uniform1f(pu.showScn, vrScenery?1:0);
-    gl.uniform4fv(pu.obj, sc.o); gl.uniform1fv(pu.kind, sc.k);
-    gl.drawArrays(gl.TRIANGLES, 0, 6);
     gl.uniform1f(pu.seaR, sc.sea||0); gl.uniform1f(pu.waterT, (performance.now()/1000)%1000);
     if(vrGL.skyNa){ gl.uniform1f(pu.nr, vrGL.skyNa[0]); gl.uniform1f(pu.na, vrGL.skyNa[1]); }
+    gl.uniform4fv(pu.obj, sc.o); gl.uniform1fv(pu.kind, sc.k);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
     perfPassEnd('composite');
     gl.disable(gl.BLEND);
     gl.activeTexture(gl.TEXTURE0); gl.useProgram(vrGL.prog);

@@ -57,8 +57,11 @@ uniform float yaw,pitch,fov,sunAz,sunEl,sunRad,sunOn,nr,na,sunMu,showScn,mtnSnow
 uniform vec4 fineRel;
 uniform float moonAz,moonEl,moonRad,moonOn,moonGlow,latRad,starPx,cloudCov,cloudScale,cloudDrift,cloudOn,clockH,snowCover,waterT,snOn;
 uniform vec3 snDir,snCol,snLight,mlDir,mlLight;
-// The brightest fireball now: where its head is, and the light it casts (as mlLight).
-uniform vec3 fbDir,fbLight;
+// The brightest fireball now: where its head is, the light it casts as moonlight (as mlLight), and
+// as sunlight (1 is the Sun's).
+uniform vec3 fbDir,fbLight,fbSun;
+// The ground's colour in full daylight, which a fireball as bright as the Sun gives it.
+uniform vec3 groundDay;
 uniform vec3 sunCol,ground,eye;
 // The setting Sun (sunDiskAt).
 uniform float refK, sunOff; uniform vec4 sunTau[50]; uniform vec3 sunW[20]; uniform vec3 sunG; uniform vec4 sunLay[4]; uniform vec4 sunMir;
@@ -507,6 +510,7 @@ vec3 overSkyDso(vec3 skyC, float rBg, float r, vec3 L){
 }
 // Light at night from the Moon (ml) and a supernova (sn), on a surface with normal n.
 vec3 nightLit(vec3 n){ return snLight*max(dot(n, snDir), 0.0)+mlLight*max(dot(n, mlDir), 0.0)+fbLight*max(dot(n, fbDir), 0.0); }
+vec3 fireSun(vec3 n){ return fbSun*max(dot(n, fbDir), 0.0); }
 ${STEAM_GLSL}
 vec3 skyLook(vec3 d){
   float c=atan(d.x, d.y); if(c<0.0) c+=6.28318530718;
@@ -591,11 +595,12 @@ void main(){
       gcol*=mix(1.0, 0.5, smoothstep(0.3, 0.8, cov));
     }
     if(kBest<0.5){
+      vec3 dayCol=gcol/max(ground, vec3(1.0e-4))*groundDay;
       float ndl=max(dot(nG, sd), 0.0);
       float rel=clamp((0.20+ndl)/(0.20+max(sd.z, 0.05)), 0.32, 1.9);
       gcol*=rel*mix(0.80, 1.0, nG.z);
       gcol*=mix(0.58, 1.0, shBest);
-      gcol+=nightLit(nG)*0.16;
+      gcol+=nightLit(nG)*0.16+dayCol*fireSun(nG);
     }
 #if SCENERY
     // Pools: pond[i] is (centre, radius, kind) with kind 0 water, 1 magma, 2 ice, 3 swamp.
@@ -680,7 +685,7 @@ void main(){
     }
     float wrap=part>0.5?clamp(dot(n, sd)*0.65+0.35, 0.0, 1.0):max(dot(n, sd), 0.0);
     float ao=mix(0.5, 1.0, n.z*0.5+0.5)*mix(0.7, 1.0, smoothstep(0.0, 2.0, pBest.z));
-    col=albedo*(0.45*ao+0.9*wrap)*(0.42+0.58*sunMu)+albedo*(snLight*max(dot(n, snDir)*0.65+0.35, 0.0)+mlLight*max(dot(n, mlDir)*0.65+0.35, 0.0)+fbLight*max(dot(n, fbDir)*0.65+0.35, 0.0));
+    col=albedo*(0.45*ao+0.9*wrap)*(0.42+0.58*sunMu)+albedo*(snLight*max(dot(n, snDir)*0.65+0.35, 0.0)+mlLight*max(dot(n, mlDir)*0.65+0.35, 0.0)+fbLight*max(dot(n, fbDir)*0.65+0.35, 0.0)+fbSun*max(dot(n, fbDir)*0.65+0.35, 0.0));
     col=mix(col, skyLook(rd), clamp(1.0-exp(-tBest/16000.0), 0.0, 0.8));
   }else if(kBest>5.5){
     // Towers (6) and houses (7). Wall coordinates are world x or y, which line up with the bays
@@ -725,7 +730,7 @@ void main(){
     }
     float ndl=max(dot(n, sd), 0.0);
     float ao=mix(0.62, 1.0, clamp(n.z, 0.0, 1.0))*mix(0.7, 1.0, smoothstep(0.0, 2.5, z));
-    col=mix(albedo*((0.40*ao+0.95*ndl)*(0.42+0.58*sunMu)+nightLit(n)), glass, win);
+    col=mix(albedo*((0.40*ao+0.95*ndl)*(0.42+0.58*sunMu)+nightLit(n)+fireSun(n)), glass, win);
     col+=vec3(1.0, 0.74, 0.42)*win*lit*0.9;
     col=mix(col, skyLook(rd), clamp(1.0-exp(-tBest/16000.0), 0.0, 0.8));
   }else if(kBest>0.5){
@@ -792,7 +797,7 @@ void main(){
     float ao=mix(0.58, 1.0, clamp(nBest.z,0.0,1.0));
     float lit=(0.40*ao+0.95*ndl*sh)*(0.42+0.58*sunMu);
     if(kBest>2.5&&kBest<3.5) lit=(0.62+0.6*ndl*sh)*(0.42+0.58*sunMu); // ice scatters light into its shade
-    col=albedo*(lit+nightLit(nBest))+emit;
+    col=albedo*(lit+nightLit(nBest)+fireSun(nBest))+emit;
     if(kBest<3.5){
       float uTex=(fract(compDeg/360.0)*na+0.5)/(na+1.0);
       float vTex=((90.0-max(elevDeg,0.0))/90.0*nr+0.5)/(nr+1.0);
@@ -1064,8 +1069,12 @@ void main(){
         skyC+=C.rgb*exp(-0.5*d2/(sig*sig))*(1.0-diskK)*dim*vis;
       }
     }
-    // A fireball's glow, brightest in the air about it.
-    if(metN>0.5 && te>-0.5) skyC=meteorsAt(skyC+metFlash*(0.6+1.4*pow(max(dot(src, fbDir), 0.0), 4.0)), src, onBody);
+    // A fireball's glow, brightest in the air about it. As bright as the display's white it hides
+    // the stars and the night sky under it, as the eye adapts.
+    if(metN>0.5 && te>-0.5){
+      vec3 fg=metFlash*(0.6+1.4*pow(max(dot(src, fbDir), 0.0), 4.0));
+      skyC=meteorsAt(skyC*(1.0-min(1.0, 1.2*max(fg.r, max(fg.g, fg.b))))+fg, src, onBody);
+    }
     col=mix(gcol, skyC, smoothstep(-hw,hw,elevDeg));
   }
 #if SCENERY
