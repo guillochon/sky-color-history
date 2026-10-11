@@ -139,8 +139,10 @@ vec3 jupiterAlbedo(float lat, float lon, float pxD, float glon){
   float w=clamp(pxD*2.0, 0.25, 1.5);
   if(pxD>2.5) return mix(jupColor(lat, jupBelt(lat, 1.5)), vec3(0.80, 0.42, 0.30), grsAB.w*(1.0-smoothstep(0.8, 1.0, e0)));
   float T=fineT.y, cl=max(cos(lat*0.01745329252), 0.1), pxC=pxD*0.355556/cl;
-  // The bands wander a degree or so along their length, and darken along some stretches.
-  float s1=jupSlow(lon-jupWindDeg(lat)*T*0.05, lat, 1.0), s2=jupSlow(lon, lat, 2.0);
+  // The bands wander a degree or so along their length, and darken along some stretches. The
+  // wander drifts all at one rate, a turn in T's 2000 days, so it meets itself when T wraps:
+  // drifting with each latitude's own wind it was sheared, late in T, into fine streaks.
+  float s1=jupSlow(lon-0.18*T, lat, 1.0), s2=jupSlow(lon, lat, 2.0);
   // Stirring: strongest in the belts and their edges and toward the poles, calmer in the zones.
   // The billows: at each boundary between a belt and a zone, two chains, the second a third the
   // size of the first, each turning the way of the shear's vorticity there and carried along at
