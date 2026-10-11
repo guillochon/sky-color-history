@@ -10,19 +10,24 @@ function glProgramAsync(gl, vs, src){
   return job;
 }
 // Call done with each linked program (null if it failed) once all of them are ready.
-// With KHR_parallel_shader_compile the wait doesn't block. Without it, the first status query
-// blocks, so wait long enough for the sky to paint first.
+// With KHR_parallel_shader_compile the wait doesn't block. Without it (Firefox) the first status
+// query blocks until every compile sent before is done, so a fence after them is watched
+// instead: Firefox compiles in its GPU process, the page running on, and answers whether a fence
+// has passed at once. The seven big VR programs took 8 s on a GTX 980, the page smooth throughout.
 function whenLinked(gl, list, done){
   const ext=gl.getExtension('KHR_parallel_shader_compile');
+  const sync=ext?null:gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+  if(sync) gl.flush();
   const poll=()=>{
     if(ext && !list.every(x=>gl.getProgramParameter(x.p, ext.COMPLETION_STATUS_KHR))){ setTimeout(poll, 30); return; }
+    if(sync){ if(gl.getSyncParameter(sync, gl.SYNC_STATUS)!==gl.SIGNALED){ setTimeout(poll, 30); return; } gl.deleteSync(sync); }
     done(...list.map(x=>{
       if(x.cold===undefined) x.cold=performance.now()-x.t0>400;
       if(gl.getProgramParameter(x.p, gl.LINK_STATUS)){ gl.deleteShader(x.fs); return x.p; }
       console.warn(gl.getShaderInfoLog(x.fs)||gl.getProgramInfoLog(x.p)); return null;
     }));
   };
-  setTimeout(poll, ext?0:150);
+  setTimeout(poll, sync?30:ext?0:150);
 }
 // Programs whose first draw will stall, mapped to what the VR note calls them. A program that
 // came out of the browser's shader cache links in a moment. One that took a while was compiled
@@ -132,15 +137,13 @@ function initVR(ready){
   });
 }
 // Set VR up in the background once the page has settled, so the shaders are compiled before the
-// view is opened. Only where the compile runs off the page's thread (KHR_parallel_shader_compile,
-// in Chrome): elsewhere the first look at a program holds the page until it is done, which is
-// better left to entering VR. Not on touch screens, where it would cost a phone's memory and
-// battery for a view most never open. The first draw of a big program can still stall
-// (vrSlow), so paintVR's note stays.
+// view is opened. whenLinked waits on the compiles without holding the page, in Chrome and in
+// Firefox. Not on touch screens, where it would cost a phone's memory and battery for a view
+// most never open. The first draw of a big program can still stall (vrSlow), so paintVR's
+// note stays.
 function precompileVR(){
   if(vrGL||vrBoot||vrOn||vrTouch) return;
-  const gl=document.getElementById('vrc').getContext('webgl2', VR_CTX);
-  if(gl&&gl.getExtension('KHR_parallel_shader_compile')) initVR(()=>{});
+  initVR(()=>{});
 }
 function setupVR(gl, vs, prog, skyJob, cloudJobs, bodyJob){
   gl.useProgram(prog);
