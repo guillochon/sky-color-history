@@ -163,6 +163,7 @@ function eclipseGap(ms, central, scale=DISK_SCALE){
 // any overlap of the disks as drawn in VR, or with central set a total or annular phase.
 // Returns {start, end, type} or null.
 function findNextEclipse(afterMs, central){
+  if(noMoon()) return null;
   const msOf=d=>(d-DN_UNIX)*86400000, gr=(Math.sqrt(5)-1)/2, f=ms=>eclipseGap(ms, central);
   let k=Math.round((dayOfMs(afterMs)-DN_NEW0)/synodic())-1;
   const kEnd=k+Math.ceil((central?40:8)*TROPICAL_YEAR/synodic())+2;

@@ -23,7 +23,7 @@
 //     gas is near its temperature (spread 0.2 dex about the mean).
 //   - Chromosphere: as L_X^0.25; chromospheric emission rises more slowly than X rays.
 // The disk itself, and so all of this, is dimmer per area for a cooler Sun: luminance as T_eff^4.6.
-const CORONA_GA={hadean44:4.4, hadean40:4.0, archean38:3.8, archean27thin:2.7, archean27:2.7, archean27vthick:2.7, proterozoic22:2.2, snowball07:0.7, ordovician466:0.466, carbon30:0.3, kpg66:0.066};
+const CORONA_GA={protoearth455:4.55, hadean45:4.5, hadean44:4.4, hadean40:4.0, archean38:3.8, archean27thin:2.7, archean27:2.7, archean27vthick:2.7, proterozoic22:2.2, snowball07:0.7, ordovician466:0.466, carbon30:0.3, kpg66:0.066};
 const SUN_B0=1.87e9; // today's mean disk luminance above the air, cd/m²: 1.27e5 lux over 6.80e-5 sr
 // [nm, equivalent width today near the limb (nm, against K), log T of formation, name]
 const CORONA_LINES=[[530.3, 2.0, 6.25, 'Fe XIV'], [637.4, 1.0, 6.0, 'Fe X'], [569.4, 0.05, 6.65, 'Ca XV']];
@@ -31,7 +31,9 @@ const CHROMO_B=2e-5; // the pink rim's luminance today, in mean disks
 const coronaStates=new Map();
 function coronaState(key){
   let st=coronaStates.get(key); if(st) return st;
-  const tau=4.57-(CORONA_GA[key]||0), lx=Math.pow(tau/4.57, -1.5), T=1.5*Math.pow(lx, 0.26);
+  // Younger than about 50 Myr the X rays saturate, near a thousandth of the Sun's light: held at
+  // 1,000 times today's.
+  const tau=4.57-(CORONA_GA[key]||0), lx=Math.min(1000, Math.pow(tau/4.57, -1.5)), T=1.5*Math.pow(lx, 0.26);
   const lt=Math.log10(T*1e6), lt0=Math.log10(1.5e6), w=(t, c)=>Math.exp(-0.5*(t-c)**2/(0.2*0.2+0.12*0.12));
   const ep=EP.find(e=>e.key===key), teff=ep&&ep.teff||5772;
   st={lx, T, k:Math.sqrt(lx), s:Math.sqrt(T/1.5), f:zodiK(key), chromo:Math.pow(lx, 0.25), B:SUN_B0*Math.pow(teff/5772, 4.6),

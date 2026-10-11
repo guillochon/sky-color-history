@@ -1,6 +1,6 @@
 /* ---------- the Moon's face through time ---------- */
 // Ages (Ma) of the epochs whose Moon looked different from today's.
-const MOON_MA={kpg66:66, carbon30:300, ordovician466:466, snowball07:700, proterozoic22:2200,
+const MOON_MA={hadean45:4500, kpg66:66, carbon30:300, ordovician466:466, snowball07:700, proterozoic22:2200,
   archean27thin:2700, archean27:2700, archean27vthick:2700, archean38:3800, hadean40:4000, hadean44:4400};
 // The dark maria are basalt that flooded the great basins from about 3.9 Ga, most of it by 3.3 Ga
 // (Hiesinger et al. 2011, GSA Special Paper 477): before then the near side was bright highland

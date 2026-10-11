@@ -13,10 +13,15 @@
 //     bombardment would have made the inner zodiacal cloud over 10⁴ times brighter (Nesvorný et
 //     al. 2010, ApJ 713, 816). Taken here as 1000 at 4.4 Ga, 300 at 4.0 and 50 at 3.8 Ga
 //     (estimates), and 1.5 at 2.7 Ga, in the long tail of the bombardment.
+//   - 4.55 Ga: the dust of the planets still forming. Most of the dust round stars 10-20 Myr old
+//     is cold and far out; warm dust near 1 AU is seen round few of them, mostly after a giant
+//     impact (HD 172555's), and below about 10⁻⁵ of a star's light none can be seen at all: 1 to
+//     1000 is defensible. Taken as 10. At 4.50 Ga, after the Moon-forming impact flung debris
+//     through the inner Solar System: 2000.
 // The pattern, in S10 (tenth-magnitude solar stars per square degree) against elongation from
 // the Sun along the ecliptic and ecliptic latitude, is a fit to Leinert et al. 1998 (A&AS 127, 1):
 // 60 at the ecliptic poles, about 1,800 at 30°, 220 at 90°, 150 at 150°, 200 in the gegenschein.
-const ZODI={hadean44:1000, hadean40:300, archean38:50, archean27thin:1.5, archean27:1.5, archean27vthick:1.5, ordovician466:30};
+const ZODI={protoearth455:10, hadean45:2000, hadean44:1000, hadean40:300, archean38:50, archean27thin:1.5, archean27:1.5, archean27vthick:1.5, ordovician466:30};
 const ZODI_BAND={ordovician466:0.6};
 const S10_CD=8.35e-7; // one S10 in cd/m² (27.78 mag/arcsec²)
 function zodiK(key){ return ZODI[key]||1; }

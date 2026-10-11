@@ -168,8 +168,8 @@ const NIGHT_NATURAL=1.71e-4, NIGHT_XY=[0.310, 0.330];
 //     so their luminance is about 15% of today's airglow (band shape: a Gaussian at 450 nm, 45 nm
 //     wide, xy 0.145, 0.120).
 const NIGHT_REST_XY=[0.3265, 0.3361], AIRGLOW_XY=[0.294, 0.324], HERZBERG_XY=[0.145, 0.120], AIRGLOW_SHARE=0.5;
-const AIRGLOW_O={proterozoic22:0.3, snowball07:0.8, ordovician466:0.9, archean27thin:0, archean27:0, archean27vthick:0, archean38:0, hadean40:0, hadean44:0};
-const AIRGLOW_CO2={archean27thin:0.15, archean27:0.15, archean27vthick:0.15, archean38:0.15, hadean40:0.15, hadean44:0.15};
+const AIRGLOW_O={protoearth455:0, hadean45:0, proterozoic22:0.3, snowball07:0.8, ordovician466:0.9, archean27thin:0, archean27:0, archean27vthick:0, archean38:0, hadean40:0, hadean44:0};
+const AIRGLOW_CO2={protoearth455:0.15, hadean45:0.15, archean27thin:0.15, archean27:0.15, archean27vthick:0.15, archean38:0.15, hadean40:0.15, hadean44:0.15};
 // The natural night sky at the zenith outside the air (cd/m², XYZ) for epoch key.
 function nightNatural(key){
   const fo=AIRGLOW_O[key]??1, fc=AIRGLOW_CO2[key]||0, out=[0,0,0];
@@ -184,10 +184,11 @@ const SKYGLOW={modern:[3.09e-3, 0.44, 0.40], modernpoll:[4.94e-3, 0.45, 0.40], o
 // ozone) plus 1.086 times each epoch's aerosol or haze optical depth at 550 nm. Clean air is
 // 0.25. The Early Hadean's 30 bar of CO2 scatters so much (optical depth about 7) that no star
 // shows through it. Starlight, the Milky Way, and the airglow all come from above the air, so
-// all three are dimmed at the zenith by the excess over clean air, and more toward the horizon.
+// The proto-Earth's guessed 3 bar of CO2 over a bar of N2 has a Rayleigh depth near 0.6, and with
+// its dust 0.85 magnitudes. All three are dimmed at the zenith by the excess over clean air, and more toward the horizon.
 // The soot of the impact winter absorbs what it removes; elsewhere the haze mostly scatters it
 // back into the diffuse sky, so only the soot also darkens the airglow's diffuse glow.
-const EXT_K={hadean44:7.6, hadean40:0.35, archean27:0.8, archean27vthick:1.8, kpg66:2.3, volcanic:0.7, modernpoll:0.8};
+const EXT_K={hadean45:7.6, protoearth455:0.85, hadean44:7.6, hadean40:0.35, archean27:0.8, archean27vthick:1.8, kpg66:2.3, volcanic:0.7, modernpoll:0.8};
 function extK(key){ return EXT_K[key]||0.25; }
 // Transmission at the zenith relative to clean air, and the part of it lost to absorption.
 function extZenith(key){ return Math.pow(10, -0.4*(extK(key)-0.25)); }
@@ -548,7 +549,7 @@ function renderDay(fast){
   document.getElementById('rmet').textContent=meteorReadout();
   document.getElementById('rcomet').textContent=cometReadout();
   metKick();
-  document.getElementById('rmoon').textContent = (moon.el<-moon.radDeg ? 'below horizon' : moon.el.toFixed(1)+'°')+' · '+Math.round(moonLit(moon, sunAz, 90-sza)*100)+'% lit · '+fullPct(mScale/MOON_SUN_FULL)+' of full';
+  document.getElementById('rmoon').textContent = moon.none ? 'none yet: the Moon forms in a later giant impact' : (moon.el<-moon.radDeg ? 'below horizon' : moon.el.toFixed(1)+'°')+' · '+Math.round(moonLit(moon, sunAz, 90-sza)*100)+'% lit · '+fullPct(mScale/MOON_SUN_FULL)+' of full';
   // The eclipse's details have a cell of their own that is always there, so the Sun's and Moon's
   // readouts keep their size as an eclipse comes and goes.
   document.getElementById('recl').textContent=eclipse?'Sun · '+eclipse:lunar?'Moon · '+(MOON_V_SUN-2.5*Math.log10(Math.max(mScale, 1e-40))).toFixed(1)+' mag · '+lunar.text:'none';

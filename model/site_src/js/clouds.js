@@ -43,6 +43,8 @@ function makeCloudVolumes(gl, prog){
 // average; vary is how far passing weather systems swing it either way.
 // Type 0 is a thin stratiform deck, 0.5 is fair-weather cumulus, 1 is cumulonimbus.
 const CLOUD_ERA={
+  protoearth455:{cov:0.6,vary:0.12,type:0.3,base:1700,top:0.5,cirrus:0.1},
+  hadean45:{cov:0.88,vary:0.05,type:0.12,base:1900,top:0.55,cirrus:0.05},
   hadean44:{cov:0.88,vary:0.05,type:0.12,base:1900,top:0.55,cirrus:0.05},
   hadean40:{cov:0.74,vary:0.08,type:0.16,base:1800,top:0.50,cirrus:0.08},
   archean38:{cov:0.48,vary:0.15,type:0.35,base:1600,top:0.45,cirrus:0.15},

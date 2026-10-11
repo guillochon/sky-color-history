@@ -11,9 +11,9 @@ HERE = Path(__file__).resolve().parent
 LIMB = dict(gr.LIMB)
 DAY = json.loads((HERE / 'daycycle.json').read_text(encoding='utf-8'))
 PROSE = gr.PROSE
-order = ['hadean44','hadean40','archean38','archean27thin','archean27','archean27vthick','proterozoic22','snowball07','ordovician466','carbon30','kpg66','zetaoph','geminga','volcanic','ozonehole','modern','modernpoll','y2100']
+order = ['protoearth455','hadean45','hadean44','hadean40','archean38','archean27thin','archean27','archean27vthick','proterozoic22','snowball07','ordovician466','carbon30','kpg66','zetaoph','geminga','volcanic','ozonehole','modern','modernpoll','y2100']
 ages = {**gr.ages, 'volcanic': '1815 CE', 'modern': 'Today', 'modernpoll': 'Today'}
-short = {'hadean44':'Early Hadean','hadean40':'Late Hadean','archean38':'Early Archean','archean27thin':'Thin haze','archean27':'Thick haze','archean27vthick':'Very thick haze','proterozoic22':'Post-oxidation','snowball07':'Snowball Earth','ordovician466':'Meteor storm','carbon30':'Carboniferous','kpg66':'Impact winter','zetaoph':'ζ Oph supernova','geminga':'Geminga supernova','volcanic':'Volcanic year','modern':'Clean air','modernpoll':'Polluted city','ozonehole':'Ozone hole','y2100':'Year 2100'}
+short = {'protoearth455':'Proto-Earth','hadean45':'Newborn Moon','hadean44':'Early Hadean','hadean40':'Late Hadean','archean38':'Early Archean','archean27thin':'Thin haze','archean27':'Thick haze','archean27vthick':'Very thick haze','proterozoic22':'Post-oxidation','snowball07':'Snowball Earth','ordovician466':'Meteor storm','carbon30':'Carboniferous','kpg66':'Impact winter','zetaoph':'ζ Oph supernova','geminga':'Geminga supernova','volcanic':'Volcanic year','modern':'Clean air','modernpoll':'Polluted city','ozonehole':'Ozone hole','y2100':'Year 2100'}
 # gen_report adds the epochs that keep today's air (Year 2100 and the supernovae). Their globes
 # are today's, so the page is given the key of the modern limb instead of a copy (color.js).
 byk = gr.byk
@@ -151,6 +151,8 @@ DAY_META = dict(szas=DAY['szas'], vz=DAY['vz'], az=DAY['az'], lats=DAY_LATS, yEm
 # and where each was in each epoch.
 DSO = json.loads((HERE / 'dso.json').read_text(encoding='utf-8'))
 DSO_IMG = f"dso.webp?v={hashlib.sha1((SITE / 'dso.webp').read_bytes()).hexdigest()[:10]}"
+# Each one's full-size tile (dso/<id>.webp), fetched when the walk-around view zooms in on it.
+DSO_HI = {o['id']: f"dso/{o['id'].replace(' ', '')}.webp?v={hashlib.sha1((SITE / 'dso' / (o['id'].replace(' ', '') + '.webp')).read_bytes()).hexdigest()[:10]}" for o in DSO['objects'] if (SITE / 'dso' / (o['id'].replace(' ', '') + '.webp')).exists()}
 # The rocky bodies' surface maps (surfaces.py), one file each, fetched when the walk-around view zooms in on one.
 SURF_FILES = {p.stem.capitalize(): f"surf/{p.name}?v={hashlib.sha1(p.read_bytes()).hexdigest()[:10]}" for p in sorted((SITE / 'surf').glob('*.webp'))}
 # The interactive page, in the order the browser receives it.
@@ -224,7 +226,7 @@ html = html.replace('__FAVICON__', 'data:image/svg+xml,' + urllib.parse.quote(fa
 PDF_V = hashlib.sha1((HERE.parent / 'latex' / 'main.pdf').read_bytes()).hexdigest()[:10]
 html = html.replace('href="main.pdf"', f'href="main.pdf?v={PDF_V}"')
 html = html.replace('__EP__', json.dumps(EP, separators=(',',':'))).replace('__DAY__', json.dumps(DAY_META, separators=(',',':')))
-html = html.replace('__SURF_FILES__', json.dumps(SURF_FILES)).replace('__DSO_IMG__', DSO_IMG).replace('__DSO__', json.dumps(DSO, separators=(',', ':'), ensure_ascii=False))
+html = html.replace('__SURF_FILES__', json.dumps(SURF_FILES)).replace('__DSO_IMG__', DSO_IMG).replace('__DSO_HI__', json.dumps(DSO_HI)).replace('__DSO__', json.dumps(DSO, separators=(',', ':'), ensure_ascii=False))
 
 
 def minify(html):

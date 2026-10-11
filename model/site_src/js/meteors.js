@@ -39,9 +39,13 @@
 //     fragments came from the inner main belt on low orbits, so they were slow (15–20 km/s) and
 //     yellow with sodium. And if Earth had a ring (debris.js), its grains fell back too: at the
 //     equator, at about 8 km/s, long grazing fireballs crossing the sky from west to east.
+//   - 4.55 and 4.50 Ga: the leftovers of the planets' growth, and after the giant impact its debris:
+//     the chronology run back past 4.4 Ga, taken as 30,000 and 10,000 times today.
 // Heights: in the Early Hadean's 30 bar of CO₂ every density level sits higher, so meteors burn
-// about 22 km higher up; elsewhere the difference is a few kilometres and is left out.
+// about 22 km higher up (in the proto-Earth's guessed 4 bar, 9 km); elsewhere the difference is a few kilometres and is left out.
 const MET_EPOCH={
+  protoearth455:{F:30000, rf:3.0, rb:2.0, mix:{aster:0.9, iso:0.1}, dh:9, flash:1},
+  hadean45:{F:10000, rf:3.0, rb:2.0, mix:{aster:0.85, iso:0.15}, dh:22, flash:1},
   hadean44:{F:3000, rf:3.0, rb:2.0, mix:{aster:0.85, iso:0.15}, dh:22, flash:1},
   hadean40:{F:500, rf:3.0, rb:2.1, mix:{aster:0.6, apex:0.15, iso:0.25}, flash:1},
   archean38:{F:120, rf:3.0, rb:2.15, mix:{aster:0.6, apex:0.15, helion:0.1, antihelion:0.1, iso:0.05}, flash:1},

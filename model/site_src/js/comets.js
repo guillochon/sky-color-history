@@ -57,8 +57,9 @@ const COMET_REAL_EPOCHS=new Set(['modern', 'modernpoll', 'ozonehole', 'volcanic'
 //     birth (de Sousa et al. 2020; Nesvorný 2018), scattered the primordial comet disk; the flux
 //     then decayed, settling by about 1 Gyr (Vokrouhlický, Nesvorný & Dones 2019). Taken as 30
 //     at 4.4 Ga, 5 at 4.0 and 4 at 3.8 Ga, 1.5 at 2.7 and 1.2 at 2.2 Ga: estimates (a late
-//     instability near 4 Ga would put thousands at 4.0 Ga instead).
-const COMET_RATE={hadean44:30, hadean40:5, archean38:4, archean27thin:1.5, archean27:1.5, archean27vthick:1.5, proterozoic22:1.2,
+//     instability near 4 Ga would put thousands at 4.0 Ga instead). Before the instability, at 4.55
+//     and (as that epoch has it) 4.50 Ga, the ice giants were still eroding the disk: 30, as at 4.4.
+const COMET_RATE={protoearth455:30, hadean45:30, hadean44:30, hadean40:5, archean38:4, archean27thin:1.5, archean27:1.5, archean27vthick:1.5, proterozoic22:1.2,
   snowball07:0.6, ordovician466:0.6, carbon30:0.6, kpg66:0.6, zetaoph:4, geminga:1.1};
 function cometRate(key){ return COMET_REAL_EPOCHS.has(key)?0:(COMET_RATE[key]??1); }
 // Comets a year today with H ≤ 10 and q ≤ 2 AU: 3.2 gives one a year peaking at m ≤ 6 (seen at

@@ -21,11 +21,14 @@
 //     at all, CO2 split by electrons still gives the green line, as Perseverance saw in a Martian
 //     aurora (Knutsen et al. 2025, Sci. Adv.), but with CO2 a few percent of the air it is weak:
 //     12%. The 30-bar Hadean air is mostly CO2, so there the green line is stronger (60%) and
-//     nitrogen's bands faint.
+//     nitrogen's bands faint. The proto-Earth's guessed 3 bar of CO2 over 1 of N2 sits between.
+//   - The 4.55 and 4.50 Ga Sun, younger still, blows harder: the magnetopause nearer again.
 //   - Nitrogen's blue-violet N2+ bands and the pink-red N2 first positive bands go with the N2.
 //     Without oxygen atoms to quench excited N2, the first positive bands gain 30%.
 // All of these are estimates, set to show the trend rather than to predict a particular night.
 const AURORA_EPOCH={
+  protoearth455:[0.30, 7.0, 8.0, 0.5, 0.3],
+  hadean45:[0.35, 6.5, 7.0, 0.6, 0.15],
   hadean44:[0.40, 6.0, 6.0, 0.6, 0.15],
   hadean40:[0.45, 6.0, 5.0, 0.12, 1],
   archean38:[0.50, 5.5, 4.0, 0.12, 1],
@@ -148,7 +151,7 @@ function auroraState(key, latDeg, clockMin, zenithCd){
   st.spec=[fO*AUR_RATIO[0], fO*AUR_RATIO[1], fN*AUR_RATIO[2], fN*(1+0.3*(1-Math.min(fO, 1)))*AUR_RATIO[3]];
   // Extinction per emission: Rayleigh as λ^-4 and the rest of each epoch's extinction (aerosol or
   // haze) as λ^-α, with the organic haze steeper.
-  const k=extK(key), alpha=key==='hadean44'?4:(key.startsWith('archean27')?2:1.3);
+  const k=extK(key), alpha=key==='hadean44'||key==='hadean45'?4:(key.startsWith('archean27')?2:1.3);
   st.k=AUR_LAMBDA.map(l=>0.15*Math.pow(550/l, 4)+Math.max(0, k-0.15)*Math.pow(550/l, alpha));
   // The window of longitudes the arcs texture covers: everywhere within 21.6° of here, or all
   // the way round when that reaches the pole.

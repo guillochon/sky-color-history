@@ -16,3 +16,4 @@ site/day/*.gz
 .venv/
 site/main.pdf
 model/data/
+model/horizons_cache/

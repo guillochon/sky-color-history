@@ -19,6 +19,8 @@ const MTN_SCALE=0.67; // massif and hill heights relative to the original layout
 // lots, 77% of house lots). Woods are lot grids too; pools are drawn by the sky shader.
 const WATER=[[30,350,'water',120],[95,600,'water',220],[320,500,'water',180],[60,1500,'water',400]];
 const ZONES={
+  protoearth455:[[30,330,'magma',110],[95,520,'magma',170],[320,430,'magma',140],[255,1300,'magma',300],[40,1500,'magma',320],[160,800,'magma',200]],
+  hadean45:[[30,330,'magma',90],[95,520,'magma',150],[320,430,'water',120],[255,1300,'magma',260],[40,1500,'water',300]],
   hadean44:[[30,330,'magma',90],[95,520,'magma',150],[320,430,'magma',120],[255,1300,'magma',260],[40,1500,'magma',300]],
   hadean40:[[30,330,'water',100],[95,520,'magma',140],[320,430,'water',130],[255,1300,'water',280],[40,1500,'magma',260]],
   archean38:WATER, archean27thin:WATER, archean27:WATER, archean27vthick:WATER,
@@ -70,7 +72,7 @@ function buildScene(key){ // [bearing deg, distance m, radius m, height m, kind]
   if(key==='snowball07') return spots(ICE);
   if(key==='carbon30') return spots(TREES);
   if(TOWNS[key]) return spots(TOWN_MTNS);
-  if(key==='hadean44'||key==='hadean40'||key==='archean38'||key==='archean27thin'||key==='archean27'||key==='archean27vthick'||key==='volcanic') return spots(VOLC);
+  if(key==='protoearth455'||key==='hadean45'||key==='hadean44'||key==='hadean40'||key==='archean38'||key==='archean27thin'||key==='archean27'||key==='archean27vthick'||key==='volcanic') return spots(VOLC);
   return spots(PEAKS);
 }
 function fract(x){ return x-Math.floor(x); }
@@ -837,11 +839,7 @@ function uploadBodies(gl, u){
   const fwd=[Math.sin(yw)*Math.cos(pt), Math.cos(yw)*Math.cos(pt), Math.sin(pt)];
   const onScreen=b=>b.dir[0]*fwd[0]+b.dir[1]*fwd[1]+b.dir[2]*fwd[2]>Math.cos(Math.min(edge+b.rad*DISK_SCALE*2.3+0.03, Math.PI));
   const list=(skyNow.bodies||[]).filter(onScreen).slice(0, BODY_MAX), {P, C, L, N, S, Mr}=BODY_U;
-  // Close enough for detail: Jupiter's clouds past a couple of dozen pixels' radius, a body's map
-  // past a few (which fetches that body's map alone, surfaces.js).
   const radPx=b=>b.rad*DISK_SCALE/(2*fy/Math.max(c.height, 1));
-  if(list.some(b=>b.kind===3&&radPx(b)>20)) wantDetail(gl, 'jup');
-  for(const b of list) if(b.map&&radPx(b)>5){ wantSurface(b.map); wantDetail(gl, 'map'); }
   const cp=Math.cos(pt), sp=Math.sin(pt), cy=Math.cos(yw), sy=Math.sin(yw);
   vrGL.bodyList=list;
   list.forEach((b, i)=>{
@@ -861,6 +859,13 @@ function uploadBodies(gl, u){
     if(depth>1e-3){ S[o]=(v[0]*cy-v[1]*sy)/depth; S[o+1]=(-v[0]*sy*sp-v[1]*cy*sp+v[2]*cp)/depth; } else { S[o]=S[o+1]=1e6; }
     S[o+2]=k;
   });
+  // Close enough for detail: Jupiter's clouds past a couple of dozen pixels' radius, a body's map
+  // past a few (which fetches that body's map alone, surfaces.js). Only for a disk within the view
+  // itself (by its place on the image plane, refracted), not the margin: a moon just outside would
+  // never draw, and its note never go.
+  const inView=i=>{ const r=Math.tan(list[i].rad*DISK_SCALE); return Math.abs(S[i*4])<fx+r&&Math.abs(S[i*4+1])<fy+r; };
+  if(list.some((b, i)=>b.kind===3&&radPx(b)>20&&inView(i))) wantDetail(gl, 'jup');
+  list.forEach((b, i)=>{ if(b.map&&radPx(b)>5&&inView(i)){ wantSurface(b.map); wantDetail(gl, 'map'); } });
   gl.uniform4fv(u.bodyP, P); gl.uniform4fv(u.bodyC, C); gl.uniform4fv(u.bodyL, L); gl.uniform4fv(u.bodyN, N); gl.uniform4fv(u.bodyS, S); gl.uniform4fv(u.bodyM, Mr);
   gl.uniform1f(u.bodyCnt, list.length); gl.uniform1f(u.moonGain, moonGain());
   let n=0;

@@ -44,8 +44,8 @@ const SP_FRAUN_T=Float32Array.from(SP_LAM, l=>SP_FRAUN.reduce((t, [c, d, s])=>t*
 const SP_TAU_O2=Float32Array.from(SP_LAM, l=>(l>=759&&l<=770?2.0*(l<762?1:0.25+0.75*(770-l)/8):0)+(l>=686.5&&l<=694?0.55*(l<689?1:(694-l)/5):0));
 const SP_TAU_H2O=Float32Array.from(SP_LAM, l=>0.25*Math.exp(-0.5*((l-725)/5)**2));
 // O2 relative to today's 21%, and the water column relative to today's.
-const SP_O2={hadean44:0, hadean40:0, archean38:0, archean27thin:0, archean27:0, archean27vthick:0, proterozoic22:0.01, snowball07:0.1, ordovician466:0.81, carbon30:1.57};
-const SP_H2O={hadean44:4, snowball07:0.2};
+const SP_O2={protoearth455:0, hadean45:0, hadean44:0, hadean40:0, archean38:0, archean27thin:0, archean27:0, archean27vthick:0, proterozoic22:0.01, snowball07:0.1, ordovician466:0.81, carbon30:1.57};
+const SP_H2O={hadean45:4, protoearth455:1.5, hadean44:4, snowball07:0.2};
 // The night's sources, each to unit luminance.
 const SP_SUN5772=spNorm(spPlanck(5772));
 const SP_AIRGLOW=spNorm(spAdd([1, spLines([[557.7, 250], [589.0, 40], [589.6, 25], [630.0, 50], [636.4, 16]])],
@@ -537,11 +537,15 @@ const REFL={
   Ganymede:{n:[[380, 0.72], [500, 0.85], [600, 0.95], [780, 1]], note:'sunlight off ice and dark rock'},
   Callisto:{n:[[380, 0.68], [500, 0.82], [600, 0.94], [780, 1]], note:'sunlight off dark, dusty ice'},
   Titan:{n:[[380, 0.12], [450, 0.25], [500, 0.45], [550, 0.7], [600, 0.92], [780, 1]], ch4:[[619, 0.25, 4], [727, 0.55, 5]], note:'sunlight off its orange organic haze, with the methane bands of its air'},
+  Iapetus:{n:[[380, 0.45], [450, 0.6], [550, 0.8], [650, 0.92], [780, 1]], note:'sunlight off bright ice on its trailing side and reddish-black dust on its leading one'},
+  Triton:{n:[[380, 0.8], [450, 0.9], [550, 0.97], [780, 1]], note:'sunlight off nitrogen and methane frosts, faintly pink'},
+  Harmonia:{n:[[380, 0.75], [500, 0.85], [600, 0.94], [780, 1]], note:'sunlight off dark rubble like Phobos’s'},
+  Theia:{n:[[380, 0.45], [450, 0.55], [550, 0.75], [650, 0.92], [780, 1]], note:'sunlight off bare rock and dust, as Mars or Mercury'},
   icy:{n:[[380, 0.85], [500, 0.95], [780, 1]], note:'sunlight off nearly pure water ice'},
   sat:{n:[[380, 0.85], [780, 1]], note:'sunlight off its metal, panels and paint'},
 };
 function reflectedSpectrum(s){
-  const key=EP[dIdx].key, r=REFL[s.planet||'sat']||REFL.icy, S=spPlanck(5772), n=r.n;
+  const key=EP[dIdx].key, r=REFL[s.planet==='Oceanus'?'Neptune':s.planet||'sat']||REFL.icy, S=spPlanck(5772), n=r.n;
   for(let i=0;i<SP_N;i++){
     const l=SP_LAM[i], k=Math.max(0, n.findIndex(([x])=>x>=l)-1), [x0, y0]=n[k], [x1, y1]=n[Math.min(k+1, n.length-1)];
     let t=x1>x0?y0+(y1-y0)*(l-x0)/(x1-x0):y0;
@@ -558,10 +562,13 @@ function reflectedSpectrum(s){
   const size=s.radDeg!=null?` · ${(s.radDeg*7200).toFixed(s.radDeg*7200<10?1:0)}″ across, ${Math.round(s.lit*100)}% lit`:'';
   // In an epoch before history, where it was on its orbit that day is unknown; Saturn's rings may
   // be younger than the epoch.
-  const ring=s.planet==='Saturn'&&s.ageMa>=RINGS_DEBATED_MA?(s.rings?' · its rings may be younger than this (100–400 Myr by Cassini’s measures, still argued)':' · drawn without rings, which are thought to be at most a few hundred Myr old'):'';
+  const ring=s.planet==='Saturn'&&s.ageMa>=RINGS_DEBATED_MA?(s.rings?' · its rings may be younger than this (100–400 Myr by Cassini’s measures, still argued)':' · drawn without rings, which are thought to be at most a few hundred Myr old: here they come from Chrysalis’s break-up, about 160 Myr ago'):'';
   const spot=s.planet!=='Jupiter'?'':s.grs?` · the Great Red Spot, ${(s.grs.L*1.154).toFixed(0)},000 km long, at ${s.grs.lon.toFixed(0)}° (System II)${s.grs.held?', held at its size of the 2040s: what it does next is not known':''}`:s.unknown?' · no Great Red Spot drawn: storms like it come and go over centuries':' · no Great Red Spot: it was first seen for sure in 1831';
   const where=s.unknown?' · its place on its orbit this day cannot be known: drawn at one picked at random for the epoch':'';
-  const note=`${s.planet?s.planet+(s.host?`, a moon of ${s.host}`:''):'A satellite'}${size} · ${s.planet==='Saturn'&&!s.rings?'sunlight off its yellower haze, with methane bands':r.note}${ring}${spot}${where} · V ${s.mag.toFixed(1)} above the air, ${m.toFixed(1)} through ${X.toFixed(1)} airmass${X>=1.05?'es':''}`;
+  // A hypothetical body, or one named here; Saturn's mid-sized moons may themselves be young.
+  const what=BODY_NOTES[s.planet]?' · '+BODY_NOTES[s.planet]:s.host==='Saturn'&&s.ageMa>=RINGS_DEBATED_MA&&['Mimas', 'Enceladus', 'Tethys', 'Dione', 'Rhea'].includes(s.planet)?' · it may be younger than this: Saturn’s mid-sized moons may have formed again in the last few hundred Myr (Ćuk et al. 2016)':'';
+  const kin=s.planet==='Oceanus'?'a lost ice giant':s.planet==='Theia'?'a planet-sized body':'';
+  const note=`${s.planet?s.planet+(s.host?`, a moon of ${s.host}`:kin?`, ${kin}`:''):'A satellite'}${size} · ${s.planet==='Saturn'&&!s.rings?'sunlight off its yellower haze, with methane bands':r.note}${what}${ring}${spot}${where} · V ${s.mag.toFixed(1)} above the air, ${m.toFixed(1)} through ${X.toFixed(1)} airmass${X>=1.05?'es':''}`;
   return {S, Y:1, parts:[], marks, note};
 }
 // The supernova, if it is up within tolDeg of dir.

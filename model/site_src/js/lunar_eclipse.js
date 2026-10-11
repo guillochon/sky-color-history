@@ -39,6 +39,7 @@ function moonElAt(ms){
 // afterMs with the Moon at least 5° up at its middle, searched full Moon by full Moon.
 // Returns {start, end, mid, total}.
 function findNextLunarEclipse(afterMs, total){
+  if(noMoon()) return null;
   const msOf=d=>(d-DN_UNIX)*86400000, gr=(Math.sqrt(5)-1)/2, f=ms=>lunarGap(ms, total);
   const P=synodic();
   let k=Math.floor((dayOfMs(afterMs)-DN_NEW0)/P-0.5)-1;
@@ -109,6 +110,7 @@ function shadowY(s, rho){
 // k turns a distance on the disk (in its radii) into a share of rhoMax for the lookup, and Ymean
 // is the disk's mean light over the uneclipsed Moon's, which dims the moonlit sky.
 function lunarEclipseNow(moon){
+  if(noMoon()) return null;
   const d=astroDay(), s=lunarShadowGeo(d);
   if(!(s.rho<s.pen+MOON_ER)) return null;
   const sun=sunEquatorial(d), lst=localSidereal(), lat=LATDEG[dLat];
@@ -161,7 +163,7 @@ function jumpNextLunarEclipse(total){
     if(Math.abs(ev.start-lead-(after-1000))>90*1000) break;
     after=ev.start+1000;
   }
-  if(!ev){ vrNote=total?'no total lunar eclipse in the next forty years':'no lunar eclipse in the next twelve years'; if(vrOn) paintVR(); else document.getElementById('recl').textContent=vrNote; return; }
+  if(!ev){ vrNote=noMoon()?'no Moon yet: it forms in a giant impact some tens of millions of years later':total?'no total lunar eclipse in the next forty years':'no lunar eclipse in the next twelve years'; if(vrOn) paintVR(); else document.getElementById('recl').textContent=vrNote; return; }
   const at=pageAt(dayOfMs(ev.start-lead));
   document.getElementById('moonDate').value=at.date;
   minutes=at.min;

@@ -2,6 +2,12 @@
 from skymodel import make_atm, column_ozone, ozone_latitude
 
 EPOCHS = [
+ dict(key='protoearth455', name='Proto-Earth, ~4.55 Ga', sub='before the Moon-forming impact; a guessed ~3 bar CO2/N2 air with impact dust; the young Sun at 17 Myr',
+      gas={'CO2':3,'N2':1,'H2O':0.05}, ozone=0, aer=(0.15,1.0,0.95,0.7), dust=0.05, sun=(4614,0.47),
+      note='No constraint exists on the air before the last giant impact. Sun: Baraffe et al. 2015 1 Msun track at 17 Myr (4614 K, log L -0.327)'),
+ dict(key='hadean45', name='Earliest Hadean, ~4.50 Ga', sub='~10 Myr after the Moon-forming impact: magma ocean frozen, ~30 bar CO2 left; Moon at ~8 Earth radii',
+      gas={'CO2':30,'N2':1,'H2O':0.3}, ozone=0, aer=(0.3,1.0,0.95,0.7), sun=(5532,0.68),
+      note='CO2 as hadean44 (tens to ~100 bar after the impact, Zahnle et al. 2010). Sun: Baraffe et al. 2015 1 Msun track at 67 Myr (5532 K, log L -0.167)'),
  dict(key='hadean44', name='Early Hadean, ~4.4 Ga', sub='post-magma-ocean CO2/steam atmosphere (~30 bar CO2)',
       gas={'CO2':30,'N2':1,'H2O':0.3}, ozone=0, aer=(0.3,1.0,0.95,0.7), sun=(5560,0.70), note='Rayleigh optical depth ~5 at 550 nm'),
  dict(key='hadean40', name='Late Hadean, ~4.0 Ga', sub='CO2 mostly drawn down into carbonate; ~1 bar N2, ~0.5 bar CO2',
