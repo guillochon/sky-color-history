@@ -1,6 +1,6 @@
 """The report's part on everything the interactive site adds to the sky colors: the setting Sun and
 its spots, the Moon and both kinds of eclipse, halos, the night sky and airglow, aurorae, meteors,
-dust and comets, and clouds. gen_report.py renders it as HTML and make_tex.py as LaTeX, from the same text.
+dust and comets, and clouds. gen_report.py renders it in the HTML report and the LaTeX paper from the same text.
 The numbers come from the site's code (model/site_src/js) and the model scripts named in each
 section; the per-epoch values in PHENOMENA are copied from those files."""
 import eclipse_report as er
@@ -37,7 +37,12 @@ SECTIONS = [
 "Sun meets its own inverted image in an inferior mirage, the “omega” sunset. The cold surface of Snowball Earth "
 "makes inversions common and inferior mirages rare, and the warm oceans of the Hadean and Archean the reverse. "
 "These mirage statistics are illustrative. The disk is also darker and redder toward its edge (limb darkening, "
-"Hestroffer &amp; Magnan 1998): the air only multiplies the Sun's light, so the darkening is the same under every sky."]],
+"Hestroffer &amp; Magnan 1998): the air only multiplies the Sun's light, so the darkening is the same under every sky.",
+"Two of these effects are drawn larger than life. The disk itself is drawn at four times its angular size, as the "
+"Moon is, so that it shows at all on a screen, and the bands' separation by refraction is enlarged with it, four "
+"times high in the sky and up to 24 times at the horizon, where a real flash is a sliver of a few arcseconds. And "
+"the limb darkening is drawn at a fifth of its true strength: on a disk drawn near white, the real contrast reads "
+"as a dark rim. The spectrum readout keeps the full law."]],
 
 ['Sunspots', [
 "The Sun's disk carries its spots and faculae, drawn from a map of the whole photosphere made for each epoch and "
@@ -67,8 +72,8 @@ SECTIONS = [
 "edge; and round the region, faculae that show only toward the limb, cleared from a moat round each mature spot, "
 "over the faint network of the supergranulation. Intensities are Planck ratios at the color channels' wavelengths, "
 "so spots are redder as well as darker. The disk is drawn as a white-light photograph is shown, with umbrae "
-"near-black and penumbrae mid-gray. The first-person view zooms to 0.4°, where the disk fills the view at about the "
-"map's resolution of 1,000 km.",
+"near-black and penumbrae mid-gray. Zoomed further, past the map's resolution of about 1,000 km, the photosphere's "
+"own fine structure takes over (<em>The Sun close up</em>).",
 "A spot about an arcminute across, some 500 millionths of the hemisphere, is the smallest the eye can see unaided "
 "through a haze or a filter (Vaquero 2007). Today one is on the disk about one day in 25, mostly near solar "
 "maximum; in the Proterozoic every other day; in the Archean and Hadean always, about 30 at once at 4.5 Ga. Spots "
@@ -94,7 +99,7 @@ SECTIONS = [
 
 ['Solar eclipses', [
 "When the Moon covers part of the Sun, all the sunlit sky dims by the fraction of the disk still showing. In "
-"totality the sky is lit from beyond the Moon's shadow, tens to a hundred kilometres away, where the Sun is still "
+"totality the sky is lit from beyond the Moon's shadow, tens to a hundred kilometers away, where the Sun is still "
 "partly up: the epoch's own twilight sky with a sunset glow all round the horizon, a thousandth of the day sky, as "
 "measured (Sharp, Lloyd &amp; Silverman 1966; Shaw et al. 2026). The Hadean and hazy Archean totality skies are "
 "therefore that era's dusk, peach or amber rather than the deep blue of a modern eclipse.",
@@ -106,7 +111,15 @@ SECTIONS = [
 "yellow Ca XV in the hot young corona) and a brighter pink chromosphere. These scalings are estimates. The young "
 "Sun was also smaller (0.90 of today's radius at 4.5 Ga) while the Moon was closer, so early eclipses hide the inner "
 "corona: at 3.8 Ga the Moon looks 1.5 times the Sun's width, and from 2.2 Ga back every central eclipse is total. "
-"Through the 30-bar Hadean air, at 7.6 magnitudes of extinction per airmass, the corona does not show at all."]],
+"Through the 30-bar Hadean air, at 7.6 magnitudes of extinction per airmass, the corona does not show at all. The "
+"proto-Earth of 4.55 Ga has no Moon, and so no eclipses; its Sun, 17 million years old, has the saturated corona "
+"of a star that young, at about 9 MK.",
+"The eclipse itself is drawn from the Moon's real profile: at second and third contact the last sunlight breaks "
+"into Baily's beads where the lunar limb's valleys, from the Laser Altimeter's heights, let the photosphere through, "
+"and a diamond ring. Like the disks, the eclipses are enlarged: the Sun and Moon are drawn at four times their size, "
+"and eclipses are found and timed with the enlarged disks, so the page's partial phases last longer, and its "
+"eclipses happen at more places, than real ones. For each new Moon the page stands where parallax brings the Moon "
+"closest to the Sun, the best seat for that eclipse."]],
 
 ['Lunar eclipses', [
 "In a lunar eclipse the Moon passes through the Earth's shadow, which is lit only by sunlight bent into it through "
@@ -132,13 +145,13 @@ SECTIONS = [
 "Two effects are new to the deep past. The closer Moon sat nearer the Earth than the refracted light comes to a "
 "focus (about 300,000 km today, past the Moon's 384,000), so the middle of the shadow is reached only by rays "
 "skimming the ground and goes dark: at 3.8 Ga the center of the shadow is a hundred million times fainter than its "
-"its edge, a dark core in a glowing ring. And the 30-bar Hadean air is so refractive that below about 27 km its "
+"its edge, a dark core in a glowing ring. And the 30-bar Hadean air is so refractive that below about 19 km its "
 "rays are trapped and run round the planet, while the upper air bends light strongly enough to fill the whole "
 "umbra of a Moon some 39 Earth radii out, an even, deep red at V = −1.7; but the Moon of 4.5 Ga, only 8 Earth radii "
 "out, sits well inside the focus, and at mid-eclipse it is gone, V = +12.",
 "The shadow's geometry follows the distances and the young Sun's size. The umbra was 3.1 Moon widths across at "
 "4.0 Ga against 2.7 today, and with twice as many full Moons a year, total lunar eclipses came nearly three times as "
-"often, while totality itself lasted at most 104 to 109 minutes in every epoch from 4.0 Ga on (table below). At 4.5 Ga "
+"often, while totality itself lasted at most 104 to 109 minutes in every epoch from 4.0 Ga on ({ref:tab:lunar}). At 4.5 Ga "
 "the Moon, inside about 17 Earth radii, orbits in the plane of the Earth's equator, its shadow is 3.6 Moon widths "
 "across and it races through it: around each equinox every full Moon is eclipsed, some 3,900 total eclipses a "
 "century, none longer than an hour. The rate also depends on "
@@ -170,7 +183,8 @@ SECTIONS = [
 ['Twilight and the night sky', [
 "The model is calibrated in absolute units (the clear zenith with the Sun 45° up is 2.7 kcd/m², which puts the "
 "full-Moon sky at the measured 18 mag/arcsec²), so the night can be drawn on the same scale as the day. The sky is "
-"computed for Sun heights down to 20° below the horizon; past 9° below, twilight dims by about a magnitude per "
+"computed for Sun heights down to 20° below the horizon; past 9° below, where the model's twilight fades too "
+"slowly, it is made to dim by about a magnitude per "
 "degree, as measured. Without the Sun or Moon the sky has its own light: today 22.0 mag/arcsec² at a dark zenith "
 "(Leinert et al. 1998), half of it starlight and zodiacal light and half airglow, brighter toward the horizon.",
 "Nearly all of today's airglow needs free oxygen: the 557.7 nm green and 630 nm red lines of oxygen atoms, the "
@@ -182,7 +196,8 @@ SECTIONS = [
 "are estimates; no model of an anoxic nightglow exists.",
 "Starlight, the Milky Way and the airglow all come from above the air and are dimmed by it: 0.15 magnitude per "
 "airmass from the gas plus 1.086 times the epoch's aerosol or haze optical depth, so 0.25 in clean air, 0.8 under "
-"the thick haze or a polluted city, 2.3 through the impact-winter soot, and 7.6 under 30 bar of CO₂, which hides "
+"the thick haze or a polluted city, 0.85 under the proto-Earth's guessed air and dust, 2.3 through the "
+"impact-winter soot, and 7.6 under 30 bar of CO₂, which hides "
 "every star. A star shows only when it is brighter than the naked-eye limit for the sky around it, so stars come out "
 "one by one in twilight. The Milky Way is a model in galactic coordinates, peaking at 20.2 mag/arcsec² in the "
 "Sagittarius star cloud, with its center where the Sun's orbit puts it at each age.",
@@ -203,8 +218,15 @@ SECTIONS = [
 "today's. With no free oxygen the aurora is nitrogen's: violet N₂⁺ bands and a pink border of N₂ first positive "
 "bands where faster electrons reach lowest, brighter without oxygen to quench them, with a weak green line from "
 "CO₂ split by the electrons, as Perseverance saw on Mars (Knutsen et al. 2025). The 30-bar Hadean air is mostly CO₂, "
-"so there the green line is stronger and the nitrogen faint, though the air hides most of it. Brightness is for a "
-"dark-adapted eye, which sees violet far better than the deep red. The ancient line strengths are estimates."]],
+"so there the green line would be stronger and the nitrogen faint, but the air, at 7.6 magnitudes of extinction per "
+"airmass, hides the aurora altogether. Brightness is for a dark-adapted eye, which sees violet far better than the "
+"deep red. The ancient line strengths are estimates.",
+"Each night has its own activity about the epoch's typical level, and the oval is drawn at it. Today that is Kp 3; "
+"the young Sun's typical night is far stormier, Kp 6 at 4.0 Ga, and its oval reaches correspondingly lower, to about "
+"37° on the night side at 4.0 Ga and 43° at 3.8 Ga ({ref:tab:phenomena} gives both). The arcs are thin sheets along the field "
+"lines, green below and red above, with field-aligned rays converging overhead on the magnetic zenith; they fold, "
+"drift and break up in two substorms a night near midnight. A storm of the class of September 1859, when aurora stood "
+"overhead near 40° magnetic latitude, brings today's oval down to about 45° and the young Earth's to the equator."]],
 
 ['Meteors', [
 "Each meteor is a meteoroid entering the air along a straight path 80 to 125 km up, with its brightness, size and "
@@ -248,17 +270,22 @@ SECTIONS = [
 "heads and tails are dimmed by each epoch's air like the stars."]],
 
 ['Clouds', [
-"Clouds are not part of the radiative-transfer model; the first-person view draws them as scenery, lit by the "
-"model's sky. Their regimes are illustrative choices for each era rather than results: a near-overcast stratiform "
-"deck under the steamy Hadean CO₂, scattered cumulus in the Archean thinning as the haze thickens, sparse thin cloud "
-"over the frozen Snowball, towering convection in the warm Carboniferous, almost none in the impact winter, and "
-"more cirrus in the volcanic year."]],
+"Clouds are not part of the radiative-transfer model; the first-person view draws them as scenery, ray-marched "
+"through a volume and lit by the model's sky, the Sun and the Moon, and by a supernova, a fireball or city light "
+"when there is one. Their regimes are illustrative choices for each era rather than results: a near-overcast "
+"stratiform deck under the steamy Hadean CO₂ (88% cover at 4.5 Ga), scattered cumulus in the Archean thinning as "
+"the haze thickens (from 48% at 3.8 Ga to 16% under the thickest haze), sparse thin cloud over the frozen Snowball "
+"(22%), towering convection in the warm Carboniferous (82%), almost none in the impact winter (8%), and more cirrus "
+"in the volcanic year. The weather changes over days and the clouds through each day: cumulus eras build to an "
+"afternoon peak and stratiform ones burn off by midday. After sunset the clouds stay lit from below until the "
+"Earth's shadow climbs past them."]],
 ]
 
 # Sunspots by epoch, from the site's spot model (sunspots.js SUN_ACT; coverage ranges and naked-eye
 # counts from its groups, sampled weekly over three cycles, or 1996-2026 on the real ones).
 SUNSPOT_HEAD = ['Epoch', 'Sun’s age', 'Rotation', 'Spot coverage', 'Spots emerge at', 'Cycle', 'Days with a naked-eye spot']
 SUNSPOT = [
+['4.55 Ga proto-Earth', '0.017 Gyr', '1.6 d', '10%', '25–80°; polar caps hold 45% of the spotted area', 'none', 'all'],
 ['4.5 Ga Hadean', '0.07 Gyr', '3.1 d', '9% (7–11%)', '22–75°; polar caps above 72°', 'none', 'all (about 30 at once)'],
 ['4.0 Ga Hadean', '0.57 Gyr', '9.0 d', '4% (2.9–5.3%)', '15–65°; caps above 81°', 'about 5 yr, shallow', 'all (about 14)'],
 ['3.8 Ga Archean', '0.77 Gyr', '10.4 d', '3% (1.9–4.3%)', '10–60°; caps above 85°', 'about 6 yr', 'all (about 11)'],
@@ -275,16 +302,34 @@ SUNSPOT_CAPTION = ("Sunspots by epoch, from the site's spot model. Coverage is t
                    "naked-eye spot is one over about 500 millionths of the hemisphere, an arcminute across, on the visible "
                    "disk; the modern row is 1996–2026 on the real cycles. Rotation is the equator's sidereal period.")
 
+# The aurora's night-side oval by epoch, from aurora.js: its equatorward edge at Kp 3 and at the
+# epoch's typical activity, and its colors.
+import math
+from site_consts import js_const
+def _oval_edge(rmp, kp):
+    lat = 69 - 0.2*kp - 0.1*kp*kp - (2.5 + 0.4*kp + 0.05*kp*kp)
+    L = rmp / math.cos(math.radians(lat))**2
+    return 0 if L <= 1.0001 else math.degrees(math.acos(math.sqrt(1/L)))
+_AUR_COL = {'protoearth455': 'green CO₂ line, faint N₂', 'hadean40': 'violet and pink N₂', 'archean38': 'violet and pink N₂',
+            'archean27': 'violet and pink N₂', 'proterozoic22': 'O lines at a third', 'snowball07': 'O lines at 80%'}
+AUR = {}
+for _k, (_rmp, _kp, *_r) in js_const('aurora.js', 'AURORA_EPOCH').items():
+    if _k in _AUR_COL:
+        _e = [_oval_edge(_rmp, kp) for kp in (3, _kp)]
+        _f = ['the equator' if e < 0.5 else f'{e:.0f}°' for e in _e]
+        AUR[_k] = f"from {_f[0]} (Kp 3), {_f[1]} (Kp {_kp:g}); {_AUR_COL[_k]}"
+
 # Other phenomena by epoch (values from the site: sunset.js and gen_site.py sun_bands for refraction,
 # day.js AIRGLOW_O/AIRGLOW_CO2 and EXT_K, aurora.js AURORA_EPOCH, meteors.js MET_EPOCH, debris.js ZODI).
 PHENOMENA_HEAD = ['Epoch', 'Refraction', 'Airglow', 'Starlight extinction (mag/airmass)', 'Aurora', 'Meteors', 'Zodiacal light']
 PHENOMENA = [
-['4.5 Ga Hadean', '47× (trapped)', 'violet CO₂ glow only', '7.6: no stars', 'oval near 41°; green CO₂ line, faint N₂', '10,000×', '2,000×'],
-['4.0 Ga Hadean', '1.8×', 'violet CO₂ glow only', '0.35', 'oval near 47°; violet and pink N₂', '500×', '300×'],
-['3.8 Ga Archean', '0.97×', 'violet CO₂ glow only', '0.25', 'oval near 50°; violet and pink N₂', '120×', '50×'],
-['2.7 Ga Archean', '0.90×', 'violet CO₂ glow only', '0.25–1.8 with the haze', 'oval near 54°; violet and pink N₂', '2×', '1.5×'],
-['2.2 Ga post-GOE', '0.85×', 'oxygen lines at 30%', '0.25', 'oval near 60°; O lines at a third', '1.3×', 'today'],
-['700 Ma Snowball', '0.83×', 'oxygen lines at 80%', '0.25', 'about today’s', '0.6×', 'today'],
+['4.55 Ga proto-Earth', '5.7× (trapped)', 'violet CO₂ glow only', '0.85', AUR['protoearth455'], '30,000×', '10×'],
+['4.5 Ga Hadean', '47× (trapped)', 'violet CO₂ glow only', '7.6: no stars', 'hidden by the air', '10,000×', '2,000×'],
+['4.0 Ga Hadean', '1.8×', 'violet CO₂ glow only', '0.35', AUR['hadean40'], '500×', '300×'],
+['3.8 Ga Archean', '0.97×', 'violet CO₂ glow only', '0.25', AUR['archean38'], '120×', '50×'],
+['2.7 Ga Archean', '0.90×', 'violet CO₂ glow only', '0.25–1.8 with the haze', AUR['archean27'], '2×', '1.5×'],
+['2.2 Ga post-GOE', '0.85×', 'oxygen lines at 30%', '0.25', AUR['proterozoic22'], '1.3×', 'today'],
+['700 Ma Snowball', '0.83×', 'oxygen lines at 80%', '0.25', AUR['snowball07'], '0.6×', 'today'],
 ['466 Ma Ordovician', '0.97×', 'oxygen lines at 90%', '0.25', 'today’s', '100× fireballs', '30×'],
 ['300 Ma Carboniferous', '1.11×', 'today’s', '0.25', 'today’s', '0.5×', 'today'],
 ['66 Ma impact winter', '1.0×', 'today’s, dimmed by soot', '2.3', 'today’s', 'today', 'today'],
@@ -295,8 +340,8 @@ PHENOMENA = [
 
 PHENOMENA_CAPTION = ("Other phenomena by epoch. Refraction is the horizon bending relative to today's, from the "
                      "epoch's gases. Airglow and aurora strengths are estimates; the aurora's latitude is the night-side "
-                     "edge of the quiet oval from the magnetopause distance alone (storms, the usual state of the young "
-                     "Sun, push it further toward the equator). Meteor and zodiacal-light rates are relative to today's.")
+                     "equatorward edge of the oval, from the magnetopause distance, at Kp 3 and at the epoch's typical "
+                     "activity. Meteor and zodiacal-light rates are relative to today's.")
 
 
 def lunar_head():

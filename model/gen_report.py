@@ -92,9 +92,7 @@ limb_figs = ''
 for k in LIMB_ORDER:
     limb_figs += f"""<figure class="globe"><canvas data-epoch="{k}" width="480" height="480" aria-label="Volumetric rendering of Earth's atmosphere, {LIMB[k]['name']}"></canvas>
 <figcaption><b>{LIMB[k]['name']}</b> {LIMB_CAP[k]}</figcaption></figure>"""
-limb_section = f"""
-<h3>The atmosphere from space</h3>
-<p>To show latitude and altitude at once, these renderings look at Earth from space with the Sun behind the viewer at the equinox, so the solar zenith angle at every point equals its latitude (equator at the center line, poles at top and bottom). The shell around the disk is the atmosphere's limb: the color of light scattered toward the viewer along a tangent ray at each altitude, computed with the same model. The atmosphere is drawn 30 times too thick, so 100 km spans half an Earth radius; a real limb is a hairline. The disk shows the planet's reflected color over a dark ocean (over ice for Snowball Earth), with limb brightness compressed so faint upper layers remain visible.</p>
+limb_html = f"""
 <div class="globes">{limb_figs}</div>
 <script>
 const LIMB = {json.dumps(LIMB)};
@@ -160,197 +158,512 @@ encounter_section = f"""
 <p>{ENC_PROSE[1]}</p>
 """
 
-# The rest of the sky (report_sky.py): the setting Sun, the Moon and eclipses, halos, the night
-# sky, aurorae, meteors, dust and comets, and clouds.
+# ===================================================================================================
+# The document. Both outputs are built from these blocks (report_doc.py): the HTML report
+# report/view-from-earth.html, the LaTeX paper latex/main.tex and its bibliography latex/refs.bib.
+# ===================================================================================================
+import re
 import report_sky as rs
-import eclipse_report as er
-ECL_PNG = base64.b64encode(er.figure()).decode()
-def _table(head, rows):
-    return '<div class="wrap"><table><tr>'+''.join(f'<th>{h}</th>' for h in head)+'</tr>'+''.join('<tr>'+''.join(f'<td>{c}</td>' for c in r)+'</tr>' for r in rows)+'</table></div>'
-sky_part = f'''
-<h2 class="part" id="beyond">Beyond the colors</h2>
-<p>{rs.INTRO}</p>
-'''
-for title, paras in rs.SECTIONS:
-    sky_part += f'<h3>{title}</h3>\n' + ''.join(f'<p>{p}</p>\n' for p in paras)
-    if title == 'Sunspots':
-        sky_part += _table(rs.SUNSPOT_HEAD, rs.SUNSPOT) + f'<p class="tcap">{rs.SUNSPOT_CAPTION}</p>'
-    if title == 'Lunar eclipses':
-        sky_part += (f'<figure class="eclfig"><img src="data:image/png;base64,{ECL_PNG}" alt="The eclipsed Moon at nine epochs, centred in the shadow and at its edge, with the light across the shadow">'
-                     f'<figcaption>{rs.FIG_CAPTION}</figcaption></figure>'
-                     + _table(rs.lunar_head(), rs.lunar_rows()) + f'<p class="tcap">{rs.LUNAR_CAPTION}</p>')
-sky_part += '<h3>The other phenomena, epoch by epoch</h3>' + _table(rs.PHENOMENA_HEAD, rs.PHENOMENA) + f'<p class="tcap">{rs.PHENOMENA_CAPTION}</p>'
+import report_view as rv
+import report_doc as D
+import report_refs as R
+from epochs import BY_KEY
 
-sections = ''
-for k in order:
+FIGS = ROOT.parent / 'latex' / 'figures'
+def view(name): return FIGS / f'view_{name}.jpg'
+
+TITLE = "The view from Earth, 4.5 billion years to today"
+LEDE = ("What could be seen from the ground at nineteen moments in Earth's history: the color of the sky, "
+        "straight up and at the horizon, at the equator and the poles, at noon and at dusk, reconstructed with a spectral "
+        "radiative-transfer model; and the Sun, Moon, planets, stars and everything else above it, from the molten "
+        "newborn Moon to a sky full of satellites.")
+
+DONE_BEFORE = [
+"Not as such. A search of the Valency corpus (arXiv, PubMed, EarthArXiv and others) finds the two halves of the "
+"sky-color problem solved separately but never joined. On one side, atmospheric-optics work computes modern sky color "
+"rigorously: Lynch &amp; Mazuk (2005) derive CIE chromaticities of the sky, Sun and distant objects from MODTRAN spectra; "
+"Peyvandi et al. (2016) simulate 5.6 million daylight spectra with SBDART to map how aerosol and ozone shift sky color; "
+"Lee &amp; Mollner (2017) show with Monte Carlo simulation that vivid solar-horizon twilight colors need aerosol while "
+"the purest antisolar colors occur in a purely molecular atmosphere. On the other side, paleoatmosphere work constrains "
+"composition: Catling &amp; Zahnle (2020) for the Archean (O₂ below 10⁻⁶ of present, CO₂ 10–2,500× modern, CH₄ "
+"10²–10⁴× modern), and Arney et al. (2016), Mak et al. (2023) and Goldblatt et al. (2024) for the organic-haze episodes. "
+"Arney's “Pale Orange Dot” computes what a hazy Archean Earth looks like <em>from space</em>, as an exoplanet spectrum, "
+"and Sanromà &amp; Pallé (2012) its light curves through history; that is as close as the literature comes. Nobody has "
+"computed the view from the ground, or the horizon-versus-zenith, latitude, and sunset structure.",
+"The same holds for the rest of the view. Its pieces are separate results: the Moon's recession and the day's "
+"lengthening (Farhat et al. 2022), the young Sun's brightness and activity, the stars' past motions, the giant "
+"planets' early instability. Earth's transmission spectrum has been computed through geological time as a transiting "
+"exoplanet would show it (Kaltenegger, Lin &amp; Madden 2020), and today's lunar eclipse has been modeled with "
+"refraction (García Muñoz et al. 2012), but no reconstruction of how the eclipsed Moon itself looked in past epochs "
+"turns up, nor of how these pieces together looked from the ground on a given evening. This report assembles them.",
+]
+
+COLORS_METHOD = [
+"For each epoch the atmosphere is built from components with their own vertical profile and spectral optical depth: "
+"Rayleigh-scattering gas (N₂, O₂, CO₂, CH₄, H₂O in their epoch-appropriate partial pressures), ozone (the Chappuis "
+"cross section of Serdyuchenko et al. 2014 at 223 K, on a layer whose peak falls from 26 km at the equator to 18 km at "
+"the pole), tropospheric aerosol, a stratospheric sulfate layer, a tholin-like fractal organic haze (strongly "
+"blue-absorbing, forward-scattering), and impact soot ({ref:tab:epochs}). Sky radiance is integrated numerically along "
+"each line of sight through a spherical-shell atmosphere, so grazing sunlight at twilight is handled properly, with "
+"multiple scattering and surface reflection added from a delta-Eddington two-stream solution. Spectra from 380–780 nm "
+"are converted to CIE XYZ with the analytic color-matching functions of Wyman, Sloan &amp; Shirley (2013) and shown as "
+"sRGB. The model reproduces measured modern values (clear zenith 10,000–20,000 K, horizon 6,000–8,500 K, setting Sun "
+"~1,700 K, pink antisolar Belt of Venus) before being pointed backward.",
+"The young Sun is treated as a blackbody whose effective temperature and luminosity follow the solar track of Baraffe "
+"et al. (2015): 5,530 K and 68% of today's output at 4.5 Ga, rising through 5,620 K (75%) at 3.8 Ga, 5,660 K (80%) at "
+"2.7 Ga and 5,700 K (85%) at 2.2 Ga to 5,772 K today, and 4,614 K (47%) for the 17-million-year-old Sun of 4.55 Ga. The "
+"color effect is small: a 5,560 K Sun is only about 200 K cooler in color temperature than the modern one, a difference "
+"that is barely perceptible side by side and is swamped by atmospheric effects ten to a hundred times larger. The "
+"brightness effect is not small, and is why the early-epoch skies are rendered dimmer. Fraunhofer lines and the young "
+"Sun's ultraviolet excess, which matter for haze photochemistry but not for visible color, are ignored. The model is "
+"provided as the Python source <em>skymodel.py</em>; <em>run_epochs.py</em> produces the sky colors and "
+"<em>limb_grid.py</em> the limb and disk colors.",
+]
+
+FINDINGS = [
+('Horizon versus zenith', "In a clean molecular atmosphere the zenith is blue and the horizon white because the horizon path is long enough that blue is scattered back out before reaching the eye and multiple scattering fills in the other colors. The size of that gradient is the clearest single diagnostic of atmospheric state. It is largest in the cleanest atmospheres (Snowball Earth, today's clean air: 8,000–13,000 K of color-temperature difference), shrinks as Rayleigh depth rises (late Hadean), collapses to nothing when a broadband absorber or thick scatterer sits overhead (hazy Archean, impact winter, 30-bar Hadean), and actually <em>reverses</em> under a stratospheric sulfate veil or heavy pollution, where the zenith becomes whiter than the horizon."),
+('Equator, mid-latitudes, poles', "Latitude enters through solar elevation and surface albedo. A high Sun lights the sky from above through a short path, giving a brighter but paler zenith (equatorial noon ~9,000 K); a low Sun sends light through more air, so the polar summer zenith is a deeper, darker blue (~19,000 K today, 20,000 K over Snowball ice) while the polar horizon is warmer and yellower. The same geometry makes the poles the place where any overhead absorber is most visible: the hazy Archean sky is cream at the equator but distinctly orange-yellow at the poles, and the impact-winter Sun that is still a pale disk at the equator is gone at 75° latitude. Snow and ice brighten and blue-shift the whole dome by reflecting light back into the atmosphere, which is why polar and Snowball horizons stay blue where a mid-latitude land horizon goes white."),
+('Particulates', "Three particle regimes appear in the record and they look different from one another. Non-absorbing sulfate high in the stratosphere (volcanic years) whitens the day sky and produces long, luminous pink and lavender twilights, because the layer is still sunlit after the ground is dark. Absorbing organic haze (Neoarchean) or soot (impact winter) removes blue outright, turning the dome tan or amber with almost no directional structure, and dims the surface by factors of 3–20. Boundary-layer pollution or dust brightens and grays the zenith, and buries the setting Sun in murk before it reaches the horizon. Tropospheric aerosol is also what makes sunset color vivid: the model confirms Lee &amp; Mollner's result that a purely molecular sky yields a pale, yellow-orange horizon while any turbidity deepens it to red."),
+('Sunsets and sunrises through time', "The biggest surprise is ozone. Today the sky above a setting Sun grades from orange through pale yellow to a zenith that stays blue well into twilight: about 12,500 K with the Sun 4° down. That persistent blue is the Chappuis band, ozone absorbing yellow and orange along the grazing path. The same modern sky with the ozone removed drops that zenith to cream, about 6,000 K. Before the Great Oxidation Event there was no ozone, so every sunset for the first two billion years ended with the zenith fading through cream and beige to orange. At ~2.2 Ga a 66 DU column, the Cooke et al. (2021) global mean for 1% of present oxygen, turns that cream zenith a pale blue-gray near 7,100 K. The deep twilight blue arrives later, once the column is near modern: the snowball sky, at their 10% oxygen column of 169 DU, holds a dusk zenith near 10,800 K. The same thinning is visible in the ozone-hole years. A polar-spring column of 130 DU leaves the dusk zenith pale blue, near 7,800 K, against 12,500 K today. Beyond the ozone story: Hadean sunsets were not events at the horizon but a slow dimming of the whole glowing dome; hazy Archean sunsets were the longest and most saturated in Earth's history, vermilion at the horizon and amber overhead; Snowball sunsets were brief and golden; the sunsets of the impact winter did not exist as color at all; and the reddest, most theatrical skies of the Phanerozoic belong to volcanic years like 1815 and 1883."),
+]
+
+SUMMARY_HEAD = ['Epoch', 'Noon zenith, mid-latitude', 'Horizon', 'Sunset']
+SUMMARY = [
+['4.55 Ga, proto-Earth', 'Pale blue-white under 3 bar of CO₂ and dust', 'Milky', 'Orange; a Sun larger and redder than today’s'],
+['4.5 Ga, 30-bar CO₂', 'Peach-white, 3,300 K, shadowless', 'Same as zenith', 'Whole dome dims to orange; Sun rarely visible'],
+['4.0 Ga, 0.5-bar CO₂', 'Pale milky blue, 10,500 K', 'Milk white', 'Deep red Sun; cream twilight (no ozone)'],
+['3.8 Ga, clear Archean', 'Blue, 13,000 K', 'White', 'Modern-like, then yellow-beige twilight zenith'],
+['2.7 Ga, thin haze', 'Pastel milk-blue, 8,600 K', 'Warm white, 7,100 K', 'Orange twilight all the way to the zenith'],
+['2.7 Ga, thick haze', 'Cream-tan, 5,600 K', 'Cream-tan', 'Vermilion horizon, amber sky, long orange dusk'],
+['2.7 Ga, very thick haze', 'Saturated apricot, 3,900 K', 'Same as zenith', 'Sun lost in the haze before it sets; orange dusk'],
+['2.2 Ga, post-GOE', 'Blue, 13,300 K', 'White', 'Pale blue-gray twilight zenith (~7,100 K); deep blue dusk comes later'],
+['700 Ma, Snowball', 'Deep blue, 16,200 K', 'Blue-white, stays blue', 'Golden, pale'],
+['466 Ma, meteor storm', 'Blue, 14,200 K', 'White, 8,400 K', 'Modern-like; at night a hundred times today’s fireballs and a bright zodiacal band'],
+['300 Ma, 33% O₂', 'Blue, 13,600 K', 'White, slightly brighter', 'Modern-like; smoky more often'],
+['66 Ma, impact winter', 'Dim amber-beige, 4,600 K', 'Beige', 'None; dome fades to brown'],
+['1.78 Ma, ζ Oph supernova', 'Same blue as today', 'White', 'Modern; a magnitude −11.6 supernova low in the south'],
+['342 ka, Geminga supernova', 'Same blue as today', 'White', 'Modern; a magnitude −11 supernova in Orion that casts shadows'],
+['1815, volcanic year', 'Milky blue-white, 9,300 K', 'Slightly bluer than zenith', 'Salmon Sun, pink-lavender afterglow'],
+['Ozone-hole spring', 'Blue, still', 'White', 'Pale blue dusk zenith, ~7,800 K'],
+['Today, clean', 'Blue, 15,000 K', 'White, 8,400 K', 'Orange horizon, pink antisolar; twilight zenith ~12,500 K'],
+['Today, polluted city', 'Pale gray-blue, 8,200 K', 'Slightly bluer than zenith, 8,900 K', 'Sun lost in gray murk before the horizon'],
+['2100, megaconstellation', 'Same blue as today', 'White', 'Thousands of bright datacenters along the dusk terminator, plus a few hundred communications satellites'],
+]
+
+LIMB_TEXT = ("To show latitude and altitude at once, these renderings look at Earth from space with the Sun behind the viewer at "
+             "the equinox, so the solar zenith angle at every point equals its latitude (equator at the center line, poles at top "
+             "and bottom). The shell around the disk is the atmosphere's limb: the color of light scattered toward the viewer along "
+             "a tangent ray at each altitude, computed with the same model. The atmosphere is drawn 30 times too thick, so 100 km "
+             "spans half an Earth radius; a real limb is a hairline. The disk shows the planet's reflected color over a dark ocean "
+             "(over ice for Snowball Earth), with limb brightness compressed so faint upper layers remain visible.")
+
+CAVEATS = [
+"Paleoatmospheric compositions carry order-of-magnitude uncertainty, and the haze optical properties are taken from "
+"Titan-analog tholins; the three haze cases bracket that uncertainty. Aerosol loads for every pre-Cenozoic epoch are "
+"educated guesses, and the proto-Earth's air before the last giant impact is unconstrained. The color-matching "
+"functions use an analytic fit, and colors are shown without chromatic adaptation, so the tints represent what a "
+"modern camera set to daylight balance would record rather than what an adapted observer would “see” (an adapted "
+"eye would perceive the hazy Archean sky as nearer to white and the modern sky as bluer than shown). Clouds are "
+"omitted from the radiative transfer throughout. The two-stream multiple-scattering term is approximate for the "
+"thickest atmospheres, where a full Monte Carlo treatment would refine the exact tint of the Hadean sky.",
+"Beyond the colors, the strengths of the ancient airglow, aurorae, coronae, meteor, shower and comet rates and "
+"zodiacal dust are estimates set to show the trend, as each section says; the lunar eclipses, the Moon's orbit and "
+"the stars' motions back to 66 Ma are computed, and the eclipse shadow assumes today's cloud tops in every epoch. "
+"Several things are drawn for the eye rather than to scale: the Sun and Moon at four times their size (so eclipses "
+"are found and timed with the enlarged disks), the sunset's dispersion up to 24 times, and the limb darkening at a "
+"fifth of its strength. Some things cannot be known and are drawn at random: where the planets stood on a given day "
+"before history, and every star before 66 Ma, which are stand-ins with today's statistics. The Earth's axis keeps "
+"today's tilt and direction in every epoch. The Milky Way keeps today's structure, turned only to where its center "
+"lay. The scenery and the clouds are drawn, not modeled, and the invented faces of Theia and the molten Moon are "
+"illustrations of what such worlds would be like.",
+]
+
+def epochs_table_rows():
+    """The atmospheres, from epochs.py (the model's own inputs)."""
+    names = {'protoearth455': '4.55 Ga proto-Earth', 'hadean45': '4.5 Ga Hadean', 'hadean40': '4.0 Ga Hadean', 'archean38': '3.8 Ga Archean',
+             'archean27thin': '2.7 Ga thin haze', 'archean27': '2.7 Ga thick haze', 'archean27vthick': '2.7 Ga very thick haze',
+             'proterozoic22': '2.2 Ga post-GOE', 'snowball07': '700 Ma Snowball', 'ordovician466': '466 Ma Ordovician',
+             'carbon30': '300 Ma Carboniferous', 'kpg66': '66 Ma impact winter', 'volcanic': '1815 volcanic year',
+             'ozonehole': 'Ozone-hole spring', 'modern': 'Modern, clean', 'modernpoll': 'Modern, polluted'}
+    sub = {'CO2': 'CO₂', 'N2': 'N₂', 'O2': 'O₂', 'H2O': 'H₂O', 'CH4': 'CH₄', 'Ar': 'Ar'}
+    modern_gas = BY_KEY['modern']['gas']
+    rows = []
+    for k, nm in names.items():
+        e = BY_KEY[k]
+        gas = 'modern air' if e['gas'] == modern_gas and k != 'modern' else ', '.join(f'{sub[g]} {v:g}' for g, v in e['gas'].items())
+        if e.get('dust'): gas += f' (+dust {e["dust"]:g})'
+        oz = e['ozone']; oz = oz['Mid-latitude'] if isinstance(oz, dict) else oz
+        f = lambda v: f'{v:g}' if v else '–'
+        rows.append([nm, gas, f'{oz:g}', f'{e["aer"][0]:.2f}', f(e.get('haze')), f(e.get('sulf')), f(e.get('soot')), f'{e["sun"][0]}', f'{e["sun"][1]:g}'])
+    return rows
+EPOCHS_HEAD = ['Epoch', 'Gas (bar)', 'O₃ (DU)', 'AOD', 'Haze', 'Sulfate', 'Soot', 'T<sub>eff</sub> (K)', 'L/L☉']
+EPOCHS_CAPTION = ("Atmospheres used for each epoch. Gas amounts are partial pressures in bar; AOD is tropospheric aerosol optical "
+                  "depth at 550 nm; haze, sulfate and soot are column optical depths at 550 nm; T<sub>eff</sub> and L/L☉ are the "
+                  "assumed solar effective temperature and luminosity relative to today. The supernova epochs and 2100 have today's "
+                  "clean air.")
+
+# The sky-color panels, one per epoch: the HTML draws domes and strips from the colors, the paper
+# includes make_figs.py's figure of the same.
+def sky_fig(k): return 'modern' if k in SAME_AIR else k
+def epoch_panel(k):
     r = byk[k]
     domes = ''.join(dome(r['lat'][L], L) for L in ['Equator','Mid-latitude','Polar summer'])
-    ss = strip(r['sunset'], ['solar_horizon','above_sun','zenith','anti_15','anti_horizon'],
-               ['sun horizon','15° up','zenith','15° up','antisolar'], Yss, 'Sun on horizon')
-    tw = strip(r['twilight'], ['solar_horizon','above_sun','above_sun30','zenith','anti_horizon'],
-               ['sun horizon','15° up','30° up','zenith','antisolar'], Ytw, 'Sun 4° below horizon')
+    ss = strip(r['sunset'], ['solar_horizon','above_sun','zenith','anti_15','anti_horizon'], ['sun horizon','15° up','zenith','15° up','antisolar'], Yss, 'Sun on horizon')
+    tw = strip(r['twilight'], ['solar_horizon','above_sun','above_sun30','zenith','anti_horizon'], ['sun horizon','15° up','30° up','zenith','antisolar'], Ytw, 'Sun 4° below horizon')
     sunset_sun = r['sunset']['sun']['hex'] if r['sunset']['sunY'] > 1e-8 else None
     sundot = f'<i class="sundot" style="background:{sunset_sun}"></i> setting Sun disk' if sunset_sun else '<i class="sundot" style="background:#111"></i> Sun not visible at the horizon'
-    sections += f'''
-<section class="epoch" id="{k}">
-  <header><span class="age">{ages[k]}</span><h2>{r['name']}</h2><p class="sub">{r['sub']}</p></header>
-  <div class="domes">{domes}</div>
-  <div class="strips">{ss}{tw}<p class="sundisk">{sundot}</p></div>
-  <p class="prose">{PROSE[k]}</p>
-</section>'''
+    h = (f'<section class="epoch" id="{k}"><header><span class="age">{ages[k]}</span><h4>{r["name"]}</h4><p class="sub">{r["sub"]}</p></header>'
+         f'<div class="domes">{domes}</div><div class="strips">{ss}{tw}<p class="sundisk">{sundot}</p></div><p class="prose">{R.link_cites(PROSE[k], BIB, "html")}</p></section>')
+    t = (f"\\par\\vspace{{6pt}}\\noindent\\begin{{minipage}}{{\\linewidth}}\n{{\\normalsize\\bfseries {D.tex(r['name'])}\\par}}\n"
+         f"{{\\small\\itshape {D.tex(r['sub'])}\\par}}\\vspace{{3pt}}\n\\centering\\includegraphics[width=\\linewidth]{{figures/sky_{sky_fig(k)}.png}}\n"
+         f"\\captionof{{figure}}{{{D.tex(r['name'])}. Top: noon sky dome at the equator, mid-latitude and polar summer, zenith at top, horizon at bottom, Sun's disk in its own color. Below: sky from the solar horizon to the antisolar horizon with the Sun on the horizon and $4^\\circ$ below it.}}\\label{{fig:sky-{k}}}\n"
+         f"\\end{{minipage}}\\par\\vspace{{4pt}}\n{D.tex_text(PROSE[k], BIB)}\n")
+    b = D.raw(h, t); b['figures'] = [f'fig:sky-{k}']
+    return b
 
-SKY_REFS = '\n'.join(f'<p>{r[0]}</p>' for r in rs.REFS)
-html = f'''<!doctype html>
+GL = ['modern','archean38','archean27','hadean45','snowball07','carbon30','kpg66','volcanic']
+GL_SHORT = {'modern':'Modern','archean38':'3.8 Ga, clear Archean','archean27':'2.7 Ga, hazy Archean','hadean45':'4.5 Ga, 30-bar CO$_2$','snowball07':'700 Ma, Snowball','carbon30':'300 Ma, Carboniferous','kpg66':'66 Ma, impact winter','volcanic':'1815, volcanic year'}
+def globes_block():
+    grid = ''
+    for i, k in enumerate(GL):
+        grid += f"\\begin{{minipage}}[t]{{0.235\\linewidth}}\\centering\\includegraphics[width=\\linewidth]{{figures/globe_{k}.png}}\\\\[-1pt]{{\\scriptsize\\sffamily\\bfseries {GL_SHORT[k]}}}\\end{{minipage}}"
+        grid += "\\hfill\n" if i not in (3, 7) else "\\\\[6pt]\n"
+    cap = ("Volumetric renderings of the atmosphere at eight epochs. Equinox geometry with the Sun behind the viewer; the shell is the limb "
+           "color along tangent rays, drawn 30 times too thick (100 km spans half an Earth radius); the disk is the planet's reflected color "
+           "over ocean (ice for Snowball Earth). Limb brightness is compressed so faint upper layers remain visible.")
+    t = '\\begin{figure*}[t]\\centering\n' + grid + '\\caption{' + D.tex(cap) + '}\\label{fig:globes}\n\\end{figure*}\n'
+    t += '{\\footnotesize\n' + ''.join(f"\\textbf{{{D.tex(byk[k]['name'])}.}} {D.tex(LIMB_CAP[k])}\n\n" for k in GL) + '}\n'
+    h = limb_html.replace('</div>\n<script>', f'</div><p class="tcap"><b>{{ref:fig:globes}}.</b> {cap}</p>\n<script>', 1)
+    b = D.raw(h.replace('<div class="globes">', '<div class="globes" id="fig:globes">', 1), t); b['figures'] = ['fig:globes']
+    return b
+
+def appendix_block():
+    rows = []
+    for k in order:
+        if k in SAME_AIR: continue
+        r = byk[k]
+        for Ln in ['Equator','Mid-latitude','Polar summer']:
+            d = r['lat'][Ln]
+            rows.append([r['name'], Ln, f"{d['zenith']['x']:.3f}, {d['zenith']['y']:.3f}", f"{int(d['zenith']['cct']):,}",
+                         f"{d['horizon']['x']:.3f}, {d['horizon']['y']:.3f}", f"{int(d['horizon']['cct']):,}",
+                         f"{d['sunY']/byk['modern']['lat']['Equator']['sunY']:.2g}"])
+    head = ['Epoch', 'Latitude', 'Zenith (x, y)', 'CCT (K)', 'Horizon (x, y)', 'CCT (K)', 'Sun']
+    cap = ("CIE 1931 chromaticity (x, y) and correlated color temperature of the noon zenith and horizon sky, and direct-Sun "
+           "brightness relative to the modern equatorial Sun. The supernova epochs and the Year 2100 have today's clean air and "
+           "share its rows.")
+    body = '\n'.join(' & '.join(D.tex(c) for c in r) + r' \\' for r in rows)
+    t = ('\\onecolumn\n\\section*{Appendix: computed chromaticities}\n\\scriptsize\n\\rowcolors{2}{rowa}{white}\n\\begin{longtable}{@{}llllllr@{}}\n'
+         '\\caption{' + D.tex(cap) + '}\\label{tab:chroma}\\\\ \\toprule\n' + ' & '.join(D.tex(h) for h in head) + ' \\\\ \\midrule \\endfirsthead\n'
+         '\\toprule ' + ' & '.join(D.tex(h) for h in head) + ' \\\\ \\midrule \\endhead\n' + body + '\n\\bottomrule\n\\end{longtable}\n')
+    h = ('<h2 class="part" id="appendix">Appendix: computed chromaticities</h2><div class="wrap" id="tab:chroma"><table><caption><b>{ref:tab:chroma}.</b> ' + cap + '</caption><tr>'
+         + ''.join(f'<th>{x}</th>' for x in head) + '</tr>' + ''.join('<tr>' + ''.join(f'<td>{c}</td>' for c in r) + '</tr>' for r in rows) + '</table></div>')
+    b = D.raw(h, t); b['tables'] = ['tab:chroma']
+    return b
+
+BIB = R.BIB
+
+def blocks():
+    P, S, p, ps, fig, tab = D.part, D.sec, D.p, D.ps, D.figure, D.table
+    B = []
+    B.append(D.box('Ten things the view did', rv.TEN_THINGS))
+
+    B.append(P('Introduction', 'intro'))
+    B += ps(*rv.INTRO)
+    B.append(tab(rv.EPOCH_HEAD, rv.epoch_rows(order, ages, byk), rv.EPOCH_CAPTION, 'tab:epochlist', spec='llrrrrY', small=True))
+    B.append(S('Has this been done before?', 'done-before'))
+    B += ps(*DONE_BEFORE)
+
+    B.append(P('How the view is reconstructed', 'method'))
+    B.append(S("The sky's colors", 'method-colors'))
+    B += ps(*COLORS_METHOD)
+    B.append(tab(EPOCHS_HEAD, epochs_table_rows(), EPOCHS_CAPTION, 'tab:epochs', spec='lYrrrrrrr', small=True))
+    B.append(S('The rest of the view', 'method-view'))
+    B += ps(*rv.METHOD_VIEW)
+    B.append(S('The ground', 'ground'))
+    B += ps(*rv.SCENERY)
+
+    B.append(P('The sky by day and at dusk', 'sky'))
+    B.append(tab(SUMMARY_HEAD, SUMMARY, 'Summary of sky colors by epoch (mid-latitude noon unless stated).', 'tab:summary', spec='lYYY'))
+    for title, text in FINDINGS:
+        B.append(S(title)); B.append(p(text))
+    B.append(S('The atmosphere from space', 'from-space'))
+    B.append(p(LIMB_TEXT))
+    B.append(globes_block())
+    B.append(fig(view('kpg'), "Noon months after the Chicxulub impact, at 66 Ma: soot and sulfate turn the sky a dim, uniform amber-beige with no blue at all, about a fifth as bright as a clear sky, with almost no cloud.", 'fig:kpg'))
+    B.append(S('Clouds')); B += ps(*RS['Clouds'])
+    B.append(fig(view('archean'), "An afternoon at 2.7 Ga under the thick organic haze, as the site's first-person view draws it: a pale orange dome with almost no difference between zenith and horizon, the Sun a soft disk, and sparse cumulus.", 'fig:archean'))
+    B.append(S('Crepuscular rays')); B += ps(*rv.SHAFTS)
+    B.append(S('Ice halos')); B += ps(*RS['Ice halos'])
+
+    B.append(P('The Sun', 'sun'))
+    B.append(S('The young Sun')); B += ps(*rv.SUN_YOUNG)
+    B.append(S('Sunspots')); B += ps(*RS['Sunspots'])
+    B.append(tab(rs.SUNSPOT_HEAD, rs.SUNSPOT, rs.SUNSPOT_CAPTION, 'tab:sunspots', spec='p{2.3cm}rrrYrr'))
+    B.append(S('The Sun close up')); B += ps(*rv.SUN_CLOSE)
+    B.append(S('The setting Sun')); B += ps(*RS['The setting Sun'])
+    B.append(S('Solar eclipses')); B += ps(*RS['Solar eclipses'])
+
+    B.append(P('The Moon', 'moon'))
+    B.append(S("The Moon's orbit through time")); B += ps(*rv.MOON_ORBIT)
+    B.append(tab(rv.MOON_HEAD, rv.moon_table(), rv.MOON_CAPTION, 'tab:moon', spec='lrrrrrrrr'))
+    B.append(S("The Moon's face")); B += ps(*rv.MOON_FACE)
+    B.append(fig(view('hadean'), "An evening at 4.5 Ga. Through 30 bar of CO₂ and a near-overcast deck, the molten newborn Moon, 8 Earth radii away and 4° across, glows orange through cracks in its first crust, with its red aureole, over a hot steaming sea.", 'fig:hadean'))
+    B.append(S('Moonlight')); B += ps(*rv.MOONLIGHT)
+    B.append(S('Lunar eclipses')); B += ps(*RS['Lunar eclipses'])
+    B.append(fig(FIGS / 'lunar_eclipse.png', rs.FIG_CAPTION, 'fig:lunar'))
+    B.append(tab(rs.lunar_head(), rs.lunar_rows(), rs.LUNAR_CAPTION, 'tab:lunar', spec='Yrrrrrr'))
+
+    B.append(P('The planets and their moons', 'planets'))
+    B.append(S('Where the planets were')); B += ps(*rv.PLANETS_WHERE)
+    B.append(S('The planets close up')); B += ps(*rv.PLANETS_CLOSE)
+    B.append(S('Jupiter')); B += ps(*rv.JUPITER)
+    B.append(fig(view('jupiter'), "Jupiter close up in the modern sky, as the site's telescope view draws it: belts and zones marbled by eddies, Kelvin–Helmholtz billows along their edges, and the Great Red Spot, a vortex in the same flow, at its 2026 size.", 'fig:jupiter'))
+    B.append(S('Saturn and its rings')); B += ps(*rv.SATURN)
+    B.append(fig(view('saturn'), "Saturn and its rings in the modern sky through the site's telescope view, from the Cassini occultation profile with single-scattering photometry.", 'fig:saturn'))
+    B.append(S("The planets' moons")); B += ps(*rv.MOONS)
+
+    B.append(P('The stars and the Galaxy', 'stars'))
+    B.append(S('The stars moved back')); B += ps(*rv.STARS)
+    B.append(S('Stars brighter than Sirius'))
+    B.append(p(ENC_PROSE[0].replace('(table below)', '({ref:tab:encounters})')))
+    B.append(tab(['Star', 'Type', 'Today: V, pc', 'Peak V (68% range)', 'Closest (pc)', 'Myr ago', 'Brighter than Sirius'], ENC_ROWS,
+                 "Stars that outshone today's Sirius (V = −1.46) in the last 10 million years, traced back through the Galaxy from Hipparcos astrometry (XHIP; Anderson &amp; Francis 2012) with 2,000 draws over the measurement errors. Peak magnitudes are medians with the 68% range; the last column is the fraction of draws brighter than Sirius today. Brightness changes with distance only.",
+                 'tab:encounters', spec='Yllrrrr'))
+    B.append(p(ENC_PROSE[1]))
+    B.append(S('The Milky Way, nebulae and galaxies')); B += ps(*rv.MILKY_WAY)
+    B.append(fig(view('milkyway300'), "The Milky Way at 300 Ma, under the dark, clean Carboniferous sky: its center where the Sun's traced orbit puts it, among stand-in stars with today's statistics.", 'fig:milkyway'))
+    B.append(S('Supernovae')); B += ps(*rv.SUPERNOVAE)
+    B.append(fig(view('geminga'), "The Geminga supernova 342,000 years ago, near magnitude −11 in Orion, a fifth of the full Moon's light from a single point, among the stars moved back along their measured motions.", 'fig:geminga'))
+
+    B.append(P('The night and what crosses it', 'night'))
+    B.append(S('Twilight and the night sky')); B += ps(*RS['Twilight and the night sky'][:-1])
+    B.append(S('Aurorae')); B += ps(*RS['Aurorae'])
+    B.append(fig(view('aurora'), "An aurora over the young Earth at 3.8 Ga, from mid-latitudes, on an active night, drawn as a dark-adapted eye sees it: with no free oxygen, nitrogen's violet bands and pink lower border rather than today's green and red.", 'fig:aurora'))
+    B.append(S('Meteors and meteor showers')); B += ps(*RS['Meteors'])
+    B.append(S('Fireballs and impacts')); B += ps(*rv.IMPACTS)
+    B.append(S('Dust, comets and the Ordovician ring')); B += ps(*RS['Dust, comets and the Ordovician ring'])
+    B.append(fig(view('ordovician'), "The night at 466 Ma, after the L-chondrite parent body's break-up: a hundred times today's fireballs, a bright zodiacal band, and the speculative ring of Tomkins, Martin &amp; Cawood (2024) as a faint arch.", 'fig:ordovician'))
+    B.append(tab(rs.PHENOMENA_HEAD, rs.PHENOMENA, rs.PHENOMENA_CAPTION, 'tab:phenomena', spec='lp{2.1cm}YrYrr'))
+
+    B.append(P('The sky people made', 'people'))
+    B.append(S('City light')); B += ps(*rv.CITY)
+    B.append(fig(view('city'), "A city night today: sodium and LED glow at 18.8 mag/arcsec² hides all but the brightest stars.", 'fig:city', wide=False))
+    B.append(S('The sky before electric light'))
+    B.append(p("The 1815 sky is the last before gas and electric street lighting. Its towns burn oil lamps and candles: Britain then used about one six-thousand-five-hundredth of the artificial light per head that it used in 2000 (Fouquet &amp; Pearson 2006), so the town's glow on the sky is some ten thousand times fainter than a modern city's, and the Milky Way stands over the rooftops."))
+    B.append(fig(view('town1815'), "A town night in 1815: oil lamps light the streets but barely touch the sky, and the Milky Way shows over the hills.", 'fig:town1815', wide=False))
+    B.append(S('Aircraft')); B += ps(*rv.CONTRAILS)
+    B.append(S('Satellites')); B += ps(*rv.SATELLITES)
+    B.append(fig(view('sats2100'), "Dusk in 2100: the filed megaconstellations and the Sunrise orbital datacenters, still in sunlight above the darkening sky.", 'fig:sats2100'))
+
+    B.append(P('Epoch by epoch', 'epochs'))
+    B.append(p("The panels that follow are laid out identically so they can be compared at a glance. Each begins with the epoch's "
+               "name and a one-line summary of the atmosphere assumed ({ref:tab:epochs} gives the full parameters). The upper row "
+               "shows the noon sky dome at three latitudes, the equator, a mid-latitude site and the summer pole, with the zenith at "
+               "the top of each swatch and the horizon at the bottom, the correlated color temperatures of both, and the Sun's disk "
+               "drawn in its own color at its noon elevation, with a brightness that reflects how much of it survives the atmosphere. "
+               "The two strips beneath trace the sky from the solar horizon across the zenith to the antisolar horizon with the Sun "
+               "on the horizon and 4° below it. All swatches are shown at a brightness relative to today's clean sky, so a dim epoch "
+               "reads as dim. The paragraph after each panel describes that epoch's sky and what else was in it."))
+    for k in order: B.append(epoch_panel(k))
+
+    B.append(P('Caveats', 'caveats'))
+    B += ps(*CAVEATS)
+    return B
+
+ENC_ROWS = [[e['name'], e['sptype'], f"{e['v_now']:.2f}, {e['d_now']:.0f}", f"{e['peak'][1]:.2f} ({e['peak'][0]:.2f} to {e['peak'][2]:.2f})",
+             f"{e['dmin'][1]:.1f}", f"{e['myr'][1]:.2f}", f"{e['p_sirius']*100:.0f}%"] for e in ENC]
+RS = {title: paras for title, paras in rs.SECTIONS}
+
+# ---------------------------------------------------------------------------------------------------
+# The HTML report
+# ---------------------------------------------------------------------------------------------------
+CSS = '''
+:root{--bg:#d9dbdf;--panel:#c9ccd2;--ink:#1c2230;--ink2:#464d5c;--rule:#9ea4b0;--swatch-bg:#7a7d84;--link:#2f5f9a}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1e2128;--panel:#272b34;--ink:#e8e9ec;--ink2:#b3b7c0;--rule:#4a4f5b;--swatch-bg:#5c5f66;--link:#8fb4e6}}
+:root[data-theme="dark"]{--bg:#1e2128;--panel:#272b34;--ink:#e8e9ec;--ink2:#b3b7c0;--rule:#4a4f5b;--swatch-bg:#5c5f66;--link:#8fb4e6}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Newsreader,Georgia,"Times New Roman",serif;font-size:19px;line-height:1.5;font-weight:300}
+a{color:var(--link)} a.cite{text-decoration:none}
+main{max-width:860px;margin:0 auto;padding:1.25rem 1rem 4rem}
+h1{font-weight:300;font-size:clamp(2rem,6vw,3.4rem);line-height:1.05;margin:1.2rem 0 .5rem;letter-spacing:-.01em}
+h1 em{font-style:italic;font-weight:300}
+h2.part{font-size:1.9rem;font-weight:300;margin:2.6rem 0 .4rem;border-top:1px solid var(--rule);padding-top:1.4rem}
+h3{font-weight:400;font-size:1.3rem;margin:2.2rem 0 .4rem}
+h4{font-weight:400;font-size:1.15rem;margin:1.4rem 0 .3rem}
+p{margin:.4rem 0 .9rem;max-width:62ch}
+.lede{font-size:1.15rem;color:var(--ink2);max-width:60ch}
+.byline{font-size:.95rem;color:var(--ink2)}
+.toc{font-size:.95rem;columns:2;column-gap:2rem;margin:1rem 0 1.5rem}
+.toc a{display:block;text-decoration:none;padding:.1rem 0}
+.box{background:var(--panel);padding:.6rem 1rem .4rem;margin:1.5rem 0}
+.box h4{margin:.2rem 0 .4rem}
+.box ol{margin:0 0 .4rem;padding-left:1.4rem;font-size:.97rem}
+.box li{margin:.25rem 0}
+.hero{display:flex;gap:3px;height:240px;margin:1.4rem 0 .4rem;background:var(--swatch-bg);padding:3px}
+.hero-dome{flex:1;position:relative;display:block;text-decoration:none;min-width:0}
+.hero-dome span{position:absolute;font-size:.6rem;color:rgba(0,0,0,.65);writing-mode:vertical-rl;transform:rotate(180deg);right:2px;bottom:6px;height:70px}
+.hero-caption{font-size:.9rem;color:var(--ink2);margin-bottom:2rem}
+.fig{margin:1.2rem 0 1.4rem;background:#05060a;padding:.5rem}
+.fig img{width:100%;height:auto;display:block}
+.fig figcaption,.tcap{font-size:.88rem;color:#d7dae0;line-height:1.35;margin-top:.4rem}
+.tcap{color:var(--ink2)}
+.epoch{border-top:1px solid var(--rule);padding:1.4rem 0 1.2rem}
+.epoch header{display:grid;grid-template-columns:5.2rem 1fr;column-gap:.8rem;align-items:baseline}
+.epoch header h4{margin:.1rem 0}
+.epoch .age{font-size:1.05rem;color:var(--ink2);font-variant-numeric:tabular-nums}
+.epoch .sub{grid-column:2;color:var(--ink2);font-size:1rem;margin:.1rem 0 .9rem}
+.domes{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;background:var(--swatch-bg);padding:.6rem}
+.dome{margin:0}
+.dome .sky{position:relative;height:150px;overflow:hidden}
+.dome figcaption{font-size:.85rem;color:#f2f3f5;margin-top:.35rem;line-height:1.25}
+.dome figcaption small{display:block;font-size:.72rem;color:#d3d6dc}
+.sun{position:absolute;left:58%;border-radius:50%;transform:translate(-50%,-50%)}
+.nosun{position:absolute;bottom:6px;left:6px;font-size:.7rem;color:rgba(0,0,0,.55);font-style:italic}
+.strips{background:var(--swatch-bg);padding:.6rem;margin-top:.5rem}
+.strip{display:grid;grid-template-columns:7.2rem 1fr;align-items:center;gap:.5rem;margin-bottom:.45rem}
+.striplabel{font-size:.82rem;color:#f2f3f5;line-height:1.2}
+.cells{display:grid;grid-template-columns:repeat(5,1fr);height:44px;gap:2px}
+.cell{position:relative}
+.cell b{position:absolute;left:3px;bottom:2px;font-weight:400;font-size:.62rem;color:rgba(0,0,0,.55);font-style:italic}
+.sundisk{font-size:.82rem;color:#f2f3f5;margin:.2rem 0 0}
+.sundot{display:inline-block;width:.8em;height:.8em;border-radius:50%;vertical-align:-1px;margin-right:.3em}
+.prose{margin-top:1rem}
+.globes{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;margin:1rem 0 .5rem}
+.globe{margin:0;background:#05060a;padding:.5rem}
+.globe canvas{width:100%;height:auto;display:block}
+.globe figcaption{font-size:.88rem;color:#d7dae0;line-height:1.35;margin-top:.4rem}
+.globe figcaption b{font-weight:400;color:#fff;display:block}
+table{border-collapse:collapse;width:100%;font-size:.92rem;margin:.5rem 0 1rem}
+caption{caption-side:bottom;text-align:left;font-size:.88rem;color:var(--ink2);padding-top:.4rem}
+td,th{text-align:left;padding:.35rem .5rem;border-bottom:1px solid var(--rule);vertical-align:top;font-weight:400}
+th{color:var(--ink2);font-weight:300}
+.wrap{overflow-x:auto}
+.refs{font-size:.9rem;color:var(--ink2)}
+.refs p{margin:.3rem 0;max-width:none}
+@media (max-width:560px){
+ body{font-size:17px} .hero{height:170px} .epoch header{grid-template-columns:1fr} .epoch .sub{grid-column:1}
+ .strip{grid-template-columns:1fr} .dome .sky{height:110px} .domes{gap:.35rem;padding:.4rem} .globes{grid-template-columns:1fr} .toc{columns:1}
+}
+@media print{ .globe,.domes,.strips,table,.hero,.fig{break-inside:avoid} h3,h4,.epoch header{break-after:avoid} .epoch{padding-top:1rem} .epoch .prose{orphans:3;widows:3} }
+'''
+
+def number_html(body):
+    """Number the parts and sections (1, 1.1, ...) as the paper does, and list the parts."""
+    toc, n = [], [0, 0]
+    def h2(m):
+        if m.group(2) in ('appendix', 'references'): return m.group(0)
+        n[0] += 1; n[1] = 0
+        toc.append((m.group(2), f'{n[0]}. {m.group(3)}'))
+        return f'{m.group(1)}{n[0]}. {m.group(3)}</h2>'
+    def h3(m):
+        n[1] += 1
+        return f'{m.group(1)}{n[0]}.{n[1]} {m.group(2)}</h3>'
+    out = []
+    for piece in re.split(r'(<h2 class="part" id="[^"]+">.*?</h2>|<h3 id="[^"]*">.*?</h3>)', body):
+        m2 = re.match(r'(<h2 class="part" id="([^"]+)">)(.*?)</h2>$', piece)
+        m3 = re.match(r'(<h3 id="[^"]*">)(.*?)</h3>$', piece)
+        out.append(h2(m2) if m2 else h3(m3) if m3 else piece)
+    return ''.join(out), toc
+
+def render_html(B, nums):
+    body, toc = number_html(D.render_html(B, BIB, nums))
+    appendix = D._refs_html(appendix_block()['html'], nums)
+    toc_html = '<nav class="toc">' + ''.join(f'<a href="#{i}">{t}</a>' for i, t in toc) + '<a href="#references">References</a><a href="#appendix">Appendix</a></nav>'
+    return f'''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>The Color of Earth's Sky Through Time</title>
+<title>The View from Earth Through Time</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,300;1,6..72,400&display=swap" rel="stylesheet">
-<style>
-:root{{--bg:#d9dbdf;--panel:#c9ccd2;--ink:#1c2230;--ink2:#464d5c;--rule:#9ea4b0;--swatch-bg:#7a7d84}}
-@media (prefers-color-scheme:dark){{:root:not([data-theme="light"]){{--bg:#1e2128;--panel:#272b34;--ink:#e8e9ec;--ink2:#b3b7c0;--rule:#4a4f5b;--swatch-bg:#5c5f66}}}}
-:root[data-theme="dark"]{{--bg:#1e2128;--panel:#272b34;--ink:#e8e9ec;--ink2:#b3b7c0;--rule:#4a4f5b;--swatch-bg:#5c5f66}}
-*{{box-sizing:border-box}}
-body{{margin:0;background:var(--bg);color:var(--ink);font-family:Newsreader,Georgia,"Times New Roman",serif;font-size:19px;line-height:1.5;font-weight:300}}
-main{{max-width:860px;margin:0 auto;padding:1.25rem 1rem 4rem}}
-h1{{font-weight:300;font-size:clamp(2rem,6vw,3.4rem);line-height:1.05;margin:1.2rem 0 .5rem;letter-spacing:-.01em}}
-h1 em{{font-style:italic;font-weight:300}}
-h2{{font-weight:400;font-size:1.5rem;margin:.1rem 0 .1rem;line-height:1.15}}
-h3{{font-weight:400;font-size:1.25rem;margin:2.2rem 0 .4rem}}
-p{{margin:.4rem 0 .9rem;max-width:62ch}}
-.lede{{font-size:1.15rem;color:var(--ink2);max-width:60ch}}
-.hero{{display:flex;gap:3px;height:240px;margin:1.4rem 0 .4rem;background:var(--swatch-bg);padding:3px}}
-.hero-dome{{flex:1;position:relative;display:block;text-decoration:none;min-width:0}}
-.hero-dome span{{position:absolute;bottom:4px;left:0;right:0;text-align:center;font-size:.6rem;color:rgba(0,0,0,.65);writing-mode:vertical-rl;transform:rotate(180deg);left:auto;right:2px;bottom:6px;top:auto;height:70px}}
-.hero-caption{{font-size:.9rem;color:var(--ink2);margin-bottom:2rem}}
-.epoch{{border-top:1px solid var(--rule);padding:1.4rem 0 1.2rem}}
-.epoch header{{display:grid;grid-template-columns:5.2rem 1fr;column-gap:.8rem;align-items:baseline}}
-.epoch .age{{font-size:1.05rem;color:var(--ink2);font-variant-numeric:tabular-nums}}
-.epoch .sub{{grid-column:2;color:var(--ink2);font-size:1rem;margin:.1rem 0 .9rem}}
-.domes{{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;background:var(--swatch-bg);padding:.6rem}}
-.dome{{margin:0}}
-.dome .sky{{position:relative;height:150px;overflow:hidden}}
-.dome figcaption{{font-size:.85rem;color:#f2f3f5;margin-top:.35rem;line-height:1.25}}
-.dome figcaption small{{display:block;font-size:.72rem;color:#d3d6dc}}
-.sun{{position:absolute;left:58%;border-radius:50%;transform:translate(-50%,-50%)}}
-.nosun{{position:absolute;bottom:6px;left:6px;font-size:.7rem;color:rgba(0,0,0,.55);font-style:italic}}
-.strips{{background:var(--swatch-bg);padding:.6rem;margin-top:.5rem}}
-.strip{{display:grid;grid-template-columns:7.2rem 1fr;align-items:center;gap:.5rem;margin-bottom:.45rem}}
-.striplabel{{font-size:.82rem;color:#f2f3f5;line-height:1.2}}
-.cells{{display:grid;grid-template-columns:repeat(5,1fr);height:44px;gap:2px}}
-.cell{{position:relative}}
-.cell b{{position:absolute;left:3px;bottom:2px;font-weight:400;font-size:.62rem;color:rgba(0,0,0,.55);font-style:italic}}
-.sundisk{{font-size:.82rem;color:#f2f3f5;margin:.2rem 0 0}}
-.sundot{{display:inline-block;width:.8em;height:.8em;border-radius:50%;vertical-align:-1px;margin-right:.3em}}
-.prose{{margin-top:1rem}}
-.globes{{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;margin:1rem 0 1.5rem}}
-.globe{{margin:0;background:#05060a;padding:.5rem}}
-.globe canvas{{width:100%;height:auto;display:block}}
-.globe figcaption{{font-size:.88rem;color:#d7dae0;line-height:1.35;margin-top:.4rem}}
-.globe figcaption b{{font-weight:400;color:#fff;display:block}}
-@media (max-width:560px){{.globes{{grid-template-columns:1fr}}}}
-table{{border-collapse:collapse;width:100%;font-size:.95rem;margin:.5rem 0 1rem}}
-td,th{{text-align:left;padding:.35rem .5rem;border-bottom:1px solid var(--rule);vertical-align:top;font-weight:400}}
-th{{color:var(--ink2);font-weight:300}}
-.wrap{{overflow-x:auto}}
-.refs{{font-size:.9rem;color:var(--ink2)}}
-h2.part{{font-size:1.9rem;font-weight:300;margin:2.6rem 0 .4rem;border-top:1px solid var(--rule);padding-top:1.4rem}}
-.eclfig{{margin:1rem 0 .6rem;background:#05060a;padding:.5rem}}
-.eclfig img{{width:100%;height:auto;display:block}}
-.eclfig figcaption{{font-size:.88rem;color:#d7dae0;line-height:1.35;margin-top:.4rem}}
-.tcap{{font-size:.88rem;color:var(--ink2);margin-top:-.4rem}}
-.refs p{{margin:.3rem 0}}
-@media (max-width:560px){{
- body{{font-size:17px}} .hero{{height:170px}} .epoch header{{grid-template-columns:1fr}} .epoch .sub{{grid-column:1}}
- .strip{{grid-template-columns:1fr}} .dome .sky{{height:110px}} .domes{{gap:.35rem;padding:.4rem}}
-}}
-@media print{{ .globe,.domes,.strips,table,.hero{{break-inside:avoid}} h3,.epoch header{{break-after:avoid}} .epoch{{padding-top:1rem}} .globes{{grid-template-columns:repeat(2,1fr)}} .epoch .prose{{orphans:3;widows:3}} }}
-</style></head><body><main>
-<h1>The color of Earth's sky, <em>4.5 billion years to today</em></h1>
-<p class="lede">A first-pass spectral radiative-transfer reconstruction of what the sky looked like from the ground at nineteen moments in Earth's history, and everything else in its sky: the setting Sun, eclipses of the Sun and Moon, halos, airglow, aurorae and meteors: straight up and at the horizon, at the equator, mid-latitudes and the poles, at noon, sunset and dusk.</p>
-
+<style>{CSS}</style></head><body><main>
+<h1>The view from Earth, <em>4.5 billion years to today</em></h1>
+<p class="lede">{LEDE}</p>
+<p class="byline">Prepared with Claude (Anthropic) · October 2026</p>
 <div class="hero">{hero}</div>
-<p class="hero-caption">Mid-latitude noon sky, zenith (top) to horizon (bottom), oldest at left. Brightness is shown relative to today's clean sky. Tap a column to jump to that epoch.</p>
-
-<h3>Has this been done before?</h3>
-<p>Not as such. A search of the Valency corpus (arXiv, PubMed, EarthArXiv and others) finds the two halves of the problem solved separately but never joined. On one side, atmospheric-optics work computes modern sky color rigorously: Lynch &amp; Mazuk (2005) derive CIE chromaticities of the sky, Sun and distant objects from MODTRAN spectra; Peyvandi et al. (2016) simulate 5.6 million daylight spectra with SBDART to map how aerosol and ozone shift sky color; Lee &amp; Mollner (2017) show with Monte Carlo simulation that vivid solar-horizon twilight colors need aerosol while the purest antisolar colors occur in a purely molecular atmosphere. On the other side, paleoatmosphere work constrains composition: Catling &amp; Zahnle (2020) for the Archean (O₂ below 10⁻⁶ of present, CO₂ 10–2,500× modern, CH₄ 10²–10⁴× modern), and Arney et al. (2016), Mak et al. (2023) and Goldblatt et al. (2024) for the organic-haze episodes. Arney's "Pale Orange Dot" computes what a hazy Archean Earth looks like <em>from space</em>, as an exoplanet spectrum, and that is as close as the literature comes. Nobody has computed the view from the ground, or the horizon-versus-zenith, latitude, and sunset structure. So this report does.</p>
-
-<h3>How the colors were computed</h3>
-<p>For each epoch the atmosphere is built from components with their own vertical profile and spectral optical depth: Rayleigh-scattering gas (N₂, O₂, CO₂, CH₄, H₂O in their epoch-appropriate partial pressures), ozone (the Chappuis cross section of Serdyuchenko et al. 2014 at 223 K, on a layer whose peak falls from 26 km at the equator to 18 km at the pole), tropospheric aerosol, a stratospheric sulfate layer, a tholin-like fractal organic haze (strongly blue-absorbing, forward-scattering), and impact soot. Sky radiance is integrated numerically along each line of sight through a spherical-shell atmosphere, so grazing sunlight at twilight is handled properly, with multiple scattering and surface reflection added from a delta-Eddington two-stream solution. The young Sun is treated as a blackbody made fainter and slightly cooler following standard solar evolution: 5,530 K and 68% of today's luminosity at 4.5 Ga, 5,620 K and 75% at 3.8 Ga, 5,660 K and 80% at 2.7 Ga, 5,700 K and 85% at 2.2 Ga, 5,772 K today. The color effect is only ~200 K, barely perceptible and far smaller than the atmospheric effects; the brightness effect is what makes the early skies dimmer. Spectra from 380–780 nm are converted to CIE XYZ and shown as sRGB. The model reproduces measured modern values (clear zenith 10,000–20,000 K, horizon 6,000–8,500 K, setting Sun ~1,700 K, pink antisolar Belt of Venus) before being pointed backward.</p>
-
-<h3>Findings in brief</h3>
-<div class="wrap"><table>
-<tr><th>Epoch</th><th>Noon zenith, mid-lat</th><th>Horizon</th><th>Sunset</th></tr>
-<tr><td>4.5 Ga, 30-bar CO₂</td><td>Peach-white, 3,300 K, shadowless</td><td>Same as zenith</td><td>Whole dome dims to orange; Sun rarely visible</td></tr>
-<tr><td>4.0 Ga, 0.5-bar CO₂</td><td>Pale milky blue, 10,500 K</td><td>Milk white</td><td>Deep red Sun; cream twilight (no ozone)</td></tr>
-<tr><td>3.8 Ga, clear Archean</td><td>Blue, 13,000 K</td><td>White</td><td>Modern-like, then yellow-beige twilight zenith</td></tr>
-<tr><td>2.7 Ga, thin haze</td><td>Pastel milk-blue, 8,600 K</td><td>Warm white, 7,100 K</td><td>Orange twilight all the way to the zenith</td></tr>
-<tr><td>2.7 Ga, thick haze</td><td>Cream-tan, 5,600 K</td><td>Cream-tan</td><td>Vermilion horizon, amber sky, long orange dusk</td></tr>
-<tr><td>2.7 Ga, very thick haze</td><td>Saturated apricot, 3,900 K</td><td>Same as zenith</td><td>Sun lost in the haze before it sets; orange dusk</td></tr>
-<tr><td>2.2 Ga, post-GOE</td><td>Blue, 13,300 K</td><td>White</td><td>Pale blue-gray twilight zenith (~7,100 K); deep blue dusk comes later</td></tr>
-<tr><td>700 Ma, Snowball</td><td>Deep blue, 16,200 K</td><td>Blue-white, stays blue</td><td>Golden, pale</td></tr>
-<tr><td>466 Ma, meteor storm</td><td>Blue, 14,200 K</td><td>White, 8,400 K</td><td>Modern-like; at night a hundred times today's fireballs and a bright zodiacal band</td></tr>
-<tr><td>300 Ma, 33% O₂</td><td>Blue, 13,600 K</td><td>White, slightly brighter</td><td>Modern-like; smoky more often</td></tr>
-<tr><td>66 Ma, impact winter</td><td>Dim amber-beige, 4,600 K</td><td>Beige</td><td>None; dome fades to brown</td></tr>
-<tr><td>1.78 Ma, ζ Oph supernova</td><td>Same blue as today</td><td>White</td><td>Modern; a magnitude −11.6 supernova low in the south</td></tr>
-<tr><td>342 ka, Geminga supernova</td><td>Same blue as today</td><td>White</td><td>Modern; a magnitude −11 supernova in Orion that casts shadows</td></tr>
-<tr><td>1815, volcanic year</td><td>Milky blue-white, 9,300 K</td><td>Slightly bluer than zenith</td><td>Salmon Sun, pink-lavender afterglow</td></tr>
-<tr><td>Ozone-hole spring</td><td>Blue, still</td><td>White</td><td>Pale blue dusk zenith, ~7,800 K</td></tr>
-<tr><td>Today, clean</td><td>Blue, 15,000 K</td><td>White, 8,400 K</td><td>Orange horizon, pink antisolar; twilight zenith ~12,500 K</td></tr>
-<tr><td>Today, polluted city</td><td>Pale gray-blue, 8,200 K</td><td>Slightly bluer than zenith, 8,900 K</td><td>Sun lost in gray murk before the horizon</td></tr>
-<tr><td>2100, megaconstellation</td><td>Same blue as today</td><td>White</td><td>Thousands of bright datacenters along the dusk terminator, plus a few hundred communications satellites</td></tr>
-</table></div>
-
-<h3>Horizon versus zenith</h3>
-<p>In a clean molecular atmosphere the zenith is blue and the horizon white because the horizon path is long enough that blue is scattered back out before reaching the eye and multiple scattering fills in the other colors. The size of that gradient is the clearest single diagnostic of atmospheric state. It is largest in the cleanest atmospheres (Snowball Earth, today's clean air: 8,000–13,000 K of color-temperature difference), shrinks as Rayleigh depth rises (late Hadean), collapses to nothing when a broadband absorber or thick scatterer sits overhead (hazy Archean, impact winter, 30-bar Hadean), and actually <em>reverses</em> under a stratospheric sulfate veil or heavy pollution, where the zenith becomes whiter than the horizon.</p>
-
-<h3>Equator, mid-latitudes, poles</h3>
-<p>Latitude enters through solar elevation and surface albedo. A high Sun lights the sky from above through a short path, giving a brighter but paler zenith (equatorial noon ~9,000 K); a low Sun sends light through more air, so the polar summer zenith is a deeper, darker blue (~19,000 K today, 20,000 K over Snowball ice) while the polar horizon is warmer and yellower. The same geometry makes the poles the place where any overhead absorber is most visible: the hazy Archean sky is cream at the equator but distinctly orange-yellow at the poles, and the impact-winter Sun that is still a pale disk at the equator is gone at 75° latitude. Snow and ice brighten and blue-shift the whole dome by reflecting light back into the atmosphere, which is why polar and Snowball horizons stay blue where a mid-latitude land horizon goes white.</p>
-
-<h3>Particulates</h3>
-<p>Three particle regimes appear in the record and they look different from one another. Non-absorbing sulfate high in the stratosphere (volcanic years) whitens the day sky and produces long, luminous pink and lavender twilights, because the layer is still sunlit after the ground is dark. Absorbing organic haze (Neoarchean) or soot (impact winter) removes blue outright, turning the dome tan or amber with almost no directional structure, and dims the surface by factors of 3–20. Boundary-layer pollution or dust brightens and grays the zenith, and buries the setting Sun in murk before it reaches the horizon. Tropospheric aerosol is also what makes sunset color vivid: the model confirms Lee &amp; Mollner's result that a purely molecular sky yields a pale, yellow-orange horizon while any turbidity deepens it to red.</p>
-
-<h3>Sunsets and sunrises through time</h3>
-<p>The biggest surprise is ozone. Today the sky above a setting Sun grades from orange through pale yellow to a zenith that stays blue well into twilight: about 12,500 K with the Sun 4° down. That persistent blue is the Chappuis band, ozone absorbing yellow and orange along the grazing path. The same modern sky with the ozone removed drops that zenith to cream, about 6,000 K. Before the Great Oxidation Event there was no ozone, so every sunset for the first two billion years ended with the zenith fading through cream and beige to orange. At ~2.2 Ga a 66 DU column, the Cooke et al. (2021) global mean for 1% of present oxygen, turns that cream zenith a pale blue-gray near 7,100 K. The deep twilight blue arrives later, once the column is near modern: the snowball sky, at their 10% oxygen column of 169 DU, holds a dusk zenith near 10,800 K. The same thinning is visible in the ozone-hole years. A polar-spring column of 130 DU leaves the dusk zenith pale blue, near 7,800 K, against 12,500 K today. Beyond the ozone story: Hadean sunsets were not events at the horizon but a slow dimming of the whole glowing dome; hazy Archean sunsets were the longest and most saturated in Earth's history, vermilion at the horizon and amber overhead; Snowball sunsets were brief and golden; the sunsets of the impact winter did not exist as color at all; and the reddest, most theatrical skies of the Phanerozoic belong to volcanic years like 1815 and 1883.</p>
-
-{limb_section}
-{sections}
-{sky_part}
-{encounter_section}
-<h3>Caveats</h3>
-<p>Paleoatmospheric compositions carry order-of-magnitude uncertainty, and the haze optical properties are taken from Titan-analog tholins; the three haze cases bracket that uncertainty. Aerosol loads for every pre-Cenozoic epoch are educated guesses. The color-matching functions use an analytic fit, and colors are shown without chromatic adaptation, so the tints represent what a modern camera set to daylight balance would record rather than what an adapted observer would "see" (an adapted eye would perceive the hazy Archean sky as nearer to white and the modern sky as bluer than shown). Clouds are omitted throughout. The two-stream multiple-scattering term is approximate for the thickest atmospheres, where a full Monte Carlo treatment would refine the exact tint of the Hadean sky. Beyond the colors, the strengths of the ancient airglow, aurorae, coronae, meteor and comet rates and zodiacal dust are estimates set to show the trend, as each section says; the lunar eclipses and the orbit's tilt are computed, and the eclipse shadow assumes today's cloud tops in every epoch.</p>
-
-<h3>Sources consulted (via Valency)</h3>
+<p class="hero-caption"><b>Figure 1.</b> Mid-latitude noon sky at the nineteen epochs, zenith (top) to horizon (bottom), oldest at left. Brightness is shown relative to today's clean sky. Tap a column to jump to that epoch.</p>
+{toc_html}
+{body}
+<h2 class="part" id="references">References</h2>
 <div class="refs">
-<p>Arney G. et al. (2016). The Pale Orange Dot: The Spectrum and Habitability of Hazy Archean Earth. <i>Astrobiology</i> 16, 873.</p>
-<p>Catling D.C. &amp; Zahnle K.J. (2020). The Archean atmosphere. <i>Science Advances</i> 6, eaax1420.</p>
-<p>Goldblatt C., Eager-Nash J.K., Horne J.E. (2024). Evolution of the Archean Atmosphere. arXiv:2409.13105.</p>
-<p>Mak M.T. et al. (2023). 3D simulations of the Archean Earth including photochemical haze profiles. <i>JGR Atmospheres</i>.</p>
-<p>Hoffman P.F. et al. (2017). Snowball Earth climate dynamics and Cryogenian geology-geobiology. <i>Science Advances</i> 3, e1600983.</p>
-<p>Lynch D.K. &amp; Mazuk S. (2005). On the colors of distant objects. <i>Applied Optics</i>.</p>
-<p>Peyvandi S. et al. (2016). Colorimetric analysis of outdoor illumination across varieties of atmospheric conditions. <i>JOSA A</i> 33, 1049.</p>
-<p>Lee R.L. &amp; Mollner D.C. (2017). Tropospheric haze and colors of the clear twilight sky. <i>Applied Optics</i> 56, G179.</p>
-<p>Hernández-Andrés J., Lee R.L., Romero J. (1999). Calculating correlated color temperatures across the entire gamut of daylight and skylight chromaticities. <i>Applied Optics</i>.</p>
-<p>Shaw J.A. et al. (2026). Solar eclipse sky brightness and color. <i>Applied Optics</i>.</p>
-<p>Zhu Y. et al. (2020). Persisting volcanic ash particles impact stratospheric SO₂ lifetime and aerosol optical properties. <i>Nature Communications</i>.</p>
-<p>Serdyuchenko A., Gorshelev V., Weber M., Burrows J.P. (2014). High spectral resolution ozone absorption cross-sections — Part 2. <i>Atmospheric Measurement Techniques</i> 7, 625.</p>
-<p>Cooke G.J., Marsh D.R., Walsh C., Black B., Lamarque J.-F. (2021). A revised lower estimate of ozone columns during Earth's oxygenated history. <i>Royal Society Open Science</i> 9, 211165.</p>
-<p>Neuhäuser R., Gießler F., Hambaryan V.V. (2019). A nearby recent supernova that ejected the runaway star ζ Oph, the pulsar PSR B1706-16, and ⁶⁰Fe found on Earth. <i>Monthly Notices of the Royal Astronomical Society</i>, doi:10.1093/mnras/stz2629.</p>
-<p>Pellizza L.J., Mignani R.P., Grenier I.A., Mirabel I.F. (2005). On the local birth place of Geminga. <i>Astronomy &amp; Astrophysics</i>, doi:10.1051/0004-6361:20042377.</p>
-<p>Salvati M. &amp; Sacco B. (2008). The Milagro anticenter hot spots: cosmic rays from the Geminga supernova? <i>Astronomy &amp; Astrophysics</i>, doi:10.1051/0004-6361:200809586.</p>
-<p>Richardson D., Jenkins R.L., Wright J., Maddox L. (2014). Absolute-magnitude distributions of supernovae. <i>Astronomical Journal</i> 147, 118.</p>
-<p>Thomas B.C. et al. (2016). Terrestrial effects of nearby supernovae in the early Pleistocene. <i>Astrophysical Journal Letters</i> 826, L3.</p>
-<p>Tomkin J. (1998). Once and future celestial kings. <i>Sky &amp; Telescope</i> 95(4), 59.</p>
-<p>Anderson E. &amp; Francis C. (2012). XHIP: an extended Hipparcos compilation. <i>Astronomy Letters</i> 38, 331.</p>
-<p>Gaia Collaboration, Vallenari A. et al. (2023). Gaia Data Release 3: summary of the content and survey properties. <i>Astronomy &amp; Astrophysics</i> 674, A1.</p>
-<p>Schönrich R., Binney J., Dehnen W. (2010). Local kinematics and the local standard of rest. <i>Monthly Notices of the Royal Astronomical Society</i> 403, 1829.</p>
-<p>Lawler S.M., Boley A.C., Rein H. (2022). Visibility predictions for near-future satellite megaconstellations. <i>Astronomical Journal</i> 163, 21.</p>
-<p>Boley A.C., Lawler S.M., Rein H. (2026). Rings in the sky: orbital data centres and potential impacts to astronomy and the sky. arXiv:2608.02757.</p>
-<p>Dziewanowski E. (n.d.). Flowfields. <a href="https://emildziewanowski.com/flowfields/">emildziewanowski.com/flowfields</a>, accessed 11 October 2026.</p>
-{SKY_REFS}
+{R.html_list(BIB)}
 </div>
+{appendix}
 </main></body></html>'''
 
+# ---------------------------------------------------------------------------------------------------
+# The LaTeX paper
+# ---------------------------------------------------------------------------------------------------
+PREAMBLE = r"""\PassOptionsToPackage{table}{xcolor}
+\documentclass[9pt,twocolumn]{extarticle}
+\usepackage[a4paper,margin=14mm,top=16mm,bottom=16mm,columnsep=7mm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[scaled=0.92]{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+\usepackage{needspace}
+\usepackage{graphicx,float,booktabs,tabularx,array,amsmath,microtype,titlesec,caption,tcolorbox,longtable}
+\usepackage[table]{xcolor}
+\usepackage[colorlinks=true,citecolor=sky,linkcolor=sky,urlcolor=sky]{hyperref}
+\usepackage[round]{natbib}
+\definecolor{sky}{HTML}{2F6FBA}
+\definecolor{dusk}{HTML}{C8562B}
+\definecolor{ink}{HTML}{1C2230}
+\definecolor{rowa}{HTML}{EEF2F7}
+\titleformat{\section}{\Large\bfseries\color{sky}}{\thesection}{0.6em}{}[\vspace{-6pt}{\color{sky}\rule{\linewidth}{0.6pt}}]
+\titleformat{\subsection}{\normalsize\bfseries\color{ink}}{\thesubsection}{0.5em}{}
+\titleformat{\subsubsection}{\small\bfseries\color{ink}}{}{0pt}{}
+\titlespacing{\section}{0pt}{10pt}{6pt}
+\titlespacing{\subsection}{0pt}{8pt}{3pt}
+\captionsetup{font={footnotesize,sf},labelfont={bf,color=sky},justification=raggedright,singlelinecheck=false,skip=3pt}
+\setlength{\parskip}{3pt}\setlength{\parindent}{0pt}
+\raggedbottom
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\renewcommand{\arraystretch}{1.15}
+\setlength{\tabcolsep}{4pt}
+\begin{document}
+"""
+
+def render_tex(B):
+    head = (r"""\twocolumn[
+\begin{@twocolumnfalse}
+\vspace*{-6mm}
+{\color{sky}\fontsize{28}{30}\selectfont\bfseries The view from Earth,\\ 4.5 billion years to today\par}
+\vspace{6pt}
+{\large\color{ink} """ + D.tex(LEDE) + r"""\par}
+\vspace{4pt}
+{\small\color{gray} Prepared with Claude (Anthropic) $\cdot$ October 2026\par}
+\vspace{8pt}
+{\includegraphics[width=\linewidth]{figures/fig01_timeline.png}}
+{\footnotesize\sffamily\textbf{\color{sky}Figure 1.} Mid-latitude noon sky at the epochs, zenith (top) to horizon (bottom), oldest at left. Brightness shown relative to today's clean sky.\par}
+\vspace{10pt}
+\end{@twocolumnfalse}
+]
+\setcounter{figure}{1}
+""")
+    body = D.render_tex(B, BIB)
+    tail = (r"""
+\nocite{*}
+\bibliographystyle{plainnat}
+% Font expansion fails on the bibliography's small slanted Helvetica, a virtual font.
+{\footnotesize\microtypesetup{expansion=false}\bibliography{refs}}
+
+""" + appendix_block()['tex'] + "\\end{document}\n")
+    return PREAMBLE + head + body + tail
+
+def build():
+    B = blocks()
+    return B, D.numbering(B + [appendix_block()], first_figure=2)
 
 if __name__ == '__main__':
-    (ROOT.parent / 'report' / 'sky-color-history.html').write_text(html, encoding='utf-8')
-    print(len(html))
+    import sys
+    B, nums = build()
+    page = render_html(B, nums)
+    out = ROOT.parent / 'report' / 'view-from-earth.html'
+    out.write_text(page, encoding='utf-8')
+    tex = render_tex(B)
+    (ROOT.parent / 'latex' / 'main.tex').write_text(tex, encoding='utf-8')
+    (ROOT.parent / 'latex' / 'refs.bib').write_text(BIB, encoding='utf-8')
+    missing = [b['path'].name for b in B if b['kind'] == 'fig' and not b['path'].exists()]
+    left = R.unmatched([page])
+    print(f'{len(page):,} bytes of HTML, {len(tex):,} of LaTeX; {len(nums)} figures and tables')
+    if missing: print('missing figures:', ', '.join(missing))
+    if left: print('citations with no reference:', '; '.join(left))

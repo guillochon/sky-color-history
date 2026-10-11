@@ -8,6 +8,7 @@ dependencies = [
     "numpy>=2.0",
     "scipy>=1.13",
     "matplotlib>=3.9",
+    "websockets>=17.2",
 ]
 
 [tool.uv]

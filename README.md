@@ -1,17 +1,17 @@
-# The Color of Earth's Sky Through Time
+# The View from Earth Through Time
 
-A spectral radiative-transfer reconstruction of what Earth's sky looked like from the ground
-at eighteen moments in its history, from the 30-bar CO2 Hadean to a modern megacity, and the rest of its
-sky through time: the setting Sun, solar and lunar eclipses, halos, airglow, aurorae, meteors and comets.
+What could be seen from Earth's surface at nineteen moments in its history, from the proto-Earth
+before the Moon-forming impact to the year 2100: the color of the sky, from a spectral
+radiative-transfer model of each epoch's air, and on it the Sun, the Moon, the planets and their
+moons, the stars and the Galaxy, meteors, comets, aurorae, airglow, halos, clouds and the light people added.
 
 ## Contents
 
 | Path | What it is |
 |---|---|
-| `report/sky-color-history.html` | The research report as a self-contained web page (eight volumetric atmosphere renderings drawn live on canvas) |
-| `report/sky-color-history.pdf` | The same report printed to PDF |
+| `report/view-from-earth.html` | The research report as a self-contained web page (eight volumetric atmosphere renderings drawn live on canvas) |
 | `site/index.html` | Interactive site: scrub through time (the globe cross-fades between epochs) and through a day (whole-sky fisheye view); hover for color hex codes, click to copy |
-| `latex/` | Magazine-style LaTeX source (`main.tex`, `refs.bib`, `figures/`) and the compiled `main.pdf` |
+| `latex/` | The same report as LaTeX (`main.tex`, `refs.bib`, `figures/`) and the compiled `main.pdf` |
 | `model/` | The Python model, every generator script, and the computed data |
 
 ## The model (`model/`)
@@ -41,10 +41,17 @@ sky through time: the setting Sun, solar and lunar eclipses, halos, airglow, aur
   to each object's magnitude and central surface brightness -> `site/dso.webp`, and where each was
   in each epoch (Local Group orbits for M31 and the Magellanic Clouds, the cosmic expansion beyond,
   the nebulae's lifetimes) -> `dso.json`
-- `report_sky.py` - the report's part on everything beyond the sky colors (shared by the HTML and LaTeX);
-  `eclipse_report.py` draws its eclipsed-Moon figure and table from `eclipse_grid.json`
-- `gen_report.py`, `gen_site.py`, `make_figs.py`, `make_tex.py` - build the HTML report, the
-  interactive site, the PNG figures and the LaTeX source from the JSON data
+- `gen_report.py` - builds the report, as `report/view-from-earth.html` and as `latex/main.tex` with
+  `latex/refs.bib`, from one list of blocks (`report_doc.py` renders them both ways, so the text, figures,
+  tables, numbering and citations agree); its text is in `gen_report.py` (the sky colors and the epochs),
+  `report_sky.py` (the Sun, eclipses, halos, the night sky, aurorae, meteors, clouds) and `report_view.py`
+  (the Moon, planets, stars, transients and the sky people made), and its bibliography in `report_refs.py`.
+  Tables of the site's own numbers are read from its JavaScript (`site_consts.py`).
+  `eclipse_report.py` draws the eclipsed-Moon figure and table from `eclipse_grid.json`
+- `report_figs.py` - the report's views from the ground, screenshots of the site's first-person view
+  (its Moments and telescope views) taken in headless Chrome -> `latex/figures/view_*.jpg`; needs the
+  site served locally (`python -m http.server 8767 -d site`)
+- `gen_site.py`, `make_figs.py` - build the interactive site and the PNG figures from the JSON data
 
 Reproduce everything:
 
@@ -54,7 +61,7 @@ installs them into `.venv` on the first `uv run`.
 ```
 cd model
 uv run run_epochs.py && uv run limb_grid.py && uv run daycycle.py && uv run lunar_eclipse.py && uv run shafts.py
-uv run gen_report.py && uv run gen_site.py && uv run make_figs.py && uv run make_tex.py
+uv run gen_site.py && uv run make_figs.py && uv run report_figs.py && uv run gen_report.py
 cd ../latex && latexmk -pdf main.tex   # or: tectonic -X compile main.tex
 ```
 
