@@ -164,19 +164,31 @@ vec2 reliefLight(vec3 b, vec3 sB, vec3 vB, float px){
   vec3 n=normalize(b-dE*tE-dN*tN);
   // With the Sun more than 8.6° below the sphere's horizon no ground sees it: the highest stands
   // 20 km over the lowest, and sqrt(2·20/1737) is 0.15.
-  float m0=dot(n, sB), m0s=dot(b, sB), ls=max(m0, 0.0)/(max(m0, 0.0)+max(dot(n, vB), 0.02)), sh=m0s>-0.15?1.0:0.0;
-  if(m0s>-0.15&&m0s<0.4){
-    vec3 dT=normalize(sB-b*m0s);
-    float e0=asin(m0s), h0=moonH(uv, lod), occ=-1.0, s=1.5*aN;
+  float mu=dot(n, vB), mus=dot(b, vB), m0=dot(n, sB), m0s=dot(b, sB), sh=m0s>-0.15?1.0:0.0;
+  // Ground the viewer cannot see, a slope turned away or ground behind a rim or peak toward the
+  // viewer near the limb, takes the smooth sphere's light: what is seen there is the ground in
+  // front, which this does not find. So the shadows behind rims at the full Moon's limb, hidden by
+  // the rims that cast them, are not drawn, and the walls facing the Sun at the limb near new Moon
+  // and in a solar eclipse, which face the far side, do not shine.
+  float hid=smoothstep(0.08, 0.0, mu);
+  bool toS=m0s>-0.15&&m0s<0.4, toV=mus<0.35;
+  if(toS||toV){
+    // Out toward the Sun and toward the viewer at once, the ray from each rising off the curved
+    // ground: the highest the ground stands over it, as an angle.
+    vec3 dS=toS?normalize(sB-b*m0s):b, dV=toV?normalize(vB-b*mus):b;
+    float eS=asin(clamp(m0s, -1.0, 1.0)), eV=asin(clamp(mus, -1.0, 1.0)), h0=moonH(uv, lod), oS=-1.0, oV=-1.0, s=1.5*aN;
     for(int k=0;k<14;k++){
-      float hk=moonH(moonUV(b*cos(s)+dT*sin(s)), max(lod, log2(s*ts.y*0.3183098862/3.0)));
-      float rr=(R+h0)*cos(e0)/max(cos(e0+s), 1e-3)-R;
-      occ=max(occ, atan(hk-rr, R*s));
+      float l=max(lod, log2(s*ts.y*0.3183098862/3.0));
+      if(toS){ float hk=moonH(moonUV(b*cos(s)+dS*sin(s)), l); oS=max(oS, atan(hk-((R+h0)*cos(eS)/max(cos(eS+s), 1e-3)-R), R*s)); }
+      if(toV){ float hk=moonH(moonUV(b*cos(s)+dV*sin(s)), l); oV=max(oV, atan(hk-((R+h0)*cos(eV)/max(cos(eV+s), 1e-3)-R), R*s)); }
       s*=1.38;
     }
-    sh=smoothstep(0.0047, -0.0047, occ);
+    // The Sun's disk is 0.27° across.
+    if(toS) sh=smoothstep(0.0047, -0.0047, oS);
+    if(toV) hid=max(hid, smoothstep(-0.002, 0.002, oV));
   }
-  return vec2(smoothstep(-0.02, 0.05, m0)*sh, 2.0*ls);
+  float lsR=max(m0, 0.0)/(max(m0, 0.0)+max(mu, 0.02)), lsS=max(m0s, 0.0)/(max(m0s, 0.0)+max(mus, 0.02));
+  return vec2(mix(smoothstep(-0.02, 0.05, m0)*sh, smoothstep(-0.02, 0.05, m0s), hid), 2.0*mix(lsR, lsS, hid));
 }
 uniform vec4 obj[12];
 uniform vec4 pond[8];
