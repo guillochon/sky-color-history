@@ -67,17 +67,17 @@ function drawStarsOnDome(marks, rgrid, rCd, key, moon){
     const rPx=s.body&&s.kind!=null?s.radDeg*(DOME_DISK*z/SUN_RADIUS_DEG):0, diskK=smooth01(1, 3, rPx);
     if(diskK>0) disks.push([s.body, x, y, rPx, night*diskK]);
     if(diskK>=1) continue;
-    const col=s.rgb.map(c=>Math.round(Math.min(255, c*night*(1-diskK)*255)));
-    if(s.px<2.2){
+    const zd=zoomedDisplay(s), col=zd.rgb.map(c=>Math.round(Math.min(255, c*night*(1-diskK)*255)));
+    if(zd.px<2.2){
       dctx.fillStyle='rgb('+col[0]+','+col[1]+','+col[2]+')';
-      dctx.beginPath(); dctx.arc(x,y,Math.max(0.6, s.px*0.55),0,Math.PI*2); dctx.fill();
+      dctx.beginPath(); dctx.arc(x,y,Math.max(0.6, zd.px*0.55),0,Math.PI*2); dctx.fill();
       continue;
     }
-    const g=dctx.createRadialGradient(x,y,0,x,y,s.px);
+    const g=dctx.createRadialGradient(x,y,0,x,y,zd.px);
     g.addColorStop(0, 'rgb('+col[0]+','+col[1]+','+col[2]+')');
     g.addColorStop(0.35, 'rgba('+col[0]+','+col[1]+','+col[2]+',0.45)');
     g.addColorStop(1, 'rgba('+col[0]+','+col[1]+','+col[2]+',0)');
-    dctx.fillStyle=g; dctx.beginPath(); dctx.arc(x,y,s.px,0,Math.PI*2); dctx.fill();
+    dctx.fillStyle=g; dctx.beginPath(); dctx.arc(x,y,zd.px,0,Math.PI*2); dctx.fill();
   }
   dctx.restore();
   for(const d of disks) drawBodyOnDome(...d);

@@ -191,6 +191,9 @@ function bodyScale(dome){ return dome?(DOME_DISK/(dome.width*0.46))*90/SUN_RADIU
 function moonGain(){ return vrOn?2.5*Math.log10(Math.max(1, 60/vrFov)):2.5*Math.log10(Math.max(1, domeZoom.z)); }
 // A mark's magnitude for whether it shows: a planet's or moon's less the zoom's gain.
 function markMag(s){ return s.planet?s.mag-moonGain():s.mag; }
+// How a planet's or moon's point is drawn, at that same gain: brighter and larger as the view
+// zooms, as through a telescope, so a moon that shows is not left a near-black dot.
+function zoomedDisplay(o){ return o.tint?planetDisplay(o.mag-moonGain(), o.tint):o; }
 // The epochs before history, and their ages in Myr. On any day of one of them, where each planet and
 // moon was on its orbit cannot be known: the Solar System is chaotic, its uncertainties growing
 // tenfold every ~10 Myr (Laskar 1989), and an epoch's age is uncertain by far more than any orbital
@@ -278,9 +281,9 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
     }
     const Wk=PLANET_W[k], axk=equatorAxes(pra, pdec), Wr=Wk?(Wk[0]+Wk[1]*(tD-d*LIGHT_DAY_AU))*Math.PI/180:0;
     const meridian=horiz(vadd(vscale(axk.i, Math.cos(Wr)), vscale(axk.j, Math.sin(Wr)), [0, 0, 0])).dir;
-    const body={grs, meridian, map:SURF_FILES[name]?name:null, dir:p.dir, rad:radDeg*Math.PI/180, light:vnorm(horiz(eq(h.map(v=>-v))).dir), pole:horiz(pole).dir, kind:k, px:show.px, rgb:show.rgb, mag, front:d<R, shadows:[], rings:ringed};
+    const body={grs, meridian, map:SURF_FILES[name]?name:null, dir:p.dir, rad:radDeg*Math.PI/180, light:vnorm(horiz(eq(h.map(v=>-v))).dir), pole:horiz(pole).dir, kind:k, px:show.px, rgb:show.rgb, mag, front:d<R, shadows:[], rings:ringed, tint};
     if(p.alt>0){
-      marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb, planet:name, mag, ra:p.ra, dec:p.dec, radDeg, lit:(1+Math.cos(i*Math.PI/180))/2, body, kind:k, rings:ringed, unknown:!!phases, ageMa, grs});
+      marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb, planet:name, mag, ra:p.ra, dec:p.dec, radDeg, lit:(1+Math.cos(i*Math.PI/180))/2, body, kind:k, rings:ringed, unknown:!!phases, ageMa, grs, tint});
       bodies.push(body);
     }
     // Its moons, where the light now arriving left them, and the Sun's way from the host.

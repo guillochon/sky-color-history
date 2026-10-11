@@ -189,10 +189,12 @@ function drawVRLabels(){
     if((s.mag>lim&&!s.planet)||s.el<=0||markHidden(s)) continue;
     // Labelled when it shows: its colour as the sky pass adds it (faded near the naked-eye limit,
     // dimmed by the air), times what the cloud in front lets through. 0.06 is where the drawn
-    // point stands out from the sky around it.
+    // point stands out from the sky around it. A planet or moon at its colour as zoomed in
+    // (zoomedDisplay), as drawn.
     const m=starThroughAir(s.mag, s.el, key), dim=Math.pow(10, -0.2*(m-s.mag));
     const a=cloudAt?cloudAt(horizDir(s.az, apparentEl(s.el))):0;
-    if(Math.max(...s.rgb)*starVisible(m-(s.mag-markMag(s)), skyRAt(skyNow.rgrid, s.el, s.az)*skyNow.rCd)*dim*(1-a)<0.06) continue;
+    const vis=starVisible(m-(s.mag-markMag(s)), skyRAt(skyNow.rgrid, s.el, s.az)*skyNow.rCd)*(1-a);
+    if(Math.max(...zoomedDisplay(s).rgb)*vis*dim<0.06) continue;
     add(s, s.planet||(s.star?s.star[7]||starTypeLabel(s.star[8]):'satellite'), s.host?'moon':s.planet?'planet':s.star?(s.star[7]?'star':'stype'):'sat');
   }
   pts.sort((a, b)=>a.mag-b.mag);

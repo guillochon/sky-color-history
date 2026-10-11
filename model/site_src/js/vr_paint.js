@@ -845,7 +845,7 @@ function uploadBodies(gl, u){
   list.forEach((b, i)=>{
     const o=i*4;
     P.set(b.dir, o); P[o+3]=b.rad*DISK_SCALE;
-    C.set(b.rgb, o); C[o+3]=b.px;
+    const zd=zoomedDisplay(b); C.set(zd.rgb, o); C[o+3]=zd.px;
     L.set(b.light, o); L[o+3]=b.mag;
     N.set(b.pole, o); N[o+3]=b.kind+(b.front?8:0)+(b.kind===4&&!b.rings?16:0);
     Mr.set(b.meridian||[0, 0, 0], o); Mr[o+3]=surfCode(b.map);
