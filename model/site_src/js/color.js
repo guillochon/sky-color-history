@@ -111,10 +111,27 @@ function tone(X, Yref, k=0.85, p=0.4, cap=0.92, floor=0){ // returns sRGB 0..255
 // Sky luminance r=Y/Yref stored in a byte (the VR sky texture's alpha): log10 r from -12 to 0.5.
 const LOGR_LO=-12, LOGR_SPAN=12.5;
 function encodeLogR(r){ return Math.round(255*Math.max(0, Math.min(1, (Math.log10(Math.max(r, 1e-13))-LOGR_LO)/LOGR_SPAN))); }
-// Faintest star visible against a sky of L cd/m² (the usual conversion to naked-eye limit, via the
-// sky's V surface brightness in mag/arcsec²).
+// Faintest star visible against a sky of L cd/m²: the usual conversion to naked-eye limit, via the
+// sky's V surface brightness in mag/arcsec², which holds for night skies. Past them it falls a
+// magnitude for every magnitude of sky (Weber's law), losing the first stars long before the end
+// of civil twilight and putting Venus 6 magnitudes past sight by day. A point's threshold against
+// bright skies grows only as about the root of their luminance (de Vries-Rose; Tousey & Hulburt
+// 1948 for stars by day), 1.25 magnitudes a decade: through -3.5 at 5,000 cd/m² (Venus is seen by
+// day where one knows to look) and +0.5 at 3 cd/m² (the first-magnitude stars at the end of civil
+// twilight). The two join softly near 0.02 cd/m²; the night's limit is as it was below 0.005.
 function skyMagArcsec(L){ return -2.5*Math.log10(Math.max(L, 1e-12)/10.8e4); }
-function nakedEyeLimit(L){ return 7.93-5*Math.log10(Math.pow(10, 4.316-skyMagArcsec(L)/5)+1); }
+function nakedEyeLimit(L){
+  const night=7.93-5*Math.log10(Math.pow(10, 4.316-skyMagArcsec(L)/5)+1), bright=1.12-1.25*Math.log10(Math.max(L, 1e-12));
+  const hi=Math.max(night, bright);
+  return hi+0.3*Math.log10(Math.pow(10, (night-hi)/0.3)+Math.pow(10, (bright-hi)/0.3));
+}
+// The same in GLSL, for the VR passes.
+const NAKED_EYE_GLSL=`
+float nakedEyeLimit(float L){
+  float lg=log(max(L, 1e-12))/2.302585, msky=-2.5*lg+12.583;
+  float night=7.93-5.0*log(pow(10.0, 4.316-msky/5.0)+1.0)/2.302585, bright=1.12-1.25*lg, hi=max(night, bright);
+  return hi+0.3*log(pow(10.0, (night-hi)/0.3)+pow(10.0, (bright-hi)/0.3))/2.302585;
+}`;
 function cct(x,y){ const n=(x-0.3320)/(0.1858-y); return Math.round(449*n**3+3525*n**2+6823.3*n+5520.33); }
 const hex = a => '#'+a.map(v=>v.toString(16).padStart(2,'0')).join('');
 // Where x falls in the ascending samples xs: [i, t] with x at xs[i]+t·(xs[i+1]-xs[i]), held to the ends.

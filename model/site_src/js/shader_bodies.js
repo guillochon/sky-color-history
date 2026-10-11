@@ -389,10 +389,7 @@ float vN(vec2 p){
   return textureLod(noiseTex, (i+f*f*(3.0-2.0*f)+0.5)/128.0, 0.0).r;
 }
 ${AIRMASS_GLSL}
-float nakedEyeLimit(float L){
-  float msky=-2.5*log(max(L, 1e-12)/10.8e4)/2.302585;
-  return 7.93-5.0*log(pow(10.0, 4.316-msky/5.0)+1.0)/2.302585;
-}
+${NAKED_EYE_GLSL}
 float extinctionAt(float el, float k){ return pow(10.0, -0.4*k*(airmass(max(el, 0.0))-1.0)); }
 float bennett(float app){ return app>80.0?0.0:(1.0/tan((app+7.31/(app+4.4))*0.01745329252))/60.0; }
 float trueAlt(float app){ return app-refK*bennett(app); }

@@ -186,11 +186,12 @@ function planetDisplay(mag, tint){ const d=magDisplay(mag, 200); return {px:d.px
 // walk-around view, and on the dome its drawn Sun over the true one.
 function bodyScale(dome){ return dome?(DOME_DISK/(dome.width*0.46))*90/SUN_RADIUS_DEG:DISK_SCALE; }
 // Zooming in stands for looking through binoculars or a telescope: the planets and their moons
-// show as the view narrows, by 2.5 magnitudes for each tenfold zoom past the walk-around view's
-// usual 60 degrees, or the dome's full view: the moons, fainter than the naked-eye limit or lost
-// in their planet's glare, the faint outer planets, and Mercury or Venus low in a bright twilight
-// or by day, as a telescope finds them.
-function moonGain(){ return vrOn?2.5*Math.log10(Math.max(1, 60/vrFov)):2.5*Math.log10(Math.max(1, domeZoom.z)); }
+// show as the view narrows, past the walk-around view's usual 60 degrees, or the dome's full view.
+// A telescope's magnification M spreads the sky's light over M² as much of the eye's field and
+// leaves a point a point, so it gains 5 magnitudes on the sky for each tenfold zoom: the moons,
+// fainter than the naked-eye limit or lost in their planet's glare, the faint outer planets, and
+// Mercury or Venus low in a bright twilight or by day, as a telescope finds them.
+function moonGain(){ return 5*Math.log10(Math.max(1, vrOn?60/vrFov:domeZoom.z)); }
 // A mark's magnitude for whether it shows: a planet's or moon's less the zoom's gain.
 function markMag(s){ return s.planet?s.mag-moonGain():s.mag; }
 // How a planet's or moon's point is drawn, at that same gain: brighter and larger as the view
