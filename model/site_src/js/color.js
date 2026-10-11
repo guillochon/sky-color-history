@@ -1,10 +1,14 @@
 const EP = __EP__;
 // An epoch that keeps today's air names the modern limb rather than carrying a copy.
 for(const e of EP) if(typeof e.limb==='string') e.limb=EP.find(x=>x.key===e.limb).limb;
+// So do their crepuscular rays' tables.
+for(const e of EP) if(typeof e.shaft==='string') e.shaft=EP.find(x=>x.key===e.shaft).shaft;
 // The day-cycle colors: the grid here, each epoch's samples in its own file (see gen_site.py
 // for the coding), fetched the first time the epoch is drawn. Epochs that keep today's air
 // share the modern file.
 const DAY = __DAY__;
+// The crepuscular rays' grid (gen_site.py SHAFT, shafts.py); each epoch's tables are in EP[i].shaft.
+const SHAFT = __SHAFT__;
 DAY.epochs={};
 const dayLoads={};
 let Y_OF_CODE=null;

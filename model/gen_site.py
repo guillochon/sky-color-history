@@ -1,4 +1,4 @@
-import functools, gzip, hashlib, json, shutil, subprocess, sys, urllib.parse
+import base64, functools, gzip, hashlib, json, shutil, subprocess, sys, urllib.parse
 from pathlib import Path
 
 import numpy as np
@@ -82,10 +82,17 @@ SHADOW = json.loads((HERE / 'eclipse_grid.json').read_text(encoding='utf-8'))['e
 def shadow(k):
     s = SHADOW[k]
     return s if isinstance(s, str) else dict(D=s['D'], rhoMax=s['rhoMax'], Y=s['Y'], rgb=s['rgb'], sp=s['sp'][::4])
+# The crepuscular rays (shafts.py, shader_clouds.js shaftShade): the air's parts, and the share of
+# each direction's light that a cloud's shadow can take away as base64 bytes. The grid is in SHAFT.
+SHAFTS = json.loads((HERE / 'shafts.json').read_text(encoding='utf-8'))
+SHAFT = {k: SHAFTS[k] for k in ('zmax', 'nv', 'na', 'ns', 'sunMin', 'sunMax')}
+def shaft(key):
+    s = SHAFTS['epochs'][key]
+    return dict(comps=s['comps'], share=base64.b64encode(bytes(s['share'])).decode())
 EP = []
 for k in order:
     r = byk[k]
-    EP.append(dict(key=k, name=r['name'], sub=r['sub'].replace('tau(550nm)','τ(550 nm)'), age=ages[k], short=short[k], prose=PROSE[k], air=air_atoms(k), sun=sun_bands(epoch(k)['key']), teff=epoch(k)['sun'][0], sunL=epoch(k)['sun'][1], sunR=sun_radius(k), shadow=shadow(k),
+    EP.append(dict(key=k, name=r['name'], sub=r['sub'].replace('tau(550nm)','τ(550 nm)'), age=ages[k], short=short[k], prose=PROSE[k], air=air_atoms(k), sun=sun_bands(epoch(k)['key']), teff=epoch(k)['sun'][0], sunL=epoch(k)['sun'][1], sunR=sun_radius(k), shadow=shadow(k), shaft=shaft(epoch(k)['key']) if epoch(k)['key']==k else epoch(k)['key'],
                    lat={L: dict(z=[v['zenith']['x'], v['zenith']['y'], v['zenith']['Y']], h=[v['horizon']['x'], v['horizon']['y'], v['horizon']['Y']],
                                 zc=int(v['zenith']['cct']), hc=int(v['horizon']['cct'])) for L, v in r['lat'].items()},
                    limb=LIMB[k]))
@@ -227,7 +234,7 @@ html = html.replace('__FAVICON__', 'data:image/svg+xml,' + urllib.parse.quote(fa
 # The report's links carry its hash, so a new build is never served from a browser's cache.
 PDF_V = hashlib.sha1((HERE.parent / 'latex' / 'main.pdf').read_bytes()).hexdigest()[:10]
 html = html.replace('href="main.pdf"', f'href="main.pdf?v={PDF_V}"')
-html = html.replace('__EP__', json.dumps(EP, separators=(',',':'))).replace('__DAY__', json.dumps(DAY_META, separators=(',',':')))
+html = html.replace('__EP__', json.dumps(EP, separators=(',',':'))).replace('__DAY__', json.dumps(DAY_META, separators=(',',':'))).replace('__SHAFT__', json.dumps(SHAFT))
 html = html.replace('__SURF_FILES__', json.dumps(SURF_FILES)).replace('__DSO_IMG__', DSO_IMG).replace('__DSO_HI__', json.dumps(DSO_HI)).replace('__DSO__', json.dumps(DSO, separators=(',', ':'), ensure_ascii=False))
 
 

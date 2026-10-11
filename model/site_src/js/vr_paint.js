@@ -725,6 +725,7 @@ function paintVR(){
     // Contrails and bolide dust trails (contrails.js).
     gl.uniform1f(cu.ctN, contrailUpload(gl));
     gl.uniform3fv(cu.impHole, new Float32Array(impactHole(astroDay()*86400)));
+    shaftUpload(gl, cu);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     perfPassEnd('clouds');
     let shown=vrGL.cloudTex;
@@ -815,6 +816,25 @@ function paintVR(){
   if(!vrGL.poolTimer && movingPoolInView()) vrGL.poolTimer=setTimeout(()=>{ vrGL.poolTimer=0; requestVR(); }, 33);
   // So does the aurora.
   if(!vrGL.aurTimer && aurOn) vrGL.aurTimer=setTimeout(()=>{ vrGL.aurTimer=0; requestVR(); }, 33);
+}
+// The crepuscular rays' tables for the epoch (shafts.py, shader_clouds.js shaftLayer): its share
+// texture on unit 17, made when the epoch changes, and its parts of the air.
+function shaftUpload(gl, cu){
+  const sh=EP[dIdx].shaft;
+  if(vrGL.shaftEp!==dIdx){
+    const b=atob(sh.share), n=b.length/3, px=new Uint8Array(n*4);
+    for(let i=0;i<n;i++){ for(let q=0;q<3;q++) px[i*4+q]=b.charCodeAt(i*3+q); px[i*4+3]=255; }
+    if(!vrGL.shaftTex) vrGL.shaftTex=gl.createTexture();
+    gl.activeTexture(gl.TEXTURE17); gl.bindTexture(gl.TEXTURE_3D, vrGL.shaftTex);
+    texParams(gl, gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.TEXTURE_3D, gl.CLAMP_TO_EDGE);
+    gl.texImage3D(gl.TEXTURE_3D, 0, gl.RGBA8, SHAFT.na, SHAFT.nv, SHAFT.ns, 0, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    const m=Math.min(6, sh.comps.length), P=new Float32Array(24), E=new Float32Array(18), S=new Float32Array(18);
+    sh.comps.slice(0, m).forEach((c, i)=>{ P.set([c[0], c[1], c[2], c[3]], i*4); E.set(c.slice(4, 7), i*3); S.set(c.slice(7, 10), i*3); });
+    vrGL.shaftU={n:m, P, E, S}; vrGL.shaftEp=dIdx;
+  }
+  gl.activeTexture(gl.TEXTURE17); gl.bindTexture(gl.TEXTURE_3D, vrGL.shaftTex); gl.activeTexture(gl.TEXTURE0);
+  const U=vrGL.shaftU;
+  gl.uniform1f(cu.shN, U.n); gl.uniform4fv(cu.shPart, U.P); gl.uniform3fv(cu.shExt, U.E); gl.uniform3fv(cu.shSca, U.S);
 }
 // The aurora pass: a half-size float target (three quarters on low-density screens), since the
 // march is costly and the aurora has little detail at the pixel scale. Leaves the sky program in

@@ -210,6 +210,110 @@ void contrailsAt(vec3 ro, vec3 rd, float tHit, float ign, float pixA, vec3 sd, v
     }
   }
 }
+// Crepuscular rays. The air below the clouds and between them is lit by the Sun except where a
+// cloud shades it, and there it loses the sunlight it would have scattered toward us. shTab holds
+// the share of the sky's light in each direction that the air below ${SHAFT.zmax} km scatters
+// straight from the Sun (shafts.py; by the Sun's altitude, the view's, and the azimuth from the
+// Sun); the rest, the light of many scatterings and of the air above, no cloud shades. Along the
+// ray each stretch takes its part of that share as its air scatters, dimmed by the air between,
+// and loses it as the Sun's light there is cut off by cloud on its way in.
+// The parts of the air: x the kind (0 Rayleigh, 1 exponential of scale height y km, 2 a layer at
+// y km, z km wide), w the HG asymmetry; their optical depths (r, g, b) in shExt, scattering in shSca.
+uniform highp sampler3D shTab;
+uniform vec4 shPart[6];
+uniform vec3 shExt[6], shSca[6];
+uniform float shN;
+// Always 0: added to the rays' loop bounds so the Direct3D compiler keeps them as loops rather than
+// unrolling cloudShape into every step (shader_terrain.js).
+uniform int shPad;
+// The first distance x > 0 at which a·x² + b·x + alt0 = h, or -1.
+float shCross(float alt0, float a, float b, float h){
+  float c=alt0-h, D=b*b-4.0*a*c;
+  if(D<0.0) return -1.0;
+  float q=-0.5*(b+(b<0.0?-sqrt(D):sqrt(D)));
+  float r1=abs(q)>1e-12?c/q:-1.0, r2=a>1e-14?q/a:-1.0;
+  float x=min(r1>0.0?r1:1e12, r2>0.0?r2:1e12);
+  return x>1e11?-1.0:x;
+}
+// The cloud's optical depth on the Sun's way in to p (m, at height alt0 as cloudShape reckons it),
+// from three samples where the path, bending away over the Earth, is in the cloud layer.
+float shCloudTau(vec3 p, float alt0, vec3 sd){
+  float top=cloudBase+thickMax, a=dot(sd.xy, sd.xy)/(2.0*6.371e6), b=sd.z;
+  float xb=shCross(alt0, a, b, cloudBase), xt=shCross(alt0, a, b, top), x0, x1;
+  if(alt0<cloudBase){ x0=xb; x1=xt; }
+  else if(alt0<=top){ x0=0.0; x1=xb>0.0&&xt>0.0?min(xb, xt):max(xb, xt); }
+  else { x0=xt; x1=xb; }
+  if(x0<0.0||x0>4.0e5) return 0.0;
+  if(x1<=x0) x1=x0+3000.0;
+  x1=min(x1, x0+8000.0);
+  float tau=0.0, dx=(x1-x0)/3.0, hd; vec3 qn; vec2 ng;
+  for(int k=0;k<3+shPad;k++){
+    float x=x0+(float(k)+0.5)*dx;
+    vec3 q=p+sd*x;
+    // At the path's height, as cloudShape reckons height on its smaller sphere.
+    vec2 dh=q.xy-eye.xy;
+    q.z=alt0+x*(b+a*x)-dot(dh, dh)/(2.0*833333.0);
+    tau+=cloudShape(q, hd, qn, ng)*dx;
+  }
+  return tau*0.05;
+}
+// The layer that dims the sky behind the clouds, premultiplied display colour and alpha, for the
+// sky's display colour skyD along rd. ign is the frame's jitter.
+vec4 shaftLayer(vec3 ro, vec3 rd, vec3 sd, vec3 skyD, float ign){
+  if(shN<0.5) return vec4(0.0);
+  float elv=asin(clamp(rd.z, -1.0, 1.0))*57.2957795, sunE=asin(clamp(sd.z, -1.0, 1.0))*57.2957795;
+  float daz=abs(atan(rd.x, rd.y)-atan(sd.x, sd.y)); if(daz>3.14159265) daz=6.28318531-daz;
+  float sx=(sign(sunE)*sqrt(abs(sunE))-(${SHAFT.sunMin}))/(${SHAFT.sunMax-SHAFT.sunMin});
+  vec3 tc=(vec3(sqrt(daz/3.14159265), sqrt(max(elv, 0.0)/90.0), clamp(sx, 0.0, 1.0))*vec3(${SHAFT.na-1}.0, ${SHAFT.nv-1}.0, ${SHAFT.ns-1}.0)+0.5)/vec3(${SHAFT.na}.0, ${SHAFT.nv}.0, ${SHAFT.ns}.0);
+  vec3 share=texture(shTab, tc).rgb;
+  if(max(share.r, max(share.g, share.b))<0.01) return vec4(0.0);
+  float tEnd=shellT(ro, rd, ${SHAFT.zmax*1000}.0);
+  if(tEnd<0.0) return vec4(0.0);
+  tEnd=min(tEnd, 3.0e5);
+  float cosT=dot(rd, sd), ray=0.0596831*(1.0+cosT*cosT);
+  float shadowAlt=sd.z<0.0?6.371e6*(inversesqrt(1.0-sd.z*sd.z)-1.0):-1.0e9;
+  vec3 tauV=vec3(0.0), lit=vec3(0.0), wAll=vec3(0.0);
+  // Most samples below the cloud tops, where the shadows are, crowded toward the eye; the rest
+  // above, where only a low Sun's light can have come past a cloud.
+  float tTop=shellT(ro, rd, cloudBase+thickMax);
+  tTop=tTop<0.0?tEnd:min(tTop, tEnd);
+  float tp=0.0;
+  for(int i=0;i<24+shPad;i++){
+    float f=(float(i<18?i:i-18)+ign)/(i<18?18.0:6.0), t=i<18?tTop*f*f:tTop+(tEnd-tTop)*f*f, dt=(t-tp)*0.001;
+    tp=t;
+    vec3 p=ro+rd*t;
+    vec2 dh=p.xy-eye.xy;
+    float alt=p.z+dot(dh, dh)/(2.0*833333.0), z=max(alt, 0.0)*0.001;
+    // Each part's scattering toward us here, its extinction along the ray, and its optical depth
+    // on the Sun's way in: straight down from the top of the air, or, with the Sun below the
+    // horizon, through the low point of the path and up again.
+    vec3 sc=vec3(0.0), ex=vec3(0.0), tauS=vec3(0.0);
+    float zt=sd.z<0.0?(6371.0+z)*sqrt(1.0-sd.z*sd.z)-6371.0:z;
+    for(int j=0;j<6+shPad;j++){
+      if(float(j)>=shN) break;
+      vec4 P=shPart[j];
+      float H, den, ab, abT;
+      if(P.x<1.5){ H=P.y; den=exp(-z/H)/H; ab=exp(-z/H); abT=exp(-zt/H); }
+      else { H=P.z; float u=(z-P.y)/H; den=exp(-0.5*u*u)/(H*2.5066); ab=1.0/(1.0+exp(1.702*u)); abT=1.0/(1.0+exp(1.702*(zt-P.y)/H)); }
+      float ch=sqrt(1.5708*(6371.0+z)/H), g=P.w;
+      float col=sd.z>=0.0?ab/(sd.z+1.0/ch):ch*(2.0*abT-ab);
+      float ph=P.x<0.5?ray:0.0795775*(1.0-g*g)/pow(max(1.0+g*g-2.0*g*cosT, 1e-4), 1.5);
+      sc+=shSca[j]*den*ph; ex+=shExt[j]*den; tauS+=shExt[j]*col;
+    }
+    vec3 w=sc*exp(-tauV-min(tauS, vec3(60.0)))*dt;
+    tauV+=ex*dt;
+    // Below the Earth's shadow there is no sunlight to take away.
+    if(alt<shadowAlt) continue;
+    wAll+=w; lit+=i<18||sd.z<0.17?w*exp(-shCloudTau(p, alt, sd)):w;
+  }
+  vec3 frac=share*clamp(1.0-lit/max(wAll, vec3(1e-30)), 0.0, 1.0);
+  // In display values the sky goes to skyD·(1-frac)^(1/2.2): an alpha for the channel dimmed
+  // most, and the colour the others keep put back.
+  vec3 keep=pow(1.0-frac, vec3(1.0/2.2));
+  float a=1.0-min(keep.r, min(keep.g, keep.b));
+  if(a<0.002) return vec4(0.0);
+  return vec4(max(skyD*(keep-(1.0-a)), 0.0), a);
+}
 ${VIEW_RAY_GLSL}
 void main(){
   vec2 fc=gl_FragCoord.xy;
@@ -222,13 +326,26 @@ void main(){
   if(rd.z<0.0) return;
   thickMax=mix(500.0, 7000.0, pow(cloudType, 1.6))*mix(0.75, 1.30, cloudTop);
   float top=cloudBase+thickMax;
-  float tIn=shellT(ro, rd, cloudBase), tOut=shellT(ro, rd, top);
-  if(tIn<0.0||tOut<tIn) return;
   float tHit=1e8;
   if(showScn>0.5){
     vec4 occ=texture(hitInfo, fc/res);
     if(occ.g>0.5 && occ.r>0.0) tHit=occ.r;
   }
+  // Interleaved gradient noise, moved across the screen each frame (not just
+  // offset), so successive frames decorrelate and the history averages it away.
+  // A checkerboard marches each pixel every other frame; count its own frames, so it still
+  // steps through all 64 offsets rather than every other one.
+  vec2 jp=fc+5.588238*mod(cbOn>0.5?floor(cloudFrame*0.5):cloudFrame, 64.0);
+  float ign=fract(52.9829189*fract(dot(jp, vec2(0.06711056, 0.00583715))));
+  float comp=atan(rd.x, rd.y); if(comp<0.0) comp+=6.28318530718;
+  float elevDeg=asin(clamp(rd.z,-1.0,1.0))*57.2957795;
+  vec3 skyD=texture(sky, vec2((fract(comp*57.2957795/360.0)*na+0.5)/(na+1.0), ((90.0-max(elevDeg,0.0))/90.0*nr+0.5)/(nr+1.0))).rgb;
+  vec3 skyC=toLin(skyD);
+  // The crepuscular rays, behind whatever cloud there is; none over the land.
+  vec4 shL=tHit<1e8?vec4(0.0):shaftLayer(ro, rd, sd, skyD, ign);
+  fragColor=shL;
+  float tIn=shellT(ro, rd, cloudBase), tOut=shellT(ro, rd, top);
+  if(tIn<0.0||tOut<tIn) return;
   if(tHit<tIn) return;
   float tEnd=min(tOut, tIn+75000.0);
 
@@ -248,12 +365,6 @@ void main(){
   float ph0=phase(cosT), ph1=phase(cosT*0.55), ph2=phase(cosT*0.3);
   const float SIGMA=0.05;
 
-  // Interleaved gradient noise, moved across the screen each frame (not just
-  // offset), so successive frames decorrelate and the history averages it away.
-  // A checkerboard marches each pixel every other frame; count its own frames, so it still
-  // steps through all 64 offsets rather than every other one.
-  vec2 jp=fc+5.588238*mod(cbOn>0.5?floor(cloudFrame*0.5):cloudFrame, 64.0);
-  float ign=fract(52.9829189*fract(dot(jp, vec2(0.06711056, 0.00583715))));
   float t=tIn, T=1.0, tAcc=0.0, wAcc=0.0;
   float dt=clamp(t*0.007, 35.0, 700.0);
   t+=dt*ign;
@@ -323,9 +434,6 @@ void main(){
     }
   }
 
-  float comp=atan(rd.x, rd.y); if(comp<0.0) comp+=6.28318530718;
-  float elevDeg=asin(clamp(rd.z,-1.0,1.0))*57.2957795;
-  vec3 skyC=toLin(texture(sky, vec2((fract(comp*57.2957795/360.0)*na+0.5)/(na+1.0), ((90.0-max(elevDeg,0.0))/90.0*nr+0.5)/(nr+1.0))).rgb);
   // Air between us and the cloud: distant clouds take on the sky behind them.
   float a0=1.0-T;
   if(a0>1.0e-4) col=mix(col/a0, skyC, (1.0-exp(-tAcc/max(wAcc, 1.0e-5)/38000.0))*0.85)*a0;
@@ -339,7 +447,7 @@ void main(){
   // Per channel, so an overexposed warm highlight goes to white, not to peach.
   c=mix(c, 0.6+0.4*(1.0-exp(-(c-0.6)/0.4)), step(0.6, c));
   c=pow(c, vec3(1.0/2.2));
-  fragColor=vec4(c*alpha, alpha);
+  fragColor=vec4(c*alpha, alpha)+shL*(1.0-alpha);
   fragDepth=vec4(tMean, 0.0, 0.0, 1.0);
 }`;
 

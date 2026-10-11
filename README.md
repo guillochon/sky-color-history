@@ -29,6 +29,8 @@ sky through time: the setting Sun, solar and lunar eclipses, halos, airglow, aur
 - `lunar_eclipse.py` - the light inside the Earth's shadow at the Moon for each epoch: rays traced
   through the epoch's air with exact refraction (the 30-bar Hadean traps its lower air), summed
   over the Earth's limb as seen from the Moon (Link's method) -> `eclipse_grid.json` (about a minute)
+- `shafts.py` - for the crepuscular rays, the share of each sky direction's light that air below 30 km
+  scatters straight from the Sun, which a cloud's shadow can take away, per epoch -> `shafts.json` (about 15 seconds)
 - `lunar_inclination.py` - the Moon's orbital tilt in each epoch (moon.js `MOON_INC`), integrated back
   from today's along the Moon's distance history with the tidal model of Ćuk et al. 2016
 - `surfaces.py` - Mercury's, Mars's, Io's, Europa's, Ganymede's, Callisto's, Tethys's, Dione's and Rhea's global maps
@@ -51,7 +53,7 @@ installs them into `.venv` on the first `uv run`.
 
 ```
 cd model
-uv run run_epochs.py && uv run limb_grid.py && uv run daycycle.py && uv run lunar_eclipse.py
+uv run run_epochs.py && uv run limb_grid.py && uv run daycycle.py && uv run lunar_eclipse.py && uv run shafts.py
 uv run gen_report.py && uv run gen_site.py && uv run make_figs.py && uv run make_tex.py
 cd ../latex && latexmk -pdf main.tex   # or: tectonic -X compile main.tex
 ```
