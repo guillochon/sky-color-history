@@ -290,7 +290,7 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
     const meridian=horiz(vadd(vscale(axk.i, Math.cos(Wr)), vscale(axk.j, Math.sin(Wr)), [0, 0, 0])).dir;
     const body={grs, meridian, map:SURF_FILES[name]?name:null, dir:p.dir, rad:radDeg*Math.PI/180, light:vnorm(horiz(eq(h.map(v=>-v))).dir), pole:horiz(pole).dir, kind:k, px:show.px, rgb:show.rgb, mag, front:d<R, shadows:[], rings:ringed, tint};
     if(p.alt>0){
-      marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb, planet:name, mag, ra:p.ra, dec:p.dec, radDeg, lit:(1+Math.cos(i*Math.PI/180))/2, body, kind:k, rings:ringed, unknown:!!phases, ageMa, grs, tint});
+      marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb, planet:name, mag, ra:p.ra, dec:p.dec, radDeg, dist:d, lit:(1+Math.cos(i*Math.PI/180))/2, body, kind:k, rings:ringed, unknown:!!phases, ageMa, grs, tint});
       bodies.push(body);
     }
     // Its moons, where the light now arriving left them, and the Sun's way from the host.
@@ -322,7 +322,7 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
       // elongation, 11.9 at eastern, when it moves away from us or toward us.
       if(m[0]==='Iapetus') mmag-=0.85*vdot(qn, vnorm(vcross(pl.k, off)));
       const ms=planetDisplay(mmag, m[7]);
-      const mark={az:mp.az, el:mp.alt, px:ms.px, rgb:ms.rgb, planet:m[0], host:name, mag:mmag, ra:mp.ra, dec:mp.dec, radDeg:Math.atan(m[2]/(dm*PL_AU_KM))*180/Math.PI, lit:(1+Math.cos(i*Math.PI/180))/2, behind:along>0, rho, tint:m[7], unknown:!!phases, ageMa};
+      const mark={az:mp.az, el:mp.alt, px:ms.px, rgb:ms.rgb, planet:m[0], host:name, mag:mmag, ra:mp.ra, dec:mp.dec, radDeg:Math.atan(m[2]/(dm*PL_AU_KM))*180/Math.PI, dist:dm, lit:(1+Math.cos(i*Math.PI/180))/2, behind:along>0, rho, tint:m[7], unknown:!!phases, ageMa};
       // The moons turn synchronously: longitude 0 faces the host, about their orbit's pole.
       mark.body={dir:mp.dir, meridian:horiz(vscale(off, -1)).dir, map:SURF_FILES[m[0]]?m[0]:null, rad:mark.radDeg*Math.PI/180, light:body.light, pole:m[10]?horiz(pl.k).dir:body.pole, kind:BODY_MOON, px:ms.px, rgb:ms.rgb, mag:mmag, front:false, over:!mark.behind, tint:m[7], mark};
       marks.push(mark);
@@ -344,7 +344,7 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
     if(spin){ const ax=equatorAxes(pra, pdec), Wr=(spin[0]+spin[1]*(tD-d*LIGHT_DAY_AU))*Math.PI/180; meridian=horiz(vadd(vscale(ax.i, Math.cos(Wr)), vscale(ax.j, Math.sin(Wr)), [0, 0, 0])).dir; }
     const body={grs:null, meridian, map:SURF_FILES[name]?name:null, dir:p.dir, rad:radDeg*Math.PI/180, light:vnorm(horiz(eq(h.map(v=>-v))).dir), pole:horiz(pole).dir, kind, px:show.px, rgb:show.rgb, mag, front:d<R, shadows:[], rings:false, tint};
     if(p.alt>0){
-      marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb, planet:name, mag, ra:p.ra, dec:p.dec, radDeg, lit:(1+Math.cos(i*Math.PI/180))/2, body, kind, rings:false, unknown:!!phases, ageMa, tint});
+      marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb, planet:name, mag, ra:p.ra, dec:p.dec, radDeg, dist:d, lit:(1+Math.cos(i*Math.PI/180))/2, body, kind, rings:false, unknown:!!phases, ageMa, tint});
       bodies.push(body);
     }
   });

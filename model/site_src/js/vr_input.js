@@ -626,12 +626,14 @@ function vrProbe(cx, cy, throughCloud, px, view){
     P.sunXY=[vdot(im.off, b.east)/sr, vdot(im.off, b.north)/sr];
   }
   // Within about 18 page pixels of a star, twice that of the supernova and its glare.
-  // A meteor (or a lunar flash) within about 18 page pixels, in front of all but the clouds.
+  // A meteor (or a lunar flash) within about 18 page pixels, behind the clouds.
   P.meteor=P.cloud?null:metNearDir(d, 18*vrFov/H);
   if(P.meteor&&P.meteor.kind!=='flash'&&P.meteor.kind!=='lava'&&P.disk) P.meteor=null;
-  P.sn=P.cloud||P.disk||P.meteor?null:snNear(horizDir(az, el), 36*vrFov/H);
-  P.star=P.cloud||P.disk||P.sn||P.meteor?null:starNear(horizDir(az, el), 18*vrFov/H);
-  return P;
+  // Of a meteor, the supernova and a star near enough, the nearest.
+  const out={};
+  P.sn=P.cloud||P.disk?null:snNear(horizDir(az, el), 36*vrFov/H);
+  P.star=P.cloud||P.disk?null:starNear(horizDir(az, el), 18*vrFov/H, out);
+  return nearestPoint(horizDir(az, el), P, out.sep);
 }
 // A click in inspect pins a tooltip to what was under it, and each further click pins another.
 // The sky keeps its direction; the Sun and Moon keep the clicked spot on their disks, and a star,
@@ -714,6 +716,7 @@ function vrPinDir(p){
   let m=null;
   if(p.kind==='mark'){
     m=marks.find(s=>p.star?s.star===p.star:s.planet===p.planet)||null;
+    p.m=m;
     if(m){ p.ra=m.ra; p.dec=m.dec; }
     else if(p.ra!=null){ const q=raDecAltaz(LATDEG[dLat], p.ra, p.dec, localSidereal()); return at(q.az, q.alt, false); }
   }
@@ -730,6 +733,18 @@ function vrPinDir(p){
 }
 // Where a pinned thing is on the page now, or null when it is out of view, set or gone.
 function vrPinPoint(p){ const q=vrPinDir(p); return q&&q.on?vrPointOf(q.d):null; }
+// The page box [x0, y0, x1, y1] of the disk a pinned thing is on (the Sun, the Moon, a planet with
+// Saturn's rings, or a moon) as drawn, after vrPinDir has found it, or null for a point or the sky.
+function vrPinBody(p){
+  if(!skyNow) return null;
+  const mo=skyNow.moon;
+  const [d, rad]=p.kind==='sun'?[vrSunBasis().md, mo.sunRadDeg]:p.kind==='moon'?[horizDir(mo.az, apparentEl(mo.el)), mo.radDeg]
+    :p.kind==='mark'&&p.m&&p.m.radDeg!=null?[horizDir(p.m.az, apparentEl(p.m.el)), p.m.radDeg*(p.m.rings?2.3:1)]:[null, 0];
+  const c=d&&vrPointOf(d);
+  if(!c) return null;
+  const r=Math.tan(rad*DISK_SCALE*Math.PI/180)/Math.tan(vrFov*Math.PI/360)*window.innerHeight/2;
+  return r<10?null:[c[0]-r, c[1]-r, c[0]+r, c[1]+r];
+}
 // Before each paint: drop the pins whose bodies have set, turn a view flying to or following
 // something found to it (find.js), and turn a locked view to its pin.
 function lockVRView(){
@@ -823,19 +838,22 @@ function placeVRHoverTip(cx, cy, size){
   tip.style.left=x+'px'; tip.style.top=y+'px'; tip.style.transform='none';
 }
 // A pinned tooltip's box beside its pin at page point (cx, cy): to the right, left, above, below,
-// or at a corner (side 0-7), kept on the page.
+// or at a corner (side 0-7), kept on the page. Sides 8-15 are the same beside the box body
+// [x0, y0, x1, y1] of the disk it is pinned to, when it has one, so as not to cover it.
 const VR_PIN_SIDES=[[1, 0], [-1, 0], [0, -1], [0, 1], [1, -1], [-1, -1], [1, 1], [-1, 1]];
-function pinBox(side, w, h, cx, cy){
-  const W=window.innerWidth, H=window.innerHeight, g=16, [sx, sy]=VR_PIN_SIDES[side];
-  let x=sx>0?cx+g:sx<0?cx-g-w:cx-w/2, y=sy>0?cy+g:sy<0?cy-g-h:cy-h/2;
+function pinBox(side, w, h, cx, cy, body){
+  const W=window.innerWidth, H=window.innerHeight, g=16, [sx, sy]=VR_PIN_SIDES[side%8];
+  const [x0, y0, x1, y1]=side>=8&&body?body:[cx, cy, cx, cy], mx=(x0+x1)/2, my=(y0+y1)/2;
+  let x=sx>0?x1+g:sx<0?x0-g-w:mx-w/2, y=sy>0?y1+g:sy<0?y0-g-h:my-h/2;
   x=Math.max(8, Math.min(W-w-8, x)); y=Math.max(8, Math.min(H-h-8, y));
   return [x, y, w, h];
 }
 // The side that overlaps the other pinned tooltips (and their pins) least, the first such in order.
-function vrPinSide(p, at){ return vrBestSide(p.size[0], p.size[1], at, p, -1); }
+// One pinned to a disk keeps off it where it can, first beside the disk, then beside its pin.
+function vrPinSide(p, at){ return vrBestSide(p.size[0], p.size[1], at, p, -1, vrPinBody(p)); }
 // The same for a w by h box at page point at, beside every pinned tooltip but skip; side keep wins
-// any tie it is in.
-function vrBestSide(w, h, at, skip, keep){
+// any tie it is in. Covering the disk body costs more than any overlap with the others.
+function vrBestSide(w, h, at, skip, keep, body){
   const others=[];
   for(const o of vrPins){
     // One answered in the same batch is shown before it is placed: until it is, it is nowhere.
@@ -846,14 +864,16 @@ function vrBestSide(w, h, at, skip, keep){
   }
   const lap=(a, b)=>Math.max(0, Math.min(a[0]+a[2], b[0]+b[2])-Math.max(a[0], b[0]))*Math.max(0, Math.min(a[1]+a[3], b[1]+b[3])-Math.max(a[1], b[1]));
   const mine=[at[0]-10, at[1]-10, 20, 20];
+  const disk=body&&[body[0], body[1], body[2]-body[0], body[3]-body[1]];
   // Its own point under its box counts too, as clamping to the page can push the box over it.
-  const cost=s=>{ const box=pinBox(s, w, h, at[0], at[1]); return others.reduce((t, o)=>t+lap(box, o), 0)+lap(box, mine); };
+  const cost=s=>{ const box=pinBox(s, w, h, at[0], at[1], body); return others.reduce((t, o)=>t+lap(box, o), 0)+lap(box, mine)+(disk?1e3*lap(box, disk):0); };
   let best=0, bestLap=Infinity;
-  for(let s=0;s<VR_PIN_SIDES.length;s++){ const L=cost(s); if(L<bestLap-0.5){ bestLap=L; best=s; } }
+  // Beside the disk first, so those win the ties.
+  for(const s of body?[8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7]:[0, 1, 2, 3, 4, 5, 6, 7]){ const L=cost(s); if(L<bestLap-0.5){ bestLap=L; best=s; } }
   return keep>=0&&cost(keep)<=bestLap+0.5?keep:best;
 }
 function placePin(p, at){
-  const [x, y]=pinBox(p.side, p.size[0], p.size[1], at[0], at[1]);
+  const [x, y]=pinBox(p.side, p.size[0], p.size[1], at[0], at[1], p.side>=8?vrPinBody(p):null);
   p.tip.style.left=x+'px'; p.tip.style.top=y+'px'; p.tip.style.transform='none';
   p.mark.style.left=at[0]+'px'; p.mark.style.top=at[1]+'px';
 }

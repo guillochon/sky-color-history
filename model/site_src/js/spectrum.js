@@ -435,11 +435,10 @@ function domeSpectrum(x, y, box){
   const mo=skyNow.moon, sunR=DOME_DISK*z*mo.sunRadDeg/SUN_RADIUS_DEG;
   const mR=DOME_DISK*z*mo.radDeg/SUN_RADIUS_DEG*90/R, lit=mo.on&&mo.el>-mo.radDeg?moonLitAt(horizDir(az, el), mR):null;
   const disk=lit!=null?'moon':(skyNow.sunOn&&skyNow.sunVis>0.01&&at(skyNow.sunAz, 90-skyNow.sza)<sunR?'sun':null);
-  const met=meteorNearDome(x, y);
+  const dir=horizDir(az, el), out={};
+  const {meteor:met, sn, star}=nearestPoint(dir, {meteor:meteorNearDome(x, y), sn:disk?null:snNear(dir, 14*90/R), star:disk?null:starNear(dir, 7*90/R, out)}, out.sep);
   if(met){ spectrumHTML(box, met.el, met.az, {meteor:met}); return; }
-  const sn=disk?null:snNear(horizDir(az, el), 14*90/R);
   if(sn){ spectrumHTML(box, sn.el, sn.az, {sn}); return; }
-  const star=disk?null:starNear(horizDir(az, el), 7*90/R);
   if(star){ spectrumHTML(box, star.el, star.az, {star}); return; }
   const st=skyNow.aur, aurora=disk!=='sun'&&st&&st.on&&domeAur.gl?auroraProbe(domeAur.gl, domeAur.store, st, horizDir(az, el)):null;
   const cr=at(skyNow.sunAz, 90-skyNow.sza)/sunR;
@@ -497,27 +496,43 @@ function globeSpectrumTip(x, y, box){
 // out. The air's transmission comes from the model's direct sunlight overhead and at 60°: their
 // ratio is one more airmass of that epoch's air (Rayleigh, ozone, haze), raised to the star's
 // airmass. The O2 and water bands are added as for the sky.
-// The nearest star, planet or satellite drawn within tolDeg of dir that shows against the sky
-// there, or null.
-function starNear(dir, tolDeg){
+// The star, planet, moon or satellite drawn within tolDeg of dir that shows against the sky
+// there, or null; out.sep, if given, is how far dir is from its drawn edge (degrees).
+// A planet's or moon's drawn disk (and Saturn's rings) counts as near, however large it is drawn.
+// On a disk, the frontmost disk there is taken, unless something drawn in front of it (a moon
+// over its planet, a satellite) is within reach and nearer than the disk's centre; off every
+// disk, the one nearest dir.
+function starNear(dir, tolDeg, out){
   if(!skyNow||!skyNow.starMarks) return null;
-  const key=EP[dIdx].key;
-  let best=null, bestD=0;
-  // A star further off in altitude alone than tolDeg is further off in all.
+  const key=EP[dIdx].key, scale=bodyScale(!vrOn&&dome), cand=[];
+  // A star further off in altitude alone than its reach is further off in all.
   const el=Math.asin(Math.max(-1, Math.min(1, dir[2])))*180/Math.PI;
-  // A planet's drawn disk (and Saturn's rings) counts as near, however large it is drawn: the one
-  // taken is the one the direction is furthest inside the reach of.
-  const scale=bodyScale(!vrOn&&dome);
   for(const s of skyNow.starMarks){
-    const reach=s.kind!=null?Math.max(tolDeg, s.radDeg*scale*(s.rings?2.3:1)):tolDeg;
+    const R=s.radDeg!=null?s.radDeg*scale:0, reach=Math.max(tolDeg, R*(s.rings?2.3:1));
     if(s.comet||Math.abs(s.el-el)>reach||markHidden(s)) continue;
-    const d=Math.acos(Math.max(-1, Math.min(1, vdot(dir, horizDir(s.az, s.el)))))*180/Math.PI-reach;
-    if(d>0||(best&&d>=bestD)) continue;
+    const sep=Math.acos(Math.max(-1, Math.min(1, vdot(dir, horizDir(s.az, s.el)))))*180/Math.PI;
+    if(sep>reach) continue;
     const m=starThroughAir(s.mag, s.el, key), dim=Math.pow(10, -0.2*(m-s.mag));
     if(starVisible(m-(s.mag-markMag(s)), skyRAt(skyNow.rgrid, s.el, s.az)*skyNow.rCd)*dim<0.3) continue;
-    best=s; bestD=d;
+    // Its distance in AU: a star is behind everything, a satellite in front.
+    cand.push({s, sep, e:Math.max(0, sep-R), on:sep<R, dist:s.dist??(s.star?Infinity:0)});
   }
-  return best;
+  const near=list=>list.reduce((b, c)=>!b||c.e<b.e?c:b, null);
+  let disk=null;
+  for(const c of cand) if(c.on&&(!disk||c.dist<disk.dist)) disk=c;
+  const best=disk?near(cand.filter(c=>c.dist<disk.dist&&c.e<disk.sep))||disk:near(cand);
+  if(out) out.sep=best?best.e:Infinity;
+  return best?best.s:null;
+}
+// Of a meteor, the supernova and a star (or planet or satellite), each found near dir or null,
+// the nearest to it: the others are dropped. starSep is the star's distance from dir, 0 on a
+// planet's disk, where a meteor in front of it is taken.
+function nearestPoint(dir, P, starSep){
+  const angle=(az, el)=>Math.acos(Math.max(-1, Math.min(1, vdot(dir, horizDir(az, el)))))*180/Math.PI;
+  const seps={meteor:P.meteor?(P.star&&starSep<=0?-1:P.meteor.sep):Infinity, sn:P.sn?angle(P.sn.az, P.sn.el):Infinity, star:P.star?starSep:Infinity};
+  const keep=Object.keys(seps).reduce((a, b)=>seps[b]<seps[a]?b:a);
+  for(const k in seps) if(k!==keep) P[k]=null;
+  return P;
 }
 // Planets and satellites: sunlight above the air (a 5772 K body with the Sun's lines) times the
 // body's reflectance, then through the air as a star. Reflectance shapes, 380-780 nm, are rough

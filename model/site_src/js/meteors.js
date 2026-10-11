@@ -595,16 +595,16 @@ function metKick(){ if(MET.raf) return; if(MET.timer){ clearTimeout(MET.timer); 
 document.addEventListener('visibilitychange', metKick);
 
 // Hovering: the meteor (or train, or flash) under the pointer, including one that has just gone
-// by, so it can be caught. Returns {m or f, kind, el, az, ago}.
+// by, so it can be caught. Returns {m or f, kind, sep (degrees from dir), el, az, ago}.
 function metNearDir(dir, tolDeg){
   if(!skyNow) return null;
   const k=extK(EP[dIdx].key), t=MET.now, cmin=Math.cos(tolDeg*Math.PI/180);
   let best=null, bc=cmin;
-  const test=(m, xEnd)=>{ for(let i=0;i<=16;i++){ const a=metApparent(m, xEnd*i/16, k), c=vdot(a.dir, dir); if(c>bc&&a.el>0){ bc=c; best={m, kind:m.src==='ring'?'ring':'meteor', el:a.el, az:(Math.atan2(a.dir[0], a.dir[1])*180/Math.PI+360)%360, ago:Math.max(0, t-(m.t0+m.T))}; } } };
+  const test=(m, xEnd)=>{ for(let i=0;i<=16;i++){ const a=metApparent(m, xEnd*i/16, k), c=vdot(a.dir, dir); if(c>bc&&a.el>0){ bc=c; best={m, kind:m.src==='ring'?'ring':'meteor', sep:Math.acos(Math.min(1, c))*180/Math.PI, el:a.el, az:(Math.atan2(a.dir[0], a.dir[1])*180/Math.PI+360)%360, ago:Math.max(0, t-(m.t0+m.T))}; } } };
   for(const s of MET.scene||[]) if(s.kind!==2) test(s.m, Math.min(1, (t-s.m.t0)/s.m.T));
   for(const m of MET.gone) if(m.M<6) test(m, 1);
   for(const s of MET.scene||[]) if(s.kind===2){ const rad=vrOn?skyNow.moon.radDeg*DISK_SCALE:skyNow.moon.radDeg*(DOME_DISK*domeView().z/SUN_RADIUS_DEG)*90/domeView().R;
-    const d=flashDir(s.f, rad), c=vdot(d, dir); if(c>Math.cos(tolDeg*2*Math.PI/180)) best={f:s.f, kind:s.f.lava?'lava':'flash', el:skyNow.moon.el, az:skyNow.moon.az, mag:s.mag, ago:0}; }
+    const d=flashDir(s.f, rad), c=vdot(d, dir); if(c>Math.cos(tolDeg*2*Math.PI/180)) best={f:s.f, kind:s.f.lava?'lava':'flash', sep:Math.acos(Math.min(1, c))*180/Math.PI, el:skyNow.moon.el, az:skyNow.moon.az, mag:s.mag, ago:0}; }
   return best;
 }
 // On the dome, within about 9 canvas pixels.
