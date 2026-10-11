@@ -177,7 +177,11 @@ vec2 reliefLight(vec3 b, vec3 sB, vec3 vB, float px){
     // ground: the highest the ground stands over it, as an angle.
     vec3 dS=toS?normalize(sB-b*m0s):b, dV=toV?normalize(vB-b*mus):b;
     float eS=asin(clamp(m0s, -1.0, 1.0)), eV=asin(clamp(mus, -1.0, 1.0)), h0=moonH(uv, lod), oS=-1.0, oV=-1.0, s=1.5*aN;
+    // The steps start at the slopes' span, which zoomed far out is much of the globe: they stop
+    // past 0.22 (the last of them zoomed in, some 380 km), or the march would round onto the far
+    // side and find it standing over the horizon, a second terminator on the disk.
     for(int k=0;k<14;k++){
+      if(s>0.22) break;
       float l=max(lod, log2(s*ts.y*0.3183098862/3.0));
       if(toS){ float hk=moonH(moonUV(b*cos(s)+dS*sin(s)), l); oS=max(oS, atan(hk-((R+h0)*cos(eS)/max(cos(eS+s), 1e-3)-R), R*s)); }
       if(toV){ float hk=moonH(moonUV(b*cos(s)+dV*sin(s)), l); oV=max(oV, atan(hk-((R+h0)*cos(eV)/max(cos(eV+s), 1e-3)-R), R*s)); }
