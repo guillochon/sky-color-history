@@ -77,7 +77,9 @@ function findCatalog(){
 function findWhere(t){
   if(!skyNow) return null;
   const key=EP[dIdx].key, lat=LATDEG[dLat], year=STAR_YEAR[key]||pageDate()[0], LST=localSidereal();
-  const at=(az, el, diam, disk=0)=>({d:horizDir(az, apparentEl(el)), az, el, diam, disk});
+  // Raised by the refraction the sky shader draws with (shaderApparent), as the labels are: at the
+  // deepest zoom the page's own formula (apparentEl) puts a body an arcsecond, many pixels, off.
+  const at=(az, el, diam, disk=0)=>({d:horizDir(az, shaderApparent(el).a), az, el, diam, disk});
   if(t.k==='sun') return at(skyNow.sunAz, 90-skyNow.sza, 2*skyNow.moon.sunRadDeg*DISK_SCALE, skyNow.moon.sunRadDeg);
   if(t.k==='moon') return noMoon()?null:at(skyNow.moon.az, skyNow.moon.el, 2*skyNow.moon.radDeg*DISK_SCALE, skyNow.moon.radDeg);
   if(t.k==='sn'){ const sn=supernovaPlace(lat); return sn&&at(sn.az, sn.el, 0); }

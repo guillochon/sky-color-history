@@ -179,8 +179,9 @@ function drawSkyLabels(ctx, W, H, o){
     if(s.el<=0) return;
     const p=at(s.el, s.az);
     if(!p) return;
-    // A planet drawn larger than its label's usual offset is labelled beside its disk (or rings).
-    const off=s.kind!=null?o.diskPx(s):0;
+    // A planet or moon drawn larger than its label's usual offset is labelled beside its disk (or
+    // rings). A moon's mark has no kind, only its body.
+    const off=s.radDeg>0?o.diskPx(s):0;
     pts.push({x:p[0]+off*0.7, y:p[1]-off*0.7, mag:s.mag, text, kind});
   };
   if(skyNow.sn) add(skyNow.sn, skyNow.sn.name||'Supernova', 'sn');
@@ -225,7 +226,7 @@ function drawSkyLabels(ctx, W, H, o){
 }
 // The same labels over the dome, on the page (l there too): its fisheye placed by true altitude,
 // the faintest star labelled from V 2 unzoomed to every one at 10×, the bodies' disks as the dome
-// enlarges them (bodyScale). In page pixels on a canvas over the dome, so the text stays sharp.
+// enlarges them (bodyScale; its moons are points). In page pixels on a canvas over the dome, so the text stays sharp.
 let domeLabelsDrawn=false;
 function drawDomeLabels(){
   const c=document.getElementById('domeLab'), b=dome.getBoundingClientRect(), dpr=Math.min(window.devicePixelRatio||1, 2), W=b.width, H=b.height;
@@ -242,7 +243,7 @@ function drawDomeLabels(){
   const xy=(el, az)=>{ const rr=R*(90-el)/90, a=az*Math.PI/180; return [(cx+rr*Math.sin(a))*k, (cy-rr*Math.cos(a))*k]; };
   const proj=d=>xy(Math.asin(Math.max(-1, Math.min(1, d[2])))*180/Math.PI, Math.atan2(d[0], d[1])*180/Math.PI);
   const at=(el, az)=>{ const p=xy(el, az); return p[0]>=0&&p[0]<=W&&p[1]>=0&&p[1]<=H?p:null; };
-  drawSkyLabels(ctx, W, H, {proj, at, lim:2+5*Math.log10(domeZoom.z), diskPx:s=>s.radDeg*bodyScale(dome)*(s.rings?2.3:1)*R/90*k, cloudAt:null, top:4, bottom:4});
+  drawSkyLabels(ctx, W, H, {proj, at, lim:2+5*Math.log10(domeZoom.z), diskPx:s=>s.kind!=null?s.radDeg*bodyScale(dome)*(s.rings?2.3:1)*R/90*k:0, cloudAt:null, top:4, bottom:4});
 }
 // The note in the middle of the VR view while something slow is being prepared.
 function showVRLoad(text){ const el=document.getElementById('vrload'); el.textContent=text; el.hidden=false; }
