@@ -464,11 +464,15 @@ function paintVR(){
   const sinApp=Math.max(0, Math.sin(app*Math.PI/180)), sunMu=sinApp*(skyNow.sunVis==null?1:skyNow.sunVis);
   const sunCol=new Float32Array(skyNow.sunRGB.map(v=>v/255)), ground=groundRGB(sunMu);
   gl.uniform1f(u.sunMu, sunMu);
-  // Blinding above a few thousandths of the noon Sun's brightness (a Sun a few degrees up), none
-  // below a ten-thousandth (one at the horizon through thick air, or a total eclipse's corona).
-  const sunL=Math.log10(Math.max((skyNow.sunRel||0)*(skyNow.sunVis==null?1:skyNow.sunVis), 1e-12));
+  // Blinding above a few hundredths of the Sun's brightness above the air (a Sun a few degrees
+  // up), none below a twenty-thousandth (one setting through thick air, or a total eclipse's
+  // corona). The brightness is the drawn disk's own, from the bands' light through the air at its
+  // apparent altitude, so it eases down as the disk sets.
+  const lum=c=>0.2126*c[0]+0.7152*c[1]+0.0722*c[2], sw=sb.w;
+  const yTop=lum([0, 1, 2].map(q=>sw.reduce((a, v, j)=>j%3===q?a+v:a, 0)));
+  const sunL=Math.log10(Math.max(lum(sunBandsAt(app))/Math.max(yTop, 1e-30)*skyNow.sunFlux*(skyNow.sunVis==null?1:skyNow.sunVis), 1e-12));
   const sStep=x=>{ x=Math.max(0, Math.min(1, x)); return x*x*(3-2*x); };
-  gl.uniform1f(u.sunGlare, skyNow.sunOn?sStep((sunL+3.6)/2.2)*sStep((app+rd)/(2*rd)):0);
+  gl.uniform1f(u.sunGlare, skyNow.sunOn?sStep((sunL+4.3)/2.9)*sStep((app+rd)/(2*rd)):0);
   gl.uniform3fv(u.sunCol, sunCol);
   gl.uniform3fv(u.ground, ground);
   gl.uniform1f(u.showScn, vrScenery?1:0);
