@@ -345,6 +345,7 @@ h2.part{{font-size:1.9rem;font-weight:300;margin:2.6rem 0 .4rem;border-top:1px s
 <p>Schönrich R., Binney J., Dehnen W. (2010). Local kinematics and the local standard of rest. <i>Monthly Notices of the Royal Astronomical Society</i> 403, 1829.</p>
 <p>Lawler S.M., Boley A.C., Rein H. (2022). Visibility predictions for near-future satellite megaconstellations. <i>Astronomical Journal</i> 163, 21.</p>
 <p>Boley A.C., Lawler S.M., Rein H. (2026). Rings in the sky: orbital data centres and potential impacts to astronomy and the sky. arXiv:2608.02757.</p>
+<p>Dziewanowski E. (n.d.). Flowfields. <a href="https://emildziewanowski.com/flowfields/">emildziewanowski.com/flowfields</a>, accessed 11 October 2026.</p>
 {SKY_REFS}
 </div>
 </main></body></html>'''

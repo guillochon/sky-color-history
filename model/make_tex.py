@@ -294,6 +294,7 @@ bib = r"""@article{arney2016, author={Arney, Giada and Domagal-Goldman, Shawn D.
 @article{neuhauser2019, author={Neuh{\"a}user, Ralph and Gie{\ss}ler, Frank and Hambaryan, Valeri V.}, title={A nearby recent supernova that ejected the runaway star $\zeta$ {Oph}, the pulsar {PSR B1706-16}, and $^{60}${Fe} found on {Earth}}, journal={Monthly Notices of the Royal Astronomical Society}, year={2019}, doi={10.1093/mnras/stz2629}}
 """ + '\n'.join(r[2] for r in rs.REFS) + r"""
 @article{wyman2013, author={Wyman, Chris and Sloan, Peter-Pike and Shirley, Peter}, title={Simple analytic approximations to the {CIE} {XYZ} color matching functions}, journal={Journal of Computer Graphics Techniques}, volume={2}, pages={1--11}, year={2013}}
+@misc{dziewanowski_flowfields, author={Dziewanowski, Emil}, title={Flowfields}, howpublished={\url{https://emildziewanowski.com/flowfields/}}, year={n.d.}, note={Accessed 11 October 2026}}
 """
 open(f'{L}/refs.bib', 'w', encoding='utf-8').write(bib)
 print('ok')
