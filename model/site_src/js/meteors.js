@@ -309,23 +309,26 @@ function impactAt(m, t){
   const tTr=Math.pow(1.03*Math.pow(E/1.2, 0.2)/1000, 1/0.6), rs=age<tTr?1.03*Math.pow(E/1.2, 0.2)*Math.pow(age, 0.4):1000*tTr+340*(age-tTr);
   return {age, E, Y, life, base:P.map(v=>v*1000), up, tau, Rf, L, temp:2000+4500*Math.exp(-x/0.6), rs};
 }
-// The ground strikes about sky time t: the 10 before it and the 10 after, looked for up to 30 years
+// The ground strikes near enough to see about sky time t: the 10 before it and the 10 after, looked for up to 30 years
 // either way in the fourth stream. Kept until the epoch or place changes or t leaves the span
 // they cover; made again in idle time after a change (metTick), so a jump needs no search.
-const MET_IMP={id:'', lo:0, hi:0, prev:[], next:[]};
+// Only strikes within MET_NEAR km count, near enough that the cloud rises well above the horizon
+// (an 18 km cap stands 4–7° up from 200 km) and the fireball lights the sky over it.
+const MET_IMP={id:'', lo:0, hi:0, prev:[], next:[]}, MET_NEAR=200;
+const metNear=q=>{ const e=metPoint(q, 1); return Math.hypot(e[0], e[1])<=MET_NEAR; };
 function metImpacts(t){
   const id=EP[dIdx].key+'|'+dLat;
   if(MET_IMP.id===id&&t>=MET_IMP.lo&&t<=MET_IMP.hi) return MET_IMP;
   const span=30*TROPICAL_YEAR, b0=Math.floor(t/86400), prev=[], next=[];
-  for(let b=b0;b<=b0+span&&next.length<10;b++){ const got=metBin(3, b, false).met.filter(q=>q.ground&&q.t0>t).sort((x, y)=>x.t0-y.t0); for(const q of got) if(next.length<10) next.push(q); }
-  for(let b=b0;b>=b0-span&&prev.length<10;b--){ const got=metBin(3, b, false).met.filter(q=>q.ground&&q.t0<=t).sort((x, y)=>y.t0-x.t0); for(const q of got) if(prev.length<10) prev.push(q); }
+  for(let b=b0;b<=b0+span&&next.length<10;b++){ const got=metBin(3, b, false).met.filter(q=>q.ground&&q.t0>t&&metNear(q)).sort((x, y)=>x.t0-y.t0); for(const q of got) if(next.length<10) next.push(q); }
+  for(let b=b0;b>=b0-span&&prev.length<10;b--){ const got=metBin(3, b, false).met.filter(q=>q.ground&&q.t0<=t&&metNear(q)).sort((x, y)=>y.t0-x.t0); for(const q of got) if(prev.length<10) prev.push(q); }
   // Good while t stays between the last impact listed on each side (or the span searched).
   Object.assign(MET_IMP, {id, prev, next, lo:prev.length===10?prev[9].t0:t-span*86400, hi:next.length===10?next[9].t0:t+span*86400});
   return MET_IMP;
 }
 // Jump to the next ground strike (or with back, the one before), whether or not its end is seen:
 // 4 s before it, facing where it comes down, playing in real time so it is seen to fall. Most epochs
-// have none: today, by the distribution here, one strikes within 1,100 km about once in 1,600 years.
+// have none: today, by the distribution here, one strikes within 200 km about once in 50,000 years.
 function jumpNextImpact(back){
   // The first after now (past the one this jump left the view 4 s short of), or the last before
   // it, from the strikes listed; listed afresh about now when the list runs out that way.
@@ -338,8 +341,8 @@ function jumpNextImpact(back){
     // Only stony and asteroidal meteoroids reach the ground (metPath): not the apex and toroidal ones.
     const E=metEpoch(key), mixAll=Object.values(E.mix).reduce((a, b)=>a+b, 0);
     const stony=Object.entries(E.mix).reduce((a, [src, w])=>a+(src==='apex'||src==='toroidal'?0:w), 0)/mixAll;
-    const perYear=MET_Q1*E.F*metCum(E, MET_GROUND)*8766*stony;
-    vrNote=`no impact in the ${back?'last':'next'} 30 years: about one every ${Number((1/perYear).toPrecision(2)).toLocaleString('en-US')} years falls within 1,100 km in this era`;
+    const perYear=MET_Q1*E.F*metCum(E, MET_GROUND)*8766*stony*(MET_NEAR/MET_D)**2;
+    vrNote=`no impact within ${MET_NEAR} km in the ${back?'last':'next'} 30 years: about one every ${Number((1/perYear).toPrecision(2)).toLocaleString('en-US')} years falls that near in this era`;
     if(vrOn) paintVR();
     return;
   }
