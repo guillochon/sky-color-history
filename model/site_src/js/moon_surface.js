@@ -50,6 +50,7 @@ function moonMap(key){
   const name=moonMapName(key); let m=moonMaps.get(name);
   if(!m){
     m={name, img:null, px:null}; moonMaps.set(name, m);
+    if(name==='molten') loadMoonRelief('molten_relief');
     fetch(MOON_MAPS[name]).then(r=>r.blob()).then(b=>createImageBitmap(b, {colorSpaceConversion:'none', premultiplyAlpha:'none'})).then(bm=>{
       const c=document.createElement('canvas'); c.width=1024; c.height=512;
       const ctx=c.getContext('2d', {willReadFrequently:true}); ctx.drawImage(bm, 0, 0, 1024, 512);
@@ -60,35 +61,40 @@ function moonMap(key){
   if(m.img) moonShown=m;
   return moonShown;
 }
-// The Moon's heights (moon_maps.py relief): the LRO laser altimeter's, over a sphere of 1737.4 km,
-// 5760 x 2880 like the globes, one byte from MOON_RELIEF[0] to [1] km. Fetched once the page is
-// up (boot.js); until then, and for the molten Moon, the limb keeps a made-up profile and the
-// globe no relief. They light the globe's slopes and cast its shadows (the sky shader, from the
-// texture's alpha, moonTexPixels) and shape its limb (moonLimbSync).
-const MOON_RELIEF=[-9.2, 10.9];
-let moonRelief=null, moonReliefAsked=false;
-function loadMoonRelief(){
-  if(moonReliefAsked||!MOON_MAPS.relief) return; moonReliefAsked=true;
-  fetch(MOON_MAPS.relief).then(r=>r.blob()).then(b=>createImageBitmap(b, {colorSpaceConversion:'none', premultiplyAlpha:'none'})).then(bm=>{
+// The Moon's heights (moon_maps.py), on the globes' grid, one byte from MOON_RELIEF[name][0] to [1]
+// km: today's (relief), the LRO laser altimeter's over a sphere of 1737.4 km, 5760 x 2880, fetched
+// once the page is up (boot.js) and used for every epoch but the first; and the newborn Moon's
+// (molten_relief, molten_moon.js), its crust's rafts riding over the melt's level, fetched with its
+// globe. They light the globe's slopes and cast its shadows (the sky shader, from the texture's
+// alpha, moonTexPixels) and shape its limb (moonLimbSync); until they are in, the limb keeps a
+// made-up profile and the globe no relief.
+const MOON_RELIEF={relief:[-9.2, 10.9], molten_relief:[-0.1, 1.5]};
+const moonReliefs={};
+function moonReliefName(key){ return MOON_MOLTEN[key]?'molten_relief':'relief'; }
+function loadMoonRelief(name='relief'){
+  if(name in moonReliefs||!MOON_MAPS[name]) return; moonReliefs[name]=null;
+  fetch(MOON_MAPS[name]).then(r=>r.blob()).then(b=>createImageBitmap(b, {colorSpaceConversion:'none', premultiplyAlpha:'none'})).then(bm=>{
     const c=document.createElement('canvas'); c.width=bm.width; c.height=bm.height;
     const ctx=c.getContext('2d', {willReadFrequently:true}); ctx.drawImage(bm, 0, 0);
     const d=ctx.getImageData(0, 0, bm.width, bm.height).data, h=new Uint8Array(bm.width*bm.height);
     for(let i=0;i<h.length;i++) h[i]=d[i*4];
-    moonRelief={h, w:bm.width, ht:bm.height}; moonLimbKey=''; uploadMoon(); requestRender();
+    moonReliefs[name]={h, w:bm.width, ht:bm.height, range:MOON_RELIEF[name]}; moonLimbKey=''; uploadMoon(); requestRender();
   }).catch(()=>{});
 }
-function moonReliefOn(){ return !!moonRelief&&!MOON_MOLTEN[EP[dIdx].key]; }
+// The heights for the epoch's globe, once in.
+function moonReliefNow(){ return moonReliefs[moonReliefName(EP[dIdx].key)]||null; }
+function moonReliefOn(){ return !!moonReliefNow(); }
 // A globe's pixels for the walk-around view's texture, the heights in alpha (level where there
 // are none).
 function moonTexPixels(m){
   const W=m.img.width, H=m.img.height, c=document.createElement('canvas'); c.width=W; c.height=H;
   const ctx=c.getContext('2d', {willReadFrequently:true}); ctx.drawImage(m.img, 0, 0);
-  const px=ctx.getImageData(0, 0, W, H).data, R=moonRelief;
-  if(R&&m.name!=='molten') for(let j=0;j<H;j++){
+  const name=m.name==='molten'?'molten_relief':'relief', px=ctx.getImageData(0, 0, W, H).data, R=moonReliefs[name];
+  if(R) for(let j=0;j<H;j++){
     const rj=Math.floor((j+0.5)*R.ht/H)*R.w;
     for(let i=0;i<W;i++) px[(j*W+i)*4+3]=R.h[rj+Math.floor((i+0.5)*R.w/W)];
   }
-  else { const flat=Math.round(-MOON_RELIEF[0]/(MOON_RELIEF[1]-MOON_RELIEF[0])*255); for(let i=3;i<px.length;i+=4) px[i]=flat; }
+  else { const r=MOON_RELIEF[name], flat=Math.round(-r[0]/(r[1]-r[0])*255); for(let i=3;i<px.length;i+=4) px[i]=flat; }
   return new Uint8Array(px.buffer);
 }
 // The limb: at each of LIMB_N position angles (from north through east, as moon.js limbH), how far
@@ -102,15 +108,15 @@ let moonLimbKey='', moonLimbGen=0;
 for(let i=0;i<LIMB_N;i++) moonLimbProf[i]=limbFake(i/LIMB_N*2*Math.PI)*LIMB_X/3;
 function moonLimbSync(mo){
   if(!mo||!mo.ax) return;
-  const relief=moonReliefOn(), b=moonBasis(mo), ax=mo.ax, body=v=>[vdot(v, ax.E), vdot(v, ax.P), vdot(v, ax.M)];
+  const R=moonReliefNow(), b=moonBasis(mo), ax=mo.ax, body=v=>[vdot(v, ax.E), vdot(v, ax.P), vdot(v, ax.M)];
   const eB=body(b.east), nB=body(b.north), mB=body(b.md);
-  const key=relief?nB.concat(mB).map(x=>Math.round(x*1000)).join(','):MOON_MOLTEN[EP[dIdx].key]?'molten':'made-up';
+  const key=R?moonReliefName(EP[dIdx].key)+nB.concat(mB).map(x=>Math.round(x*1000)).join(','):MOON_MOLTEN[EP[dIdx].key]?'molten':'made-up';
   if(key===moonLimbKey) return;
   moonLimbKey=key; moonLimbGen++;
   // The made-up profile (drawn at three times real relief, so scaled to LIMB_X), and a third of
   // that for the molten Moon's low rafts.
-  if(!relief){ const s=(MOON_MOLTEN[EP[dIdx].key]?0.3:1)*LIMB_X/3; for(let i=0;i<LIMB_N;i++) moonLimbProf[i]=s*limbFake(i/LIMB_N*2*Math.PI); return; }
-  const R=moonRelief, lo=MOON_RELIEF[0]/MOON_R_KM, k=(MOON_RELIEF[1]-MOON_RELIEF[0])/255/MOON_R_KM;
+  if(!R){ const s=(MOON_MOLTEN[EP[dIdx].key]?0.3:1)*LIMB_X/3; for(let i=0;i<LIMB_N;i++) moonLimbProf[i]=s*limbFake(i/LIMB_N*2*Math.PI); return; }
+  const lo=R.range[0]/MOON_R_KM, k=(R.range[1]-R.range[0])/255/MOON_R_KM;
   const NF=193, fc=new Float64Array(NF), fs=new Float64Array(NF);
   for(let j=0;j<NF;j++){ const f=(j-(NF-1)/2)/16*Math.PI/180; fc[j]=Math.cos(f); fs[j]=Math.sin(f); }
   for(let i=0;i<LIMB_N;i++){

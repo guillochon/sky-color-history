@@ -17,6 +17,8 @@ Faces (MOON_MAPS keys), 4096 x 2048, longitude -180 at the left edge, north at t
   ma3800    3.8 Ga: also the maria part-flooded (moon_surface.js MARIA: onsets, and 150 Myr to go
   ma4000    4.0 Ga   dark), the flooded basins brought to the highlands' brightness and colour
   molten    the newborn Moon's magma ocean, 2048 x 1024 (molten_moon.js, run here with node)
+  molten_relief  its heights over the melt's level (molten_moon.js), one byte from MOLTEN_RELIEF_LO
+            to MOLTEN_RELIEF_HI km (6 m a step), dithered, lossless
   relief    the heights, for the shading, the shadows and the limb (moon_surface.js MOON_RELIEF):
             NASA SVS CGI Moon Kit ldem_16.tif, the LRO laser altimeter's (LOLA) heights over a
             sphere of 1737.4 km, 16 pixels a degree (1.9 km), 5760 x 2880, in one byte from
@@ -43,6 +45,7 @@ PHOTO_R = 0.98                     # the photograph's disk: its radius over half
 PX_DEG = np.degrees(1/(512*PHOTO_R))   # one photograph pixel at its centre, in degrees
 MARE_RAMP = 150
 RELIEF_LO, RELIEF_HI = -9.2, 10.9     # km, as moon_surface.js MOON_RELIEF
+MOLTEN_RELIEF_LO, MOLTEN_RELIEF_HI = -0.1, 1.5   # km, as moon_surface.js MOON_RELIEF
 
 
 def maria():
@@ -171,13 +174,16 @@ def save(name, rgb):
     print(f'{name}: {(OUT / f"{name}.webp").stat().st_size/1e6:.2f} MB')
 
 
-def relief():
-    h = np.asarray(Image.open(DEM), np.float32)
+def heights(name, h, lo, hi):
     rng = np.random.default_rng(1)
-    q = np.clip(np.round((h-RELIEF_LO)/(RELIEF_HI-RELIEF_LO)*255+rng.uniform(-0.5, 0.5, h.shape)), 0, 255).astype(np.uint8)
+    q = np.clip(np.round((h-lo)/(hi-lo)*255+rng.uniform(-0.5, 0.5, h.shape)), 0, 255).astype(np.uint8)
     OUT.mkdir(exist_ok=True)
-    Image.fromarray(q).save(OUT / 'relief.webp', lossless=True, method=6)
-    print(f'relief: {(OUT / "relief.webp").stat().st_size/1e6:.2f} MB, {h.min():.2f} to {h.max():.2f} km')
+    Image.fromarray(q).save(OUT / f'{name}.webp', lossless=True, method=6)
+    print(f'{name}: {(OUT / f"{name}.webp").stat().st_size/1e6:.2f} MB, {h.min():.2f} to {h.max():.2f} km')
+
+
+def relief():
+    heights('relief', np.asarray(Image.open(DEM), np.float32), RELIEF_LO, RELIEF_HI)
 
 
 def main():
@@ -186,9 +192,10 @@ def main():
         relief()
     if want('molten'):
         with tempfile.TemporaryDirectory() as td:
-            raw = Path(td) / 'molten.rgb'
-            subprocess.run(['node', str(HERE / 'molten_moon.js'), '2048', '1024', str(raw)], check=True)
+            raw, rawH = Path(td) / 'molten.rgb', Path(td) / 'molten.f32'
+            subprocess.run(['node', str(HERE / 'molten_moon.js'), '2048', '1024', str(raw), str(rawH)], check=True)
             save('molten', np.frombuffer(raw.read_bytes(), np.uint8).reshape(1024, 2048, 3).astype(np.float32)/255)
+            heights('molten_relief', np.frombuffer(rawH.read_bytes(), np.float32).reshape(1024, 2048), MOLTEN_RELIEF_LO, MOLTEN_RELIEF_HI)
     if not any(want(n) for n in ('now', 'notycho', 'ma3800', 'ma4000')):
         return
     m = np.asarray(Image.open(SRC).convert('RGB'), np.float32)/255

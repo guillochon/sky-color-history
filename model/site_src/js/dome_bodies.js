@@ -291,7 +291,7 @@ function drawMoonOnDome(moon, sunAz, sunEl, lu){
 function syncMoonTex(){
   if(!vrGL||!moonReady) return false;
   // The heights ride in its alpha (moon_surface.js moonTexPixels), so it is sent again when they come.
-  const m=moonMap(EP[dIdx].key), id=m&&m.name+(moonRelief?'+relief':''); if(!m||vrGL.moonSrc===id) return false;
+  const m=moonMap(EP[dIdx].key), id=m&&m.name+(moonReliefs[m.name==='molten'?'molten_relief':'relief']?'+relief':''); if(!m||vrGL.moonSrc===id) return false;
   const gl=vrGL.gl; gl.bindTexture(gl.TEXTURE_2D, vrGL.moonTex);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, m.img.width, m.img.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, moonTexPixels(m));
   gl.generateMipmap(gl.TEXTURE_2D);

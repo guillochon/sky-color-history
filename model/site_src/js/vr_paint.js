@@ -435,6 +435,7 @@ function paintVR(){
   const mAx=skyNow.moon.ax||{E:[1,0,0], P:[0,0,1], M:[0,1,0]};
   gl.uniform3fv(u.moonE, mAx.E); gl.uniform3fv(u.moonP, mAx.P); gl.uniform3fv(u.moonM, mAx.M);
   gl.uniform1f(u.moonRelief, moonReliefOn()&&String(vrGL.moonSrc).endsWith('+relief')?1:0);
+  const mHR=MOON_RELIEF[moonReliefName(EP[dIdx].key)]; gl.uniform2f(u.moonHR, mHR[0], mHR[1]-mHR[0]);
   // The limb's profile (moon_surface.js moonLimbSync) rides in the noise texture's rows 1-8, in
   // green and blue (16 bits, ±LIMB_RANGE), the red keeping the noise.
   moonLimbSync(skyNow.moon);

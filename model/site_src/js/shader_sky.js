@@ -55,7 +55,7 @@ uniform float yaw,pitch,fov,sunAz,sunEl,sunRad,sunOn,nr,na,sunMu,showScn,mtnSnow
 // For a deep zoom (fineEU): the view's azimuth less the Sun's (x, radians) and its altitude less
 // the Sun's true altitude (y, degrees), and the same for the Moon (z, w), in double precision.
 uniform vec4 fineRel;
-uniform vec3 moonE,moonP,moonM; uniform float moonRelief;
+uniform vec3 moonE,moonP,moonM; uniform float moonRelief; uniform vec2 moonHR;
 uniform float moonAz,moonEl,moonRad,moonOn,moonGlow,latRad,starPx,cloudCov,cloudScale,cloudDrift,cloudOn,clockH,snowCover,waterT,snOn;
 uniform vec3 snDir,snCol,snLight,mlDir,mlLight;
 // The brightest fireball now: where its head is, the light it casts as moonlight (as mlLight), and
@@ -141,9 +141,10 @@ uniform vec4 shadowM[${SHADOW_MAX}], shadowK[${SHADOW_MAX}]; uniform float shado
 float limbAt(float i){ int k=int(mod(i, ${LIMB_N}.0)); vec4 t=texelFetch(noiseTex, ivec2(k%128, 1+k/128), 0); return ((t.g*65280.0+t.b*255.0)/65535.0-0.5)*${(2*LIMB_RANGE).toFixed(3)}; }
 float limbH(float pa){ float x=fract(pa*0.1591549431)*${LIMB_N}.0, i=floor(x); return mix(limbAt(i), limbAt(i+1.0), x-i); }
 // The Moon's globe (moon_surface.js moonMap) at a body-frame direction (x east, y north, z the
-// near side's middle), and its heights in km, in the globe's alpha (moon_surface.js MOON_RELIEF).
+// near side's middle), and its heights in km, in the globe's alpha (moon_surface.js MOON_RELIEF:
+// moonHR the lowest and the span).
 vec2 moonUV(vec3 b){ return vec2(atan(b.x, b.z)*0.1591549431+0.5, 0.5-asin(clamp(b.y, -1.0, 1.0))*0.3183098862); }
-float moonH(vec2 uv, float lod){ return textureLod(moonMap, uv, lod).a*${(MOON_RELIEF[1]-MOON_RELIEF[0]).toFixed(2)}+(${MOON_RELIEF[0].toFixed(2)}); }
+float moonH(vec2 uv, float lod){ return textureLod(moonMap, uv, lod).a*moonHR.y+moonHR.x; }
 // The relief's light at body-frame point b, the Sun toward sB and the viewer toward vB: x, the
 // sunlit share (the slope's own terminator, and the Sun's disk, 0.27° across, behind rims and
 // peaks out to some 260 km toward it, the ray rising off the curved ground); y, the ground's light
@@ -162,16 +163,16 @@ vec2 reliefLight(vec3 b, vec3 sB, vec3 vB, float px){
   float dE=(moonH(uv+vec2(st/ts.x, 0.0), lod)-moonH(uv-vec2(st/ts.x, 0.0), lod))/(2.0*aE*cl*R);
   float dN=(moonH(uv-vec2(0.0, st/ts.y), lod)-moonH(uv+vec2(0.0, st/ts.y), lod))/(2.0*aN*R);
   vec3 n=normalize(b-dE*tE-dN*tN);
-  // With the Sun more than 8.6° below the sphere's horizon no ground sees it: the highest stands
-  // 20 km over the lowest, and sqrt(2·20/1737) is 0.15.
-  float mu=dot(n, vB), mus=dot(b, vB), m0=dot(n, sB), m0s=dot(b, sB), sh=m0s>-0.15?1.0:0.0;
+  // With the Sun lower below the sphere's horizon than the highest ground can see past, no ground
+  // sees it: sqrt(2·span/R), 0.15 (8.6°) for today's Moon, whose highest stands 20 km over its lowest.
+  float cut=sqrt(2.0*moonHR.y/R), mu=dot(n, vB), mus=dot(b, vB), m0=dot(n, sB), m0s=dot(b, sB), sh=m0s>-cut?1.0:0.0;
   // Ground the viewer cannot see, a slope turned away or ground behind a rim or peak toward the
   // viewer near the limb, takes the smooth sphere's light: what is seen there is the ground in
   // front, which this does not find. So the shadows behind rims at the full Moon's limb, hidden by
   // the rims that cast them, are not drawn, and the walls facing the Sun at the limb near new Moon
   // and in a solar eclipse, which face the far side, do not shine.
   float hid=smoothstep(0.08, 0.0, mu);
-  bool toS=m0s>-0.15&&m0s<0.4, toV=mus<0.35;
+  bool toS=m0s>-cut&&m0s<0.4, toV=mus<0.35;
   if(toS||toV){
     // Out toward the Sun and toward the viewer at once, the ray from each rising off the curved
     // ground: the highest the ground stands over it, as an angle.

@@ -9,9 +9,16 @@
 // excess is the share that glows (moonGlow). Everything is made on the sphere, in the selenographic
 // frame of moon_surface.js mareVec (x east, y north, z toward the Earth).
 //
-// Usage: node molten_moon.js <W> <H> <out.rgb>
+// Its heights (km over the melt's level) go to the file named after that, as 32-bit floats: the
+// lava, cracks and lakes at the melt's level (the lakes a little below, drawn down where they
+// cooled), the crust's rafts riding above it by their freeboard, a few hundred metres to 1.4 km by
+// their thickness (anorthosite floating on the melt stands out by about a tenth of its thickness),
+// each generation of plates a little lower than the raft it broke from, and sloping down into
+// every open crack over a few of its widths.
+//
+// Usage: node molten_moon.js <W> <H> <out.rgb> <out.f32>
 const fs = require('fs');
-const [W, H] = [+process.argv[2], +process.argv[3]], out = process.argv[4];
+const [W, H] = [+process.argv[2], +process.argv[3]], out = process.argv[4], outH = process.argv[5];
 const hash=(i, j, k, s)=>{
   let h=Math.imul(i, 374761393)^Math.imul(j, 668265263)^Math.imul(k, 1274126177)^Math.imul(s+1, 461845907);
   h=Math.imul(h^h>>>13, 1274126177); return ((h^h>>>16)>>>0)/4294967296;
@@ -39,7 +46,7 @@ const sm=(a, b, x)=>{ const t=Math.max(0, Math.min(1, (x-a)/(b-a))); return t*t*
 const RAMP=[[0.40, 0.05, 0.02], [0.85, 0.20, 0.03], [1.00, 0.45, 0.07], [1.00, 0.80, 0.38]];
 // The narrowest crack, in the noise's units: about half a pixel of a 512-pixel disk.
 const PX=1/256;
-const px=Buffer.alloc(W*H*3);
+const px=Buffer.alloc(W*H*3), ht=new Float32Array(W*H);
 for(let j=0;j<H;j++){
   const lat=Math.PI/2-(j+0.5)/H*Math.PI, cl=Math.cos(lat), Y=Math.sin(lat);
   for(let i=0;i<W;i++){
@@ -53,7 +60,7 @@ for(let j=0;j<H;j++){
     // the great rafts are themselves broken into plates, and those into chips. A finer crack is
     // narrower and dimmer, and is open only where the crust there is thin.
     const L=[], SC=[6, 12, 23, 42], AMP=[1, 0.8, 0.65, 0.5];
-    let heat=0, warm=0;
+    let heat=0, warm=0, edge=1;
     for(let l=0;l<4;l++){
       const s=SC[l], v=vor(s*wx, s*wy, s*wz, 10+10*l), e=v[1]-v[0];
       L.push(v);
@@ -61,12 +68,24 @@ for(let j=0;j<H;j++){
       const open=l===0?1:sm(0.4, 0.55, fbm(1.5*s/6*X, 1.5*s/6*Y, 1.5*s/6*Z, 50+l));
       heat=Math.max(heat, AMP[l]*(1-sm(0, w, e))*open);
       warm+=0.14*Math.pow(0.5, l)*Math.exp(-e/(2.5*w))*open;
+      edge*=1-(1-sm(0.5*w, 3*w, e))*open;
     }
+    // The crust's freeboard: the great raft's by its thickness, less for each plate broken from it.
+    const fb=(0.35+1.05*L[0][2])*(0.85+0.15*L[1][2])*(0.9+0.2*n);
     // Some stretches of crack have skinned over and only glow a dull red; others run fresh.
     heat*=0.4+0.6*sm(0.3, 0.65, fbm(9*X, 9*Y, 9*Z, 70));
     // Some second-generation plates have sunk into open lakes, the finest chips still on them.
     const lake=L[1], eL=lake[1]-lake[0], eC=L[3][1]-L[3][0];
-    if(lake[2]<0.17) heat=Math.max(heat, (0.55+0.45*n)*sm(0.06, 0.2, eL)*(1-sm(0.1, 0.2, eC)*sm(0.4, 0.55, n)));
+    let h=fb*edge;
+    if(lake[2]<0.17){
+      const lk=sm(0.06, 0.2, eL), floe=sm(0.1, 0.2, eC)*sm(0.4, 0.55, n);
+      heat=Math.max(heat, (0.55+0.45*n)*lk*(1-floe));
+      // A sunk plate's lake, a little below the melt's level where it has cooled, its last chips
+      // floating low.
+      h=h*(1-lk)+lk*(floe*0.25*fb-0.08*(1-floe));
+    }
+    // Where it glows the melt shows, at its own level.
+    ht[j*W+i]=h*(1-sm(0.25, 0.6, heat));
     // Crust: dark basalt with paler anorthosite, warming to a dull red along the cracks.
     const g=0.09+0.07*n+0.12*sm(0.55, 0.75, fbm(2.6*X, 2.6*Y, 2.6*Z, 60));
     const crust=[g+warm, g*0.92+warm*0.25, g*0.85+warm*0.1];
@@ -78,3 +97,4 @@ for(let j=0;j<H;j++){
   }
 }
 fs.writeFileSync(out, px);
+if(outH) fs.writeFileSync(outH, Buffer.from(ht.buffer));
