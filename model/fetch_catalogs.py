@@ -5,6 +5,7 @@ xhip.tsv       XHIP astrometry for build_star_epochs.py (VizieR V/137D)
 xhip_err.tsv   XHIP with errors and spectral types for stellar_encounters.py (VizieR V/137D)
 stelcon/index.json   Stellarium's modern sky culture, for the constellation figures
 RSS_2005_123_X43_E_TAU_10KM.TAB   Cassini's radio occultation of Saturn's rings, for ring_profile.py
+RSS_2005_123_K34_E_TAU_10KM.TAB   the same at Ka band, for the A ring's correction to visible light
 
 Files already present are skipped; pass --force to fetch them again.
 """
@@ -20,6 +21,7 @@ SOURCES = {
     'xhip_err.tsv': VIZIER + '_RAJ2000,_DEJ2000,HIP,HD,Vmag,Plx,e_Plx,pmRA,e_pmRA,pmDE,e_pmDE,RV,e_RV,SpType',
     'stelcon/index.json': 'https://raw.githubusercontent.com/Stellarium/stellarium/master/skycultures/modern/index.json',
     'RSS_2005_123_X43_E_TAU_10KM.TAB': 'https://pds-rings.seti.org/holdings/volumes/CORSS_8xxx/CORSS_8001/data/Rev007/Rev007E/Rev007E_RSS_2005_123_X43_E/RSS_2005_123_X43_E_TAU_10KM.TAB',
+    'RSS_2005_123_K34_E_TAU_10KM.TAB': 'https://pds-rings.seti.org/holdings/volumes/CORSS_8xxx/CORSS_8001/data/Rev007/Rev007E/Rev007E_RSS_2005_123_K34_E/RSS_2005_123_K34_E_TAU_10KM.TAB',
 }
 
 
