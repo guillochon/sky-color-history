@@ -229,6 +229,7 @@ section.sky{margin-top:2.2rem}
 /* The dome with its aurora, drawn over the dome when there is one. */
 #domeAur{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;display:none}
 #domeMet{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;mix-blend-mode:screen}
+#domeLab{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
 .sec-h{margin:0 0 .2rem}
 .day-controls .cb-row:first-child{margin-top:.6rem}
 /* In the narrower column beside the dome, label every other hour (and the current one). */

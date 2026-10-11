@@ -154,7 +154,6 @@ function drawVRLabels(){
   vrLabelsDrawn=!!on;
   if(!on) return;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const lim=3+8*Math.log10(60/vrFov), key=EP[dIdx].key, pts=[];
   // The view's projection, as projectBody, for a direction at true altitude; null behind.
   const fy=Math.tan(vrFov*Math.PI/360), fx=fy*W/Math.max(H, 1), yaw=vrYaw*Math.PI/180, pitch=vrPitch*Math.PI/180;
   const cp=Math.cos(pitch), sp=Math.sin(pitch), cy=Math.cos(yaw), sy=Math.sin(yaw);
@@ -165,19 +164,28 @@ function drawVRLabels(){
     const x=(v[0]*cy-v[1]*sy)/depth/fx, y=(-v[0]*sy*sp-v[1]*cy*sp+v[2]*cp)/depth/fy;
     return Math.abs(x)<3&&Math.abs(y)<3?[W/2+x*W/2, H/2-y*H/2]:null;
   };
-  for(const n of drawConstellations(ctx, proj)) if(n.x>0&&n.x<W&&n.y>0&&n.y<H) pts.push({x:n.x, y:n.y, mag:1, text:n.text, kind:'con'});
-  const cloudAt=vrGL&&vrGL.cloudAt;
+  const at=(el, az)=>{ const p=projectBody(el, az, 0); return p.inView?[W/2+p.nx*W/2, H/2-p.ny*H/2]:null; };
+  drawSkyLabels(ctx, W, H, {proj, at, lim:3+8*Math.log10(60/vrFov), diskPx:s=>s.radDeg*DISK_SCALE*(s.rings?2.3:1)/(vrFov/H), cloudAt:vrGL&&vrGL.cloudAt, top:40, bottom:72});
+}
+// The labels, for the walk-around view or the dome (drawDomeLabels), onto ctx W by H page pixels:
+// proj places a direction at true altitude for the constellations' lines (null behind), at a true
+// altitude and azimuth for a label (null out of view), diskPx is how many pixels a body's disk (or
+// rings) takes, lim the faintest star labelled, cloudAt what the cloud in front hides (or null),
+// and top and bottom the heights kept clear for the controls.
+function drawSkyLabels(ctx, W, H, o){
+  const {at, lim, cloudAt}=o, key=EP[dIdx].key, pts=[];
+  for(const n of drawConstellations(ctx, o.proj)) if(n.x>0&&n.x<W&&n.y>0&&n.y<H) pts.push({x:n.x, y:n.y, mag:1, text:n.text, kind:'con'});
   const add=(s, text, kind)=>{
     if(s.el<=0) return;
-    const p=projectBody(s.el, s.az, 0);
-    if(!p.inView) return;
+    const p=at(s.el, s.az);
+    if(!p) return;
     // A planet drawn larger than its label's usual offset is labelled beside its disk (or rings).
-    const x=W/2+p.nx*W/2, y=H/2-p.ny*H/2, off=s.kind!=null?s.radDeg*DISK_SCALE*(s.rings?2.3:1)/(vrFov/H):0;
-    pts.push({x:x+off*0.7, y:y-off*0.7, mag:s.mag, text, kind});
+    const off=s.kind!=null?o.diskPx(s):0;
+    pts.push({x:p[0]+off*0.7, y:p[1]-off*0.7, mag:s.mag, text, kind});
   };
   if(skyNow.sn) add(skyNow.sn, skyNow.sn.name||'Supernova', 'sn');
   // Active meteor showers' radiants (showers.js), marked with a small cross.
-  for(const r of radiantMarks()){ const p=projectBody(r.el, r.az, 0); if(p.inView) pts.push({x:W/2+p.nx*W/2, y:H/2-p.ny*H/2, mag:-3, text:r.text, kind:'rad'}); }
+  for(const r of radiantMarks()){ const p=at(r.el, r.az); if(p) pts.push({x:p[0], y:p[1], mag:-3, text:r.text, kind:'rad'}); }
   // Nebulae and galaxies (dso.js), where the brightest of their light stands out from the sky; a
   // galaxy's label gives its distance in the epoch shown.
   for(const p of skyNow.dso||[]){
@@ -206,7 +214,7 @@ function drawVRLabels(){
     const [font, col]=STYLE[p.kind];
     ctx.font=font+' system-ui, sans-serif';
     const tw=ctx.measureText(p.text).width, x=p.kind==='con'?p.x-tw/2:p.x+7, y=p.kind==='con'?p.y:p.y-7, box=[x-2, y-8, x+tw+2, y+8];
-    if(x+tw>W-4||y<40||y>H-72) continue;
+    if(x+tw>W-4||y<o.top||y>H-o.bottom) continue;
     if(placed.some(b=>box[0]<b[2]&&box[2]>b[0]&&box[1]<b[3]&&box[3]>b[1])) continue;
     placed.push(box, [p.x-4, p.y-4, p.x+4, p.y+4]);
     ctx.strokeStyle='rgba(0,0,0,.75)'; ctx.lineWidth=3; ctx.strokeText(p.text, x, y);
@@ -214,6 +222,27 @@ function drawVRLabels(){
     if(p.kind==='rad'){ ctx.strokeStyle=col; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(p.x-5, p.y); ctx.lineTo(p.x+5, p.y); ctx.moveTo(p.x, p.y-5); ctx.lineTo(p.x, p.y+5); ctx.stroke(); }
     if(placed.length>400) break;
   }
+}
+// The same labels over the dome, on the page (l there too): its fisheye placed by true altitude,
+// the faintest star labelled from V 2 unzoomed to every one at 10×, the bodies' disks as the dome
+// enlarges them (bodyScale). In page pixels on a canvas over the dome, so the text stays sharp.
+let domeLabelsDrawn=false;
+function drawDomeLabels(){
+  const c=document.getElementById('domeLab'), b=dome.getBoundingClientRect(), dpr=Math.min(window.devicePixelRatio||1, 2), W=b.width, H=b.height;
+  if(!(W>0)) return;
+  const w=Math.round(W*dpr), h=Math.round(H*dpr);
+  if(c.width!==w||c.height!==h){ c.width=w; c.height=h; domeLabelsDrawn=false; }
+  const ctx=c.getContext('2d'), on=!vrOn&&vrLabels&&skyNow&&skyNow.starMarks;
+  if(!on&&!domeLabelsDrawn) return;
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, w, h);
+  domeLabelsDrawn=!!on;
+  if(!on) return;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const {cx, cy, R}=domeView(), k=W/dome.width;
+  const xy=(el, az)=>{ const rr=R*(90-el)/90, a=az*Math.PI/180; return [(cx+rr*Math.sin(a))*k, (cy-rr*Math.cos(a))*k]; };
+  const proj=d=>xy(Math.asin(Math.max(-1, Math.min(1, d[2])))*180/Math.PI, Math.atan2(d[0], d[1])*180/Math.PI);
+  const at=(el, az)=>{ const p=xy(el, az); return p[0]>=0&&p[0]<=W&&p[1]>=0&&p[1]<=H?p:null; };
+  drawSkyLabels(ctx, W, H, {proj, at, lim:2+5*Math.log10(domeZoom.z), diskPx:s=>s.radDeg*bodyScale(dome)*(s.rings?2.3:1)*R/90*k, cloudAt:null, top:4, bottom:4});
 }
 // The note in the middle of the VR view while something slow is being prepared.
 function showVRLoad(text){ const el=document.getElementById('vrload'); el.textContent=text; el.hidden=false; }

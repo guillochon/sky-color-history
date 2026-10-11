@@ -583,6 +583,7 @@ function renderDay(fast){
   refreshBarTip();
   markHour();
   paintDomeAurora();
+  drawDomeLabels();
   refreshDomeTip();
 }
 function warm(){ const ep=EP[dIdx], key=ep.key, lat=dayLat(); let s=0; if(!DAY.epochs[key]){ loadDay(key).then(()=>{ if(EP[dIdx].key===key && dayLat()===lat && DAY.epochs[key]) warm(); }); return; } const step=()=>{ if(EP[dIdx].key!==key||dayLat()!==lat) return; while(s<SZ.length && denseSlices(key,lat)[s]) s++; if(s>=SZ.length) return; denseSlice(key,lat,s); s++; (window.requestIdleCallback||setTimeout)(step); }; (window.requestIdleCallback||setTimeout)(step); }

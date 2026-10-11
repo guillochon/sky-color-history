@@ -285,9 +285,9 @@ document.addEventListener('keydown',e=>{
   }
   // The page has VR's keys for time and eras: space plays or pauses the day, ← and → step it by
   // five minutes, ↑ and ↓ (or [ and ]) change era, e and t jump to the next eclipse, u and b to the next
-  // lunar one, n to the next meteor shower, f finds something in the sky (find.js). Not while
-  // typing, with the date picker open, or on a control that uses the key itself; with a modifier,
-  // the browser's own.
+  // lunar one, n to the next meteor shower, f finds something in the sky (find.js), and l labels
+  // the dome as it does the view (drawDomeLabels). Not while typing, with the date picker open,
+  // or on a control that uses the key itself; with a modifier, the browser's own.
   const t=document.activeElement, tag=t&&t.tagName;
   if(datePop.open) return;
   if(e.ctrlKey||e.metaKey||e.altKey||tag==='INPUT'||tag==='SELECT'||tag==='TEXTAREA'||(t&&t.isContentEditable)) return;
@@ -297,7 +297,7 @@ document.addEventListener('keydown',e=>{
     ArrowUp:()=>stepEpoch(1), ']':()=>stepEpoch(1), ArrowDown:()=>stepEpoch(-1), '[':()=>stepEpoch(-1),
     e:()=>{ if(!e.repeat) jumpNextEclipse(false); }, t:()=>{ if(!e.repeat) jumpNextEclipse(true); },
     u:()=>{ if(!e.repeat) jumpNextLunarEclipse(false); }, b:()=>{ if(!e.repeat) jumpNextLunarEclipse(true); }, n:()=>{ if(!e.repeat) jumpNextShower(); },
-    f:()=>{ if(!e.repeat) openFind(); },
+    f:()=>{ if(!e.repeat) openFind(); }, l:()=>{ if(!e.repeat){ vrLabels=!vrLabels; syncVRPad(); requestRender(); } },
     1:()=>setPlaySpeed('real'), 2:()=>setPlaySpeed('default'), 3:()=>setPlaySpeed('fast')}[k];
   if(act){ e.preventDefault(); act(); }
 });
