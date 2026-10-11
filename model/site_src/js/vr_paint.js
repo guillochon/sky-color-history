@@ -431,6 +431,9 @@ function paintVR(){
   const wrapPi=x=>x-2*Math.PI*Math.round(x/(2*Math.PI));
   gl.uniform4f(u.fineRel, wrapPi((vrYaw-skyNow.sunAz)*Math.PI/180), vrPitch-(90-skyNow.sza), wrapPi((vrYaw-skyNow.moon.az)*Math.PI/180), vrPitch-skyNow.moon.el);
   gl.uniform1f(u.moonRad, skyNow.moon.rad*DISK_SCALE); gl.uniform1f(u.moonOn, skyNow.moon.on?1:0); gl.uniform1f(u.moonGlow, moonGlow(EP[dIdx].key));
+  // The Moon's axes, for its libration (moon.js moonAxes).
+  const mAx=skyNow.moon.ax||{E:[1,0,0], P:[0,0,1], M:[0,1,0]};
+  gl.uniform3fv(u.moonE, mAx.E); gl.uniform3fv(u.moonP, mAx.P); gl.uniform3fv(u.moonM, mAx.M);
   gl.uniform1f(u.latRad, LATDEG[dLat]*Math.PI/180);
   // The lunar eclipse's shadow table, sent once per epoch, and its place on the disk.
   // The table changes as the Moon moves through the shadow. It rides in the noise texture's first

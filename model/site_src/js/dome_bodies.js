@@ -195,7 +195,7 @@ function centralEnd(ms, scale){
   for(let i=0;i<24;i++){ const m=(lo+hi)/2; if(eclipseGap(m, true, scale)<0) lo=m; else hi=m; }
   return lo;
 }
-const moonImg=new Image(), moonSprite=document.createElement('canvas'), moonSpriteLit=new Uint8Array(96*96);
+const moonSprite=document.createElement('canvas'), moonSpriteLit=new Uint8Array(96*96);
 moonSprite.width=moonSprite.height=96;
 let moonReady=false;
 function moonBasis(moon){
@@ -207,15 +207,18 @@ function moonBasis(moon){
 }
 function paintMoonSprite(moon, sunAz, sunEl){
   const sctx=moonSprite.getContext('2d',{willReadFrequently:true});
-  sctx.clearRect(0,0,96,96); sctx.drawImage(moonSurface(EP[dIdx].key),0,0,96,96);
-  const img=sctx.getImageData(0,0,96,96), px=img.data, b=moonBasis(moon), sd=horizDir(sunAz,sunEl);
-  const E=b.east, N=b.north, M=b.md;
+  const img=sctx.createImageData(96,96), px=img.data, b=moonBasis(moon), sd=horizDir(sunAz,sunEl);
+  const E=b.east, N=b.north, M=b.md, map=moonMap(EP[dIdx].key), ax=moon.ax, alb=[0,0,0];
   for(let j=0;j<96;j++) for(let i=0;i<96;i++){
     const u=(i+0.5)/96*2-1, v=1-(j+0.5)/96*2, o=(j*96+i)*4;
     if(u*u+v*v>1){ px[o+3]=0; moonSpriteLit[j*96+i]=0; continue; }
     // The surface normal there, facing us, and its light from the Sun.
     const w=-Math.sqrt(1-u*u-v*v), x=E[0]*u+N[0]*v+M[0]*w, y=E[1]*u+N[1]*v+M[1]*w, z=E[2]*u+N[2]*v+M[2]*w, m=Math.hypot(x,y,z)||1;
     const lit=smooth01(-0.02,0.05, x/m*sd[0]+y/m*sd[1]+z/m*sd[2]);
+    // The globe there, on the Moon's axes (moon.js moonAxes).
+    const n=[x/m, y/m, z/m];
+    moonAlbedo(map, [vdot(n, ax.E), vdot(n, ax.P), vdot(n, ax.M)], alb);
+    px[o]=alb[0]; px[o+1]=alb[1]; px[o+2]=alb[2]; px[o+3]=255;
     // The sunlit share is kept beside the sprite, not in its alpha, as a canvas loses the colour
     // where alpha is 0 and the molten Moon's night side glows.
     moonSpriteLit[j*96+i]=Math.round(lit*255);
@@ -223,7 +226,7 @@ function paintMoonSprite(moon, sunAz, sunEl){
   sctx.putImageData(img,0,0);
 }
 function drawMoonOnDome(moon, sunAz, sunEl, lu){
-  if(!moonReady||moon.el<-moon.radDeg) return;
+  if(!moonReady||!moon.ax||moon.el<-moon.radDeg) return;
   const W=dome.width, H=dome.height, {cx, cy, R, z}=domeView();
   const rr=R*(90-moon.el)/90, a=moon.az*Math.PI/180, mx=cx+rr*Math.sin(a), my=cy-rr*Math.cos(a);
   const rad=moon.radDeg*(DOME_DISK*z/SUN_RADIUS_DEG);
@@ -234,14 +237,14 @@ function drawMoonOnDome(moon, sunAz, sunEl, lu){
   paintMoonSprite(moon, sunAz, sunEl);
   const ef=[1, 1, 1];
   // Same veil as the VR sky: extinct the Moon (blue first) and add it onto the
-  // air already drawn, so a bright sky hides the photograph.
+  // air already drawn, so a bright sky hides the Moon.
   const spr=moonSprite.getContext('2d',{willReadFrequently:true}).getImageData(0,0,96,96).data;
   const ang=Math.atan2(p1x-mx, -(p1y-my)), ca=Math.cos(ang), sa=Math.sin(ang);
   const x0=Math.max(0,Math.floor(mx-rad-1)), y0=Math.max(0,Math.floor(my-rad-1));
   const x1=Math.min(W-1,Math.ceil(mx+rad+1)), y1=Math.min(H-1,Math.ceil(my+rad+1));
   if(x1<x0||y1<y0) return;
   const bw=x1-x0+1, bh=y1-y0+1, img=dctx.getImageData(x0,y0,bw,bh), px=img.data;
-  // The molten Moon's own light (moon_surface.js moltenFace), as in the sky shader.
+  // The molten Moon's own light (moon_surface.js moonGlow), as in the sky shader.
   const glow=moonGlow(EP[dIdx].key);
   // The sprite, bilinear, into s (zero outside it).
   const s=new Float64Array(4), at=(i,j,k)=>(i<0||j<0||i>95||j>95)?0:k===3?moonSpriteLit[j*96+i]:spr[(j*96+i)*4+k];
@@ -258,7 +261,7 @@ function drawMoonOnDome(moon, sunAz, sunEl, lu){
     const qx=x-mx, qy=y-my, lx=qx*ca+qy*sa, ly=-qx*sa+qy*ca, u=lx/rad, v=-ly/rad;
     if(u*u+v*v>1) continue;
     samp(u,v); const lit=s[3]/255, wlit=0.06+0.94*lit;
-    // In the Earth's shadow, its light (in linear terms) on the photograph's.
+    // In the Earth's shadow, its light (in linear terms) on the globe's.
     if(lu){ lunarFactor(lu, u, v, ef); for(let q=0;q<3;q++) s[q]=255*Math.pow(Math.pow(s[q]/255, 2.2)*ef[q], 1/2.2); }
     const el=90*(1-Math.hypot(dx,dy)/R), mu=Math.max(Math.sin(Math.max(el,0)*Math.PI/180), 0.04);
     const Tr=Math.exp(-0.12/mu), Tg=Math.exp(-0.22/mu), Tb=Math.exp(-0.48/mu);
@@ -283,17 +286,14 @@ function drawMoonOnDome(moon, sunAz, sunEl, lu){
     dctx.globalCompositeOperation='lighter'; dctx.fillStyle=gr; dctx.fill(); dctx.restore();
   }
 }
-// The epoch's face of the Moon (moon_surface.js) into the walk-around view's texture, when it
-// has changed. True if it did.
+// The epoch's globe of the Moon (moon_surface.js moonMap) into the walk-around view's texture,
+// when it has changed. True if it did.
 function syncMoonTex(){
   if(!vrGL||!moonReady) return false;
-  const src=moonSurface(EP[dIdx].key); if(vrGL.moonSrc===src) return false;
+  const m=moonMap(EP[dIdx].key); if(!m||vrGL.moonSrc===m) return false;
   const gl=vrGL.gl; gl.bindTexture(gl.TEXTURE_2D, vrGL.moonTex);
-  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, m.img);
   gl.generateMipmap(gl.TEXTURE_2D);
-  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-  vrGL.moonSrc=src; return true;
+  vrGL.moonSrc=m; return true;
 }
 function uploadMoon(){ if(syncMoonTex()&&vrOn) paintVR(); }
-moonImg.onload=()=>{ moonReady=true; uploadMoon(); requestRender(); warmMoonFaces(); };

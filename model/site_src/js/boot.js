@@ -7,7 +7,7 @@
 })();
 const openVR=applyLink();
 tslider.value=dIdx;
-moonImg.src='moon.jpg';
+moonMap(EP[dIdx].key);
 // The Milky Way map takes a moment, so it is built once the page is up; the nebulae and galaxies
 // are fetched then too.
 // Within two seconds even if the page is never idle (the walk-around view draws continuously).

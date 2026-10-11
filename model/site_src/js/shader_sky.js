@@ -55,6 +55,7 @@ uniform float yaw,pitch,fov,sunAz,sunEl,sunRad,sunOn,nr,na,sunMu,showScn,mtnSnow
 // For a deep zoom (fineEU): the view's azimuth less the Sun's (x, radians) and its altitude less
 // the Sun's true altitude (y, degrees), and the same for the Moon (z, w), in double precision.
 uniform vec4 fineRel;
+uniform vec3 moonE,moonP,moonM;
 uniform float moonAz,moonEl,moonRad,moonOn,moonGlow,latRad,starPx,cloudCov,cloudScale,cloudDrift,cloudOn,clockH,snowCover,waterT,snOn;
 uniform vec3 snDir,snCol,snLight,mlDir,mlLight;
 // The brightest fireball now: where its head is, the light it casts as moonlight (as mlLight), and
@@ -916,8 +917,11 @@ void main(){
         float s=sin(moonRad);
         float x=dot(mo,east)/s, y=dot(mo,north)/s, rr=sqrt(x*x+y*y);
         if(rr>1.0){ x/=rr; y/=rr; rr=1.0; }
-        vec3 alb=texture(moonMap, vec2(x*0.5+0.5, y*0.5+0.5)).rgb;
         vec3 nrm=normalize(east*x+north*y-md*sqrt(max(1.0-rr*rr,0.0)));
+        // The globe (moon_surface.js moonMap) on the Moon's axes (moon.js moonAxes), so it
+        // librates: longitude from the near side's middle, east positive, and latitude.
+        vec3 sb=vec3(dot(nrm, moonE), dot(nrm, moonP), dot(nrm, moonM));
+        vec3 alb=texture(moonMap, vec2(atan(sb.x, sb.z)*0.1591549431+0.5, 0.5-asin(clamp(sb.y, -1.0, 1.0))*0.3183098862)).rgb;
         float lit=smoothstep(-0.02, 0.05, dot(nrm,sd));
         // The air in front of the Moon extincts it (blue first) and the sky
         // already drawn is that same air, so a bright sky veils the disk.
@@ -928,7 +932,7 @@ void main(){
           float t=length(vec2(x, y)-eclU.xy)*eclU.z;
           if(t<1.0) moonC=lin2s3(s2lin3(moonC)*s2lin3(textureLod(noiseTex, vec2((t*${LUN_LUT_N-1}.0+0.5)/128.0, 0.5/128.0), 0.0).gba));
         }
-        // The molten Moon (moon_surface.js moltenFace): the face's red excess is the lava's own
+        // The molten Moon (moon_surface.js moonGlow): the globe's red excess is the lava's own
         // light, on the night side as on the day, and the Earth's shadow does not dim it.
         if(moonGlow>0.0) moonC+=moonGlow*1.3*alb*smoothstep(0.0, 0.7, alb.r-alb.b)*T;
         float skyY=dot(skyC, vec3(0.2126, 0.7152, 0.0722));

@@ -62,6 +62,32 @@ const MOON_INC={
   carbon30:5.18, ordovician466:5.19, snowball07:5.20, proterozoic22:5.37,
   archean27thin:5.46, archean27:5.46, archean27vthick:5.46, archean38:5.75, hadean40:5.80
 };
+// The orbit's eccentricity. Run back in time with tides in the Moon included, it grows: from
+// today's 0.0549 to 0.09 (0.07–0.11) by the time the Moon is 45.6 Earth radii out (Daher et al.
+// 2021, JGR Planets 126, e2021JE006875, Table 8), here in step with the distance, 0.0025 more
+// for each Earth radius closer; Zahnle et al. (2015, EPSL 427, 74) also expect it to have grown
+// while the Moon was 20–40 Earth radii out, by how much they cannot say. At 4.5 Ga the Moon has
+// been through the evection resonance, which can raise e to 0.5–0.7 for some 10⁵ years (Ćuk &
+// Stewart 2012, Science 338, 1047; Rufu & Canup 2020, JGR Planets 125), and ten million years on,
+// tides raised in it at 8 Earth radii (damping e in 10³–10⁵ years) have made the orbit nearly
+// round again. The Moon keeps one face to the Earth, but turns at a steady rate while it goes
+// round faster at perigee: it rocks east and west by about 2e radians each month, ±6.3° today
+// and ±12° at 4 Ga.
+const MOON_ECC_NOW=0.0549;
+const MOON_ECC={
+  kpg66:0.0557, carbon30:0.0592, ordovician466:0.0601, snowball07:0.0613, proterozoic22:0.0781,
+  archean27thin:0.0866, archean27:0.0866, archean27vthick:0.0866, archean38:0.1046, hadean40:0.1061, hadean45:0.01
+};
+// The Moon's obliquity to its orbit, θ (lunar_inclination.py, Cassini state 2: its pole tilted
+// from the orbit's, beyond the ecliptic's): it rocks north and south by θ each month, 6.7° today,
+// and more as the Moon nears the Cassini-state transition at about 33 Earth radii. At 4.5 Ga it
+// is inside the transition, in Cassini state 1 about the Earth's equator, and its pole is the
+// orbit's (Ward 1975, Science 189, 377).
+const MOON_OBL_NOW=6.68;
+const MOON_OBL={
+  kpg66:6.74, carbon30:6.93, ordovician466:6.99, snowball07:7.06, proterozoic22:8.68,
+  archean27thin:10.24, archean27:10.24, archean27vthick:10.24, archean38:20.83, hadean40:22.88, hadean45:0
+};
 const MOON_R_KM=1737.4, EARTH_R_KM=6378.14;
 // Length of the solar day in hours, from the Moon distances above: the Earth-Moon angular
 // momentum is held fixed, so a closer Moon means a faster-spinning Earth. This reproduces the
@@ -117,17 +143,17 @@ function instantUT(){
 // runs rate times faster, but the node and perigee turn more slowly: the Sun drives them, as
 // (Sun's speed)²/(Moon's speed), so they run 1/rate as fast. The Sun's perturbations of the
 // orbit (evection, variation and the rest) shrink with the same ratio, taken to first order.
-// inc is the orbit's tilt to the ecliptic (MOON_INC).
+// inc is the orbit's tilt to the ecliptic (MOON_INC), e its eccentricity (MOON_ECC).
 // With eqPlane the orbit lies in the equator instead: tilted by the obliquity, its ascending node on
 // the ecliptic held at the autumnal equinox.
-function moonEquatorial(d, rate=1, inc=MOON_INC_NOW, eqPlane=false){
+function moonEquatorial(d, rate=1, inc=MOON_INC_NOW, eqPlane=false, e=MOON_ECC_NOW){
   const ecl=23.4393-3.563e-7*d;
   const ws=282.9404+4.70935e-5*d, Ms=rev(356.0470+0.9856002585*d);
   const dm=DN_NEW0+(d-DN_NEW0)*rate, dp=DN_NEW0+(d-DN_NEW0)/rate, kp=1/rate;
   if(eqPlane) inc=ecl;
   const Nm=eqPlane?180:rev(125.1228-0.0529538083*dp), wm=rev(318.0634+0.1643573223*dp);
   const Mm=rev(115.3654+125.1228+318.0634+(13.0649929509-0.0529538083+0.1643573223)*dm-Nm-wm);
-  const e=0.054900, a=60.2666, i=inc;
+  const a=60.2666, i=inc;
   let E=Mm+e*(180/Math.PI)*sind(Mm)*(1+e*cosd(Mm));
   E=E-(E-e*(180/Math.PI)*sind(E)-Mm)/(1-e*cosd(E));
   const xv=a*(cosd(E)-e), yv=a*(Math.sqrt(1-e*e)*sind(E));
@@ -142,7 +168,29 @@ function moonEquatorial(d, rate=1, inc=MOON_INC_NOW, eqPlane=false){
   const r=r0-kp*(0.58*cosd(Mm-2*Dm)+0.46*cosd(2*Dm));
   const xg=r*cosd(lonecl)*cosd(latecl), yg=r*sind(lonecl)*cosd(latecl), zg=r*sind(latecl);
   const ye=yg*cosd(ecl)-zg*sind(ecl), ze=yg*sind(ecl)+zg*cosd(ecl);
-  return {RA:Math.atan2(ye,xg)*180/Math.PI, Dec:Math.atan2(ze,Math.hypot(xg,ye))*180/Math.PI, Ls, Ms, r};
+  return {RA:Math.atan2(ye,xg)*180/Math.PI, Dec:Math.atan2(ze,Math.hypot(xg,ye))*180/Math.PI, Ls, Ms, r, Nm, i, F, ecl};
+}
+// The Moon's axes at day d, in the equatorial frame: its pole P, and the directions of its prime
+// meridian M (0°, 0°, the middle of the near side) and of 90° E, E. It turns at a steady rate, so
+// its prime meridian points at the Earth's mean place, the mean argument of latitude F along its
+// equator from the orbit's node; its pole is tilted from the orbit's by θ (MOON_OBL) toward the
+// ecliptic's, the three in one plane (Cassini's laws). Where the Moon truly is against that mean
+// place, and where the viewer stands, is its libration: the sky shader and the dome draw the
+// globe on these axes.
+function moonAxesEq(d){
+  const k=EP[dIdx].key, eq=moonEquatorial(d, moonRate(), MOON_INC[k]||MOON_INC_NOW, !!MOON_EQUATORIAL[k], moonEcc());
+  const th=MOON_OBL[k]??MOON_OBL_NOW, n=[cosd(eq.Nm), sind(eq.Nm), 0];
+  const h=[sind(eq.i)*sind(eq.Nm), -sind(eq.i)*cosd(eq.Nm), cosd(eq.i)], q=vcross(h, n);
+  const P=vnorm(vadd(vscale(h, cosd(th)), vscale(q, sind(th)), [0, 0, 0])), e2=vcross(P, n);
+  const M=vscale(vadd(vscale(n, cosd(eq.F)), vscale(e2, sind(eq.F)), [0, 0, 0]), -1), E=vcross(P, M);
+  const eqf=v=>[v[0], v[1]*cosd(eq.ecl)-v[2]*sind(eq.ecl), v[1]*sind(eq.ecl)+v[2]*cosd(eq.ecl)];
+  return {P:eqf(P), M:eqf(M), E:eqf(E)};
+}
+// Those axes in the horizon frame (dome_bodies.js horizDir) at latitude lat.
+function moonAxes(lat){
+  const a=moonAxesEq(astroDay()), lst=localSidereal();
+  const h=v=>{ const p=raDecAltaz(lat, Math.atan2(v[1], v[0])*180/Math.PI, Math.asin(Math.max(-1, Math.min(1, v[2])))*180/Math.PI, lst); return horizDir(p.az, p.alt); };
+  return {P:h(a.P), M:h(a.M), E:h(a.E)};
 }
 // The Sun is placed for the date by sunEquatorial (calendar.js); sunGeom gives its hour angle
 // from the clock. Eclipses are this Sun and the Moon.
@@ -156,7 +204,8 @@ function moonRate(){ return Math.pow(MOON_RE_NOW/(MOON_RE[EP[dIdx].key]||MOON_RE
 function synodic(){ return 360/(13.17639648*moonRate()-0.98564736); }
 function dayOfMs(ms){ return DN_UNIX+ms/86400000; }
 function eqVec(ra, dec){ return [cosd(dec)*cosd(ra), cosd(dec)*sind(ra), sind(dec)]; }
-function geoPair(d){ const k=EP[dIdx].key, eq=moonEquatorial(d, moonRate(), MOON_INC[k]||MOON_INC_NOW, !!MOON_EQUATORIAL[k]), sun=sunEquatorial(d); return {eq, m:eqVec(eq.RA, eq.Dec), s:eqVec(sun.RA, sun.Dec)}; }
+function moonEcc(){ return MOON_ECC[EP[dIdx].key]??MOON_ECC_NOW; }
+function geoPair(d){ const k=EP[dIdx].key, eq=moonEquatorial(d, moonRate(), MOON_INC[k]||MOON_INC_NOW, !!MOON_EQUATORIAL[k], moonEcc()), sun=sunEquatorial(d); return {eq, m:eqVec(eq.RA, eq.Dec), s:eqVec(sun.RA, sun.Dec)}; }
 // A Moon this close shifts by several degrees from where the Earth's centre sees it (7° at 8 Earth
 // radii): it is placed as seen from the ground, and the best seat below is left out.
 function moonNear(){ return (MOON_RE[EP[dIdx].key]||MOON_RE_NOW)<20; }
@@ -164,7 +213,7 @@ function moonNear(){ return (MOON_RE[EP[dIdx].key]||MOON_RE_NOW)<20; }
 // within 2.5 days of the mean new Moon), cached per Moon speed and tilt.
 const lunations=new Map();
 function lunation(k){
-  const id=k+'|'+moonRate()+'|'+(MOON_INC[EP[dIdx].key]||MOON_INC_NOW); let L=lunations.get(id); if(L) return L;
+  const id=k+'|'+moonRate()+'|'+(MOON_INC[EP[dIdx].key]||MOON_INC_NOW)+'|'+moonEcc(); let L=lunations.get(id); if(L) return L;
   const f=t=>{ const g=geoPair(t); return -(g.m[0]*g.s[0]+g.m[1]*g.s[1]+g.m[2]*g.s[2]); };
   const P=synodic(), w=Math.min(2.5, 0.2*P), gr=(Math.sqrt(5)-1)/2; let a=DN_NEW0+k*P-w, b=a+2*w, c=b-gr*(b-a), e=a+gr*(b-a), fc=f(c), fe=f(e);
   for(let i=0;i<40;i++){
@@ -228,6 +277,6 @@ function lunarPlace(lat){
   if(moonNear()){ p=topoMoon(p, eq.r); radDeg=moonRadiusAt(p.r); }
   else radDeg=moonRadiusAt(eq.r-Math.max(0, sind(p.alt)));
   const sunRadDeg=sunRadiusAt(eq.Ms);
-  return {az:p.az, el:p.alt, radDeg, rad:radDeg*Math.PI/180, sunRadDeg, on:apparentEl(p.alt)>-radDeg*DISK_SCALE};
+  return {az:p.az, el:p.alt, radDeg, rad:radDeg*Math.PI/180, sunRadDeg, on:apparentEl(p.alt)>-radDeg*DISK_SCALE, ax:moonAxes(lat)};
 }
 
