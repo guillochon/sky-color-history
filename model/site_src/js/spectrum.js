@@ -577,7 +577,7 @@ function reflectedSpectrum(s){
   const size=s.radDeg!=null?` · ${(s.radDeg*7200).toFixed(s.radDeg*7200<10?1:0)}″ across, ${Math.round(s.lit*100)}% lit`:'';
   // In an epoch before history, where it was on its orbit that day is unknown; Saturn's rings may
   // be younger than the epoch.
-  const ring=s.planet==='Saturn'&&s.ageMa>=RINGS_DEBATED_MA?(s.rings?' · its rings may be younger than this (100–400 Myr by Cassini’s measures, still argued)':' · drawn without rings, which are thought to be at most a few hundred Myr old: here they come from Chrysalis’s break-up, about 160 Myr ago'):'';
+  const ring=s.planet==='Saturn'&&s.ageMa>=RINGS_DEBATED_MA?(s.rings?' · its rings may be younger than this (100–400 Myr by Cassini’s measures, still argued); drawn as young rings would be, more massive and cleaner':' · drawn without rings, which are thought to be at most a few hundred Myr old: here they come from Chrysalis’s break-up, about 160 Myr ago'):'';
   const spot=s.planet!=='Jupiter'?'':s.grs?` · the Great Red Spot, ${(s.grs.L*1.154).toFixed(0)},000 km long, at ${s.grs.lon.toFixed(0)}° (System II)${s.grs.held?', held at its size of the 2040s: what it does next is not known':''}`:s.unknown?' · no Great Red Spot drawn: storms like it come and go over centuries':' · no Great Red Spot: it was first seen for sure in 1831';
   const where=s.unknown?' · its place on its orbit this day cannot be known: drawn at one picked at random for the epoch':'';
   // A hypothetical body, or one named here; Saturn's mid-sized moons may themselves be young.

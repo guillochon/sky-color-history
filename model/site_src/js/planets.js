@@ -209,6 +209,14 @@ const PLANET_AGE_MA={protoearth455:4550, hadean45:4500, hadean40:4000, archean38
 // They are drawn from Chrysalis's break-up, about 160 Myr ago, on, and left out before, where
 // Chrysalis is drawn.
 const RINGS_MA=160, RINGS_DEBATED_MA=100;
+// Saturn's axis precesses backward about its orbit's pole, once in about 1.87 Myr, near Neptune's
+// s8 nodal term (Ward & Hamilton 2004; Wisdom et al. 2022 put it just out of that resonance), so in
+// the epochs before history its pole is turned forward from today's by that much. The rate is known
+// to a few percent: a few degrees at 342 ka, some 20 at 1.78 Ma; past 10 Myr nothing, and it is
+// turned by an angle drawn at random for the epoch, as the planets are placed. Its tilt is kept: it
+// came near today's 26.7 degrees with Chrysalis's loss (Wisdom et al. 2022), before any epoch with
+// rings. The moons' orbit planes turn with it.
+const SATURN_PREC_MYR=1.87, SATURN_PREC_KNOWN_MA=10;
 function planetPhases(key){
   const P=planetPhases.cache||(planetPhases.cache={});
   if(P[key]!==undefined) return P[key];
@@ -216,8 +224,8 @@ function planetPhases(key){
   let h=2166136261; for(const c of key) h=Math.imul(h^c.charCodeAt(0), 16777619);
   // Drawn in this order so each table's later rows leave the earlier ones' phases as they were.
   const rand=mulberry32(h>>>0), planets=PLANETS.map(()=>rand()*360), jup=rand()*360;
-  const moons=PLANET_MOONS.map(m=>m[1]===3?jup:rand()*360);
-  return P[key]={planets, moons, lost:LOST_PLANETS.map(()=>rand()*360)};
+  const moons=PLANET_MOONS.map(m=>m[1]===3?jup:rand()*360), lost=LOST_PLANETS.map(()=>rand()*360);
+  return P[key]={planets, moons, lost, saturnPole:rand()*360};
 }
 // Jupiter's Great Red Spot, from its first sure sighting in 1831 (Schwabe; Cassini's "permanent
 // spot" of 1665-1713 may have been another storm) on. Its System II longitude (degrees, unwrapped)
@@ -263,9 +271,20 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
   const toRaDec=v=>{ const m=Math.hypot(...v); return [(Math.atan2(v[1], v[0])*180/Math.PI+360)%360, Math.asin(v[2]/m)*180/Math.PI]; };
   const horiz=v=>{ const [ra, dec]=toRaDec(v), place=starMeanPlace([ra, dec, 0, 0, 0, 0], epochKey, year), p=raDecAltaz(lat, place.ra, place.dec, LST); return {az:p.az, alt:p.alt, ra:place.ra, dec:place.dec, dir:horizDir(p.az, p.alt)}; };
   const early=!!PRE_INSTABILITY[epochKey];
+  // Saturn's pole (RA, Dec, degrees) in the epoch: turned about its orbit's pole, the ecliptic's
+  // (sin I sin node, −sin I cos node, cos I), by phi degrees.
+  const fromEq=v=>[v[0], v[1]*ce+v[2]*se, -v[1]*se+v[2]*ce], satEl=PLANETS.find(p=>p[0]==='Saturn')[1];
+  const satPhi=!phases?0:ageMa<SATURN_PREC_KNOWN_MA?360*ageMa/SATURN_PREC_MYR:phases.saturnPole;
+  const saturnPole=(ra, dec)=>{
+    if(!satPhi) return [ra, dec];
+    const I=satEl[2]*Math.PI/180, O=satEl[5]*Math.PI/180, n=[Math.sin(I)*Math.sin(O), -Math.sin(I)*Math.cos(O), Math.cos(I)];
+    const v=fromEq(eqVec(ra, dec)), a=satPhi*Math.PI/180, c=Math.cos(a), sn=Math.sin(a), nv=vdot(n, v), x=vcross(n, v);
+    return toRaDec(eq(v.map((vi, j)=>vi*c+x[j]*sn+n[j]*nv*(1-c))));
+  };
   BODY_WHERE.clear();
   PLANETS.forEach(([name, el0, rate0, tint], k)=>{
-    const [Rkm, flat, pra, pdec]=PLANET_BODY[k], [el, rate]=early?earlyOrbit(name, el0, rate0):[el0, rate0];
+    const [Rkm, flat, pra0, pdec0]=PLANET_BODY[k], [el, rate]=early?earlyOrbit(name, el0, rate0):[el0, rate0];
+    const [pra, pdec]=name==='Saturn'?saturnPole(pra0, pdec0):[pra0, pdec0];
     const h=planetHelio(phases?el.map((v, n)=>n===3?v+phases.planets[k]:v):el, rate, T), g=[h[0]-earth[0], h[1]-earth[1], h[2]-earth[2]];
     const r=Math.hypot(...h), d=Math.hypot(...g);
     const q=eq(g), qn=q.map(v=>v/d), pole=eqVec(pra, pdec);
@@ -288,7 +307,7 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
     }
     const Wk=PLANET_W[k], axk=equatorAxes(pra, pdec), Wr=Wk?(Wk[0]+Wk[1]*(tD-d*LIGHT_DAY_AU))*Math.PI/180:0;
     const meridian=horiz(vadd(vscale(axk.i, Math.cos(Wr)), vscale(axk.j, Math.sin(Wr)), [0, 0, 0])).dir;
-    const body={grs, meridian, map:SURF_FILES[name]?name:null, dir:p.dir, rad:radDeg*Math.PI/180, light:vnorm(horiz(eq(h.map(v=>-v))).dir), pole:horiz(pole).dir, kind:k, px:show.px, rgb:show.rgb, mag, front:d<R, shadows:[], rings:ringed, tint};
+    const body={grs, meridian, map:SURF_FILES[name]?name:null, dir:p.dir, rad:radDeg*Math.PI/180, light:vnorm(horiz(eq(h.map(v=>-v))).dir), pole:horiz(pole).dir, kind:k, px:show.px, rgb:show.rgb, mag, front:d<R, shadows:[], rings:ringed, ringAge:(RINGS_MA-ageMa)/RINGS_MA, tint};
     if(p.alt>0){
       marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb, planet:name, mag, ra:p.ra, dec:p.dec, radDeg, dist:d, lit:(1+Math.cos(i*Math.PI/180))/2, body, kind:k, rings:ringed, unknown:!!phases, ageMa, grs, tint});
       bodies.push(body);
@@ -297,7 +316,7 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
     const ax=equatorAxes(pra, pdec), sunFrom=vnorm(eq(h.map(v=>-v))), tM=tD-d*LIGHT_DAY_AU;
     PLANET_MOONS.forEach((m, mi)=>{
       if(m[1]!==k||!moonIn(m, epochKey)) return;
-      const pl=m[10]?moonPlane(m, tM):ax, off=moonOffset(m, pl, tM, phases?phases.moons[mi]:0), along=vdot(off, qn);
+      const pl=m[10]?moonPlane(name==='Saturn'&&satPhi?[...m.slice(0, 10), [...saturnPole(m[10][0], m[10][1]), ...m[10].slice(2)], ...m.slice(11)]:m, tM):ax, off=moonOffset(m, pl, tM, phases?phases.moons[mi]:0), along=vdot(off, qn);
       // On the Sun's side and near enough its line through the host: its shadow may fall on the
       // host. Kept in host radii in the horizon frame, with the moon's radius and the Sun's angular
       // radius there, by which the penumbra widens with distance.

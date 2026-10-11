@@ -13,38 +13,51 @@
 // 0.1). The rings brighten toward opposition (the Seeliger effect), by a third in the last degree.
 // The light let through toward the viewer and the Sun is exp(−tau/mu): the opacity of the rings
 // over what is behind, and their shadow on the planet.
+// Younger rings (age, their age at the epoch over today's, drawn from Chrysalis's break-up 160 Myr
+// ago) were more massive and cleaner. Saturn draws ring material in (ring rain, hundreds to tens of
+// thousands of kg/s by Cassini's Grand Finale; O'Donoghue et al. 2019, Waite et al. 2018) and a ring
+// spreading by its own friction loses mass as about 1/age (Salmon et al. 2010): between them the
+// depth is taken as age^−0.75 times today's, half again at 66 Ma. The darkening of the C ring and
+// the Cassini division is the meteoroid dust they have gathered (Cuzzi & Estrada 1998), so much
+// less on rings younger and more massive: in proportion to age over mass, two fifths of today's at
+// 66 Ma. Both are guesses at the size of a difference, for a past whose rings no one has seen.
 const SAT_RING_TEX_W=1024, SAT_RING_ROWS=Math.ceil((SAT_RING_N+1)/SAT_RING_TEX_W);
 const SAT_RING_TAU=(()=>{
   const b=atob(SAT_RING_TAU_B64), t=new Float32Array(SAT_RING_N);
   for(let i=0;i<SAT_RING_N;i++){ const c=b.charCodeAt(i)/255; t[i]=SAT_RING_TAU_MAX*c*c; }
   return t;
 })();
-// The particles' K (scaled so that the opaque B ring, lit, at mu=mu0 and opposition, is drawn
-// 0.95, about as bright as the middle of the globe) and how grey they are, at r planet radii.
+// The particles at r planet radii: their K without the dust (scaled so that the opaque B ring,
+// lit, at mu=mu0 and opposition, is drawn 0.95, about as bright as the middle of the globe), how
+// much of the dust's darkening they have (1 in the C ring and the Cassini division, which today
+// takes K to half), their greyness without the dust and how grey the dust makes them.
 function satRingParticles(r){
   const km=r*60268, s=(a, b)=>smooth01(a, b, km);
   // C ring, its ramp into the B ring, the Cassini division, its ramp into the A ring, the F ring.
   const toB=s(90600, 92100), toCD=s(117450, 117600), toA=s(120900, 122100), toF=s(138000, 139500);
-  const K=0.5+0.5*toB-0.5*toCD+0.2*toA-0.2*toF, grey=1-toB+0.8*toCD-0.6*toA+0.4*toF;
-  return [7.6*K, grey];
+  return [7.6*(1-0.3*toA-0.2*toF), 1-toB+toCD*(1-toA), 0.2*toA+0.4*toF, 1-0.2*toCD];
 }
 const SAT_RING_K=(()=>{
-  const k=new Float32Array(SAT_RING_N*2);
-  for(let i=0;i<SAT_RING_N;i++){ const p=satRingParticles(SAT_RING_R0+(i+0.5)*SAT_RING_DR); k[i*2]=p[0]; k[i*2+1]=p[1]; }
+  const k=new Float32Array(SAT_RING_N*4);
+  for(let i=0;i<SAT_RING_N;i++) k.set(satRingParticles(SAT_RING_R0+(i+0.5)*SAT_RING_DR), i*4);
   return k;
 })();
+// The depth's factor and the dust's share of today's, for rings age (their age at the epoch over
+// today's).
+function satRingYouth(age){ const f=Math.pow(Math.max(age, 0.05), -0.75); return {f, dust:Math.min(1, age/f)}; }
 // The running sums, bin by bin, of each band's brightness I, its opacity toward the viewer, its
 // opacity toward the Sun and its grey part of I (lit: the viewer on the Sun's side; alpha the
-// phase angle, degrees). A box filter of any width is then two lookups.
-function satRingTable(muV, mu0, lit, alpha){
+// phase angle, degrees; age as satRingYouth). A box filter of any width is then two lookups.
+function satRingTable(muV, mu0, lit, alpha, age=1){
   muV=Math.max(muV, 0.002); mu0=Math.max(mu0, 0.002);
   const S=(1+0.35*Math.exp(-alpha/0.8))/1.35*Math.pow(10, -0.4*0.017*alpha)/4;
-  const out=new Float32Array(SAT_RING_TEX_W*SAT_RING_ROWS*4), acc=[0, 0, 0, 0], near=Math.abs(muV-mu0)<1e-4;
+  const out=new Float32Array(SAT_RING_TEX_W*SAT_RING_ROWS*4), acc=[0, 0, 0, 0], near=Math.abs(muV-mu0)<1e-4, y=satRingYouth(age);
   for(let i=0;i<SAT_RING_N;i++){
-    const t=SAT_RING_TAU[i], K=SAT_RING_K[i*2]*S*(1+0.35*(1-Math.exp(-t/2)))/1.35, eV=Math.exp(-t/muV), e0=Math.exp(-t/mu0);
+    const P=SAT_RING_K.subarray(i*4, i*4+4), dust=P[1]*y.dust, grey=dust*P[3]+P[2];
+    const t=SAT_RING_TAU[i]*y.f, K=P[0]*(1-0.5*dust)*S*(1+0.35*(1-Math.exp(-t/2)))/1.35, eV=Math.exp(-t/muV), e0=Math.exp(-t/mu0);
     // From the dark side, a little multiply scattered light too.
     const I=lit?K*mu0/(muV+mu0)*(1-eV*e0):K*((near?t/muV*eV:mu0/(muV-mu0)*(eV-e0))+0.04*(1-Math.exp(-t)));
-    acc[0]+=I; acc[1]+=1-eV; acc[2]+=1-e0; acc[3]+=I*SAT_RING_K[i*2+1];
+    acc[0]+=I; acc[1]+=1-eV; acc[2]+=1-e0; acc[3]+=I*grey;
     out.set(acc, (i+1)*4);
   }
   return out;
@@ -53,9 +66,9 @@ function satRingTable(muV, mu0, lit, alpha){
 let satRingLast=null;
 function satRingTableFor(b){
   const n=b.pole, muV=Math.abs(vdot(b.dir, n)), mu0=Math.abs(vdot(b.light, n)), lit=vdot(b.light, n)*vdot(b.dir, n)<0;
-  const alpha=Math.acos(Math.max(-1, Math.min(1, -vdot(b.light, b.dir))))*180/Math.PI, q=satRingLast;
-  if(q&&q.lit===lit&&Math.abs(q.muV-muV)<3e-4&&Math.abs(q.mu0-mu0)<3e-4&&Math.abs(q.alpha-alpha)<0.03) return q.tab;
-  satRingLast={muV, mu0, lit, alpha, tab:satRingTable(muV, mu0, lit, alpha)};
+  const alpha=Math.acos(Math.max(-1, Math.min(1, -vdot(b.light, b.dir))))*180/Math.PI, age=b.ringAge??1, q=satRingLast;
+  if(q&&q.lit===lit&&q.age===age&&Math.abs(q.muV-muV)<3e-4&&Math.abs(q.mu0-mu0)<3e-4&&Math.abs(q.alpha-alpha)<0.03) return q.tab;
+  satRingLast={muV, mu0, lit, alpha, age, tab:satRingTable(muV, mu0, lit, alpha, age)};
   return satRingLast.tab;
 }
 // The rings at r planet radii averaged over r±w: brightness, opacity toward the viewer and toward
