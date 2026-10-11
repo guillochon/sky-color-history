@@ -35,7 +35,7 @@ SHOTS = {
     'sats2100':     dict(moment='Satellites at dusk, 2100'),
     # Telescope views, framed by the find tool and zoomed past it.
     'jupiter':      dict(epoch='modern', date='2026-10-11', t=240, look={'find': 'Jupiter'}, zoom=0.55, clouds=False, wait=8000),
-    'saturn':       dict(epoch='modern', date='2026-10-11', t=1320, look={'find': 'Saturn'}, zoom=0.2, clouds=False, wait=10000),
+    'saturn':       dict(epoch='modern', date='2017-06-15', t=1410, look={'find': 'Saturn'}, zoom=0.29, clouds=False, wait=10000),
 }
 
 JS_HIDE = """(()=>{const s=document.createElement('style');s.textContent='.vrui,.vrhud,.vrtop,.vrbot,.vrkeys,.vrpad,.vrnote,.vrmini,.vrwalk,.vrstick,#vrtip,#vrload,#vrprep,#sunmark,#moonmark,#snmark{display:none!important}';document.head.appendChild(s);return 1})()"""

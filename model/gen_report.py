@@ -419,7 +419,7 @@ def blocks():
     B.append(S('Jupiter')); B += ps(*rv.JUPITER)
     B.append(fig(view('jupiter'), "Jupiter close up in the modern sky, as the site's telescope view draws it: belts and zones marbled by eddies, Kelvin–Helmholtz billows along their edges, and the Great Red Spot, a vortex in the same flow, at its 2026 size.", 'fig:jupiter'))
     B.append(S('Saturn and its rings')); B += ps(*rv.SATURN)
-    B.append(fig(view('saturn'), "Saturn close up in the modern sky on 11 October 2026, the globe filling the site's telescope view. Its belts are stirred by the flow drawn for Jupiter, under Cassini's winds and calmer, its hues muted by the haze. The rings, open 7° a year after the 2025 ring-plane crossing, are drawn from the Cassini occultation profile with single-scattering photometry and cast their shadow on the globe as the dark band just north of them; moons pass in front.", 'fig:saturn'))
+    B.append(fig(view('saturn'), "Saturn close up in the modern sky on 15 June 2017, at opposition, its rings filling the site's telescope view. The north pole is tilted 27° toward us, showing the hexagon around it, golden inside in the northern summer, with the polar vortex at its center. The belts are stirred by the flow drawn for Jupiter under Cassini's winds, calmer and muted by the haze. The rings are drawn from the Cassini occultation profile with single-scattering photometry; at opposition the globe's shadow on them lies hidden behind it.", 'fig:saturn'))
     B.append(S("The planets' moons")); B += ps(*rv.MOONS)
 
     B.append(P('The stars and the Galaxy', 'stars'))
