@@ -334,7 +334,7 @@ function renderDay(fast){
   // Eclipse: the Moon is outside the air, so it only hides part of the photosphere.
   // The whole sunlit sky scales by the fraction still visible. The disks are the ones
   // drawn in this view, which are larger than the true disks.
-  const diskScale=vrOn?DISK_SCALE:(DOME_DISK/(dome.width*0.46))*90/SUN_RADIUS_DEG;
+  const diskScale=vrOn||vrWarming?DISK_SCALE:(DOME_DISK/(dome.width*0.46))*90/SUN_RADIUS_DEG;
   const sepDeg=Math.acos(Math.max(-1,Math.min(1,vdot(horizDir(moon.az,moon.el),horizDir(sunAz,90-sza)))))*180/Math.PI;
   const rSun=moon.sunRadDeg*diskScale, rMoon=moon.radDeg*diskScale;
   const cover=sunCovered(sepDeg, rSun, rMoon), sunVis=1-cover;
@@ -571,7 +571,7 @@ function renderDay(fast){
   // readouts keep their size as an eclipse comes and goes.
   document.getElementById('recl').textContent=eclipse?'Sun · '+eclipse:lunar?'Moon · '+(MOON_V_SUN-2.5*Math.log10(Math.max(mScale, 1e-40))).toFixed(1)+' mag · '+lunar.text:'none';
   perfEnd('sky model');
-  if(vrOn) paintVR();
+  if(vrOn||vrWarming) paintVR();
   if(fast) return;
   // compass + rim
   dctx.strokeStyle='rgba(255,255,255,.35)'; dctx.lineWidth=1.5; dctx.beginPath(); dctx.arc(cx,cy,R,0,7); dctx.stroke();

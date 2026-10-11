@@ -284,9 +284,22 @@ function hitPair(gl, w, h, a, b, fb){
   gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, vrGL[a], 0);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, vrGL[b], 0);
-  const ok=gl.checkFramebufferStatus(gl.FRAMEBUFFER)===gl.FRAMEBUFFER_COMPLETE;
+  const ok=fbComplete(gl, 'pair'+vrGL.hitFloat);
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   return ok;
+}
+// Whether the framebuffer bound is complete, asked once for each kind of target: the answer
+// depends on the formats, not the size, and in Firefox asking waits on all the GPU work sent
+// before, a first frame's taking seconds.
+function fbComplete(gl, kind){
+  const m=vrGL.fbOk||(vrGL.fbOk={});
+  if(!(kind in m)) m[kind]=gl.checkFramebufferStatus(gl.FRAMEBUFFER)===gl.FRAMEBUFFER_COMPLETE;
+  return m[kind];
+}
+// Each target made once at a token size, so its kind has been asked about (warmVR).
+function primeVRTargets(){
+  ensureHitTarget(2, 2); if(vrGL.hitMRT) ensureLandTarget(2, 2); ensureShadowTarget(2, 2);
+  if(vrGL.cloudProg) ensureCloudTarget(2, 2, !!vrGL.tempProg);
 }
 // The Sun's shadow on the land (the shadow pass), one channel at the land pass's size.
 function ensureShadowTarget(w, h){
@@ -301,7 +314,7 @@ function ensureShadowTarget(w, h){
   vrGL.shadowFbo=vrGL.shadowFbo||gl.createFramebuffer();
   gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.shadowFbo);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
-  vrGL.shadowOk=gl.checkFramebufferStatus(gl.FRAMEBUFFER)===gl.FRAMEBUFFER_COMPLETE;
+  vrGL.shadowOk=fbComplete(gl, 'shadow'+vrGL.hitFloat);
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   vrGL.shW=w; vrGL.shH=h; vrGL.shadowKey='';
   return vrGL.shadowOk;
@@ -371,7 +384,7 @@ function glareCentre(vis){
   return vnorm([sd[0]+ex[0]*k, sd[1]+ex[1]*k, sd[2]+ex[2]*k]);
 }
 function paintVR(){
-  if(!vrOn||!vrGL||!skyNow) return;
+  if(!(vrOn||vrWarming)||!vrGL||!skyNow) return;
   // This paint answers any one already asked for.
   if(vrRAF){ cancelAnimationFrame(vrRAF); vrRAF=0; }
   // A sky drawn for the page has no star cells for VR: draw it again for VR, which paints.
@@ -384,7 +397,7 @@ function paintVR(){
   pickHit(vrGL.gl);
   const bps=Object.values(vrGL.bodyProg||{}).map(b=>b.p);
   const firsts=[vrScenery&&vrGL.hitProg, vrScenery&&vrGL.townProg, vrClouds&&vrGL.cloudProg, vrGL.prog, ...bps].filter(p=>p&&vrSlow.has(p));
-  if(firsts.length){
+  if(firsts.length&&!vrWarming){
     if(vrGL.note==='waiting') return;
     if(vrGL.note!=='shown'){
       vrGL.note='waiting';
@@ -788,6 +801,8 @@ function paintVR(){
   }
   // Airliners and their lights (contrails.js), over the clouds' composite.
   if(vrClouds&&vrGL.cloudProg&&vrGL.noise) drawPlanesVR(gl, c, ez, sunCol);
+  // A frame drawn out of sight (warmVR) leaves the labels, the HUD and the link alone.
+  if(vrWarming){ perfPaintEnd(); for(const p of firsts) vrSlow.delete(p); return; }
   perfPaintEnd(); perfBeg('labels & HUD');
   // A piece of close-up detail now drawn: its note goes (or the next one's shows).
   if(vrGL.detailDone&&vrGL.detailDone.length&&!firsts.length){

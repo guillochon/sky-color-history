@@ -198,30 +198,40 @@ function setupVR(gl, vs, prog, skyJob, cloudJobs, bodyJob){
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 1, 1, 0, gl.RGBA, gl.FLOAT, new Float32Array(px)); return t; };
   vrGL.noHitInfo=noHit([-1,0,1,0]); vrGL.noHitNrm=noHit([0,0,1,-1]); vrGL.noShadow=noHit([1,1,1,1]);
   vrRestoreGL(gl);
-  whenLinked(gl, [skyJob], fp=>{
-    if(!fp||!vrGL) return;
-    // The detail program got there first: it has everything this one has.
-    if(vrGL.detailOn){ gl.deleteProgram(fp); return; }
-    const boot=vrGL.prog;
-    vrGL.u=setupSkyProg(gl, fp); vrGL.prog=fp; gl.deleteProgram(boot);
-    skyUploaded=-1;
-    vrRestoreGL(gl); requestVR();
-  });
+  // The programs set up below, counted down by setupStep: the sky, bodies, clouds, aurora and
+  // the epoch's landscape.
   const hk=hitKeys(EP[dIdx].key);
-  compileHit(gl, hk.land); compileHit(gl, hk.shadow); if(hk.town) compileHit(gl, hk.town);
+  vrGL.setupKeys=new Set([hk.land, hk.shadow, hk.town].filter(Boolean));
+  vrGL.setupLeft=3+(vrGL.hitFloat?1:0)+vrGL.setupKeys.size;
+  whenLinked(gl, [skyJob], fp=>{
+    if(!vrGL) return;
+    // The detail program got there first: it has everything this one has.
+    if(fp&&vrGL.detailOn) gl.deleteProgram(fp);
+    else if(fp){
+      const boot=vrGL.prog;
+      vrGL.u=setupSkyProg(gl, fp); vrGL.prog=fp; gl.deleteProgram(boot);
+      skyUploaded=-1;
+      vrRestoreGL(gl); requestVR();
+    }
+    setupStep(gl);
+  });
+  for(const k of vrGL.setupKeys) compileHit(gl, k);
   // The aurora pass needs a float target.
   if(vrGL.hitFloat) whenLinked(gl, [glProgramAsync(gl, vs, AURFS), glProgramAsync(gl, vs, AUR_HASHFS)], (ap, hp)=>{
-    if(!ap||!hp||!vrGL) return;
-    vrGL.aurHashTex=makeAurHashTex(gl, hp);
-    vrGL.aurProg=ap; vrGL.au=auroraUniforms(gl, ap, 14, 15);
-    uniformLocs(gl, ap, ['res','yaw','pitch','fov'], vrGL.au);
-    bindSamplers(gl, ap, [['aurHashTex', 13]]);
-    vrGL.aurFbo=gl.createFramebuffer(); vrGL.aurStore={};
-    vrRestoreGL(gl); requestVR();
+    if(!vrGL) return;
+    if(ap&&hp){
+      vrGL.aurHashTex=makeAurHashTex(gl, hp);
+      vrGL.aurProg=ap; vrGL.au=auroraUniforms(gl, ap, 14, 15);
+      uniformLocs(gl, ap, ['res','yaw','pitch','fov'], vrGL.au);
+      bindSamplers(gl, ap, [['aurHashTex', 13]]);
+      vrGL.aurFbo=gl.createFramebuffer(); vrGL.aurStore={};
+      vrRestoreGL(gl); requestVR();
+    }
+    setupStep(gl);
   });
   // The bodies' pass, plain (shader_bodies.js).
-  whenLinked(gl, [bodyJob], bp=>{ if(bp&&vrGL){ (vrGL.bodyProg||(vrGL.bodyProg={})).base=setupBodyProg(gl, bp); vrRestoreGL(gl); requestVR(); } });
-  whenLinked(gl, cloudJobs, (cp, pp, tp, np)=>{ if(cp&&pp&&np&&vrGL){ setupCloudProgs(gl, cp, pp, tp, np); markSlow(cloudJobs[0], cp, 'the clouds'); vrRestoreGL(gl); requestVR(); } });
+  whenLinked(gl, [bodyJob], bp=>{ if(!vrGL) return; if(bp){ (vrGL.bodyProg||(vrGL.bodyProg={})).base=setupBodyProg(gl, bp); vrRestoreGL(gl); requestVR(); } setupStep(gl); });
+  whenLinked(gl, cloudJobs, (cp, pp, tp, np)=>{ if(!vrGL) return; if(cp&&pp&&np){ setupCloudProgs(gl, cp, pp, tp, np); markSlow(cloudJobs[0], cp, 'the clouds'); vrRestoreGL(gl); requestVR(); } setupStep(gl); });
   // Last: when the moon image is already loaded this paints, so vrGL has to be complete.
   if(moonReady) uploadMoon();
 }
@@ -244,14 +254,53 @@ function compileHit(gl, key){
   const job=glProgramAsync(gl, vrGL.vs, land||shadow?hitVariant(key[4], shadow):townVariant(key.slice(4)));
   whenLinked(gl, [job], hp=>{
     if(!vrGL) return;
-    if(!hp){ vrGL.hits[key]='failed'; return; }
-    vrGL.hits[key]={prog:hp, hu:land?setupHitProg(gl, hp):shadow?setupShadowProg(gl, hp):setupTownProg(gl, hp)};
-    markSlow(job, hp, 'the landscape');
-    vrRestoreGL(gl); requestVR();
-    if(Object.values(vrGL.hits).includes('pending')) return;
-    const next=EP.flatMap(e=>{ const k=hitKeys(e.key); return k.town?[k.land, k.shadow, k.town]:[k.land, k.shadow]; }).find(k=>!vrGL.hits[k]);
-    if(next) compileHit(gl, next);
+    if(!hp) vrGL.hits[key]='failed';
+    else{
+      vrGL.hits[key]={prog:hp, hu:land?setupHitProg(gl, hp):shadow?setupShadowProg(gl, hp):setupTownProg(gl, hp)};
+      markSlow(job, hp, 'the landscape');
+      vrRestoreGL(gl); requestVR();
+    }
+    if(vrGL.setupKeys.delete(key)) setupStep(gl);
+    nextHit(gl);
   });
+}
+// The next of the other epochs' variants, once VR is set up and warmed and none is compiling.
+function nextHit(gl){
+  if(!vrGL.warmed||Object.values(vrGL.hits).includes('pending')) return;
+  const next=EP.flatMap(e=>{ const k=hitKeys(e.key); return k.town?[k.land, k.shadow, k.town]:[k.land, k.shadow]; }).find(k=>!vrGL.hits[k]);
+  if(next) compileHit(gl, next);
+}
+// Once everything setupVR started is linked, warm the first frame up (warmVR).
+function setupStep(gl){ if(--vrGL.setupLeft===0) warmVR(gl); }
+// Without KHR_parallel_shader_compile (Firefox) the first VR frame keeps the GPU busy for
+// seconds, once: on a GTX 980 4.7 s at any size, the next frame milliseconds. The page waits
+// on it at its next query or frame, so on entering VR it froze 3.5 s. When VR has been set up
+// in the background, frames are drawn out of sight instead: once the GPU has nothing queued,
+// each kind of target is made and asked about (primeVRTargets), which then takes no time, and
+// the frames are drawn and left to the GPU. Entering VR then shows the sky in 40 ms. Only then do the other epochs' landscapes compile, as
+// a compile queued ahead would hold those questions up. In Chrome the first draw stalls the
+// whole browser, so it is left to entering VR and its note.
+let vrWarming=false;
+function warmVR(gl){
+  const done=()=>{ if(!vrGL) return; vrGL.warmed=true; nextHit(gl); };
+  if(vrOn||gl.getExtension('KHR_parallel_shader_compile')){ done(); return; }
+  afterGPU(gl, ()=>{
+    if(!vrGL||vrOn){ done(); return; }
+    primeVRTargets();
+    // The sky as VR has it (the page's has no star cells), then two frames more: the clouds'
+    // history pass and the shadows run from the second. The page's sky is drawn again after.
+    vrWarming=true; try{ renderDay(true); paintVR(); paintVR(); } finally{ vrWarming=false; }
+    requestRender();
+    afterGPU(gl, done);
+  });
+}
+// Call fn once the GPU has done all the work sent so far, without waiting for it.
+function afterGPU(gl, fn){
+  const s=gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+  if(!s){ fn(); return; }
+  gl.flush();
+  const poll=()=>{ if(gl.getSyncParameter(s, gl.SYNC_STATUS)!==gl.SIGNALED){ setTimeout(poll, 30); return; } gl.deleteSync(s); fn(); };
+  setTimeout(poll, 30);
 }
 // Point paintVR at the current epoch's programs, or keep the last ones until they're ready.
 function pickHit(gl){

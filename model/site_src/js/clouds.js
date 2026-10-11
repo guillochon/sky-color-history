@@ -188,7 +188,7 @@ function ensureCloudTarget(w, h, cb){
   gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.cloudFbo);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, vrGL.cloudTex, 0);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, vrGL.metaTex, 0);
-  vrGL.cloudMRT=gl.checkFramebufferStatus(gl.FRAMEBUFFER)===gl.FRAMEBUFFER_COMPLETE;
+  vrGL.cloudMRT=fbComplete(gl, 'cloud'+hdr);
   if(!vrGL.cloudMRT) gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, null, 0);
   // Without the depth target there is no temporal pass to put a checkerboard together.
   vrGL.cloudCB=cb&&vrGL.cloudMRT; vrGL.cloudMW=vrGL.cloudCB?mw:w;
