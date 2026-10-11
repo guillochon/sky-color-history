@@ -14,6 +14,8 @@ moonImg.src='moon.jpg';
 (window.requestIdleCallback||setTimeout)(()=>{ buildMilkyWay(); renderDay(); loadDso(); }, {timeout:2000});
 showEpoch(dIdx); renderDay(); warm();
 if(openVR) enterVR(true);
+// The VR shaders compile in the background a few seconds after the page is up.
+setTimeout(()=>(window.requestIdleCallback||setTimeout)(precompileVR, {timeout:5000}), 3000);
 // extra(x, y, box), when given, fills a box under the colour line (the dome's spectrum).
 function colorTip(canvas, tip, inside, pixel=()=>null, extra=null){
   const ctx=canvas.getContext('2d'); let cur=null, copiedUntil=0, hovering=false, px=0, py=0;

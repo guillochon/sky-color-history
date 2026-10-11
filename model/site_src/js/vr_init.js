@@ -112,11 +112,12 @@ function setupSkyProg(gl, prog){
 // program isn't available. Nothing here waits on the shader compiler: the boot program, which
 // compiles fast, goes first, and the full sky, hills, and clouds take over when they're ready.
 let vrBoot=null;
+const VR_CTX={alpha:false,depth:false,stencil:false,antialias:false,preserveDrawingBuffer:true};
 function initVR(ready){
   if(vrGL){ ready(true); return; }
   if(vrBoot){ vrBoot.push(ready); return; }
   const canvas=document.getElementById('vrc');
-  const gl=canvas.getContext('webgl2',{alpha:false,depth:false,stencil:false,antialias:false,preserveDrawingBuffer:true});
+  const gl=canvas.getContext('webgl2', VR_CTX);
   const vs=gl&&glShader(gl, gl.VERTEX_SHADER, '#version 300 es\nin vec2 a;void main(){gl_Position=vec4(a,0.0,1.0);}');
   if(!vs){ ready(false); return; }
   const boot=glProgramAsync(gl, vs, VRFS_BOOT);
@@ -129,6 +130,17 @@ function initVR(ready){
     if(prog) setupVR(gl, vs, prog, skyJob, cloudJobs, bodyJob);
     for(const f of waiting) f(!!prog);
   });
+}
+// Set VR up in the background once the page has settled, so the shaders are compiled before the
+// view is opened. Only where the compile runs off the page's thread (KHR_parallel_shader_compile,
+// in Chrome): elsewhere the first look at a program holds the page until it is done, which is
+// better left to entering VR. Not on touch screens, where it would cost a phone's memory and
+// battery for a view most never open. The first draw of a big program can still stall
+// (vrSlow), so paintVR's note stays.
+function precompileVR(){
+  if(vrGL||vrBoot||vrOn||vrTouch) return;
+  const gl=document.getElementById('vrc').getContext('webgl2', VR_CTX);
+  if(gl&&gl.getExtension('KHR_parallel_shader_compile')) initVR(()=>{});
 }
 function setupVR(gl, vs, prog, skyJob, cloudJobs, bodyJob){
   gl.useProgram(prog);
