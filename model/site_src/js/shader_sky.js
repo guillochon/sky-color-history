@@ -83,6 +83,8 @@ float limbH(float pa){ return 0.002*sin(7.0*pa+1.3)+0.00167*sin(12.0*pa+4.1)+0.0
 uniform vec4 obj[12];
 uniform vec4 pond[8];
 uniform float pondN;
+// The sea (vr_paint.js ZONES 'sea'): water everywhere beyond this radius of land round the origin; 0 for none.
+uniform float seaR;
 uniform vec4 grid[6];
 uniform vec4 road[64];
 uniform float gridN, roadN;
@@ -563,6 +565,13 @@ void main(){
         if(d<1.0){ pk=q.w; edge=(1.0-d)*q.z; break; }
         shore=max(shore, 1.0-smoothstep(1.0, 1.0+5.0/q.z, d));
         if(shore>0.0) pk=q.w-10.0;
+      }
+      if(seaR>0.0 && pk<-0.5){
+        // The sea: its shore wanders as a pool's does, and the land darkens, wet, toward it.
+        float d=length(gp)/seaR;
+        if(d<3.0) d+=(vN(gp/(seaR*0.3)+1.7)-0.5)*0.45+(vN(gp/(seaR*0.08)+5.0)-0.5)*0.1;
+        if(d>1.0){ pk=0.0; edge=(d-1.0)*seaR; }
+        else if(pk>-1.5){ shore=smoothstep(1.0-8.0/seaR, 1.0, d); if(shore>0.0) pk=-10.0; }
       }
       float light=0.42+0.58*sunMu, detail=1.0-smoothstep(0.3, 1.5, foot);
       if(pk>-0.5 && (pk<0.5 || pk>2.5)){

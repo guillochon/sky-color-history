@@ -20,7 +20,12 @@ const MTN_SCALE=0.67; // massif and hill heights relative to the original layout
 const WATER=[[30,350,'water',120],[95,600,'water',220],[320,500,'water',180],[60,1500,'water',400]];
 const ZONES={
   protoearth455:[[30,330,'magma',110],[95,520,'magma',170],[320,430,'magma',140],[255,1300,'magma',300],[40,1500,'magma',320],[160,800,'magma',200]],
-  hadean45:[[30,330,'magma',90],[95,520,'magma',150],[320,430,'water',120],[255,1300,'magma',260],[40,1500,'water',300]],
+  // Ten million years after the giant impact the magma ocean has frozen and the steam has rained
+  // out: a hot ocean (about 200 °C under 30 bar of CO₂; Zahnle et al. 2010) a few km deep over a
+  // thin basaltic crust, with no continents to raise high ground. The walker stands on a low
+  // basalt knoll by the shore (sea: the land's radius, the sea all round it), with a small lava
+  // pool at a vent below it.
+  hadean45:[[0,0,'sea',300],[70,225,'magma',32]],
   hadean40:[[30,330,'water',100],[95,520,'magma',140],[320,430,'water',130],[255,1300,'water',280],[40,1500,'magma',260]],
   archean38:WATER, archean27thin:WATER, archean27:WATER, archean27vthick:WATER,
   proterozoic22:[[20,520,'water',180],[300,720,'water',250],[100,480,'water',120]],
@@ -43,10 +48,12 @@ const TOWN_MTNS=[[300,7500,2000,1200,1],[20,9000,2400,1400,1],[160,11000,2800,16
 // t: town[16] for the hit shader (pools go in as type 0 so hills keep out). p: pond[8] for the sky.
 function townsFor(key){
   const list=ZONES[key]||[], t=new Float32Array(64), p=new Float32Array(32);
-  let tn=0, pn=0;
+  let tn=0, pn=0, sea=0;
   list.forEach((s, i)=>{
     const a=s[0]*Math.PI/180, x=Math.sin(a)*s[1], y=Math.cos(a)*s[1];
     let R=s[3];
+    // The sea keeps the hills out everywhere; its shore is drawn by the sky shader (seaR).
+    if(s[2]==='sea'){ sea=R; t.set([x, y, 1e6, 0], tn*4); tn++; return; }
     if(s[2]==='city'||s[2]==='hood'){
       const city=s[2]==='city', r=h12xy(i*3.7+1.3, key.length*5.1+0.7);
       const n=city?80+Math.floor(r*41):250+Math.floor(r*251);
@@ -55,7 +62,7 @@ function townsFor(key){
     t.set([x, y, R, ZONE_TYPE[s[2]]||0], tn*4); tn++;
     if(s[2] in POND_KIND){ p.set([x, y, R, POND_KIND[s[2]]], pn*4); pn++; }
   });
-  return {t, tn, p, pn};
+  return {t, tn, p, pn, sea};
 }
 const sceneCache={};
 function sceneFor(key){ return sceneCache[key]||(sceneCache[key]=buildScene(key)); }
@@ -65,13 +72,17 @@ function buildScene(key){ // [bearing deg, distance m, radius m, height m, kind]
     const tw=townsFor(key);
     return {o, k, ...tw, ...roadsFor(o, k, tw.t, tw.tn)}; };
   const VOLC=[[175,320,80,150,2],[205,560,130,240,2],[140,900,200,340,2],[250,3000,700,520,2],[310,5200,1400,1000,1],[350,8000,2200,1500,1],[100,9000,2500,1600,1],[160,7000,1800,1100,1],[230,11000,2800,1700,1],[40,6500,1600,900,1],[70,4200,1100,780,1],[280,4800,1000,640,1]];
+  // Volcanic islands out at sea: broad, low basalt shields a few hundred metres high, the young
+  // ocean crust's volcanoes, one or two of them erupting; and the knoll the walker stands on.
+  const ISLES=[[0,1,120,36,1],[250,4200,1300,320,2],[205,7000,2200,520,2],[290,9500,2600,700,2],[150,12000,3400,900,2],[330,5600,1100,260,2],[40,8000,1900,450,2],[95,14000,3600,1000,2],[260,15000,3000,650,2]];
   const ICE=[[165,900,350,260,3],[200,1500,500,420,3],[120,1900,600,380,3],[240,2600,800,600,3],[300,3500,1100,700,3],[30,5000,1500,900,3],[90,7000,2000,1100,3],[190,8000,1800,1000,3],[260,10000,2600,1300,3],[330,6000,1600,900,3],[60,3000,900,500,3]];
   const TREES=[[40,6000,1600,900,1],[140,8500,2200,1300,1],[230,5000,1400,750,1],[310,10000,2500,1500,1],[100,7000,1800,1000,1],[190,9000,2400,1400,1]];
   const PEAKS=[[170,380,110,190,1],[200,720,170,300,1],[140,1200,260,420,1],[55,4200,1300,800,1],[95,2200,700,420,1],[230,4500,1400,880,1],[280,2600,800,500,1],[330,3800,1100,700,1],[70,8000,2200,1400,1],[160,9500,2600,1600,1],[240,7000,1800,1100,1],[310,11000,2800,1500,1]];
   if(key==='snowball07') return spots(ICE);
   if(key==='carbon30') return spots(TREES);
   if(TOWNS[key]) return spots(TOWN_MTNS);
-  if(key==='protoearth455'||key==='hadean45'||key==='hadean40'||key==='archean38'||key==='archean27thin'||key==='archean27'||key==='archean27vthick'||key==='volcanic') return spots(VOLC);
+  if(key==='hadean45') return spots(ISLES);
+  if(key==='protoearth455'||key==='hadean40'||key==='archean38'||key==='archean27thin'||key==='archean27'||key==='archean27vthick'||key==='volcanic') return spots(VOLC);
   return spots(PEAKS);
 }
 function fract(x){ return x-Math.floor(x); }
@@ -476,7 +487,7 @@ function paintVR(){
   vrGL.mlLight=moonUp?nightLight([0.82, 0.88, 1.0], skyNow.moonRel||0, mo.el, night):new Float32Array(3);
   gl.uniform3fv(u.mlDir, vrGL.mlDir); gl.uniform3fv(u.mlLight, vrGL.mlLight);
   const sc=sceneFor(EP[dIdx].key);
-  gl.uniform4fv(u.pond, sc.p); gl.uniform1f(u.pondN, sc.pn);
+  gl.uniform4fv(u.pond, sc.p); gl.uniform1f(u.pondN, sc.pn); gl.uniform1f(u.seaR, sc.sea||0);
   gl.uniform4fv(u.grid, sc.g); gl.uniform1f(u.gridN, sc.gn);
   gl.uniform4fv(u.road, sc.r); gl.uniform1f(u.roadN, sc.rn);
   gl.uniform1f(u.clockH, (minutes%DAYMIN)/60);
