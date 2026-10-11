@@ -555,7 +555,16 @@ function paintVR(){
   gl.uniform3fv(u.snLight, vrGL.snLight);
   const mo=skyNow.moon, moonUp=mo.on && mo.el>-0.5;
   vrGL.mlDir=new Float32Array(horizDir(mo.az, Math.max(mo.el, 0)));
-  vrGL.mlLight=moonUp?nightLight([0.82, 0.88, 1.0], skyNow.moonRel||0, mo.el, night):new Float32Array(3);
+  // The molten Moon's (moon_surface.js MOLTEN_*) is orange: the sunlight its dark, lava-laced
+  // globe reflects, and the lava's own light at every phase alike, over a disk as much larger than
+  // today's as the Moon is nearer (56 times at 8 Earth radii). So the ground, the clouds and the
+  // glint on the water take its colour.
+  const glow=moonGlow(EP[dIdx].key);
+  vrGL.mlLight=!moonUp?new Float32Array(3):!glow?nightLight([0.82, 0.88, 1.0], skyNow.moonRel||0, mo.el, night):nightLight(MOLTEN_REFL_RGB, MOLTEN_REFL*(skyNow.moonRel||0), mo.el, night);
+  if(moonUp&&glow){
+    const area=Math.pow(MOON_RE_NOW/(MOON_RE[EP[dIdx].key]||MOON_RE_NOW), 2), lv=nightLight(MOLTEN_LAVA_RGB, 0.4*glow*area, mo.el, night);
+    for(let q=0;q<3;q++) vrGL.mlLight[q]+=lv[q];
+  }
   gl.uniform3fv(u.mlDir, vrGL.mlDir); gl.uniform3fv(u.mlLight, vrGL.mlLight);
   const sc=sceneFor(EP[dIdx].key);
   gl.uniform4fv(u.pond, sc.p); gl.uniform1f(u.pondN, sc.pn); gl.uniform1f(u.seaR, sc.sea||0);

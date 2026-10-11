@@ -30,6 +30,13 @@ function mareVec(lat, lon){ return [cosd(lat)*sind(lon), sind(lat), cosd(lat)*co
 // sky shader and drawMoonOnDome), at 0.65 so the lit relief of the rafts stays clear beside it.
 const MOON_MOLTEN={hadean45:0.65};
 function moonGlow(key){ return MOON_MOLTEN[key]||0; }
+// The light the molten Moon casts on the night (vr_paint.js): the sunlight its globe reflects, its
+// mean over the near side a quarter of today's (0.247 in linear luminance, the dark crust and the
+// lava's own colour) and orange (MOLTEN_REFL_RGB, today's moonlight's colour times the globes'
+// ratio in each linear channel, at today's luminance); and the lava's own light, about 0.4 of the
+// disk glowing as bright per square kilometre as the sunlit Moon, the colour of melt at 1,400-1,600 K
+// (MOLTEN_LAVA_RGB, at the same luminance).
+const MOLTEN_REFL=0.247, MOLTEN_REFL_RGB=[2.14, 0.51, 0.147], MOLTEN_LAVA_RGB=[1.84, 0.66, 0.15];
 // The Moon's whole globe for each epoch (moon_maps.py, from the LRO colour mosaic toned to a
 // full-Moon photograph): today's; before Tycho (108 Myr old; Apollo 17 samples of its ray,
 // Arvidson et al. 1976), its rays, the brightest on the full Moon, gone; at 3.8 and 4.0 Ga the
