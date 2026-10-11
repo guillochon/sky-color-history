@@ -271,8 +271,12 @@ document.addEventListener('keydown',e=>{
     if(k==='q'&&!e.repeat&&!vrTouch){ e.preventDefault(); setInspect(!vrInspect); return; }
     if(e.key==='Escape'){ e.preventDefault(); if(vrInspect) setInspect(false); else exitVR(); return; }
     if(e.key===' ' && !e.repeat){ e.preventDefault(); hplay.click(); return; }
-    if(e.key==='ArrowRight'){ e.preventDefault(); stepMinutes(5); return; }
-    if(e.key==='ArrowLeft'){ e.preventDefault(); stepMinutes(-5); return; }
+    // ← and → step five minutes of the clock; with ctrl (or ⌘) ten seconds of sky time, with shift an hour.
+    if(e.key==='ArrowRight'||e.key==='ArrowLeft'){
+      e.preventDefault();
+      const s=e.ctrlKey||e.metaKey?10:e.shiftKey?3600:0;
+      stepMinutes((e.key==='ArrowRight'?1:-1)*(s?s/(dayHours()*2.5):5)); return;
+    }
     if(e.key==='ArrowUp'||e.key===']'){ e.preventDefault(); stepEpoch(1); return; }
     if(e.key==='ArrowDown'||e.key==='['){ e.preventDefault(); stepEpoch(-1); return; }
     if(k==='e'&&!e.repeat){ e.preventDefault(); jumpNextEclipse(false); return; }
@@ -280,6 +284,7 @@ document.addEventListener('keydown',e=>{
     if(k==='u'&&!e.repeat){ e.preventDefault(); jumpNextLunarEclipse(false); return; }
     if(k==='b'&&!e.repeat){ e.preventDefault(); jumpNextLunarEclipse(true); return; }
     if(k==='n'&&!e.repeat){ e.preventDefault(); jumpNextShower(); return; }
+    if(k==='i'&&!e.repeat){ e.preventDefault(); jumpNextImpact(e.shiftKey); return; }
     if((k==='1'||k==='2'||k==='3')&&!e.repeat){ e.preventDefault(); setPlaySpeed(SPEED_KEYS[k]); return; }
     return;
   }

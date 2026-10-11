@@ -226,9 +226,11 @@ const FLASH_Q10=0.5, FLASH_R=2.5;
 // Scrubbing back to a moment brings back its meteors, and pausing freezes them. Played in real
 // time they fall at their true pace; faster, each frame is a snapshot of whatever is in the air.
 // A third stream, made a minute at a time and looked back over 90 minutes, holds the superbolides
-// (brighter than CT_BOLIDE), whose dust trails stay in the sky long after them (contrails.js).
+// (brighter than CT_BOLIDE), whose dust trails stay in the sky long after them (contrails.js), and a
+// fourth, made a day at a time, the few brighter than MET_GROUND, big enough to strike the ground:
+// days without one cost next to nothing, so the impacts years either side can be found (metImpacts).
 const MET={list:[], gone:[], flashes:[], bolides:[], now:0, Tpage:0, drawnT:null, last:0, raf:0, timer:0, hover:null, ptr:null, cache:new Map(), dark:{}};
-const MET_SPLIT=-1, MET_LOOK=[60, 160, 5400], MET_BIN=[1, 1, 60];
+const MET_SPLIT=-1, MET_LOOK=[60, 160, 5400, 5400], MET_BIN=[1, 1, 60, 86400];
 // The faintest meteor worth making, for the darkest sky the epoch has (no Moon, no Sun): its zenith
 // limit for meteors, and the faintest absolute magnitude that could reach it from overhead.
 function metDark(key){
@@ -238,30 +240,34 @@ function metDark(key){
   const mShow=nakedEyeLimit(L)-MET_PERCEPT+1.0;
   return MET.dark[key]={mShow, Mcut:Math.min(8, mShow+0.5-(k-0.25)), lim:nakedEyeLimit(L)};
 }
-// The ecliptic frame at sky time T: the page's clock moved by T − Tpage seconds (a minute of the
-// clock is dayHours × 2.5 s).
+// The ecliptic frame at sky time T: the page's clock moved by T less its own time, in seconds (a
+// minute of the clock is dayHours × 2.5 s).
 function metFrameAt(T){
   const save=minutes;
-  minutes=save+(T-MET.Tpage)/(dayHours()*2.5);
+  // From the page's own time, not MET.Tpage, which lags while the clock runs between ticks.
+  minutes=save+(T-astroDay()*86400)/(dayHours()*2.5);
   try{ return eclipticFrame(LATDEG[dLat]); } finally{ minutes=save; }
 }
 function metPoisson(l){ if(!(l>0)) return 0; if(l>40) return Math.max(0, Math.round(l+Math.sqrt(l)*metGauss())); let n=0, p=Math.exp(-l), s=p; const u=metRand(); while(u>s&&n<200){ n++; p*=l/n; s+=p; } return n; }
-// The meteors (and lunar flashes) of bin b in stream s (a second, or a minute in stream 2), made once and kept.
-function metBin(s, b){
+// The meteors (and lunar flashes) of bin b in stream s (a second, or a minute in stream 2), made once
+// and kept (unless store is false, for a search ahead).
+function metBin(s, b, store=true){
   const ep=EP[dIdx], key=ep.key, id=key+'|'+dLat+'|'+s+'|'+b;
   let got=MET.cache.get(id);
   if(got) return got;
   got={met:[], fl:[]};
-  const E=metEpoch(key), D=metDark(key), lo=[MET_SPLIT, CT_BOLIDE, -Infinity][s], hi=[D.Mcut, Math.min(MET_SPLIT, D.Mcut), CT_BOLIDE][s];
+  const E=metEpoch(key), D=metDark(key), lo=[MET_SPLIT, CT_BOLIDE, MET_GROUND, -Infinity][s], hi=[D.Mcut, Math.min(MET_SPLIT, D.Mcut), CT_BOLIDE, MET_GROUND][s];
   const T0=b*MET_BIN[s], dT=MET_BIN[s];
   metRng=mulberry32(metHash(id));
   try{
     if(hi>lo||s){
-      const F=metFrameAt(T0), ctx={key, k:extK(key), mShow:D.mShow, air:ep.air||{O:0.21, N:0.79, C:0, O2:0.21}};
+      // The frame takes a while, and most minutes of the bolide stream have nothing in them: there it waits.
+      let F=s<2?metFrameAt(T0):null;
+      const frame=()=>F||(F=metFrameAt(T0)), ctx={key, k:extK(key), mShow:D.mShow, air:ep.air||{O:0.21, N:0.79, C:0, O2:0.21}};
       const rate=MET_Q1*E.F*(metCum(E, hi)-(lo===-Infinity?0:metCum(E, lo)))/3600*dT;
       const keep=(m, i)=>{ if(m){ m.t0=T0+dT*metRand(); m.id=id+'|'+i; got.met.push(m); } };
       const n=Math.min(metPoisson(rate), 2000);
-      for(let i=0;i<n;i++) keep(metMake(E, F, lo, hi, ctx), i);
+      for(let i=0;i<n;i++) keep(metMake(E, frame(), lo, hi, ctx), i);
       // Ring debris, at the equator only: very slow, nearly horizontal, from the west.
       if(E.ring&&dLat==='Equator'&&ringOf(key)){
         const nr=metPoisson(rate*E.ring);
@@ -269,7 +275,7 @@ function metBin(s, b){
           const M=metDrawM(E, lo, hi, metRand()), sg=MET_D*Math.sqrt(metRand()), az=2*Math.PI*metRand(), th=sg/MET_RE;
           const nn=[Math.sin(th)*Math.sin(az), Math.sin(th)*Math.cos(az), Math.cos(th)];
           // Eastward along the ring plane, dipping 1–4° into the air: the radiant is to the west.
-          const east=vnorm(vcross(F.pole, nn)), dip=(1+3*metRand())*Math.PI/180;
+          const east=vnorm(vcross(frame().pole, nn)), dip=(1+3*metRand())*Math.PI/180;
           const u=vnorm(vadd(vscale(east, Math.cos(dip)), vscale(nn, -Math.sin(dip)), [0, 0, 0]));
           keep(metPath(M, 7.6+0.6*metRand(), vscale(u, -1), nn, E, ctx, 'ring'), 'r'+i);
         }
@@ -279,8 +285,51 @@ function metBin(s, b){
       if(s<2) showerBin(got, b, s, lo, hi, E, ctx, F, id);
     }
   }finally{ metRng=Math.random; }
-  MET.cache.set(id, got);
+  if(store) MET.cache.set(id, got);
   return got;
+}
+// The ground strikes about sky time t: the 10 before it and the 10 after, looked for up to 30 years
+// either way in the fourth stream, each marked whether it is still seen just before it strikes (a
+// thick air hides the low end of most). Kept until the epoch or place changes or t leaves the span
+// they cover; made again in idle time after a change (metTick), so a jump needs no search.
+const MET_IMP={id:'', lo:0, hi:0, prev:[], next:[]};
+function metImpacts(t){
+  const id=EP[dIdx].key+'|'+dLat;
+  if(MET_IMP.id===id&&t>=MET_IMP.lo&&t<=MET_IMP.hi) return MET_IMP;
+  const k=extK(EP[dIdx].key), seen=q=>{ const a=metApparent(q, 0.97, k); return a.el>0.5&&a.mag<2; };
+  const span=30*TROPICAL_YEAR, b0=Math.floor(t/86400), prev=[], next=[];
+  for(let b=b0;b<=b0+span&&next.length<10;b++){ const got=metBin(3, b, false).met.filter(q=>q.ground&&q.t0>t).sort((x, y)=>x.t0-y.t0); for(const q of got) if(next.length<10) next.push({m:q, seen:seen(q)}); }
+  for(let b=b0;b>=b0-span&&prev.length<10;b--){ const got=metBin(3, b, false).met.filter(q=>q.ground&&q.t0<=t).sort((x, y)=>y.t0-x.t0); for(const q of got) if(prev.length<10) prev.push({m:q, seen:seen(q)}); }
+  // Good while t stays between the last impact listed on each side (or the span searched).
+  Object.assign(MET_IMP, {id, prev, next, lo:prev.length===10?prev[9].m.t0:t-span*86400, hi:next.length===10?next[9].m.t0:t+span*86400});
+  return MET_IMP;
+}
+// Jump to the next ground strike (or with back, the one before), preferring one seen to the end:
+// 4 s before it, facing where it comes down, playing in real time so it is seen to fall. Most epochs
+// have none: today, by the distribution here, one strikes within 1,100 km about once in 1,600 years.
+function jumpNextImpact(back){
+  const key=EP[dIdx].key, t=astroDay()*86400, I=metImpacts(back?t-10:t+5), list=back?I.prev:I.next;
+  const pick=list.find(x=>x.seen)||list[0];
+  if(!pick){
+    // Only stony and asteroidal meteoroids reach the ground (metPath): not the apex and toroidal ones.
+    const E=metEpoch(key), mixAll=Object.values(E.mix).reduce((a, b)=>a+b, 0);
+    const stony=Object.entries(E.mix).reduce((a, [src, w])=>a+(src==='apex'||src==='toroidal'?0:w), 0)/mixAll;
+    const perYear=MET_Q1*E.F*metCum(E, MET_GROUND)*8766*stony;
+    vrNote=`no impact within sight in the ${back?'last':'next'} 30 years: about one every ${Number((1/perYear).toPrecision(2)).toLocaleString('en-US')} years falls within 1,100 km in this era`;
+    if(vrOn) paintVR();
+    return;
+  }
+  const m=pick.m;
+  vrNote='';
+  const pg=pageAt((m.t0-4)/86400);
+  document.getElementById('moonDate').value=pg.date;
+  minutes=pg.min; hslider.value=minutes;
+  setPlaySpeed('real');
+  if(!dayPlaying) hplay.click();
+  renderDay(true);
+  const a=metApparent(m, 0.75, extK(key));
+  vrYaw=(Math.atan2(a.dir[0], a.dir[1])*180/Math.PI+360)%360; vrPitch=Math.max(4, Math.min(45, a.el-8));
+  if(vrOn) paintVR();
 }
 // Lunar flashes of second b, anywhere on the disc; the lit part of the Moon, or a Moon below the
 // horizon, hides them when they are drawn.
@@ -306,18 +355,23 @@ function metTick(now){
   MET.last=now;
   MET.Tpage=astroDay()*86400;
   const t=MET.now=MET.Tpage, list=[], gone=[], flashes=[], bolides=[];
-  for(let s=0;s<3;s++) for(let b=Math.floor((t-MET_LOOK[s])/MET_BIN[s]);b<=Math.floor(t/MET_BIN[s]);b++){
+  for(let s=0;s<4;s++) for(let b=Math.floor((t-MET_LOOK[s])/MET_BIN[s]);b<=Math.floor(t/MET_BIN[s]);b++){
     const got=metBin(s, b);
     for(const m of got.met){
       if(m.t0>t) continue;
       const end=m.t0+m.T;
       if(t<=end+Math.max(m.wake, m.train)) list.push(m);
       if(t>end&&t-end<3) gone.push(m);
-      if(s===2) bolides.push(m);
+      if(s>=2) bolides.push(m);
     }
     for(const f of got.fl) if(f.t0<=t&&t<f.t0+f.T+0.4) flashes.push(f);
   }
   MET.list=list; MET.gone=gone; MET.flashes=flashes; MET.bolides=bolides;
+  // The impacts about now, ready for i before it is pressed.
+  if(vrOn&&!MET.impWait&&(MET_IMP.id!==EP[dIdx].key+'|'+dLat||t<MET_IMP.lo||t>MET_IMP.hi)){
+    MET.impWait=true;
+    (window.requestIdleCallback||setTimeout)(()=>{ MET.impWait=false; if(vrOn) metImpacts(astroDay()*86400); });
+  }
   // Keep about the last few minutes' seconds (and the bolides' 90 minutes), wherever the clock has been.
   if(MET.cache.size>3000){ for(const [k, v] of MET.cache){ const q=k.split('|'), s=+q[q.length-2], b=+q[q.length-1]*MET_BIN[s]; if(b<t-400-MET_LOOK[s]||b>t+400) MET.cache.delete(k); } if(MET.cache.size>3000) MET.cache.clear(); }
 }
