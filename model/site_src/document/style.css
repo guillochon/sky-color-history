@@ -108,6 +108,9 @@ button.tick.on{background:none;color:var(--ink)}
 #vr.mod-ctrl .s-ct{display:inline}
 .vrkeys .kg>b{font-weight:400;font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;opacity:.62;margin-right:-.3rem}
 #vr .k-insp,#vr.inspect .k-look{display:none}
+/* The layers that are on read in the pad's "on" yellow. */
+.vrkeys .on,#vr .k-insp{color:#ffc400}
+.vrkeys .on kbd,#vr .k-insp kbd{border-color:#ffc400}
 #vr.inspect .k-insp{display:inline}
 .vrkeys kbd{font:inherit;font-size:.88rem;border:1px solid rgba(255,255,255,.55);border-radius:3px;padding:0 .38rem;margin-right:.3rem;background:rgba(8,10,16,.5)}
 .vrnote{max-width:48ch;text-align:right;font-size:.82rem;opacity:.9}
@@ -121,6 +124,9 @@ button.tick.on{background:none;color:var(--ink)}
 .vrplay,.vrui{display:none;pointer-events:auto;flex:none}
 .vrplay .icon-play,.vrui .icon-show{display:none}
 .vrplay[aria-pressed="false"] .icon-pause{display:none}
+#vrpad-speed path{display:none}
+#vrpad-speed[data-speed="real"] .sp-real,#vrpad-speed[data-speed="default"] .sp-default,#vrpad-speed[data-speed="fast"] .sp-fast{display:inline}
+.vrpad button[data-act="time"]{-webkit-touch-callout:none}
 .vrplay[aria-pressed="false"] .icon-play{display:block}
 .vrui[aria-pressed="false"] .icon-hide{display:none}
 .vrui[aria-pressed="false"] .icon-show{display:block}
@@ -130,7 +136,7 @@ button.tick.on{background:none;color:var(--ink)}
 .vrstick-knob{position:absolute;left:50%;top:50%;width:2.55rem;height:2.55rem;margin:-1.275rem 0 0 -1.275rem;border-radius:50%;background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.75);pointer-events:none;transition:transform .12s ease-out}
 .vrstick.drag .vrstick-knob{transition:none}
 .vrwalk.fast .vrstick-knob{background:#ffc400;border-color:#fff4c2}
-#vr.ui-off .vrpad,#vr.ui-off .vrwalk,#vr.ui-off #vrpad-play{display:none}
+#vr.ui-off .vrpad,#vr.ui-off .vrwalk{display:none}
 #vr.ui-off .vrbot{background:none}
 @media (hover:none) and (pointer:coarse), (max-width:820px) and (pointer:coarse){
   .vrkeys,.vrnote{display:none}
@@ -204,6 +210,17 @@ h3.dp-title{margin:0 0 .6rem;font-size:1rem;font-weight:500}
 .dp-wd{font-size:.7rem;color:var(--ink2);text-align:center;padding-bottom:.1rem}
 p.dp-note{font-size:.78rem;color:var(--ink2);margin:.65rem 0 0;max-width:none}
 .dp-foot{display:flex;justify-content:space-between;gap:.5rem;margin-top:.75rem}
+/* The compact picker (VR on a touch screen): the year, then the month and day as drop-downs. */
+.dp-compact{display:none}
+#datePop.compact{width:min(19rem,calc(100vw - 2rem))}
+#datePop.compact .dp-months,#datePop.compact .dp-days,#datePop.compact .dp-note{display:none}
+#datePop.compact .dp-compact{display:flex;gap:.5rem;margin-top:.6rem}
+.dp-compact select{flex:1;font-size:1rem;padding:.35rem .4rem}
+#datePop.compact .dp-in{padding:.75rem .85rem .85rem}
+/* In VR the picker sits in the middle, dark like the find box. */
+#vr #datePop{--bg:#0c0f16;--bg2:#1f2430;--ink:#e9ebef;--ink2:#aeb4c0;--rule:#3d4453;--accent:#e9ebef;background:rgba(12,15,22,.9);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border-color:rgba(255,255,255,.2);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.6);cursor:auto;user-select:none}
+#vr #datePop::backdrop{background:rgba(0,0,0,.25);cursor:auto}
+#vr #datePop button[aria-pressed="true"]{background:#ffc400;color:#1c1400;border-color:#fff4c2}
 .cb-lat button,.cb-speed button{border-radius:0;margin-left:-1px}
 .cb-lat button:first-child,.cb-speed button:first-child{border-radius:3px 0 0 3px;margin-left:0}.cb-lat button:last-child,.cb-speed button:last-child{border-radius:0 3px 3px 0}
 @media (max-width:560px){.cb-label{min-width:100%}}

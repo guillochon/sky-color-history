@@ -97,8 +97,9 @@ function epochDate(prevKey, yf){
 // the twelve months and the month's days, as many as this epoch's calendar gives it; laid out in
 // weeks for the Gregorian calendar, in rows of ten for the others, which have no weeks.
 const dateBtn=document.getElementById('dateBtn'), datePop=document.getElementById('datePop'), dpYear=document.getElementById('dpYear'),
-  dpMonths=document.getElementById('dpMonths'), dpDays=document.getElementById('dpDays'), dpNote=document.getElementById('dpNote'), dpBack=document.getElementById('dpBack');
-MONTH_NAMES.forEach((n, i)=>{ const b=document.createElement('button'); b.type='button'; b.dataset.m=String(i+1); b.textContent=n; dpMonths.appendChild(b); });
+  dpMonths=document.getElementById('dpMonths'), dpDays=document.getElementById('dpDays'), dpNote=document.getElementById('dpNote'), dpBack=document.getElementById('dpBack'),
+  dpMonthSel=document.getElementById('dpMonthSel'), dpDaySel=document.getElementById('dpDaySel'), datePopHome=datePop.parentNode;
+MONTH_NAMES.forEach((n, i)=>{ const b=document.createElement('button'); b.type='button'; b.dataset.m=String(i+1); b.textContent=n; dpMonths.appendChild(b); dpMonthSel.add(new Option(n, String(i+1))); });
 dpYear.min=String(-YEAR_SPAN); dpYear.max=String(YEAR_SPAN);
 function setPageDate(Y, M, D){ document.getElementById('moonDate').value=fmtDate(Y, M, Math.max(1, Math.min(D, monthLen(Y, M)))); renderDay(); }
 let datePopDrawn='';
@@ -115,6 +116,10 @@ function drawDatePop(){
   }
   for(let d=1, n=monthLen(Y, M); d<=n; d++) html+=`<button type="button" data-d="${d}" aria-pressed="${d===D}">${d}</button>`;
   dpDays.className='dp-days '+(greg?'dp-week':'dp-ten'); dpDays.innerHTML=html;
+  dpMonthSel.value=String(M);
+  const WD=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  dpDaySel.replaceChildren(...Array.from({length:monthLen(Y, M)}, (_, i)=>new Option(greg?`${i+1} ${WD[localDate(Y, M-1, i+1).getDay()]}`:String(i+1), String(i+1))));
+  dpDaySel.value=String(D);
   const lens=MONTH_NAMES.map((_, i)=>monthLen(Y, i+1)), lo=Math.min(...lens), hi=Math.max(...lens);
   dpNote.textContent=greg?(z?'Today’s 24-hour days and calendar; years count from this sky’s year 0.':'The Gregorian calendar.')
     :`${dayHours()}-hour days: twelve months of ${lo===hi?lo:lo+'–'+hi} days, ${yearLen(Y)} this year. Years count from this sky’s year 0.`;
@@ -122,10 +127,31 @@ function drawDatePop(){
   dpBack.textContent=EPOCH_YEAR[key]==='now'?'Today':`Back to ${z?'year 0':fmtYear(back)}`;
 }
 function syncDateUI(){ dateBtn.textContent=dateLabel(); if(datePop.open) drawDatePop(); }
-dateBtn.addEventListener('click', ()=>{
+// In VR the dialog goes inside the view, the full-screen element, and on a touch screen it is the
+// compact one, with drop-downs for the month and day. The look lets go of the pointer while it is
+// open (vr_input.js), and takes it back when it closes.
+function openDatePop(){
+  if(datePop.open) return;
+  const host=vrOn?document.getElementById('vr'):datePopHome;
+  if(datePop.parentNode!==host) host.append(datePop);
+  const compact=vrOn&&vrTouch;
+  datePop.classList.toggle('compact', compact);
+  if(vrOn) vrHeld.clear();
   datePopDrawn=''; drawDatePop(); datePop.showModal();
-  (dpDays.querySelector('[aria-pressed="true"]')||dpYear).focus();
+  if(vrOn&&document.pointerLockElement) document.exitPointerLock();
+  if(!compact) (dpDays.querySelector('[aria-pressed="true"]')||dpYear).focus();
+}
+dateBtn.addEventListener('click', openDatePop);
+datePop.addEventListener('close', ()=>{
+  if(!vrOn) return;
+  document.getElementById('vr').focus();
+  if(!vrInspect){ vrRelock=true; lockLook(); setTimeout(()=>{ vrRelock=false; }, 400); }
 });
+// The walk-around view's own pointer and wheel handlers leave the dialog alone.
+datePop.addEventListener('pointerdown', e=>{ if(vrOn) e.stopPropagation(); });
+datePop.addEventListener('wheel', e=>{ if(vrOn) e.stopPropagation(); });
+dpMonthSel.addEventListener('change', ()=>{ const [Y,,D]=pageDate(); setPageDate(Y, +dpMonthSel.value, D); });
+dpDaySel.addEventListener('change', ()=>{ const [Y,M]=pageDate(); setPageDate(Y, M, +dpDaySel.value); });
 // A click on the dimmed page outside the dialog closes it.
 datePop.addEventListener('click', e=>{ if(e.target===datePop) datePop.close(); });
 dpMonths.addEventListener('click', e=>{ const b=e.target.closest('[data-m]'); if(!b) return; const [Y,,D]=pageDate(); setPageDate(Y, +b.dataset.m, D); });

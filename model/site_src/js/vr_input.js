@@ -128,7 +128,7 @@ function lockLook(){
   const p=document.getElementById('vrc').requestPointerLock(); if(p&&p.catch) p.catch(()=>{});
 }
 function exitVR(){
-  if(!vrOn) return; if(momentClouds!==null){ vrClouds=momentClouds; momentClouds=null; } aurActive=false; hideVRLoad(); if(vrGL&&vrGL.note) vrGL.note=''; if(vrInspect) setInspect(false, true); vrFind=null; closeFind(); clearVRPins(); hideVRTip(); clearInterval(vrInspectTimer); vrInspectTimer=0; vrHoldEsc(false); vrOn=false; stopVRMusic(); vrRelock=false; vrLinkKey=''; vrHeld.clear(); endStick(); document.getElementById('sunmark').hidden=true; document.getElementById('moonmark').hidden=true; document.getElementById('snmark').hidden=true; if(vrWalk){ cancelAnimationFrame(vrWalk); vrWalk=0; }
+  if(!vrOn) return; if(momentClouds!==null){ vrClouds=momentClouds; momentClouds=null; } aurActive=false; hideVRLoad(); if(vrGL&&vrGL.note) vrGL.note=''; if(vrInspect) setInspect(false, true); vrFind=null; closeFind(); if(datePop.open) datePop.close(); clearVRPins(); hideVRTip(); clearInterval(vrInspectTimer); vrInspectTimer=0; vrHoldEsc(false); vrOn=false; stopVRMusic(); vrRelock=false; vrLinkKey=''; vrHeld.clear(); endStick(); document.getElementById('sunmark').hidden=true; document.getElementById('moonmark').hidden=true; document.getElementById('snmark').hidden=true; if(vrWalk){ cancelAnimationFrame(vrWalk); vrWalk=0; }
   if(!vrNav) clearVRLink();
   const root=document.getElementById('vr'); root.classList.remove('on','locked'); root.setAttribute('aria-hidden','true');
   document.body.style.overflow='';
@@ -179,7 +179,7 @@ window.addEventListener('wheel', e=>{
   const locked=document.pointerLockElement===vrc||!!vrLockPin, cx=locked?window.innerWidth/2:e.clientX, cy=locked?window.innerHeight/2:e.clientY;
   zoomVRAbout(Math.exp(px*0.0015), cx, cy);
 }, {passive:false});
-window.addEventListener('mousemove', e=>{ if(!vrOn) return; if(vrInspect){ vrInspectAt=[e.clientX, e.clientY]; vrOverPin=!!(e.target.closest&&e.target.closest('.vrpintip')); if(vrOverPin) hideVRHoverTip(); else askVRHoverTip(); if(!vrEdgeRAF) vrEdgeRAF=requestAnimationFrame(edgeScroll); return; } if(!e.movementX&&!e.movementY) return; lookVR(e.movementX, e.movementY); });
+window.addEventListener('mousemove', e=>{ if(!vrOn||datePop.open) return; if(vrInspect){ vrInspectAt=[e.clientX, e.clientY]; vrOverPin=!!(e.target.closest&&e.target.closest('.vrpintip')); if(vrOverPin) hideVRHoverTip(); else askVRHoverTip(); if(!vrEdgeRAF) vrEdgeRAF=requestAnimationFrame(edgeScroll); return; } if(!e.movementX&&!e.movementY) return; lookVR(e.movementX, e.movementY); });
 window.addEventListener('pointerdown', e=>{ if(!vrOn) return; pokeVRMusic(); if(e.target.closest&&e.target.closest('.vrpintip')) return; if(vrInspect){ if(e.button===0) pinVRTip(e.clientX, e.clientY); return; } if(document.pointerLockElement===vrc) return; vrRelock=true;
   const root=document.getElementById('vr'); if(!document.fullscreenElement&&root.requestFullscreen){ const p=root.requestFullscreen(); if(p&&p.catch) p.catch(()=>{}); }
   lockLook(); setTimeout(()=>{ vrRelock=false; }, 400); });
@@ -243,7 +243,7 @@ document.addEventListener('fullscreenchange', ()=>{
   // the way out of inspect everywhere, and the key bar says so while inspecting.
   if(!document.fullscreenElement){ vrLeaveUnlessAway(()=>!document.fullscreenElement); return; }
   vrHoldEsc(true);
-  if(vrInspect) return;
+  if(vrInspect||datePop.open) return;
   vrRelock=true; lockLook(); setTimeout(()=>{ vrRelock=false; }, 400);
 });
 let vrLockedOnce=false;
@@ -251,9 +251,9 @@ document.addEventListener('pointerlockchange', ()=>{
   const locked=document.pointerLockElement===vrc;
   document.getElementById('vr').classList.toggle('locked', locked);
   if(locked){ vrLockedOnce=true; return; }
-  if(!vrOn||!vrLockedOnce||vrInspect) return;
+  if(!vrOn||!vrLockedOnce||vrInspect||datePop.open) return;
   if(vrRelock){ lockLook(); return; }
-  vrLeaveUnlessAway(()=>document.pointerLockElement!==vrc&&!vrInspect);
+  vrLeaveUnlessAway(()=>document.pointerLockElement!==vrc&&!vrInspect&&!datePop.open);
 });
 // Shift and ctrl (or ⌘) held, for the key legend: the jumps go back and the steps change while they are.
 function vrMods(e){ const v=document.getElementById('vr'); v.classList.toggle('mod-shift', !!e.shiftKey); v.classList.toggle('mod-ctrl', !!(e.ctrlKey||e.metaKey)); }
@@ -264,6 +264,7 @@ window.addEventListener('blur',()=>{ vrHeld.clear(); endStick(); });
 document.addEventListener('keydown',e=>{
   if(vrOn){
     pokeVRMusic();
+    if(datePop.open) return;
     const k=e.key.length===1?e.key.toLowerCase():e.key;
     if(k==='m'&&!e.repeat){ e.preventDefault(); toggleVRMusic(); return; }
     if(k==='w'||k==='a'||k==='s'||k==='d'){ e.preventDefault(); vrHeld.add(k); if(e.shiftKey) vrHeld.add('shift'); if(!dayPlaying) pumpWalk(); return; }
@@ -272,6 +273,7 @@ document.addEventListener('keydown',e=>{
     if(k==='c'&&!e.repeat){ e.preventDefault(); vrClouds=!vrClouds; momentClouds=null; requestVR(); syncVRPad(); return; }
     if(k==='l'&&!e.repeat){ e.preventDefault(); vrLabels=!vrLabels; requestVR(); syncVRPad(); return; }
     if(k==='f'&&!e.repeat){ e.preventDefault(); openFind(); return; }
+    if(k==='y'&&!e.repeat){ e.preventDefault(); openDatePop(); return; }
     if(k==='q'&&!e.repeat&&!vrTouch){ e.preventDefault(); setInspect(!vrInspect); return; }
     if(e.key==='Escape'){ e.preventDefault(); if(vrInspect) setInspect(false); else exitVR(); return; }
     if(e.key===' ' && !e.repeat){ e.preventDefault(); hplay.click(); return; }
@@ -295,7 +297,8 @@ document.addEventListener('keydown',e=>{
   }
   // The page has VR's keys for time and eras: space plays or pauses the day, ← and → step it by
   // five minutes, ↑ and ↓ (or [ and ]) change era, e and t jump to the next eclipse, u and b to the next
-  // lunar one, n to the next meteor shower, f finds something in the sky (find.js), and l labels
+  // lunar one, n to the next meteor shower, f finds something in the sky (find.js), y opens the
+  // date picker (calendar.js), and l labels
   // the dome as it does the view (drawDomeLabels). Not while typing, with the date picker open,
   // or on a control that uses the key itself; with a modifier, the browser's own.
   const t=document.activeElement, tag=t&&t.tagName;
@@ -307,7 +310,7 @@ document.addEventListener('keydown',e=>{
     ArrowUp:()=>stepEpoch(1), ']':()=>stepEpoch(1), ArrowDown:()=>stepEpoch(-1), '[':()=>stepEpoch(-1),
     e:()=>{ if(!e.repeat) jumpNextEclipse(false, false, e.shiftKey); }, t:()=>{ if(!e.repeat) jumpNextEclipse(true, false, e.shiftKey); },
     u:()=>{ if(!e.repeat) jumpNextLunarEclipse(false, e.shiftKey); }, b:()=>{ if(!e.repeat) jumpNextLunarEclipse(true, e.shiftKey); }, n:()=>{ if(!e.repeat) jumpNextShower(e.shiftKey); },
-    f:()=>{ if(!e.repeat) openFind(); }, l:()=>{ if(!e.repeat){ vrLabels=!vrLabels; syncVRPad(); requestRender(); } },
+    f:()=>{ if(!e.repeat) openFind(); }, y:()=>{ if(!e.repeat) openDatePop(); }, l:()=>{ if(!e.repeat){ vrLabels=!vrLabels; syncVRPad(); requestRender(); } },
     1:()=>setPlaySpeed('real'), 2:()=>setPlaySpeed('default'), 3:()=>setPlaySpeed('fast')}[k];
   if(act){ e.preventDefault(); act(); }
 });
@@ -319,6 +322,9 @@ function syncVRPad(){
   set('vrpad-labels', vrLabels);
   set('vrpad-music', !musicMuted);
   set('vrpad-run', vrRun);
+  for(const [id, on] of [['vrk-scenery', vrScenery], ['vrk-clouds', vrClouds], ['vrk-labels', vrLabels]]){ const el=document.getElementById(id); if(el) el.classList.toggle('on', on); }
+  const sp=document.getElementById('vrpad-speed');
+  if(sp){ sp.dataset.speed=playSpeed; sp.setAttribute('aria-label', 'Speed: '+(playSpeed==='real'?'real time':playSpeed==='fast'?'fast':'normal')); }
   const walk=document.getElementById('vrwalk');
   if(walk) walk.classList.toggle('fast', vrRun);
   const play=document.getElementById('vrpad-play');
@@ -342,7 +348,9 @@ document.querySelectorAll('.vrpad button, .vrplay, .vrwalk button, #vrpad-ui').f
     else if(act==='labels'){ vrLabels=!vrLabels; requestVR(); }
     else if(act==='music'){ toggleVRMusic(); return; }
     else if(act==='play') hplay.click();
-    else if(act==='time') stepMinutes(+b.dataset.dir);
+    else if(act==='time'){ if(!b.held) stepMinutes(+b.dataset.dir); b.held=false; }
+    else if(act==='speed') setPlaySpeed(SPEED_CYCLE[(SPEED_CYCLE.indexOf(playSpeed)+1)%SPEED_CYCLE.length]);
+    else if(act==='date'){ openDatePop(); return; }
     else if(act==='era') stepEpoch(+b.dataset.dir);
     else if(act==='eclipse') jumpNextEclipse(false);
     else if(act==='central') jumpNextEclipse(true);
@@ -352,6 +360,34 @@ document.querySelectorAll('.vrpad button, .vrplay, .vrwalk button, #vrpad-ui').f
     syncVRPad();
   });
 });
+const SPEED_CYCLE=['real', 'default', 'fast'];
+// Holding a time button steps once, then after a moment skips on, faster the longer it is held:
+// from 90 minutes of the clock a second up to a day a second.
+let vrSkip=null;
+function endSkip(){ if(!vrSkip) return; clearTimeout(vrSkip.wait); cancelAnimationFrame(vrSkip.raf); vrSkip=null; }
+document.querySelectorAll('.vrpad button[data-act="time"]').forEach(b=>{
+  b.addEventListener('pointerdown', e=>{
+    if((e.button!==0&&e.button!==undefined)||vrSkip) return;
+    b.held=true; endSkip();
+    try{ b.setPointerCapture(e.pointerId); }catch(err){}
+    const dir=Math.sign(+b.dataset.dir), skip=vrSkip={id:e.pointerId, raf:0, wait:0};
+    stepMinutes(dir*5);
+    skip.wait=setTimeout(()=>{
+      const t0=performance.now(); let last=t0;
+      const frame=now=>{
+        if(vrSkip!==skip||!vrOn) return;
+        const rate=Math.min(DAYMIN, 90*Math.pow(2, (now-t0)/700));
+        stepMinutes(dir*rate*Math.min(0.25, (now-last)/1000)); last=now;
+        skip.raf=requestAnimationFrame(frame);
+      };
+      skip.raf=requestAnimationFrame(frame);
+    }, 380);
+  });
+  const up=e=>{ if(vrSkip&&e.pointerId===vrSkip.id) endSkip(); };
+  b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('lostpointercapture', up);
+  b.addEventListener('contextmenu', e=>e.preventDefault());
+});
+window.addEventListener('blur', endSkip);
 // Drag on the stick walks: up is forward, and how far it is pushed sets the pace. The run
 // button, handled with the other pad buttons, matches Shift.
 let vrStickId=null;

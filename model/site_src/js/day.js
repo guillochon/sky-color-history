@@ -709,6 +709,7 @@ function setPlaySpeed(s){
   playSpeed=s;
   document.querySelectorAll('[data-speed]').forEach(b=>b.setAttribute('aria-pressed', b.dataset.speed===s?'true':'false'));
   adoptPlayRate();
+  syncVRPad();
   if(vrOn) requestVR();
 }
 document.querySelectorAll('[data-speed]').forEach(b=>b.addEventListener('click', ()=>setPlaySpeed(b.dataset.speed)));
