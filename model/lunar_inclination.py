@@ -9,7 +9,7 @@ where θ is the Moon's obliquity to its orbit in Cassini state 2, from
   Ω̇ = (3/4) n_E² / n cos i (the node's regression, driven by the Sun).
 The Moon's distance follows the page's history (moon.js MOON_RE: Farhat et al. 2022, Eulenfeld &
 Heubeck 2023), and it keeps today's figure (frozen in at about 15 Earth radii, Downey, Nimmo &
-Matsuyama 2022) and today's tidal response, k2/Q = 0.024/38 (lunar laser ranging).
+Matsuyama 2023) and today's tidal response, k2/Q = 0.024/38 (lunar laser ranging).
 The lunar tides grow fast as the Moon nears the Cassini-state transition at about 33 Earth radii,
 where θ swings large, so the inclination climbs steeply toward the oldest epochs. Ćuk et al.
 argue these values are lower bounds (a warmer young Moon damps more).

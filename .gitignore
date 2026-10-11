@@ -5,6 +5,7 @@ latex/*.bbl
 latex/*.blg
 latex/*.fls
 latex/*.fdb_latexmk
+latex/citations_ads.md
 __pycache__/
 .DS_Store
 .claude/

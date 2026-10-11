@@ -30,7 +30,7 @@
 // that make them. Most of today's come from Jupiter-family and Halley-type comets, fed from the
 // scattered disk, and roughly a quarter of the IMO list from long-period comets (the Lyrids,
 // Aurigids and Monocerotids among them), fed from the Oort cloud; an estimate, since only about a
-// fifth of known streams have an identified parent (Ye & Jenniskens 2022). So the count is
+// fifth of known streams have an identified parent (Ye & Jenniskens 2024). So the count is
 // 0.75 J + 0.25 C, where C is the long-period comet rate (comets.js) and J the short-period one,
 // taken as C after the giant planets' instability (both reservoirs were filled by it and drained
 // after it; an estimate), falling to today's by 2 Ga. Nothing in the literature puts a number on

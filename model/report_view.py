@@ -277,7 +277,7 @@ SUPERNOVAE = [
 "Type II-P peaks near absolute magnitude −16.75 (Richardson et al. 2014), so from 147 pc it reached "
 "about −11, a fifth of the full Moon's light from a single point, bright enough to show by day and cast "
 "shadows at night for the three months of its plateau. The ζ Ophiuchi supernova, 1.78 million years ago "
-"at 107 pc in the Scorpius–Centaurus association (Neuhäuser et al. 2019), unbound its companion, now the "
+"at 107 pc in the Scorpius–Centaurus association (Neuhäuser et al. 2020), unbound its companion, now the "
 "runaway star ζ Oph, and peaked near −11.6, twice as bright. Its spectrum readout is a Type II-P near "
 "peak, with P Cygni profiles from fast ejecta (Filippenko 1997). At these distances neither touches the "
 "sky's colors (Thomas et al. 2016).",

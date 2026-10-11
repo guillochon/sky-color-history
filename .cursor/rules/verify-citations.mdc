@@ -1,0 +1,15 @@
+---
+description: Run verify_citations.py after adding or changing citations
+alwaysApply: true
+---
+
+# Verify citations against ADS
+
+Whenever citations are added, removed, retargeted, or their bibliography entries change, run `python scripts/verify_citations.py` from the repo root before finishing. Do not skip because the keys look familiar.
+
+- Needs `ADS_TOKEN` in `.env` (https://ui.adsabs.harvard.edu/user/settings/token). The script reads that file.
+- This report does not use `\cite`. Prose names the authors and year; `model/report_refs.py` links each match as `\hyperlink{cite.<key>}` in `latex/main.tex` and as `#ref-<key>` in the HTML report. The bibliography source is `model/report_refs.py` plus the `REFS` list in `model/report_sky.py`, written out as `latex/refs.bib`.
+- Defaults: `latex/main.tex` + `latex/refs.bib` → `latex/citations_ads.md`
+- Triggers: new or edited entries in `model/report_refs.py` or `model/report_sky.py`, retargeted `cite.<key>` links, and DOI, arXiv, title, author, or year changes in `latex/refs.bib`
+- After the run, fix anything under UNRESOLVED, TITLE MISMATCH, YEAR MISMATCH, or cited-but-absent before compiling. A work that ADS does not index (a website, a trade calendar, some technical reports) can stay unresolved; say so rather than inventing a bibcode.
+- `--dry-run` is only for inspecting queries; a citation change is not done until a live run succeeds
