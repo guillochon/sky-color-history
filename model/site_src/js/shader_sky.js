@@ -17,15 +17,19 @@ float steamOpacity(vec3 ro, vec3 rd, float tEnd){
   if(abs(rd.z)>1e-5){ float a=(H-ro.z)/rd.z, b=-ro.z/rd.z; t0=max(t0, min(a, b)); t1=min(t1, max(a, b)); }
   else if(ro.z>H) t1=t0;
   if(t1<=t0) return 0.0;
-  vec2 dr=vec2(0.6, 0.25)*waterT;
+  vec2 dr=vec2(1.6, 0.7)*waterT;
   float tau=0.0, tp=t0;
   for(int i=0;i<6;i++){
     float f=(float(i)+1.0)/6.0, tq=t0+(t1-t0)*f*f, dt=tq-tp; tp=tq;
     vec3 p=ro+rd*(tq-0.5*dt);
+    // Columns where the water steams hardest drift with the wind and lean downwind with height;
+    // in them, puffs a dozen metres tall rise at about 1.5 m/s, swelling and fading as they go.
     vec2 q=p.xy-dr+vec2(0.7, 0.4)*p.z*0.8;
-    float w=stN(q/90.0+vec2(0.0, -waterT*0.02))*0.6+stN(q/28.0+3.1)*0.4;
-    float plume=mix(smoothstep(0.45, 0.78, w), 0.3, smoothstep(300.0, 3000.0, dt));
-    tau+=0.0035*plume*exp(-p.z/22.0)*smoothstep(0.9, 1.3, length(p.xy)/seaR)*dt;
+    float col=stN(q/90.0)*0.6+stN(q/28.0+3.1)*0.4;
+    float puff=stN(vec2((q.x*0.8+q.y*0.6)/22.0, (p.z-1.5*waterT)/12.0))*0.6+stN(vec2((q.y*0.8-q.x*0.6)/9.0+5.3, (p.z-2.2*waterT)/6.0))*0.4;
+    float w=col*(0.55+0.7*puff);
+    float plume=mix(smoothstep(0.5, 0.9, w), 0.12, smoothstep(300.0, 3000.0, dt));
+    tau+=0.009*plume*exp(-p.z/22.0)*smoothstep(0.9, 1.3, length(p.xy)/seaR)*dt;
   }
   return (1.0-exp(-tau))*0.9;
 }
