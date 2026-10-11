@@ -1,8 +1,8 @@
 const COMPFS=`#version 300 es
 precision highp float;
 uniform sampler2D cloudTex; uniform sampler2D hitInfo; uniform vec2 res;
-uniform float yaw,pitch,fov,showScn;
-uniform vec3 eye;
+uniform float yaw,pitch,fov,showScn,seaR,waterT,nr,na;
+uniform vec3 eye; uniform sampler2D sky;
 out vec4 fragColor;
 ${SHELL_GLSL}
 vec4 toneCloud(vec4 c){
@@ -12,6 +12,7 @@ vec4 toneCloud(vec4 c){
   return vec4(x*c.a, c.a);
 }
 ${VIEW_RAY_GLSL}
+${STEAM_GLSL}
 void main(){
   vec4 c=texture(cloudTex, gl_FragCoord.xy/res);
   if(c.a<0.004){ fragColor=c; return; }
@@ -25,4 +26,11 @@ void main(){
     }
   }
   fragColor=toneCloud(c);
+  if(seaR>0.0 && showScn>0.5){
+    // Steam in front of the clouds (STEAM_GLSL): they show through it as the sky does, and the
+    // steam the sky pass laid under them, which this blend would hide, is put back.
+    vec3 rd=viewRay(gl_FragCoord.xy, res, fov, yaw, pitch), ro=eye;
+    float tIn=shellT(ro, rd, 1200.0), a=steamOpacity(ro, rd, tIn>=0.0?tIn:30000.0);
+    fragColor.rgb=fragColor.rgb*(1.0-a)+steamColor(rd)*a*fragColor.a;
+  }
 }`;

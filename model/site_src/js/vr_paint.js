@@ -721,6 +721,8 @@ function paintVR(){
     gl.uniform1f(pu.showScn, vrScenery?1:0);
     gl.uniform4fv(pu.obj, sc.o); gl.uniform1fv(pu.kind, sc.k);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
+    gl.uniform1f(pu.seaR, sc.sea||0); gl.uniform1f(pu.waterT, (performance.now()/1000)%1000);
+    if(vrGL.skyNa){ gl.uniform1f(pu.nr, vrGL.skyNa[0]); gl.uniform1f(pu.na, vrGL.skyNa[1]); }
     perfPassEnd('composite');
     gl.disable(gl.BLEND);
     gl.activeTexture(gl.TEXTURE0); gl.useProgram(vrGL.prog);

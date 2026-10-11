@@ -1,3 +1,41 @@
+// Steam off the hot Hadean sea (vr_paint.js ZONES 'sea'), shared by the sky shader and the cloud
+// composite (shader_present.js), which dims the clouds behind it. The sea is about 200 °C under
+// the 30-bar air: plumes rise from the water, thinning with height over some 50 m, leaning and
+// drifting with the wind. Six samples along the ray's run through the layer, crowded toward the
+// eye where the wisps show; far off a sample spans many plumes and takes their mean. Lit from the
+// whole sky, it stands paler than the water, which mirrors only the horizon. Needs uniforms seaR,
+// waterT, nr, na and the sky texture.
+const STEAM_GLSL=`
+float stH(vec2 p){ vec3 q=fract(vec3(p.xyx)*vec3(0.1031, 0.1030, 0.0973)); q+=dot(q, q.yzx+33.33); return fract((q.x+q.y)*q.z); }
+float stN(vec2 p){
+  vec2 i=floor(p), f=fract(p), u=f*f*(3.0-2.0*f);
+  return mix(mix(stH(i), stH(i+vec2(1.0,0.0)), u.x), mix(stH(i+vec2(0.0,1.0)), stH(i+vec2(1.0,1.0)), u.x), u.y);
+}
+float steamOpacity(vec3 ro, vec3 rd, float tEnd){
+  if(seaR<=0.0) return 0.0;
+  float H=60.0, t0=0.0, t1=tEnd;
+  if(abs(rd.z)>1e-5){ float a=(H-ro.z)/rd.z, b=-ro.z/rd.z; t0=max(t0, min(a, b)); t1=min(t1, max(a, b)); }
+  else if(ro.z>H) t1=t0;
+  if(t1<=t0) return 0.0;
+  vec2 dr=vec2(0.6, 0.25)*waterT;
+  float tau=0.0, tp=t0;
+  for(int i=0;i<6;i++){
+    float f=(float(i)+1.0)/6.0, tq=t0+(t1-t0)*f*f, dt=tq-tp; tp=tq;
+    vec3 p=ro+rd*(tq-0.5*dt);
+    vec2 q=p.xy-dr+vec2(0.7, 0.4)*p.z*0.8;
+    float w=stN(q/90.0+vec2(0.0, -waterT*0.02))*0.6+stN(q/28.0+3.1)*0.4;
+    float plume=mix(smoothstep(0.45, 0.78, w), 0.3, smoothstep(300.0, 3000.0, dt));
+    tau+=0.0035*plume*exp(-p.z/22.0)*smoothstep(0.9, 1.3, length(p.xy)/seaR)*dt;
+  }
+  return (1.0-exp(-tau))*0.9;
+}
+vec3 steamSky(vec3 d){
+  float c=atan(d.x, d.y); if(c<0.0) c+=6.28318530718;
+  float el=asin(clamp(d.z, -1.0, 1.0))*57.2957795;
+  return texture(sky, vec2((fract(c/6.28318530718)*na+0.5)/(na+1.0), ((90.0-max(el, 0.0))/90.0*nr+0.5)/(nr+1.0))).rgb;
+}
+vec3 steamColor(vec3 rd){ return min((steamSky(normalize(vec3(rd.xy, 0.05)))*0.5+steamSky(vec3(0.0, 0.0, 1.0))*0.5)*1.35+0.04, vec3(1.0)); }
+`;
 const VRFS_SRC=`#version 300 es
 precision highp float;
 // The programs (keepLoops below): VRFS_BOOT, without the scenery, compiles in a couple of seconds
@@ -463,6 +501,7 @@ vec3 overSkyDso(vec3 skyC, float rBg, float r, vec3 L){
 }
 // Light at night from the Moon (ml) and a supernova (sn), on a surface with normal n.
 vec3 nightLit(vec3 n){ return snLight*max(dot(n, snDir), 0.0)+mlLight*max(dot(n, mlDir), 0.0); }
+${STEAM_GLSL}
 vec3 skyLook(vec3 d){
   float c=atan(d.x, d.y); if(c<0.0) c+=6.28318530718;
   float el=asin(clamp(d.z, -1.0, 1.0))*57.2957795;
@@ -1024,28 +1063,9 @@ void main(){
   }
 #if SCENERY
   if(seaR>0.0 && showScn>0.5){
-    // Steam off the hot sea (about 200 °C under the 30-bar air): plumes rising from the water,
-    // thinning with height over some 50 m, leaning and drifting with the wind. Six samples
-    // along the ray's run through the layer, crowded toward the eye where the wisps show. It is
-    // lit from the whole sky, so it stands paler than the water, which mirrors only the horizon.
-    float H=60.0, tEnd=min(kBest>0.5?tBest:(rd.z<0.0?-ro.z/rd.z:30000.0), 30000.0), t0=0.0, t1=tEnd;
-    if(abs(rd.z)>1e-5){ float a=(H-ro.z)/rd.z, b=-ro.z/rd.z; t0=max(t0, min(a, b)); t1=min(t1, max(a, b)); }
-    else if(ro.z>H) t1=t0;
-    if(t1>t0){
-      vec2 dr=vec2(0.6, 0.25)*waterT;
-      float tau=0.0, tp=t0;
-      for(int i=0;i<6;i++){
-        float f=(float(i)+1.0)/6.0, tq=t0+(t1-t0)*f*f, dt=tq-tp; tp=tq;
-        vec3 p=ro+rd*(tq-0.5*dt);
-        vec2 q=p.xy-dr+vec2(0.7, 0.4)*p.z*0.8;
-        float w=vN(q/90.0+vec2(0.0, -waterT*0.02))*0.6+vN(q/28.0+3.1)*0.4;
-        // Far off, a sample spans many plumes: their mean.
-        float plume=mix(smoothstep(0.45, 0.78, w), 0.3, smoothstep(300.0, 3000.0, dt));
-        tau+=0.0035*plume*exp(-p.z/22.0)*smoothstep(0.9, 1.3, length(p.xy)/seaR)*dt;
-      }
-      vec3 steam=min((skyLook(normalize(vec3(rd.xy, 0.05)))*0.5+skyLook(vec3(0.0, 0.0, 1.0))*0.5)*1.35+0.04, vec3(1.0));
-      col=mix(col, steam, (1.0-exp(-tau))*0.9);
-    }
+    // Steam off the hot sea (STEAM_GLSL).
+    float a=steamOpacity(ro, rd, min(kBest>0.5?tBest:(rd.z<0.0?-ro.z/rd.z:30000.0), 30000.0));
+    if(a>0.0) col=mix(col, steamColor(rd), a);
   }
 #endif
   fragColor=vec4(col,1.0);

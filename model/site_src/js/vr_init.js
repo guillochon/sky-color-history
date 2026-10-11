@@ -290,8 +290,8 @@ function setupCloudProgs(gl, cp, pp, tp, np){
   bindSamplers(gl, cp, [['noiseBase',1],['noiseDetail',6],['weather',7],['sky',0],['hitInfo',10]]);
   gl.uniform1f(cu.fov, vrFov*Math.PI/180);
   gl.uniform1f(cu.useHDR, hdr?1:0);
-  const compU=uniformLocs(gl, pp, ['res','yaw','pitch','fov','showScn','eye','obj[0]','kind[0]']);
-  gl.useProgram(pp); bindSamplers(gl, pp, [['cloudTex',2],['hitInfo',10]]); gl.uniform1f(compU.fov, vrFov*Math.PI/180);
+  const compU=uniformLocs(gl, pp, ['res','yaw','pitch','fov','showScn','eye','obj[0]','kind[0]','seaR','waterT','nr','na']);
+  gl.useProgram(pp); bindSamplers(gl, pp, [['cloudTex',2],['hitInfo',10],['sky',0]]); gl.uniform1f(compU.fov, vrFov*Math.PI/180);
   let tu=null;
   if(tp){
     tu=uniformLocs(gl, tp, ['res','yaw','pitch','prevYaw','prevPitch','fov','histValid','histW','eye','prevEye','cbOn','cbPar']);
