@@ -1,10 +1,10 @@
 // Find (f): a box in the middle of the screen takes a name and offers the three best matches as
 // it is typed, any below the horizon greyed and not to be chosen; Enter (or a click) turns and
-// zooms the walk-around view to the one chosen in two seconds, along van Wijk & Nuij's smooth path (pulling back for a long turn), until it fills half
-// the view: the Sun, the Moon, a planet or moon by its drawn disk (rings and all), a nebula or
+// zooms the walk-around view to the one chosen in two seconds, along van Wijk & Nuij's smooth
+// path (pulling back for a long turn), until it fills half the view: the Sun, the Moon, a planet or moon by its drawn disk (rings and all), a nebula or
 // galaxy by its tile's window, a constellation by its figure. A star or supernova, a point, ends in
 // a field FIND_POINT_FOV high. The view then follows it as the sky turns, until the look is moved.
-// From the page, Enter opens the walk-around view on it.
+// From the page the dome does the same, as far as its zoom goes (domeFindStart).
 const FIND_MS=2000, FIND_POINT_FOV=3, FIND_MAX=3;
 const FIND_DSO_KIND={g:'galaxy', n:'nebula', p:'planetary nebula', r:'reflection nebula', s:'supernova remnant'};
 // The asterisms better known than their constellations.
@@ -72,15 +72,16 @@ function findCatalog(){
   return out;
 }
 // Where a found thing is now: its direction in the view's frame (apparent altitude), its true
-// altitude, and how wide it is drawn in degrees (0 for a point); null when the epoch has none.
+// azimuth and altitude, how wide the walk-around view draws it in degrees (0 for a point), and for
+// a body drawn enlarged, its true radius to the edge of its rings (disk); null when the epoch has none.
 function findWhere(t){
   if(!skyNow) return null;
   const key=EP[dIdx].key, lat=LATDEG[dLat], year=STAR_YEAR[key]||pageDate()[0], LST=localSidereal();
-  const at=(az, el, diam)=>({d:horizDir(az, apparentEl(el)), el, diam});
-  if(t.k==='sun') return at(skyNow.sunAz, 90-skyNow.sza, 2*skyNow.moon.sunRadDeg*DISK_SCALE);
-  if(t.k==='moon') return noMoon()?null:at(skyNow.moon.az, skyNow.moon.el, 2*skyNow.moon.radDeg*DISK_SCALE);
+  const at=(az, el, diam, disk=0)=>({d:horizDir(az, apparentEl(el)), az, el, diam, disk});
+  if(t.k==='sun') return at(skyNow.sunAz, 90-skyNow.sza, 2*skyNow.moon.sunRadDeg*DISK_SCALE, skyNow.moon.sunRadDeg);
+  if(t.k==='moon') return noMoon()?null:at(skyNow.moon.az, skyNow.moon.el, 2*skyNow.moon.radDeg*DISK_SCALE, skyNow.moon.radDeg);
   if(t.k==='sn'){ const sn=supernovaPlace(lat); return sn&&at(sn.az, sn.el, 0); }
-  if(t.k==='body'){ const b=BODY_WHERE.get(t.name); return b?at(b.az, b.el, 2*b.radDeg*DISK_SCALE*(b.rings?2.3:1)):null; }
+  if(t.k==='body'){ const b=BODY_WHERE.get(t.name); const k=b&&b.radDeg*(b.rings?2.3:1); return b?at(b.az, b.el, 2*k*DISK_SCALE, k):null; }
   if(t.k==='star'){
     const P=starPlaces(key, year), i=P.list.indexOf(t.star);
     if(i<0||i>=P.n) return null;
@@ -209,9 +210,7 @@ function closeFind(){
 }
 function findGo(c){
   closeFind();
-  if(vrOn){ findStart(c.t); return; }
-  vrEntryLook=()=>findStart(c.t);
-  enterVR(false);
+  if(vrOn) findStart(c.t); else domeFindStart(c.t);
 }
 findQ.addEventListener('input', findRender);
 // The box's keys are its own: none reach the page's or the walk-around view's.
@@ -229,3 +228,49 @@ findQ.addEventListener('keyup', e=>e.stopPropagation());
 findQ.addEventListener('blur', ()=>setTimeout(()=>{ if(document.activeElement!==findQ) closeFind(); }, 0));
 findBox.addEventListener('pointerdown', e=>e.stopPropagation());
 findBox.addEventListener('wheel', e=>e.stopPropagation());
+// On the page the dome flies the same way, its zoom (domeZoom) for the field and its centre for
+// the look: the sky at the canvas's middle goes from where it is to the found thing, along the
+// same path, in the fisheye's plane, where the dome's radius is 1. The dome zooms no further than
+// DOME_ZOOM_MAX (a field about 20° across), so smaller things, and points, end there. The Sun,
+// Moon and planets are drawn enlarged by bodyScale. Then it follows until the dome is zoomed,
+// dragged or reset, or the walk-around view opens. Near the horizon setDomeView keeps the sky
+// circle round the middle, and the thing ends off centre.
+let domeFind=null;
+// Where the dome puts a found thing, in units of its radius from the fisheye's centre.
+function domeFindAt(w){ const r=(90-w.el)/90, a=w.az*Math.PI/180; return [r*Math.sin(a), -r*Math.cos(a)]; }
+function domeFindZoom(w){
+  const W=dome.width, H=dome.height, deg=w.disk?2*w.disk*bodyScale(dome):w.diam;
+  return deg>0?Math.max(1, Math.min(DOME_ZOOM_MAX, 0.5*Math.min(W, H)*90/(0.46*W*deg))):DOME_ZOOM_MAX;
+}
+function domeFindStart(t){
+  const w=findWhere(t);
+  if(!w||w.d[2]<=0) return;
+  if(!domeOnScreen) dome.scrollIntoView({block:'center', behavior:'smooth'});
+  const v=domeView(), R0=dome.width*0.46*v.z, c0=[-domeZoom.ox/R0, -domeZoom.oy/R0], p=domeFindAt(w);
+  // The path's widths are the canvas's width in dome radii.
+  domeFind={t, c0, t0:0, flying:true, path:findPath(1/(0.46*v.z), 1/(0.46*domeFindZoom(w)), Math.hypot(p[0]-c0[0], p[1]-c0[1]))};
+  requestAnimationFrame(domeFindStep);
+}
+function domeFindStep(){
+  const f=domeFind;
+  if(!f||vrOn){ domeFind=null; return; }
+  const w=findWhere(f.t);
+  if(!w){ domeFind=null; return; }
+  const p=domeFindAt(w);
+  let c=p, z=domeZoom.z;
+  if(f.flying){
+    if(!f.t0) f.t0=performance.now();
+    const t=Math.min(1, (performance.now()-f.t0)/FIND_MS), e=t<0.5?4*t*t*t:1-Math.pow(2-2*t, 3)/2, [u, wd]=f.path(e), k=Math.max(0, Math.min(1, u));
+    c=[f.c0[0]+(p[0]-f.c0[0])*k, f.c0[1]+(p[1]-f.c0[1])*k];
+    z=Math.max(1, Math.min(DOME_ZOOM_MAX, 1/(0.46*wd)));
+    if(t>=1){ f.flying=false; z=domeFindZoom(w); c=p; }
+  }
+  const R=dome.width*0.46*z;
+  setDomeView(z, -c[0]*R, -c[1]*R);
+  requestAnimationFrame(domeFindStep);
+}
+// The dome's own zoom, drag and reset free it.
+const domeFindStop=()=>{ domeFind=null; };
+dome.addEventListener('wheel', domeFindStop, {passive:true});
+dome.addEventListener('mousedown', e=>{ if(e.button===1) domeFindStop(); });
+dome.addEventListener('dblclick', domeFindStop);
