@@ -6,6 +6,22 @@
 // and Dec), its size as a share of today's (galaxies were nearer or further, planetary nebulae
 // and the Crab younger), and how much of it there was (no nebula of today's shone in the deep past).
 const DSO=__DSO__, DSO_IMG='__DSO_IMG__', DSO_N=DSO.n, DSO_LV=64;
+// Each object's tile at full size (DSO.hi, DSO_S atlas tiles across) in a file of its own
+// (dso/<id>.webp), fetched once the walk-around view draws its atlas tile more than about 400
+// pixels across, decoded off the main thread and read out once; its 512-pixel pieces join the
+// texture array after the atlas's tiles and the surface maps (surfaces.js buildSkyArray), the array
+// remade as each arrives.
+const DSO_HI_FILES=__DSO_HI__, DSO_S=DSO.hi/DSO.n, dsoHi={};
+function wantDsoHi(i){
+  if(dsoHi[i]) return;
+  const m=dsoHi[i]={px:null, base:null}, url=DSO_HI_FILES[DSO.objects[i].id];
+  if(!url) return;
+  fetch(url).then(r=>r.blob()).then(b=>createImageBitmap(b, {colorSpaceConversion:'none', premultiplyAlpha:'none'})).then(bm=>{
+    const cv=new OffscreenCanvas(bm.width, bm.height), ctx=cv.getContext('2d', {willReadFrequently:true});
+    ctx.drawImage(bm, 0, 0); m.px=ctx.getImageData(0, 0, bm.width, bm.height).data; bm.close();
+    requestVR();
+  }).catch(()=>{});
+}
 // For the dome, each tile as linear light at 64 pixels and each halving down to one (dsoMips[i][l],
 // l=0 the 64), once the image is in; for VR the image itself, uploaded as a texture array.
 let dsoImg=null, dsoMips=null, dsoPx=null;
@@ -107,13 +123,23 @@ function dsoSpectrum(kind){
 // The texture array for the VR sky (unit 6), made once the image is in: a layer per tile,
 // mipmapped, and after them any surface maps (surfaces.js buildSkyArray).
 function syncDsoTex(gl){
-  if(dsoPx&&!vrGL.skyArrayDso) buildSkyArray(gl);
+  const hi=Object.values(dsoHi).filter(m=>m.px).length;
+  if(dsoPx&&(!vrGL.skyArrayDso||hi!==(vrGL.skyArrayHi||0))) buildSkyArray(gl);
 }
 // Into the sky shader: those whose tile can reach the screen, nearest the middle of the view
 // first, up to DSO_MAX. C is the centre and the cosine of the tile's corner, E the east and the
 // half-width, N the north and the layer, K the light 1.0 stands for, over the display's unit and
-// above the air.
-const DSO_MAX=10, DSO_U={C:new Float32Array(DSO_MAX*4), E:new Float32Array(DSO_MAX*4), N:new Float32Array(DSO_MAX*4), K:new Float32Array(DSO_MAX)};
+// above the air, W how far it is shown as a picture (dsoView), H the first layer of its full-size
+// tile's pieces (-1 while there are none) and the cube root of that tile's top over the atlas's.
+const DSO_MAX=10, DSO_U={C:new Float32Array(DSO_MAX*4), E:new Float32Array(DSO_MAX*4), N:new Float32Array(DSO_MAX*4), K:new Float32Array(DSO_MAX), W:new Float32Array(DSO_MAX), H:new Float32Array(DSO_MAX*2)};
+// Zoomed in on an object, it is shown more and more as its picture (the tile as coded, a cube-root
+// stretch in full colour) rather than as the eye would see its light: not at all while its tile
+// spans a twentieth of the view's height or less, wholly once it spans half, smoothly between on
+// a log scale. A telescope's view, as a photograph shows it.
+function dsoView(hw, fov){
+  const t=Math.max(0, Math.min(1, Math.log10(2*Math.atan(hw)/fov/0.05)));
+  return t*t*(3-2*t);
+}
 function uploadDso(gl, u){
   const list=skyNow.dso||[];
   if(!vrGL.dsoTex||!list.length){ gl.uniform1f(u.dsoCnt, 0); return; }
@@ -128,16 +154,21 @@ function uploadDso(gl, u){
     DSO_U.E.set(p.E, i*4); DSO_U.E[i*4+3]=p.hw;
     DSO_U.N.set(p.N, i*4); DSO_U.N[i*4+3]=p.i;
     DSO_U.K[i]=p.k*k;
+    DSO_U.W[i]=dsoView(p.hw, vrFov*Math.PI/180);
+    if(2*p.hw*c.height/(2*fy)>400) wantDsoHi(p.i);
+    const h=dsoHi[p.i];
+    DSO_U.H[i*2]=h&&h.base!=null?h.base:-1; DSO_U.H[i*2+1]=Math.cbrt(p.o.topHi/p.o.top);
   });
-  gl.uniform4fv(u.dsoC, DSO_U.C); gl.uniform4fv(u.dsoE, DSO_U.E); gl.uniform4fv(u.dsoN, DSO_U.N); gl.uniform1fv(u.dsoK, DSO_U.K);
+  gl.uniform4fv(u.dsoC, DSO_U.C); gl.uniform4fv(u.dsoE, DSO_U.E); gl.uniform4fv(u.dsoN, DSO_U.N); gl.uniform1fv(u.dsoK, DSO_U.K); gl.uniform1fv(u.dsoW, DSO_U.W); gl.uniform2fv(u.dsoH, DSO_U.H);
   gl.uniform1f(u.dsoCnt, seen.length);
 }
 const DSO_GLSL=`
 uniform highp sampler2DArray dsoTex;
-uniform vec4 dsoC[${DSO_MAX}], dsoE[${DSO_MAX}], dsoN[${DSO_MAX}]; uniform float dsoK[${DSO_MAX}], dsoCnt;
-// The nebulae and galaxies toward src, in a pixel pix radians across (dso.js dsoLight).
-vec3 dsoAt(vec3 src, float pix){
-  vec3 L=vec3(0.0);
+uniform vec4 dsoC[${DSO_MAX}], dsoE[${DSO_MAX}], dsoN[${DSO_MAX}]; uniform float dsoK[${DSO_MAX}], dsoW[${DSO_MAX}], dsoCnt; uniform vec2 dsoH[${DSO_MAX}];
+// The nebulae and galaxies toward src, in a pixel pix radians across (dso.js dsoLight); img gets
+// their pictures (sRGB) as zoom shows them (dsoView), the brightest, and w how far it is shown.
+vec3 dsoAt(vec3 src, float pix, out vec3 img, out float w){
+  vec3 L=vec3(0.0); img=vec3(0.0); w=0.0;
   for(int i=0;i<${DSO_MAX};i++){
     if(float(i)>=dsoCnt) break;
     float c=dot(src, dsoC[i].xyz);
@@ -145,8 +176,20 @@ vec3 dsoAt(vec3 src, float pix){
     float hw=dsoE[i].w;
     vec2 uv=0.5-vec2(dot(src, dsoE[i].xyz), dot(src, dsoN[i].xyz))/(c*2.0*hw);
     if(uv.x<0.0||uv.x>1.0||uv.y<0.0||uv.y>1.0) continue;
-    vec3 q=textureLod(dsoTex, vec3(uv, dsoN[i].w), log2(max(pix*${DSO_N}.0/(2.0*hw), 1e-6))).rgb;
+    float lod=log2(max(pix*${DSO_N}.0/(2.0*hw), 1e-6));
+    vec3 q;
+    // Finer than the atlas's texels, the piece of the full-size tile under src, at its own level.
+    if(lod<0.0&&dsoH[i].x>=0.0){
+      vec2 h=min(floor(uv*${DSO_S}.0), ${DSO_S-1}.0);
+      q=textureLod(dsoTex, vec3(uv*${DSO_S}.0-h, dsoH[i].x+h.y*${DSO_S}.0+h.x), max(lod+${Math.log2(DSO_S)}.0, 0.0)).rgb*dsoH[i].y;
+    } else q=textureLod(dsoTex, vec3(uv, dsoN[i].w), lod).rgb;
     L+=q*q*q*dsoK[i];
+    // The picture's black is set a little above the tile's, and it fades out in a circle inside
+    // the tile, or the stretch would show what is left of the survey's sky as a grey square.
+    if(dsoW[i]>0.0){
+      float e=smoothstep(0.5, 0.3, length(uv-0.5));
+      img=max(img, max(q-0.1, 0.0)/0.9*e); w=max(w, dsoW[i]);
+    }
   }
   return L;
 }`;

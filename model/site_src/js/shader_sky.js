@@ -865,9 +865,12 @@ void main(){
     }
     if(dsoCnt>0.5 && !onBody && te>-1.0){
       // The nebulae and galaxies, behind the air like the Milky Way.
-      vec3 Ld=dsoAt(src, 2.0*fy/res.y)*extinctionAt(te, mwK);
+      vec3 img; float wImg, ext=extinctionAt(te, mwK);
+      vec3 Ld=dsoAt(src, 2.0*fy/res.y, img, wImg)*ext, sky0=skyC;
       float rD=dot(Ld, vec3(0.2126, 0.7152, 0.0722));
       if(rD>rBg*0.003) skyC=overSkyDso(skyC, rBg, rD, Ld);
+      // Zoomed in, the picture over the sky, dimmed by the air (dso.js dsoView).
+      if(wImg>0.0) skyC=mix(skyC, lin2s3(clamp(s2lin3(sky0)+s2lin3(img)*ext, 0.0, 1.0)), wImg);
     }
     if(haloK.x+haloK.y>0.0 && !onBody && te>-1.0){
       // Diamond dust: the halos, and the glints of single crystals, most of them where the halos are.

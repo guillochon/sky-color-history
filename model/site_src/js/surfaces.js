@@ -37,12 +37,15 @@ function surfCode(name){
   const s=name&&surfMaps[name];
   return s&&s.base!=null?s.base*4+(name==='Mercury'?1:name==='Mars'?2:0):-1;
 }
-// The nebulae's tiles (dso.js, from their pixels; left empty until they are in) and every map that
-// has arrived, in one array (unit 6), mipmapped; remade whenever either arrives.
+// The nebulae's tiles (dso.js, from their pixels; left empty until they are in), every map that
+// has arrived, and the pieces of each nebula's full-size tile that has, in one array (unit 6),
+// mipmapped; remade whenever any arrives.
 function buildSkyArray(gl){
   const n=DSO.objects.length, N=DSO_N, ready=Object.keys(surfMaps).filter(k=>surfMaps[k].px);
   let layers=n;
   for(const k of ready){ const m=surfMaps[k]; m.base=layers; layers+=(m.w/N)*(m.h/N); }
+  const hi=Object.values(dsoHi).filter(m=>m.px);
+  for(const m of hi){ m.base=layers; layers+=DSO_S*DSO_S; }
   const t=gl.createTexture();
   gl.activeTexture(gl.TEXTURE6); gl.bindTexture(gl.TEXTURE_2D_ARRAY, t);
   gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
@@ -61,11 +64,12 @@ function buildSkyArray(gl){
   };
   if(dsoPx) put(dsoPx.data, dsoPx.width, dsoPx.height, DSO.cols, n, 0);
   for(const k of ready){ const m=surfMaps[k]; put(m.px, m.w, m.h, m.w/N, (m.w/N)*(m.h/N), m.base); }
+  for(const m of hi) put(m.px, DSO_S*N, DSO_S*N, DSO_S, DSO_S*DSO_S, m.base);
   gl.pixelStorei(gl.UNPACK_ROW_LENGTH, 0); gl.pixelStorei(gl.UNPACK_IMAGE_HEIGHT, 0); gl.pixelStorei(gl.UNPACK_SKIP_PIXELS, 0); gl.pixelStorei(gl.UNPACK_SKIP_ROWS, 0);
   gl.generateMipmap(gl.TEXTURE_2D_ARRAY);
   gl.activeTexture(gl.TEXTURE0);
   if(vrGL.dsoTex) gl.deleteTexture(vrGL.dsoTex);
-  vrGL.dsoTex=t; vrGL.skyArrayMaps=ready.length; vrGL.skyArrayDso=!!dsoPx;
+  vrGL.dsoTex=t; vrGL.skyArrayMaps=ready.length; vrGL.skyArrayDso=!!dsoPx; vrGL.skyArrayHi=hi.length;
 }
 // Make or remake the array when a map has arrived since it was made.
 function syncSurfTex(gl){

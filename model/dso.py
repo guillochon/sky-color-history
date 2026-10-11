@@ -27,9 +27,14 @@ Each image is made to stand for light on the sky:
     10.8e4·10^(−0.4m) cd/m²).
   - The colour, the light's share in each channel, is blurred (Mellinger's resolution is about an
     arcminute) and its saturation raised by a third, for slightly richer than true colour.
-  - Outside an ellipse round the object the image fades to nothing, so neighbours don't add up.
-The tiles go into site/dso.webp, 512 pixels each in rows of eight, each channel coded as the cube
-root of its share of the tile's brightest value, so 8 bits hold six decades.
+  - Outside an ellipse round the object the image fades to nothing, so neighbours don't add up, and
+    it fades again before the tile's edge; the two globular clusters in front of the Small Cloud are
+    filled in from round about.
+The tiles are made 2048 pixels square, wide enough to hold the window round the object and the fade
+at their edge. Each goes into site/dso/<id>.webp at that size, fetched only when the walk-around
+view zooms in on it, and a quarter the size into site/dso.webp, 512 pixels each in rows of eight,
+fetched once the page is up. Each channel is coded as the cube root of its share of the
+tile's brightest value, so 8 bits hold six decades.
 
 The objects move with the epoch (dso.json, per epoch: right ascension and declination, the size
 as a share of today's, and how much of the object there is):
@@ -73,7 +78,8 @@ from galaxy import GAL, PC_MYR, R0, SUN_UVW, Z0, accel
 HERE = Path(__file__).resolve().parent
 CACHE = HERE / 'data' / 'dso'
 SITE = HERE.parent / 'site'
-N = 512                # tile size, pixels
+N = 2048               # tile size, pixels, as made and in each object's own file
+NA = 512               # tile size in the atlas
 COLS = 8               # tiles per atlas row
 HIPS = 'https://alasky.cds.unistra.fr/hips-image-services/hips2fits'
 SURVEY = {'dss': 'CDS/P/DSS2/color', 'mel': 'CDS/P/Mellinger/color'}
@@ -133,6 +139,12 @@ MU = {'LMC': 20.5, 'SMC': 21.2, 'M31': 15.5, 'M33': 18.0, 'M81': 16.0, 'M82': 16
       'NGC 2237': 21.5, 'NGC 7000': 21.0, 'M27': 19.0, 'M57': 17.3, 'NGC 7293': 21.5, 'M1': 19.5}
 for o in O:
     o['mu'] = MU[o['id']]
+    # The tile is widened where needed to hold the window (1.5 times its ellipse, which is 1.3 times
+    # the object's) and the fade at the tile's edge.
+    W, H = o.get('win') or (o['a'] * 1.3, o['b'] * 1.3)
+    A, B, t = 0.75 * W, 0.75 * H, math.radians(o['pa'])
+    ext = 2 * max(math.hypot(A * math.sin(t), B * math.cos(t)), math.hypot(A * math.cos(t), B * math.sin(t))) / 60
+    o['fov'] = max(o['fov'], round(ext * 1.2, 3))
 
 # Years before J2000 of each epoch (build_star_epochs.py, gen_report.py).
 EPOCH_YEARS = {'protoearth455': 4.55e9, 'hadean45': 4.5e9, 'hadean44': 4.4e9, 'hadean40': 4.0e9, 'archean38': 3.8e9, 'archean27thin': 2.7e9, 'archean27': 2.7e9,
@@ -146,7 +158,7 @@ G = 4.3009e-6          # kpc (km/s)² per solar mass
 def fetch(o, survey):
     """The object's cutout from one survey (8-bit RGB), downloaded once."""
     CACHE.mkdir(parents=True, exist_ok=True)
-    path = CACHE / f"{o['id'].replace(' ', '')}_{survey}.png"
+    path = CACHE / f"{o['id'].replace(' ', '')}_{survey}_{N}_{o['fov']:g}.png"
     if not path.exists():
         q = urllib.parse.urlencode(dict(hips=SURVEY[survey], width=N, height=N, fov=o['fov'], projection='TAN',
                                         ra=o['ra'], dec=o['dec'], format='png'))
@@ -186,10 +198,14 @@ def destar(img, px_arcsec):
         for k in range(1, 7):
             out |= ndimage.binary_dilation(mask & (g >= k), disk(k))
         mask = out
-    keep = ~mask
+    return infill(img, ~mask)
+
+
+def infill(img, keep):
+    """The image with what isn't kept filled in from round about, at growing scales."""
     fill = img.copy()
     w = keep.astype(float)
-    for s in (2, 4, 8, 16, 32):
+    for s in (2, 4, 8, 16, 32, 64):
         num = np.stack([ndimage.gaussian_filter(img[..., q] * w, s) for q in range(3)], 2)
         den = ndimage.gaussian_filter(w, s)[..., None]
         todo = (~keep) & (den[..., 0] > 0.02)
@@ -238,21 +254,30 @@ def tile(o):
     imgs = {s: destar(fetch(o, s), px_as) for s in {o['lum'], o['col']}}
     v = imgs[o['lum']]
     win_r = ellipse(o, 1.3, o.get('win'))
-    window = np.clip((1.35 - win_r) / 0.35, 0, 1) ** 2
-    for ra, dec, r in o.get('cut', []):         # what lies in front and isn't the object
+    # The window fades from 0.8 to 1.5 of its ellipse, gently, so its edge doesn't show; and within
+    # the last twelfth of the tile, so nebulosity filling the field doesn't end at a square.
+    t = np.clip((win_r - 0.8) / 0.7, 0, 1)
+    window = 1 - t * t * t * (t * (6 * t - 15) + 10)
+    yy, xx = np.mgrid[0:N, 0:N]
+    e = np.clip(np.minimum(np.minimum(xx, N - 1 - xx), np.minimum(yy, N - 1 - yy)) / (N / 12), 0, 1)
+    window *= e * e * (3 - 2 * e)
+    yy, xx = yy - (N - 1) / 2, xx - (N - 1) / 2
+    for ra, dec, r in o.get('cut', []):         # what lies in front and isn't the object, filled in
         x, y = gnomonic(o, ra, dec)
-        yy, xx = np.mgrid[0:N, 0:N] - (N - 1) / 2
         dist = np.hypot(-xx * o['fov'] * 60 / N - x, -yy * o['fov'] * 60 / N - y)
-        window *= np.clip((dist - r) / (0.3 * r), 0, 1)
+        for sv in imgs:
+            imgs[sv] = infill(imgs[sv], dist > 1.3 * r)
+    v = imgs[o['lum']]
     pix_as2 = px_as ** 2
     flux = 10.8e4 * 10 ** (-0.4 * o['V'])           # cd/m² × arcsec²
     # The sky left after unstretching is the median outside the window (or of the border, where
     # the object fills the tile); faint light is smoothed, as the grain of the plates and the
     # filled-in stars would otherwise show.
-    out = win_r > 1.25
-    if out.sum() < 4000:
+    out = win_r > 1.5
+    if out.sum() < 4000 * (N / 512) ** 2:
         out = np.zeros((N, N), bool)
-        out[:16], out[-16:], out[:, :16], out[:, -16:] = True, True, True, True
+        b = 16 * N // 512
+        out[:b], out[-b:], out[:, :b], out[:, -b:] = True, True, True, True
     inside = ellipse(o, 1.0) < 1
     # Where the plates are saturated the light is rebuilt: it rises inward from the edge of the
     # flat top, by up to dm magnitudes at the point furthest in.
@@ -265,9 +290,9 @@ def tile(o):
         depth = np.where(sat, depth / np.maximum(dmax[np.maximum(lab, 1) - 1], 1), 0)
         # Smoothed, so the ridges of the distance map don't show; a galaxy's core is a cusp, a
         # nebula's a broad rise.
-        depth = ndimage.gaussian_filter(depth, 2.0 if o['k'] == 'g' else 4.0)
+        depth = ndimage.gaussian_filter(depth, (2.0 if o['k'] == 'g' else 4.0) * N / 512)
     cusp = 0.25 if o['k'] == 'g' else 0.6
-    big = sat.sum() > 40
+    big = sat.sum() > 40 * (N / 512) ** 2
 
     def calibrated(k, dm):
         L = unstretch(lv, k)
@@ -275,7 +300,7 @@ def tile(o):
         sd = 1.4826 * np.median(np.abs(L[out])) + 1e-9
         L = np.maximum(L, 0)
         w = np.clip(L / (12 * sd), 0, 1)
-        L = w * L + (1 - w) * ndimage.gaussian_filter(L, 2.5)
+        L = w * L + (1 - w) * ndimage.gaussian_filter(L, 2.5 * N / 512)
         if big:
             L = L * 10 ** (0.4 * dm * (1 - (1 - np.clip(depth, 0, 1)) ** cusp))
         L *= window
@@ -285,16 +310,18 @@ def tile(o):
     # surface brightness: by k where the plates hold it, else by the rebuilt top.
     peak_of = lambda L: ndimage.gaussian_filter(L, max(1.0, 15 / px_as))[inside].max()
     target = 10.8e4 * 10 ** (-0.4 * o['mu'])
+    def fit(f, lo, hi):
+        for _ in range(40):
+            x = (lo + hi) / 2
+            lo, hi = (x, hi) if peak_of(f(x)) < target else (lo, x)
+        return (lo + hi) / 2
     k, dm = 3.0, 0.0
-    lo, hi = (0.0, 12.0 if o['k'] == 'g' else 3.0) if big else (0.0, 14.0)
-    for _ in range(40):
-        x = (lo + hi) / 2
-        L = calibrated(3.0, x) if big else calibrated(x, 0)
-        lo, hi = (x, hi) if peak_of(L) < target else (lo, x)
     if big:
-        dm = (lo + hi) / 2
-    else:
-        k = (lo + hi) / 2
+        dm = fit(lambda x: calibrated(3.0, x), 0.0, 12.0 if o['k'] == 'g' else 3.0)
+    # Where the flat top is small and its edge already brighter than the centre should be (the
+    # Small Cloud's), the plates hold it after all: fitted by k as an unsaturated one is.
+    if not big or (dm < 0.01 and peak_of(calibrated(3.0, 0.0)) > target):
+        k, dm = fit(lambda x: calibrated(x, 0.0), 0.0, 14.0), 0.0
     L = calibrated(k, dm)
     # A nebula whose rebuilt top still falls short of its central brightness is brightened as a
     # whole: its catalogue total, a rough visual estimate, is what gives way (M42's V = 4.0 would
@@ -306,7 +333,7 @@ def tile(o):
           f"{-2.5 * math.log10(L[inside].mean() / 10.8e4):5.2f}, peak {-2.5 * math.log10(peak_of(L) / 10.8e4):5.2f} (aim {o['mu']}), V {V:5.2f} (catalogue {o['V']})")
     # The colour: each channel's share of the luminance, blurred, saturation raised.
     c = unstretch(imgs[o['col']], 3.0)
-    blur = 1.5 if o['col'] == 'dss' else max(1.5, 60 / px_as)
+    blur = 1.5 * N / 512 if o['col'] == 'dss' else max(1.5, 60 / px_as)
     cs = np.stack([ndimage.gaussian_filter(c[..., q], blur) for q in range(3)], 2)
     cl = cs @ LUM
     eps = 0.02 * np.percentile(cl, 99.5) + 1e-9
@@ -469,22 +496,29 @@ def places():
 
 def main():
     rows = math.ceil(len(O) / COLS)
-    atlas = np.zeros((rows * N, COLS * N, 3), np.uint8)
+    atlas = np.zeros((rows * NA, COLS * NA, 3), np.uint8)
     meta = []
     pl = places()
+    (SITE / 'dso').mkdir(exist_ok=True)
     for n, o in enumerate(O):
         rgb, _ = tile(o)
-        code, top = encode(rgb)
+        name = o['id'].replace(' ', '')
+        hi, top_hi = encode(rgb)
+        buf = io.BytesIO()
+        Image.fromarray(hi).save(buf, 'WEBP', quality=90, method=6)
+        (SITE / 'dso' / f'{name}.webp').write_bytes(buf.getvalue())
+        f = N // NA
+        code, top = encode(rgb.reshape(NA, f, NA, f, 3).mean((1, 3)))
         r, c = divmod(n, COLS)
-        atlas[r * N:(r + 1) * N, c * N:(c + 1) * N] = code
-        Image.fromarray(code).save(CACHE / f"tile_{o['id'].replace(' ', '')}.png")
+        atlas[r * NA:(r + 1) * NA, c * NA:(c + 1) * NA] = code
+        Image.fromarray(code).save(CACHE / f"tile_{name}.png")
         meta.append(dict(id=o['id'], name=o['name'], k=o['k'], hw=round(math.tan(math.radians(o['fov'] / 2)), 6),
-                         top=float('%.4g' % top), d=o['d'], r=round(math.hypot(*(o.get('win') or (o['a'] * 1.3, o['b'] * 1.3))) / 2 / 60, 4),
-                         ep=pl[o['id']]))
+                         top=float('%.4g' % top), topHi=float('%.4g' % top_hi), d=o['d'],
+                         r=round(math.hypot(*(o.get('win') or (o['a'] * 1.3, o['b'] * 1.3))) / 2 / 60, 4), ep=pl[o['id']]))
     buf = io.BytesIO()
     Image.fromarray(atlas).save(buf, 'WEBP', quality=90, method=6)
     (SITE / 'dso.webp').write_bytes(buf.getvalue())
-    (HERE / 'dso.json').write_text(json.dumps(dict(n=N, cols=COLS, objects=meta), separators=(',', ':')), encoding='utf-8')
+    (HERE / 'dso.json').write_text(json.dumps(dict(n=NA, hi=N, cols=COLS, objects=meta), separators=(',', ':')), encoding='utf-8')
     print(f'{len(O)} objects, atlas {atlas.shape[1]}×{atlas.shape[0]}, {len(buf.getvalue()) / 1e6:.2f} MB')
 
 
