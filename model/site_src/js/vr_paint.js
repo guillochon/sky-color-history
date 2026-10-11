@@ -472,7 +472,9 @@ function paintVR(){
   const yTop=lum([0, 1, 2].map(q=>sw.reduce((a, v, j)=>j%3===q?a+v:a, 0)));
   const sunL=Math.log10(Math.max(lum(sunBandsAt(app))/Math.max(yTop, 1e-30)*skyNow.sunFlux*(skyNow.sunVis==null?1:skyNow.sunVis), 1e-12));
   const sStep=x=>{ x=Math.max(0, Math.min(1, x)); return x*x*(3-2*x); };
-  gl.uniform1f(u.sunGlare, skyNow.sunOn?sStep((sunL+4.3)/2.9)*sStep((app+rd)/(2*rd)):0);
+  // In an eclipse it is weaker still, to a third with the Sun half covered, so the Moon's bite shows.
+  const vis=skyNow.sunVis==null?1:skyNow.sunVis;
+  gl.uniform1f(u.sunGlare, skyNow.sunOn?sStep((sunL+4.3)/2.9)*sStep((app+rd)/(2*rd))*(0.1+0.9*vis*vis):0);
   gl.uniform3fv(u.sunCol, sunCol);
   gl.uniform3fv(u.ground, ground);
   gl.uniform1f(u.showScn, vrScenery?1:0);

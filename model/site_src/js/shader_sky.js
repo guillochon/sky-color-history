@@ -1004,9 +1004,10 @@ void main(){
       vec3 T=exp(-vec3(0.12, 0.22, 0.48)/mu);
       skyC+=corona*T*(I*vec3(1.0, 0.97, 0.92)+rim*vec3(1.0, 0.3, 0.42)*1.5*coronaRim);
     }
-    if(glareK>0.0 && te>-1.0){
+    if(glareK>0.0 && te>-1.0 && !onMoon){
       // The Sun's glare, the light scattered in the eye about it: a bright bloom hugging the
       // disk, white near it and the epoch's colour farther out, and a wide glow over the sky.
+      // Not over the Moon, so in an eclipse its dark disk shows against the glare.
       float a=acos(clamp(dot(src, sd), -1.0, 1.0)), r=max(a/sunRad-1.0, 0.0);
       vec3 lin=s2lin3(sunCol); lin/=max(max(lin.r, max(lin.g, lin.b)), 1e-6);
       float I=2.5*exp(-r*1.6)+0.5/(1.0+r*r*0.5)+0.15*exp(-a/0.25);
