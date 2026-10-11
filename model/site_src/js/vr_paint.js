@@ -296,7 +296,7 @@ function fbComplete(gl, kind){
   if(!(kind in m)) m[kind]=gl.checkFramebufferStatus(gl.FRAMEBUFFER)===gl.FRAMEBUFFER_COMPLETE;
   return m[kind];
 }
-// Each target made once at a token size, so its kind has been asked about (warmVR).
+// Each target made once at a token size, so its kind has been asked about (finishSetup).
 function primeVRTargets(){
   ensureHitTarget(2, 2); if(vrGL.hitMRT) ensureLandTarget(2, 2); ensureShadowTarget(2, 2);
   if(vrGL.cloudProg) ensureCloudTarget(2, 2, !!vrGL.tempProg);
@@ -384,7 +384,7 @@ function glareCentre(vis){
   return vnorm([sd[0]+ex[0]*k, sd[1]+ex[1]*k, sd[2]+ex[2]*k]);
 }
 function paintVR(){
-  if(!(vrOn||vrWarming)||!vrGL||!skyNow) return;
+  if(!vrOn||!vrGL||!skyNow) return;
   // This paint answers any one already asked for.
   if(vrRAF){ cancelAnimationFrame(vrRAF); vrRAF=0; }
   // A sky drawn for the page has no star cells for VR: draw it again for VR, which paints.
@@ -397,7 +397,7 @@ function paintVR(){
   pickHit(vrGL.gl);
   const bps=Object.values(vrGL.bodyProg||{}).map(b=>b.p);
   const firsts=[vrScenery&&vrGL.hitProg, vrScenery&&vrGL.townProg, vrClouds&&vrGL.cloudProg, vrGL.prog, ...bps].filter(p=>p&&vrSlow.has(p));
-  if(firsts.length&&!vrWarming){
+  if(firsts.length){
     if(vrGL.note==='waiting') return;
     if(vrGL.note!=='shown'){
       vrGL.note='waiting';
@@ -801,8 +801,6 @@ function paintVR(){
   }
   // Airliners and their lights (contrails.js), over the clouds' composite.
   if(vrClouds&&vrGL.cloudProg&&vrGL.noise) drawPlanesVR(gl, c, ez, sunCol);
-  // A frame drawn out of sight (warmVR) leaves the labels, the HUD and the link alone.
-  if(vrWarming){ perfPaintEnd(); for(const p of firsts) vrSlow.delete(p); return; }
   perfPaintEnd(); perfBeg('labels & HUD');
   // A piece of close-up detail now drawn: its note goes (or the next one's shows).
   if(vrGL.detailDone&&vrGL.detailDone.length&&!firsts.length){

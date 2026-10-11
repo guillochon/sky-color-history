@@ -272,35 +272,25 @@ function compileHit(gl, key){
     nextHit(gl);
   });
 }
-// The next of the other epochs' variants, once VR is set up and warmed and none is compiling.
+// The next of the other epochs' variants, once VR is set up and none is compiling.
 function nextHit(gl){
-  if(!vrGL.warmed||Object.values(vrGL.hits).includes('pending')) return;
+  if(!vrGL.setUp||Object.values(vrGL.hits).includes('pending')) return;
   const next=EP.flatMap(e=>{ const k=hitKeys(e.key); return k.town?[k.land, k.shadow, k.town]:[k.land, k.shadow]; }).find(k=>!vrGL.hits[k]);
   if(next) compileHit(gl, next);
 }
-// Once everything setupVR started is linked, warm the first frame up (warmVR).
-function setupStep(gl){ if(--vrGL.setupLeft===0) warmVR(gl); }
+// Once everything setupVR started is linked, finish (finishSetup).
+function setupStep(gl){ if(--vrGL.setupLeft===0) finishSetup(gl); }
 // Without KHR_parallel_shader_compile (Firefox) the first VR frame keeps the GPU busy for
-// seconds, once: on a GTX 980 4.7 s at any size, the next frame milliseconds. The page waits
-// on it at its next query or frame, so on entering VR it froze 3.5 s. When VR has been set up
-// in the background, frames are drawn out of sight instead: once the GPU has nothing queued,
-// each kind of target is made and asked about (primeVRTargets), which then takes no time, and
-// the frames are drawn and left to the GPU. Entering VR then shows the sky in 40 ms. Only then do the other epochs' landscapes compile, as
-// a compile queued ahead would hold those questions up. In Chrome the first draw stalls the
-// whole browser, so it is left to entering VR and its note.
-let vrWarming=false;
-function warmVR(gl){
-  const done=()=>{ vrPrep(false); if(!vrGL) return; vrGL.warmed=true; nextHit(gl); };
+// seconds, once (4.7 s at any size on a GTX 980; the next frame milliseconds), and the page
+// can't paint meanwhile. Drawn out of sight in the background it froze the page 3.5 s, so it
+// is left to entering VR, behind paintVR's note. What is done here: once the GPU has nothing
+// queued, each kind of target is made and asked about (primeVRTargets), which then takes no
+// time, so on entering those questions don't wait behind the first frame's draws. Only then do
+// the other epochs' landscapes compile, as a compile queued ahead would hold the questions up.
+function finishSetup(gl){
+  const done=()=>{ vrPrep(false); if(!vrGL) return; vrGL.setUp=true; nextHit(gl); };
   if(vrOn||gl.getExtension('KHR_parallel_shader_compile')){ done(); return; }
-  afterGPU(gl, ()=>{
-    if(!vrGL||vrOn){ done(); return; }
-    primeVRTargets();
-    // The sky as VR has it (the page's has no star cells), then two frames more: the clouds'
-    // history pass and the shadows run from the second. The page's sky is drawn again after.
-    vrWarming=true; try{ renderDay(true); paintVR(); paintVR(); } finally{ vrWarming=false; }
-    requestRender();
-    afterGPU(gl, done);
-  });
+  afterGPU(gl, ()=>{ if(vrGL&&!vrOn) primeVRTargets(); done(); });
 }
 // Call fn once the GPU has done all the work sent so far, without waiting for it.
 function afterGPU(gl, fn){
