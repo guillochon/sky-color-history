@@ -540,7 +540,7 @@ const REFL={
   Iapetus:{n:[[380, 0.45], [450, 0.6], [550, 0.8], [650, 0.92], [780, 1]], note:'sunlight off bright ice on its trailing side and reddish-black dust on its leading one'},
   Triton:{n:[[380, 0.8], [450, 0.9], [550, 0.97], [780, 1]], note:'sunlight off nitrogen and methane frosts, faintly pink'},
   Harmonia:{n:[[380, 0.75], [500, 0.85], [600, 0.94], [780, 1]], note:'sunlight off dark rubble like Phobos’s'},
-  Theia:{n:[[380, 0.45], [450, 0.55], [550, 0.75], [650, 0.92], [780, 1]], note:'sunlight off bare rock and dust, as Mars or Mercury'},
+  Theia:{n:[[380, 0.6], [450, 0.68], [550, 0.82], [650, 0.94], [780, 1]], note:'sunlight off dark, iron-rich basalt, as the lunar maria'},
   icy:{n:[[380, 0.85], [500, 0.95], [780, 1]], note:'sunlight off nearly pure water ice'},
   sat:{n:[[380, 0.85], [780, 1]], note:'sunlight off its metal, panels and paint'},
 };

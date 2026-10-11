@@ -318,7 +318,7 @@ function renderDay(fast){
   // The planets and stars, placed now so that a planet bright enough to light the sky can: as the
   // Moon does, the Sun's sky field evaluated at the planet, scaled by its light over the Sun's
   // (the Sun's own dimness in the epoch is in the field already). Only past magnitude -6, which
-  // in these skies is Theia passing the proto-Earth, at up to about -9: a few percent of the full
+  // in these skies is Theia passing the proto-Earth, at up to about -8.5: a few percent of the full
   // Moon's light.
   const stars=placeStars(LATDEG[dLat]);
   const sunLmag=2.5*Math.log10((ep.sunL)||1);

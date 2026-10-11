@@ -13,11 +13,11 @@
 const MOMENTS=[
   // Theia's closest pass to the proto-Earth, at its brightest, in the epoch's random-phase orbits
   // (planets.js LOST_PLANETS). Every 25 years or so the two come within a few hundredths of an AU;
-  // over 10,000 years either side of the epoch's year 0 Theia is brightest, magnitude -8.8, about
+  // over 10,000 years either side of the epoch's year 0 Theia is brightest, magnitude -8.5, about
   // 1,180 years before it: 0.0121 AU away (1.8 million km), half lit, 88 degrees from the Sun (its
   // nearest passes, 0.011 AU, show it a thinner crescent, a little fainter). At that moment it
   // stands 47 degrees up in the south-east in the middle of the night at southern mid-latitudes.
-  {epoch:'protoearth455', date:'0821-08-50', t:178, lat:'Mid-latitude S', look:{planet:'Theia'}, clear:true, title:'Theia’s closest pass, 4.55 Ga', sub:'The world that will make the Moon, half lit, magnitude −8.8, lighting the night', art:'theia'},
+  {epoch:'protoearth455', date:'0821-08-50', t:178, lat:'Mid-latitude S', look:{planet:'Theia'}, clear:true, title:'Theia’s closest pass, 4.55 Ga', sub:'The world that will make the Moon, half lit, magnitude −8.5, lighting the night', art:'theia'},
   {epoch:'hadean44', date:'2000-02-36', t:1015, title:'A Hadean evening, 4.4 Ga', sub:'Thirty bars of CO₂ under a young, faint Sun', art:'day'},
   {epoch:'archean38', date:'2000-01-38', t:1410, look:[0, 30], clear:true, aurora:true, title:'Aurora over the young Earth, 3.8 Ga', sub:'All night under the young Sun’s stronger wind: nitrogen glowing violet and pink in air with no oxygen', art:'aurora'},
   {epoch:'archean27', date:'2000-03-07', t:913, title:'Archean afternoon, 2.7 Ga', sub:'A pale orange organic haze, like Titan’s', art:'day'},
@@ -33,7 +33,7 @@ const MOMENTS=[
   {epoch:'y2100', date:'2100-03-12', t:1167, look:[300, 28], clear:true, title:'Satellites at dusk, 2100', sub:'Megaconstellations and orbital datacenters still in sunlight', art:'sats'},
 ];
 const MOMENT_ART={
-  theia:'<circle cx="62" cy="30" r="11" fill="#3a3430"/><path d="M62 19a11 11 0 0 1 0 22a7 11 0 0 0 0-22z" fill="#d9c7ad"/>',
+  theia:'<circle cx="62" cy="30" r="11" fill="#3a3430"/><path d="M62 19a11 11 0 0 1 0 22z" fill="#b8aa98"/>',
   lunar:'<defs><radialGradient id="mblood" cx=".35" cy=".3"><stop offset="0" stop-color="#b8653a"/><stop offset=".75" stop-color="#6e2a17"/><stop offset="1" stop-color="#4a1c12"/></radialGradient></defs><circle cx="60" cy="34" r="13" fill="url(#mblood)"/>',
   eclipse:'<defs><radialGradient id="mglow"><stop offset=".5" stop-color="#f4ecd8" stop-opacity=".6"/><stop offset="1" stop-color="#f4ecd8" stop-opacity="0"/></radialGradient></defs><circle cx="60" cy="38" r="26" fill="url(#mglow)"/><circle cx="60" cy="38" r="14.5" fill="none" stroke="#fbf3e0" stroke-width="1.6"/><circle cx="60" cy="38" r="13.6" fill="#05070c"/>',
   nova:'<g stroke="#f6f1ff" stroke-linecap="round"><path d="M60 22v32M44 38h32" stroke-width="1.6"/><path d="M50 28l20 20M70 28L50 48" stroke-width=".8" opacity=".7"/></g><circle cx="60" cy="38" r="3.2" fill="#fff"/>',

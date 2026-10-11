@@ -125,7 +125,7 @@ const BODY_NOTES={
   Harmonia:'hypothetical, named here: the moon Ćuk et al. 2020 find tilted Deimos’s orbit, one of the generations of Mars’s ring–moon cycle (Hesselbrock & Minton 2017)',
   Kymo:'hypothetical, named here: one of Neptune’s first moons, scattered and destroyed when it captured Triton (Rufu & Canup 2017)',
   Oceanus:'hypothetical, named here: the fifth giant planet of Nesvorný (2011) and Nesvorný & Morbidelli (2012), thrown out of the Solar System by Jupiter in the instability',
-  Theia:'the Mars-sized body thought to strike the proto-Earth and make the Moon; where its orbit lay is not known (Branco, Raymond & Machado 2025)',
+  Theia:'the Mars-sized body thought to strike the proto-Earth and make the Moon; where its orbit lay is not known (Branco, Raymond & Machado 2025). Its surface is imagined: airless, dark basalt richer in iron oxide than Earth’s (Meier et al. 2014), saturated with craters',
 };
 BODY_NOTES.Galene=BODY_NOTES.Thetis=BODY_NOTES.Amphitrite=BODY_NOTES.Kymo;
 // The bodies the walk-around view draws as disks at once (bodyP..bodyN in the sky shader): those on
@@ -168,15 +168,17 @@ function earlyOrbit(name, el, rate){
   return a?[[a, ...el.slice(1)], [0, rate[1], rate[2], 36000/Math.pow(a, 1.5), rate[4], rate[5]]]:[el, rate];
 }
 // Planets only the earliest epochs have: name, elements and rates as PLANETS, tint, body as
-// PLANET_BODY, absolute magnitude, the kind it is drawn as, and its epochs. Oceanus (named here:
+// PLANET_BODY, absolute magnitude, the kind it is drawn as, its epochs, and for one with a surface
+// map (site/surf) its prime meridian at J2000 and turning (degrees, degrees a day). Oceanus (named here:
 // the Titan, son of Uranus and brother of Saturn, the world-ocean at the edge of the world): the
 // ice giant of about 15 Earth masses ejected by Jupiter (Nesvorný 2011; Nesvorný & Morbidelli 2012),
 // drawn as Neptune is, whose size and brightness it would have had. Theia: Mars-sized, on an orbit
-// near the Earth's (made up: any that would meet the Earth's will do), as bright as Mars at the
-// same distance.
+// near the Earth's (made up: any that would meet the Earth's will do). Its crust is dark FeO-rich
+// basalt, airless and saturated with craters (theia_map.py): geometric albedo about 0.12, so H
+// -1.25 for its 6,800 km, against Mars's -1.52 at 0.17. Its day, unknown, is taken as 20 hours.
 const LOST_PLANETS=[
   ['Oceanus', [9.62, 0.01, 1.0, 0, 30, 60], [0, 0, 0, 36000/Math.pow(9.62, 1.5), 0, 0], [0.62, 0.82, 1.0], [25000, 0.017, 45, 62], -7.0, 6, PRE_INSTABILITY],
-  ['Theia', [0.95, 0.07, 1.5, 0, 200, 140], [0, 0, 0, 36000/Math.pow(0.95, 1.5), 0, 0], [0.80, 0.72, 0.62], [3400, 0, 300, 70], -1.5, 7, {protoearth455:true}],
+  ['Theia', [0.95, 0.07, 1.5, 0, 200, 140], [0, 0, 0, 36000/Math.pow(0.95, 1.5), 0, 0], [0.80, 0.72, 0.62], [3400, 0, 300, 70], -1.25, 7, {protoearth455:true}, [120, 432]],
 ];
 // The same display scale as the stars, in the planet's own tint.
 function planetDisplay(mag, tint){ const d=magDisplay(mag, 200); return {px:d.px, rgb:tint.map(c=>Math.min(2.4, c)*d.amp)}; }
@@ -328,7 +330,7 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
     });
   });
   // The planets only the earliest epochs have, as the planets are placed but without moons or rings.
-  LOST_PLANETS.forEach(([name, el, rate, tint, [Rkm, , pra, pdec], H, kind, eps], li)=>{
+  LOST_PLANETS.forEach(([name, el, rate, tint, [Rkm, , pra, pdec], H, kind, eps, spin], li)=>{
     if(!eps[epochKey]) return;
     const h=planetHelio(phases?el.map((v, n)=>n===3?v+phases.lost[li]:v):el, rate, T), g=[h[0]-earth[0], h[1]-earth[1], h[2]-earth[2]];
     const r=Math.hypot(...h), d=Math.hypot(...g), q=eq(g), pole=eqVec(pra, pdec);
@@ -337,7 +339,10 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
     const mag=H+5*Math.log10(r*d)+(kind===BODY_MOON?0.016*i:0)+dimMag, p=horiz(q);
     const radDeg=Math.atan(Rkm/(d*PL_AU_KM))*180/Math.PI, show=planetDisplay(mag, tint);
     BODY_WHERE.set(name, {az:p.az, el:p.alt, radDeg, mag});
-    const body={grs:null, meridian:null, map:null, dir:p.dir, rad:radDeg*Math.PI/180, light:vnorm(horiz(eq(h.map(v=>-v))).dir), pole:horiz(pole).dir, kind, px:show.px, rgb:show.rgb, mag, front:d<R, shadows:[], rings:false, tint};
+    // Its prime meridian, where the light now arriving left it, as the planets'.
+    let meridian=null;
+    if(spin){ const ax=equatorAxes(pra, pdec), Wr=(spin[0]+spin[1]*(tD-d*LIGHT_DAY_AU))*Math.PI/180; meridian=horiz(vadd(vscale(ax.i, Math.cos(Wr)), vscale(ax.j, Math.sin(Wr)), [0, 0, 0])).dir; }
+    const body={grs:null, meridian, map:SURF_FILES[name]?name:null, dir:p.dir, rad:radDeg*Math.PI/180, light:vnorm(horiz(eq(h.map(v=>-v))).dir), pole:horiz(pole).dir, kind, px:show.px, rgb:show.rgb, mag, front:d<R, shadows:[], rings:false, tint};
     if(p.alt>0){
       marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb, planet:name, mag, ra:p.ra, dec:p.dec, radDeg, lit:(1+Math.cos(i*Math.PI/180))/2, body, kind, rings:false, unknown:!!phases, ageMa, tint});
       bodies.push(body);
