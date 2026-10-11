@@ -30,6 +30,15 @@ uniform float cloudType,cloudBase,cloudTop,cloudCirrus,useHDR,cloudDeck;
 uniform float cbOn, cbPar;
 uniform vec3 snDir,snLight,mlDir,mlLight,fbDir,fbLight;
 uniform vec3 sunCol,groundCol,eye;
+// The hole a ground strike's blast clears in the clouds (contrails.js impactHole): its centre and
+// radius, m; radius 0 for none.
+uniform vec3 impHole;
+// What is left of the cloud cover at p.xy: none inside the hole, banked up a little at its rim.
+float holeKeep(vec2 xy){
+  if(impHole.z<=0.0) return 1.0;
+  float dc=length(xy-impHole.xy)/impHole.z, x=(dc-1.05)/0.12;
+  return smoothstep(0.75, 1.0, dc)*(1.0+0.6*exp(-x*x));
+}
 layout(location=0) out vec4 fragColor;
 layout(location=1) out vec4 fragDepth;
 ${SHELL_GLSL}
@@ -61,7 +70,7 @@ float cloudShape(vec3 p, out float hOut, out vec3 q, out vec2 ng){
   vec4 w=texture(weather, pl*cloudScale*0.33);
   // The weather fbm sits near 0.55 with a narrow spread, so normalise it first. It moves the cover
   // in log-odds, so a nearly clear sky stays nearly clear everywhere.
-  float cov=1.0/(1.0+exp(-(log(cloudCov/(1.0-cloudCov))+(w.r-0.56)/0.09*1.05)));
+  float cov=min(1.0, holeKeep(p.xy)/(1.0+exp(-(log(cloudCov/(1.0-cloudCov))+(w.r-0.56)/0.09*1.05))));
   if(cov<0.01) return 0.0;
   float thick=thickMax*mix(0.45, 1.0, sat((w.b-0.30)/0.38));
   float h=h0/thick;
@@ -189,8 +198,8 @@ void contrailsAt(vec3 ro, vec3 rd, float tHit, float ign, float pixA, vec3 sd, v
               vec3 nd=m==0?mlDir:m==1?snDir:fbDir, nl=m==0?mlLight:m==1?snLight:fbLight;
               if(nl.g>0.0005) Lc+=toLin(nl)*0.6*phase(dot(rd, nd))*exp(-tauS*0.5)*tint;
             }
-            // An impact's cloud glows with the fireball's heat at first.
-            Lc+=vec3(1.0, 0.42, 0.12)*em;
+            // An impact's fireball and cloud glow with its heat, whiter the hotter.
+            Lc+=mix(vec3(1.0, 0.42, 0.12), vec3(1.0, 0.86, 0.62), clamp(em/10.0, 0.0, 1.0))*em;
             Lc=mix(Lc, skyC, fog);
             float ext=exp(-dn*dtS), a=1.0-ext;
             col+=T*a*Lc; tAcc+=tt*T*a; wAcc+=T*a; T*=ext;
@@ -296,13 +305,14 @@ void main(){
     float tC=shellT(ro, rd, 9500.0);
     if(tC>0.0 && tC<140000.0){
       vec3 pc=ro+rd*tC;
+      float keep=min(1.0, holeKeep(pc.xy));
       vec2 cpl=(pc.xy+vec2(cloudDrift, cloudDrift*0.42)*1.6);
       vec2 r=vec2(dot(cpl, vec2(0.92, 0.39)), dot(cpl, vec2(-0.39, 0.92)));
       float big=texture(weather, cpl*cloudScale*0.12+0.37).a;
       float s1=texture(noiseBase, vec3(r.x/42000.0, r.y/9000.0, 0.31)).g;
       float s2=texture(noiseDetail, vec3(r.x/9000.0, r.y/1600.0, 0.57)).r;
       float cir=smoothstep(0.50, 0.85, s1*0.75+s2*0.35)*smoothstep(0.45, 0.65, big+cloudCirrus*0.25)*cloudCirrus;
-      cir*=smoothstep(0.0, 0.06, rd.z);
+      cir*=smoothstep(0.0, 0.06, rd.z)*keep;
       if(cir>0.002){
         vec3 Lc=sunBase*smoothstep(-400.0, 400.0, 9500.0-shadowAlt)*mix(phase(cosT), 1.0, 0.3)*0.9+ambTop*1.1;
         Lc+=toLin(snLight)*0.6*mix(phase(dot(rd, snDir)), 1.0, 0.3)+toLin(mlLight)*0.6*mix(phase(dot(rd, mlDir)), 1.0, 0.3)+toLin(fbLight)*0.6*mix(phase(dot(rd, fbDir)), 1.0, 0.3);

@@ -192,18 +192,35 @@ function ctImpacts(T){
     const c0=at(hc, 0, 0);
     const capPt=s=>({p:[c0[0]+s, c0[1], c0[2]], sg:Rc, sv:0.35*Rc, tau:6*fade*Math.min(1, (R0/Rc)**2), along:s, glow});
     out.push({kind:1, seed:seed+0.31, pts:[capPt(-1), capPt(1)]});
-    // The condensation ring behind the blast wave, while it is near enough the burst to form, and
-    // the dust swept up at its foot, slower and lingering.
-    // A ring is 24 segments, as two halves of 12, so its bends leave no gaps where it is seen edge on.
-    const ring=(r, h, sg, tau, kind, s)=>{ for(let half=0;half<2;half++){ const pts=[]; for(let i=0;i<=12;i++){ const q=Math.PI*(half+i/12); pts.push({p:at(h, r*Math.cos(q), r*Math.sin(q)), sg, sv:sg*0.7, tau, along:r*q, glow:0}); } out.push({kind, seed:s, pts}); } };
-    // The condensation cloud is a dome over the burst, three rings up it here.
+    // A ball, flattened if sv<sg: a segment a couple of metres long, which the shader rounds over its width.
+    const blob=(c, sg, sv, tau, glow, kind, s)=>{ out.push({kind, seed:s, pts:[-1, 1].map(d=>({p:[c[0]+d, c[1], c[2]], sg, sv, tau, along:d, glow}))}); };
+    // The fireball, a glowing ball that grows, rises and cools, into the cap.
+    const fbT=8*Math.exp(-age/(3*S.tau));
+    if(fbT>0.01) blob(at(S.Rf*0.8+60*age, 0, 0), S.Rf*(0.6+0.4*Math.min(1, age/S.tau)), S.Rf*(0.55+0.4*Math.min(1, age/S.tau)), fbT, 14*Math.exp(-age/(0.8*S.tau)), 1, seed+0.41);
+    // The condensation cloud, a thin dome over the burst behind the blast wave while it is near.
     const rMax=8000*Math.pow(Y, 1/3);
-    if(S.rs<rMax*1.5) for(const a of [0.26, 0.79, 1.31]) ring(S.rs*Math.cos(a), 0.8*S.rs*Math.sin(a), 0.05*S.rs+150, 0.5*Math.exp(-S.rs/rMax), 0, seed+0.57+a);
-    // The base surge, a low wall of dust thick enough that its ends round off.
+    if(S.rs<rMax*1.5) blob(at(0, 0, 0), S.rs, 0.7*S.rs, 0.35*Math.exp(-S.rs/rMax), 0, 0, seed+0.57);
+    // The base surge, the dust the blast sweeps up along the ground: a low, wide pancake of it, slower
+    // than the blast wave and lingering.
     const rb=Math.min(S.rs, 2.5*R0);
-    ring(rb, 0.06*rb+200, 0.14*rb+300, 1.2*fade*Math.min(1, R0/Math.max(rb, 1)), 1, seed+0.73);
+    blob(at(0, 0, 0), 0.7*rb, 0.08*rb+250, 1.2*fade*Math.min(1, R0/Math.max(rb, 1)), 0, 1, seed+0.73);
   }
   return out;
+}
+// The hole the nearest ground strike's blast clears in the clouds about it, [x, y, radius] in m, or
+// [0, 0, 0]: as far as the blast wave has gone, out to where the base surge stops, carried with the
+// low clouds' drift, and filling in again over the second half of the explosion's life.
+function impactHole(T){
+  let best=null, bd=Infinity;
+  for(const m of MET.bolides||[]) if(m.ground){
+    const S=impactAt(m, T);
+    if(!S) continue;
+    const d=Math.hypot(S.base[0], S.base[1]);
+    if(d<bd){ bd=d; best=S; }
+  }
+  if(!best) return [0, 0, 0];
+  const R0=6000*Math.pow(best.Y, 0.35), dr=ctDrift(1500, best.age), f=1-smooth01(0.5, 1, best.age/best.life);
+  return [best.base[0]+dr[0], best.base[1]+dr[1], Math.min(best.rs, 2.5*R0)*f];
 }
 // The trails at sky time T, nearest and thickest first, packed for the cloud pass: a header row per
 // trail (bounding sphere; first segment row, segments, kind, seed), then a row per segment (the ends
