@@ -326,3 +326,105 @@ void main(){
   fragDepth=vec4(tMean, 0.0, 0.0, 1.0);
 }`;
 
+// The airliners (contrails.js drawPlanesVR), one at a time over the few pixels each covers: a
+// simple shape traced four times a pixel, lit as the clouds are, and its lights as points. Behind
+// the clouds by their opacity, and behind the land and the town.
+const PLANEFS=`#version 300 es
+precision highp float;
+uniform sampler2D sky, cloudTex, hitInfo;
+uniform vec2 res;
+uniform float yaw, pitch, fov, showScn, nr, na, sunVis;
+uniform vec3 eye, pP, pF, pR, sd, sunCol, cityUp;
+uniform vec4 lD[8];
+uniform vec3 lC[8];
+uniform float lN;
+out vec4 fragColor;
+${VIEW_RAY_GLSL}
+vec3 toLin(vec3 c){ return pow(max(c, vec3(0.0)), vec3(2.2)); }
+// Ray (o, d) against the capsule from a to b of radius r (Quilez): distance, or -1.
+float capsule(vec3 o, vec3 d, vec3 a, vec3 b, float r){
+  vec3 ba=b-a, oa=o-a;
+  float baba=dot(ba, ba), bard=dot(ba, d), baoa=dot(ba, oa), rdoa=dot(d, oa), oaoa=dot(oa, oa);
+  float qa=baba-bard*bard, qb=baba*rdoa-baoa*bard, qc=baba*oaoa-baoa*baoa-r*r*baba, h=qb*qb-qa*qc;
+  if(h<0.0) return -1.0;
+  float t=(-qb-sqrt(h))/qa, y=baoa+t*bard;
+  if(y>0.0 && y<baba) return t;
+  vec3 oc=y<=0.0?oa:o-b;
+  qb=dot(d, oc); qc=dot(oc, oc)-r*r; h=qb*qb-qc;
+  return h>0.0?-qb-sqrt(h):-1.0;
+}
+void capHit(vec3 o, vec3 d, vec3 a, vec3 b, float r, float alb, inout float tB, inout vec3 nB, inout float aB){
+  float t=capsule(o, d, a, b, r);
+  if(t>0.0 && t<tB){ vec3 p=o+d*t, ba=b-a; float h=clamp(dot(p-a, ba)/dot(ba, ba), 0.0, 1.0); tB=t; nB=(p-a-ba*h)/r; aB=alb; }
+}
+// A thin surface in the plane where axis k is c: the part with |span| under s whose chord runs
+// back from le-sweep·|span| for root-taper·|span|. For wings, tailplane and fin.
+void slabHit(vec3 o, vec3 d, int k, float c, float s, float le, float sweep, float root, float taper, float alb, bool fin, inout float tB, inout vec3 nB, inout float aB){
+  float dk=k==2?d.z:d.y, ok=k==2?o.z:o.y;
+  if(abs(dk)<1.0e-6) return;
+  float t=(c-ok)/dk;
+  if(t<=0.0 || t>=tB) return;
+  vec3 p=o+d*t;
+  float sp=k==2?abs(p.y):p.z-1.5;
+  if(fin && sp<0.0) return;
+  sp=abs(sp);
+  float x0=le-sweep*sp, ch=root-taper*sp;
+  if(sp<s && p.x<x0 && p.x>x0-ch){ tB=t; nB=k==2?vec3(0.0, 0.0, 1.0):vec3(0.0, 1.0, 0.0); aB=alb; }
+}
+// The nearest surface along local ray (o, d), metres, x forward, y right, z up: about an A320.
+float airliner(vec3 o, vec3 d, out vec3 n, out float alb){
+  // From just short of it: the capsule test loses its precision from kilometres away.
+  float t0=max(-dot(o, d)-60.0, 0.0);
+  o+=d*t0;
+  float t=1.0e9; n=vec3(0.0, 0.0, 1.0); alb=0.0;
+  capHit(o, d, vec3(-16.0, 0.0, 0.0), vec3(16.0, 0.0, 0.0), 2.0, 0.75, t, n, alb);
+  capHit(o, d, vec3(-1.0, -5.8, -1.9), vec3(2.5, -5.8, -1.9), 0.9, 0.5, t, n, alb);
+  capHit(o, d, vec3(-1.0, 5.8, -1.9), vec3(2.5, 5.8, -1.9), 0.9, 0.5, t, n, alb);
+  slabHit(o, d, 2, -0.8, 17.0, 3.0, 0.47, 6.5, 0.28, 0.6, false, t, n, alb);
+  slabHit(o, d, 2, 0.6, 6.3, -12.5, 0.6, 3.6, 0.3, 0.6, false, t, n, alb);
+  slabHit(o, d, 1, 0.0, 9.5, -12.0, 0.75, 5.5, 0.3, 0.7, true, t, n, alb);
+  return t<1.0e8?t+t0:t;
+}
+void main(){
+  vec2 fc=gl_FragCoord.xy;
+  vec3 up=cross(pR, pF), rd0=viewRay(fc, res, fov, yaw, pitch), rel=eye-pP;
+  vec3 o=vec3(dot(rel, pF), dot(rel, pR), dot(rel, up));
+  vec3 sunL=toLin(sunCol)*sunVis*3.2*smoothstep(0.0, 0.1, sd.z+0.1);
+  float shadowAlt=sd.z<0.0?6.371e6*(inversesqrt(1.0-sd.z*sd.z)-1.0):-1.0e9;
+  float alt=pP.z+dot(pP.xy, pP.xy)/(2.0*6.371e6);
+  sunL*=smoothstep(-100.0, 100.0, alt-shadowAlt);
+  vec3 zen=toLin(texture(sky, vec2(0.5, 0.5/(nr+1.0))).rgb);
+  vec3 col=vec3(0.0); float cov=0.0, tMin=1.0e9;
+  for(int i=0;i<4;i++){
+    vec2 off=vec2(float(i&1), float(i>>1))*0.5-0.25;
+    vec3 rd=viewRay(fc+off, res, fov, yaw, pitch), d=vec3(dot(rd, pF), dot(rd, pR), dot(rd, up)), n; float alb;
+    float t=airliner(o, d, n, alb);
+    if(t<1.0e8){
+      vec3 nw=normalize(pF*n.x+pR*n.y+up*n.z);
+      if(dot(nw, rd)>0.0) nw=-nw;
+      // Sunlit sides, sky from above, the ground's light from below.
+      vec3 L=sunL*max(dot(nw, sd), 0.0)+zen*(0.55+0.45*nw.z)+(zen*0.25+cityUp)*(0.5-0.5*nw.z);
+      col+=alb*L; cov+=0.25; tMin=min(tMin, t);
+    }
+  }
+  float comp=atan(rd0.x, rd0.y); if(comp<0.0) comp+=6.28318530718;
+  vec3 skyC=toLin(texture(sky, vec2((fract(comp/6.28318530718)*na+0.5)/(na+1.0), ((90.0-max(asin(clamp(rd0.z, -1.0, 1.0))*57.2957795, 0.0))/90.0*nr+0.5)/(nr+1.0))).rgb);
+  vec3 c=vec3(0.0);
+  if(cov>0.0){
+    c=col/(cov*4.0);
+    // The air in front, thinner above, as for the contrails.
+    float dist=length(rel), se=max(alt/max(dist, 1.0), 1.0e-3);
+    c=mix(c, skyC, (1.0-exp(-8000.0/se*(1.0-exp(-max(alt, 0.0)/8000.0))/38000.0))*0.85);
+    c=mix(c, 0.6+0.4*(1.0-exp(-(c-0.6)/0.4)), step(0.6, c));
+    c=pow(c, vec3(1.0/2.2));
+  }
+  vec3 li=vec3(0.0);
+  for(int i=0;i<8;i++){
+    if(float(i)>=lN) break;
+    vec3 dq=rd0-lD[i].xyz;
+    li+=lC[i]*exp(-0.5*dot(dq, dq)/(lD[i].w*lD[i].w));
+  }
+  float occ=1.0-texture(cloudTex, fc/res).a;
+  if(showScn>0.5){ vec4 h=texture(hitInfo, fc/res); if(h.g>0.5 && h.r>0.0 && h.r<length(rel)) occ=0.0; }
+  fragColor=vec4((c*cov+li)*occ, cov*occ);
+}`;

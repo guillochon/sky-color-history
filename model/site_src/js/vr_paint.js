@@ -729,6 +729,8 @@ function paintVR(){
     gl.disable(gl.BLEND);
     gl.activeTexture(gl.TEXTURE0); gl.useProgram(vrGL.prog);
   }
+  // Airliners and their lights (contrails.js), over the clouds' composite.
+  if(vrClouds&&vrGL.cloudProg&&vrGL.noise) drawPlanesVR(gl, c, ez, sunCol);
   perfPaintEnd(); perfBeg('labels & HUD');
   // A piece of close-up detail now drawn: its note goes (or the next one's shows).
   if(vrGL.detailDone&&vrGL.detailDone.length&&!firsts.length){

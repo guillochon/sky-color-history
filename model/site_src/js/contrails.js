@@ -215,3 +215,92 @@ function contrailUpload(gl){
   gl.activeTexture(gl.TEXTURE0);
   return ct?ct.n:0;
 }
+// The airliners themselves, in the air now: position (m, as the trails), heading and right wing.
+function ctPlanes(T){
+  const out=[];
+  for(let b=Math.floor((T-1500)/CT_BIN);b<=Math.floor(T/CT_BIN);b++) for(const f of ctFlights(b)){
+    if(T<f.tin||T>f.tout) continue;
+    const s=f.v*(T-f.tin), x=(f.E[0]+f.d[0]*s)*1000, y=(f.E[1]+f.d[1]*s)*1000;
+    out.push({f, p:[x, y, f.alt*1000-(x*x+y*y)/(2*MET_RE*1000)], F:[f.d[0], f.d[1], 0], R:[f.d[1], -f.d[0], 0]});
+  }
+  return out;
+}
+// The lights an airliner carries at cruise: red on the left wingtip and green on the right, each
+// shown from dead ahead to 110° round its side, about 40 cd; white on the tail, shown behind, 20 cd;
+// the red anti-collision beacon under the fuselage, a flash a second; and white strobes on the
+// wingtips and tail, a double flash every 1.3 s, a few thousand cd at the peak (CS-25.1385–1401).
+// Local position (m, x forward, y right, z up), colour, candela, side (−1 left, 1 right, 2 behind,
+// 0 all round) and flash (0 steady, 1 beacon, 2 strobe).
+const CT_LIGHTS=[
+  [[-6.6, -17.1, -0.8], [1.9, 0.3, 0.2], 40, -1, 0], [[-6.6, 17.1, -0.8], [0.35, 1.6, 0.8], 40, 1, 0],
+  [[-17.8, 0, 0.9], [1.3, 1.3, 1.35], 20, 2, 0], [[2, 0, -2.1], [1.9, 0.25, 0.15], 250, 0, 1],
+  [[-6.4, -17.2, -0.8], [1.5, 1.5, 1.6], 2500, 0, 2], [[-6.4, 17.2, -0.8], [1.5, 1.5, 1.6], 2500, 0, 2], [[-18, 0, 0.9], [1.5, 1.5, 1.6], 1500, 0, 2]
+];
+function ctFlash(kind, t){
+  if(kind===1) return t%1<0.12;
+  const p=t%1.3; return p<0.05||(p>0.15&&p<0.2);
+}
+// Draws the airliners over the composited view, each scissored to its patch; the cloud layer's
+// opacity is on unit 2, the land's distances on 10, the sky on 0.
+function drawPlanesVR(gl, c, ez, sunCol){
+  if(!vrClouds||!CT_TRAFFIC[EP[dIdx].key]) return;
+  if(!CT.planeJob){
+    CT.planeJob=glProgramAsync(gl, vrGL.vs, PLANEFS);
+    whenLinked(gl, [CT.planeJob], p=>{
+      if(!p) return;
+      CT.planeU=uniformLocs(gl, p, ['res', 'yaw', 'pitch', 'fov', 'showScn', 'nr', 'na', 'sunVis', 'eye', 'pP', 'pF', 'pR', 'sd', 'sunCol', 'cityUp', 'lD[0]', 'lC[0]', 'lN']);
+      gl.useProgram(p); bindSamplers(gl, p, [['sky', 0], ['cloudTex', 2], ['hitInfo', 10]]); gl.useProgram(vrGL.prog);
+      CT.planeProg=p; requestVR();
+    });
+  }
+  if(!CT.planeProg) return;
+  const T=astroDay()*86400, planes=ctPlanes(T);
+  if(!planes.length) return;
+  const key=EP[dIdx].key, fovR=vrFov*Math.PI/180, H=c.height, W=c.width, fy=Math.tan(fovR/2), fx=fy*W/H, pixA=2*fy/H;
+  const yaw=vrYaw*Math.PI/180, pitch=vrPitch*Math.PI/180, cp=Math.cos(pitch), sp=Math.sin(pitch), cy=Math.cos(yaw), sy=Math.sin(yaw);
+  const pxRad=0.35*fovR/Math.max(window.innerHeight, 1), now=performance.now()/1000, eye=[vrX, vrY, ez];
+  const u=CT.planeU, lD=new Float32Array(32), lC=new Float32Array(24);
+  let flashing=false, drawn=false;
+  for(const P of planes){
+    const rel=[P.p[0]-eye[0], P.p[1]-eye[1], P.p[2]-eye[2]], dist=Math.hypot(...rel), dir=rel.map(v=>v/dist);
+    const depth=dir[0]*sy*cp+dir[1]*cy*cp+dir[2]*sp;
+    if(depth<0.05||dir[2]<-0.02) continue;
+    const sx=(dir[0]*cy-dir[1]*sy)/depth/fx, sy2=(-dir[0]*sy*sp-dir[1]*cy*sp+dir[2]*cp)/depth/fy;
+    const X=(sx*0.5+0.5)*W, Y=(sy2*0.5+0.5)*H;
+    // The lights, as stars of their brightness through the air (comets.js does the same).
+    const el=Math.asin(dir[2])*180/Math.PI, az=Math.atan2(dir[0], dir[1])*180/Math.PI;
+    const Lsky=skyRAt(skyNow.rgrid, Math.max(el, 0), az)*skyNow.rCd;
+    const vx=-(dir[0]*P.F[0]+dir[1]*P.F[1]), vy=-(dir[0]*P.R[0]+dir[1]*P.R[1]), side=Math.atan2(vy, vx)*180/Math.PI;
+    let n=0, sig=0;
+    for(const [q, rgb, cd, s, fl] of CT_LIGHTS){
+      const shown=s===0?1:s===2?smooth01(105, 115, Math.abs(side)):smooth01(-5, 5, s*side)*(1-smooth01(105, 115, s*side));
+      if(!(shown>0)) continue;
+      const m=starThroughAir(-14.18-2.5*Math.log10(cd*shown/(dist*dist)), Math.max(el, 0), key), vis=starVisible(m, Lsky);
+      if(vis<0.01) continue;
+      if(fl){ flashing=true; if(!ctFlash(fl, now+P.f.seed*7)) continue; }
+      const amp=Math.min(1, 0.62*Math.sqrt(Math.pow(10, -0.4*(m-STAR_VANCHOR))))*vis, d=pointDisplay(m), s2=Math.max(d.px*pxRad, pixA*0.6);
+      const w=[P.p[0]+P.F[0]*q[0]+P.R[0]*q[1]-eye[0], P.p[1]+P.F[1]*q[0]+P.R[1]*q[1]-eye[1], P.p[2]+q[2]-eye[2]], wl=Math.hypot(...w);
+      lD.set([w[0]/wl, w[1]/wl, w[2]/wl, s2], n*4); lC.set(rgb.map(v=>v*amp), n*3); n++; sig=Math.max(sig, s2);
+    }
+    // The patch: the airliner's 40 m and its lights' glow, in pixels.
+    const R=Math.max(25/dist, 4*sig)/pixA+2;
+    if(R<2.6&&!n) continue;
+    if(X+R<0||X-R>W||Y+R<0||Y-R>H) continue;
+    if(!drawn){
+      drawn=true;
+      gl.useProgram(CT.planeProg); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); gl.enable(gl.SCISSOR_TEST);
+      gl.uniform2f(u.res, W, H); gl.uniform1f(u.yaw, yaw); gl.uniform1f(u.pitch, pitch); gl.uniform1f(u.fov, fovR);
+      gl.uniform1f(u.showScn, vrScenery&&vrGL.hitInfo?1:0); gl.uniform1f(u.nr, skyNow.nr); gl.uniform1f(u.na, skyNow.na);
+      gl.uniform1f(u.sunVis, skyNow.sunVis==null?1:skyNow.sunVis); gl.uniform3f(u.eye, eye[0], eye[1], eye[2]);
+      gl.uniform3fv(u.sd, new Float32Array(horizDir(skyNow.sunAz, 90-skyNow.sza))); gl.uniform3fv(u.sunCol, sunCol);
+      gl.uniform3fv(u.cityUp, skyNow.cityUp||new Float32Array(3));
+    }
+    gl.uniform3fv(u.pP, P.p); gl.uniform3fv(u.pF, P.F); gl.uniform3fv(u.pR, P.R);
+    gl.uniform4fv(u.lD, lD); gl.uniform3fv(u.lC, lC); gl.uniform1f(u.lN, n);
+    gl.scissor(Math.floor(X-R), Math.floor(Y-R), Math.ceil(2*R)+1, Math.ceil(2*R)+1);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+  }
+  if(drawn){ gl.disable(gl.SCISSOR_TEST); gl.disable(gl.BLEND); gl.useProgram(vrGL.prog); }
+  // The beacons and strobes blink in real time, so keep painting while one could show.
+  if(flashing&&!CT.timer) CT.timer=setTimeout(()=>{ CT.timer=0; requestVR(); }, 40);
+}
