@@ -666,6 +666,7 @@ function paintVR(){
   // Meteors and lunar flashes (meteors.js), as they are this instant.
   const mu=metUniforms();
   gl.uniform1f(u.metN, mu.n); gl.uniform3fv(u.metFlash, mu.flash||[0, 0, 0]);
+  vrGL.metFlash=new Float32Array(mu.flash||[0, 0, 0]);
   // The brightest fireball lights the scene from its head, in two parts. As sunlight, in
   // proportion to its brightness against the Sun's, without limit, so one brighter than the Sun
   // outshines it, day or night. And at night, when the eye has adapted, as moonlight (nightLight's
@@ -853,6 +854,7 @@ function shaftUpload(gl, cu){
   gl.activeTexture(gl.TEXTURE0);
   const mo=skyNow.moon;
   gl.uniform3fv(cu.shMoon, new Float32Array(horizDir(mo.az, mo.el)));
+  gl.uniform3fv(cu.shFlash, vrGL.metFlash||new Float32Array(3));
   const U=vrGL.shaftU;
   gl.uniform1f(cu.shN, U.n); gl.uniform4fv(cu.shPart, U.P); gl.uniform3fv(cu.shExt, U.E); gl.uniform3fv(cu.shSca, U.S);
 }

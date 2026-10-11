@@ -227,6 +227,8 @@ uniform float shN;
 // The Moon's direction, and the share of the sky's light on its grid (as the sky texture's) that
 // is the Sun's (r) and the Moon's (g); the rest is the night sky's own, which no cloud shades.
 uniform vec3 shMoon;
+// The brightest fireball's glow on the sky (meteors.js metFlash, as the sky pass has it), or 0.
+uniform vec3 shFlash;
 uniform sampler2D shSrc;
 // Always 0: added to the rays' loop bounds so the Direct3D compiler keeps them as loops rather than
 // unrolling cloudShape into every step (shader_terrain.js).
@@ -313,23 +315,31 @@ vec3 shaftFrac(vec3 ro, vec3 rd, vec3 sd, float ign){
   return share*clamp(1.0-lit/max(wAll, vec3(1e-30)), 0.0, 1.0);
 }
 // The layer that dims the sky behind the clouds, premultiplied display colour and alpha, for the
-// sky's display colour skyD along rd: the Sun's rays and the Moon's, each over its part of the sky.
+// sky's display colour skyD along rd: the Sun's rays and the Moon's, each over its part of the sky,
+// and a bright fireball's over the glow the sky pass lays about it.
 vec4 shaftLayer(vec3 ro, vec3 rd, vec3 sd, vec3 skyD, float ign){
   if(shN<0.5) return vec4(0.0);
   float comp=atan(rd.x, rd.y); if(comp<0.0) comp+=6.28318530718;
   float el=asin(clamp(rd.z, -1.0, 1.0))*57.2957795;
   vec2 part=texture(shSrc, vec2((fract(comp/6.28318530718)*na+0.5)/(na+1.0), ((90.0-max(el, 0.0))/90.0*nr+0.5)/(nr+1.0))).rg;
-  vec3 frac=vec3(0.0);
-  for(int s=0;s<2+shPad;s++){
-    float k=s==0?part.r:part.g;
-    if(k>0.01) frac+=k*shaftFrac(ro, rd, s==0?sd:shMoon, ign);
+  // The fireball's glow as the sky pass draws it, in display values, over the sky it hides.
+  vec3 fg=shFlash*(0.6+1.4*pow(max(dot(rd, fbDir), 0.0), 4.0));
+  vec3 frac=vec3(0.0), fracF=vec3(0.0);
+  for(int s=0;s<3+shPad;s++){
+    float k=s==0?part.r:s==1?part.g:max(fg.r, max(fg.g, fg.b));
+    if(k>0.01){
+      vec3 f=shaftFrac(ro, rd, s==0?sd:s==1?shMoon:fbDir, ign);
+      if(s<2) frac+=k*f; else fracF=f;
+    }
   }
-  // In display values the sky goes to skyD·(1-frac)^(1/2.2): an alpha for the channel dimmed
-  // most, and the colour the others keep put back.
-  vec3 keep=pow(1.0-frac, vec3(1.0/2.2));
-  float a=1.0-min(keep.r, min(keep.g, keep.b));
+  // In display values the sky goes to skyD·(1-frac)^(1/2.2) and the glow to fg·(1-fracF): an
+  // alpha for the channel dimmed most, and the colour the others keep put back.
+  vec3 base=skyD*(1.0-min(1.0, 1.2*max(fg.r, max(fg.g, fg.b)))), P=base+fg;
+  vec3 T=base*pow(1.0-frac, vec3(1.0/2.2))+fg*(1.0-fracF);
+  vec3 keep=T/max(P, vec3(1e-4));
+  float a=1.0-min(1.0, min(keep.r, min(keep.g, keep.b)));
   if(a<0.002) return vec4(0.0);
-  return vec4(max(skyD*(keep-(1.0-a)), 0.0), a);
+  return vec4(max(T-(1.0-a)*P, 0.0), a);
 }
 ${VIEW_RAY_GLSL}
 void main(){

@@ -345,7 +345,7 @@ function setupCloudProgs(gl, cp, pp, tp, np){
   const vols=makeCloudVolumes(gl, np);
   if(!vols){ console.warn('cloud noise build failed'); return; }
   const names=['res','yaw','pitch','fov','eye','sunAz','sunEl','sunCol','sunMu','showScn','cloudCov','cloudScale','cloudDrift','cloudTime','cloudFrame','nr','na','cloudType','cloudBase','cloudTop','cloudCirrus','useHDR','groundCol','sunVis','cityUp','cloudDeck','snDir','snLight','mlDir','mlLight','fbDir','fbLight','cbOn','cbPar','ctN','impHole'];
-  const cu=uniformLocs(gl, cp, [...names, 'obj[0]', 'kind[0]', 'shN', 'shPart[0]', 'shExt[0]', 'shSca[0]', 'shMoon']);
+  const cu=uniformLocs(gl, cp, [...names, 'obj[0]', 'kind[0]', 'shN', 'shPart[0]', 'shExt[0]', 'shSca[0]', 'shMoon', 'shFlash']);
   const weather=ensureWeather(gl);
   const hdr=!!gl.getExtension('EXT_color_buffer_float');
   gl.useProgram(cp);
