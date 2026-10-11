@@ -57,6 +57,8 @@ GAP = {'callisto': (40, 6), 'triton': (14, 6, -1)}
 # times its dark leading one, and would clip.
 MEAN = {'iapetus': 0.3}
 LUM = np.array([0.2126, 0.7152, 0.0722])
+# Maps whose source's edges, turned to meet in the middle, leave a seam there.
+SEAM = {'mars'}
 
 
 def load(path, size):
@@ -118,6 +120,12 @@ def process(a, gray, left, sat, tint, size, name):
         a = crop_figure(a)
     if left:
         a = np.roll(a, -int(round(a.shape[1] * left / 360.0)) % a.shape[1], axis=1)
+    if name in SEAM:
+        # The Viking mosaic's two edges, where they now meet, are some 10% darker over two columns
+        # (a line down the disk); they are taken from the columns either side.
+        c = int(round(a.shape[1] * (360 - left) / 360.0)) % a.shape[1]
+        l, r = a[:, c - 2].copy(), a[:, c + 1].copy()
+        a[:, c - 1], a[:, c] = (2 * l + r) / 3, (l + 2 * r) / 3
     thr, grow, lim = (GAP.get(name, (2.5, 0)) + (55,))[:3]
     valid = a.max(axis=2) > 2.5 / 255.0
     # The stricter cut-off only poleward of 55 degrees, where the gaps are; dark plains elsewhere stay.
