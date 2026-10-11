@@ -133,11 +133,12 @@ function syncDsoTex(gl){
 // tile's pieces (-1 while there are none) and the cube root of that tile's top over the atlas's.
 const DSO_MAX=10, DSO_U={C:new Float32Array(DSO_MAX*4), E:new Float32Array(DSO_MAX*4), N:new Float32Array(DSO_MAX*4), K:new Float32Array(DSO_MAX), W:new Float32Array(DSO_MAX), H:new Float32Array(DSO_MAX*2)};
 // Zoomed in on an object, it is shown more and more as its picture (the tile as coded, a cube-root
-// stretch in full colour) rather than as the eye would see its light: not at all while its tile
-// spans a twentieth of the view's height or less, wholly once it spans half, smoothly between on
-// a log scale. A telescope's view, as a photograph shows it.
-function dsoView(hw, fov){
-  const t=Math.max(0, Math.min(1, Math.log10(2*Math.atan(hw)/fov/0.05)));
+// stretch in full colour) rather than as the eye would see its light: not at all while the object
+// (its ellipse's diagonal, the size find.js frames) spans a quarter of the view's height or less,
+// wholly once it spans half, as find frames it, smoothly between on a log scale. A telescope's
+// view, as a photograph shows it.
+function dsoView(p, fov){
+  const t=Math.max(0, Math.min(1, Math.log2(2*p.o.r*p.s/1.3*Math.PI/180/fov/0.25)));
   return t*t*(3-2*t);
 }
 function uploadDso(gl, u){
@@ -154,7 +155,7 @@ function uploadDso(gl, u){
     DSO_U.E.set(p.E, i*4); DSO_U.E[i*4+3]=p.hw;
     DSO_U.N.set(p.N, i*4); DSO_U.N[i*4+3]=p.i;
     DSO_U.K[i]=p.k*k;
-    DSO_U.W[i]=dsoView(p.hw, vrFov*Math.PI/180);
+    DSO_U.W[i]=dsoView(p, vrFov*Math.PI/180);
     if(2*p.hw*c.height/(2*fy)>400) wantDsoHi(p.i);
     const h=dsoHi[p.i];
     DSO_U.H[i*2]=h&&h.base!=null?h.base:-1; DSO_U.H[i*2+1]=Math.cbrt(p.o.topHi/p.o.top);
@@ -185,10 +186,13 @@ vec3 dsoAt(vec3 src, float pix, out vec3 img, out float w){
     } else q=textureLod(dsoTex, vec3(uv, dsoN[i].w), lod).rgb;
     L+=q*q*q*dsoK[i];
     // The picture's black is set a little above the tile's, and it fades out in a circle inside
-    // the tile, or the stretch would show what is left of the survey's sky as a grey square.
+    // the tile, or the stretch would show what is left of the survey's sky as a grey square. How
+    // far it is shown fades with it: another object's picture within this one's square (the Small
+    // Cloud's in the Large's, when they were further) would otherwise take this one's w up to the
+    // square's edge.
     if(dsoW[i]>0.0){
       float e=smoothstep(0.5, 0.3, length(uv-0.5));
-      img=max(img, max(q-0.1, 0.0)/0.9*e); w=max(w, dsoW[i]);
+      img=max(img, max(q-0.1, 0.0)/0.9*e); w=max(w, dsoW[i]*e);
     }
   }
   return L;
