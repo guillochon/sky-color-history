@@ -613,6 +613,14 @@ function paintVR(){
   // Meteors and lunar flashes (meteors.js), as they are this instant.
   const mu=metUniforms();
   gl.uniform1f(u.metN, mu.n); gl.uniform3fv(u.metFlash, mu.flash||[0, 0, 0]);
+  // The brightest fireball lights the scene from its head: at night as the Moon does (nightLight's
+  // scale; the full Moon's magnitude gives the full Moon's light), by day in proportion to the Sun.
+  // Its magnitude is already through the air.
+  const fire=mu.fire, fbRel=fire?Math.pow(10, -0.4*(fire.mag-MOON_V_FULL)):0;
+  const fbF=fire?Math.min(2, 0.6*Math.sqrt(fbRel)*night+Math.pow(10, -0.4*(fire.mag+26.74))*(1-night)):0, fbMx=fire?Math.max(...fire.rgb)||1:1;
+  vrGL.fbDir=new Float32Array(fire?fire.dir:[0, 0, 1]);
+  vrGL.fbLight=new Float32Array(fire?fire.rgb.map(c=>c/fbMx*fbF):[0, 0, 0]);
+  gl.uniform3fv(u.fbDir, vrGL.fbDir); gl.uniform3fv(u.fbLight, vrGL.fbLight);
   if(mu.n){ gl.uniform4fv(u.metA, mu.A); gl.uniform4fv(u.metB, mu.B); gl.uniform4fv(u.metC, mu.C); }
   // Comets (comets.js).
   const cu=cometUniforms();
@@ -662,7 +670,8 @@ function paintVR(){
     gl.uniform1f(cu.cloudTime, vrGL.cloudTime||0); gl.uniform1f(cu.cloudFrame, vrGL.cloudFrame||0);
     gl.uniform1f(cu.cloudType, field.type); gl.uniform1f(cu.cloudDeck, field.deck);
     gl.uniform3fv(cu.snLight, vrGL.snLight||new Float32Array(3)); if(vrGL.snDir) gl.uniform3fv(cu.snDir, vrGL.snDir);
-    gl.uniform3fv(cu.mlLight, vrGL.mlLight||new Float32Array(3)); if(vrGL.mlDir) gl.uniform3fv(cu.mlDir, vrGL.mlDir); gl.uniform1f(cu.cloudBase, field.base); gl.uniform1f(cu.cloudTop, field.top); gl.uniform1f(cu.cloudCirrus, field.cirrus);
+    gl.uniform3fv(cu.mlLight, vrGL.mlLight||new Float32Array(3)); if(vrGL.mlDir) gl.uniform3fv(cu.mlDir, vrGL.mlDir);
+    gl.uniform3fv(cu.fbLight, vrGL.fbLight||new Float32Array(3)); if(vrGL.fbDir) gl.uniform3fv(cu.fbDir, vrGL.fbDir); gl.uniform1f(cu.cloudBase, field.base); gl.uniform1f(cu.cloudTop, field.top); gl.uniform1f(cu.cloudCirrus, field.cirrus);
     gl.uniform1f(cu.useHDR, vrGL.cloudHDR?1:0);
     gl.uniform1f(cu.sunVis, skyNow.sunVis==null?1:skyNow.sunVis);
     gl.uniform3fv(cu.cityUp, skyNow.cityUp||new Float32Array(3));

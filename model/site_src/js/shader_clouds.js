@@ -28,7 +28,7 @@ uniform float cloudType,cloudBase,cloudTop,cloudCirrus,useHDR,cloudDeck;
 // of the res-sized view, the other half on the next frame (cbPar alternates); the temporal pass
 // puts them together.
 uniform float cbOn, cbPar;
-uniform vec3 snDir,snLight,mlDir,mlLight;
+uniform vec3 snDir,snLight,mlDir,mlLight,fbDir,fbLight;
 uniform vec3 sunCol,groundCol,eye;
 layout(location=0) out vec4 fragColor;
 layout(location=1) out vec4 fragDepth;
@@ -182,8 +182,8 @@ void contrailsAt(vec3 ro, vec3 rd, float tHit, float ign, float pixA, vec3 sd, v
             float tauS=k0*g*1.25*sgE/max(sinS, 0.15);
             vec3 S=sunP*(exp(-tauS)*ph0+0.5*exp(-tauS*0.3)*ph1+0.2*exp(-tauS*0.1)*ph2);
             vec3 Lc=(S+amb)*tint;
-            for(int m=0;m<2;m++){
-              vec3 nd=m==0?mlDir:snDir, nl=m==0?mlLight:snLight;
+            for(int m=0;m<3;m++){
+              vec3 nd=m==0?mlDir:m==1?snDir:fbDir, nl=m==0?mlLight:m==1?snLight:fbLight;
               if(nl.g>0.0005) Lc+=toLin(nl)*0.6*phase(dot(rd, nd))*exp(-tauS*0.5)*tint;
             }
             Lc=mix(Lc, skyC, fog);
@@ -270,9 +270,9 @@ void main(){
         // it through the cloud as they do the skylight.
         vec3 A=mix(ambBot, ambTop, smoothstep(0.0, 0.85, h))*mix(0.4, 1.0, occ)+cityUp+bounce;
         vec3 L=S+A;
-        // The Moon and a supernova light the clouds at night.
-        for(int k=0;k<2;k++){
-          vec3 nd=k==0?mlDir:snDir, nl=k==0?mlLight:snLight;
+        // The Moon, a supernova and a fireball light the clouds at night.
+        for(int k=0;k<3;k++){
+          vec3 nd=k==0?mlDir:k==1?snDir:fbDir, nl=k==0?mlLight:k==1?snLight:fbLight;
           if(nl.g>0.0005) L+=nightScatter(p, rd, nd, nl);
         }
         float ext=exp(-den*SIGMA*dt);
@@ -300,7 +300,7 @@ void main(){
       cir*=smoothstep(0.0, 0.06, rd.z);
       if(cir>0.002){
         vec3 Lc=sunBase*smoothstep(-400.0, 400.0, 9500.0-shadowAlt)*mix(phase(cosT), 1.0, 0.3)*0.9+ambTop*1.1;
-        Lc+=toLin(snLight)*0.6*mix(phase(dot(rd, snDir)), 1.0, 0.3)+toLin(mlLight)*0.6*mix(phase(dot(rd, mlDir)), 1.0, 0.3);
+        Lc+=toLin(snLight)*0.6*mix(phase(dot(rd, snDir)), 1.0, 0.3)+toLin(mlLight)*0.6*mix(phase(dot(rd, mlDir)), 1.0, 0.3)+toLin(fbLight)*0.6*mix(phase(dot(rd, fbDir)), 1.0, 0.3);
         float a=cir*0.55;
         col+=T*a*Lc; tAcc+=tC*T*a; wAcc+=T*a;
         T*=1.0-a;

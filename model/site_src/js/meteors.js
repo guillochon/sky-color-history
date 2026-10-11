@@ -99,6 +99,10 @@ function metRadiant(src, F){
     default: { let d; do{ d=[metGauss(), metGauss(), metGauss()]; }while(Math.hypot(...d)<1e-6); return {d:vnorm(d), v:15+55*metRand()}; }
   }
 }
+// Brighter than this, a stony or asteroidal meteoroid (tens of metres across) is not stopped by the
+// air: it keeps its speed and strikes the ground, as Meteor Crater's iron did; smaller ones break up
+// and burst in the air, as Chelyabinsk did at about 30 km.
+const MET_GROUND=-24;
 // Begin and end heights, km.
 function metHeights(M, v, dh){
   const hb=Math.min(125, 85+0.6*(v-12))+Math.min(10, 1.5*Math.max(0, -M));
@@ -119,11 +123,12 @@ function metMake(E, F, lo, hi, ctx){
   return metPath(M, rad.v, rad.d, n, E, ctx, src);
 }
 function metPath(M, v, radDir, n, E, ctx, src){
-  const [hb, he]=metHeights(M, v, E.dh), u=vscale(radDir, -1), R=MET_RE;
+  const rho=src==='aster'||src==='ring'?3.3:(src==='apex'||src==='toroidal'?0.8:1.5), ground=M<=MET_GROUND&&rho>=1.5;
+  const hh=metHeights(M, v, E.dh), hb=hh[0], he=ground?0:hh[1], u=vscale(radDir, -1), R=MET_RE;
   const B=[n[0]*(R+hb), n[1]*(R+hb), n[2]*(R+hb)-R];
   const bp=(R+hb)*vdot(n, u), c=(R+hb)*(R+hb)-(R+he)*(R+he);
   let L=bp*bp>c?-bp-Math.sqrt(bp*bp-c):-bp;
-  L=Math.max(3, Math.min(L, 600));
+  L=Math.max(3, Math.min(L, ground?2000:600));
   const T=L/v;
   // Peak point, for a first look at whether it can be seen at all.
   const P=vadd(B, vscale(u, L*0.65), [0, 0, 0]), d=Math.hypot(...P), el=Math.asin(P[2]/d)*180/Math.PI;
@@ -132,17 +137,20 @@ function metPath(M, v, radDir, n, E, ctx, src){
   if(mPeak>ctx.mShow+0.5) return null;
   const flares=[];
   if(M<-1||metRand()<0.25){ const nf=1+Math.floor(metRand()*(M<-4?3:2)); for(let i=0;i<nf;i++) flares.push([0.45+0.5*metRand(), 0.6+metRand()*(M<-3?5:2), 0.015+0.03*metRand()]); }
-  const mass=metMass(M, v), rho=src==='aster'||src==='ring'?3.3:(src==='apex'||src==='toroidal'?0.8:1.5);
+  // The impact: a flash as the body meets the ground.
+  if(ground) flares.push([0.99, 8, 0.008]);
+  const mass=metMass(M, v);
   const air=ctx.air, o2=air.O2||0;
   // Persistent trains need the air's oxygen and ozone (FeO and Na chemiluminescence).
   const tr=(o2>0.001&&((v>35&&M<-1)||M<-4)&&metRand()<0.75)?Math.min(150, 2*Math.pow(10, 0.13*(-M-1)))*Math.min(1, Math.sqrt(o2/0.21)):0;
-  return {id:0, t0:0, T, B, u, L, v, M, mass, diam:Math.cbrt(6*mass/(Math.PI*rho)), rho, hb, he, src, flares, train:tr,
+  return {id:0, t0:0, T, B, u, L, v, M, mass, diam:Math.cbrt(6*mass/(Math.PI*rho)), rho, hb, he, src, flares, train:tr, ground,
     wake:Math.min(1.2, 0.08+0.04*Math.max(0, -M)), tint:metTint(v, ctx.key, src==='ring')};
 }
-// Light curve: rises to its peak 65% of the way along, then falls, with any flares on top.
+// Light curve: rises to its peak 65% of the way along, then falls, with any flares on top. One
+// that reaches the ground keeps brightening down into the thicker air until it strikes.
 function metCurve(m, x){
   if(x<0||x>1) return 0;
-  let f=Math.pow(x/0.65, 1.3)*Math.pow((1-x)/0.35, 0.7);
+  let f=m.ground?Math.pow(Math.min(x, 0.65)/0.65, 1.3)*(1+0.8*Math.max(0, x-0.65)/0.35):Math.pow(x/0.65, 1.3)*Math.pow((1-x)/0.35, 0.7);
   for(const [c, a, w] of m.flares) f+=a*Math.exp(-0.5*((x-c)/w)**2)*Math.pow(x/0.65, 0.5);
   return f;
 }
@@ -429,11 +437,11 @@ const MET_GL=24;
 function metUniforms(){
   const A=new Float32Array(MET_GL*4), B=new Float32Array(MET_GL*4), C=new Float32Array(MET_GL*4);
   const scene=MET.scene||[], pxRad=0.35*(vrFov*Math.PI/180)/Math.max(window.innerHeight, 1), pix=1.2*Math.tan(vrFov*Math.PI/360)/Math.max(window.innerHeight, 1);
-  let n=0, flash=0, flashRGB=null;
+  let n=0, flash=0, flashRGB=null, fire=null;
   const put=(h, t, sig, kind, rgb, amp)=>{ if(n>=MET_GL) return; A.set([h[0], h[1], h[2], Math.max(sig, pix)], n*4); B.set([t[0], t[1], t[2], kind], n*4); C.set([rgb[0]*amp, rgb[1]*amp, rgb[2]*amp, 0], n*4); n++; };
   const sorted=scene.slice().sort((a, b)=>b.amp-a.amp);
   for(const s of sorted){
-    if(s.kind===0){ put(s.head, s.tail, s.px*pxRad, 0, s.rgb, Math.min(1, s.amp)); if(s.mag<-5){ const E=Math.pow(10, -0.4*(s.mag+13.99)); if(E>flash){ flash=E; flashRGB=s.rgb; } } }
+    if(s.kind===0){ put(s.head, s.tail, s.px*pxRad, 0, s.rgb, Math.min(1, s.amp)); if(s.mag<-5){ const E=Math.pow(10, -0.4*(s.mag+13.99)); if(E>flash){ flash=E; flashRGB=s.rgb; fire={dir:s.head, mag:s.mag, rgb:s.rgb}; } } }
     else if(s.kind===1){ for(let i=0;i<s.pts.length-1;i+=2) put(s.pts[Math.min(i+2, s.pts.length-1)], s.pts[i], s.px*pxRad*0.6, 1, s.rgb, s.amp*0.7); }
     else{ const rad=skyNow.moon.radDeg*DISK_SCALE; if(flashLit(s.f, rad)<=0.1){ const d=flashDir(s.f, rad); put(d, d, s.px*pxRad, 2, s.rgb, s.amp); } }
   }
@@ -443,7 +451,7 @@ function metUniforms(){
     const m=starThroughAir(cometHeadMag(C), C.el, EP[dIdx].key), vis=starVisible(m, skyRAt(skyNow.rgrid, C.el, C.az)*skyNow.rCd), d=pointDisplay(m);
     if(vis>0.02) put(C.dir, C.dir, d.px*pxRad, 3, starTint(5200).map(v=>Math.min(2.4, v)), Math.min(1, 0.62*Math.sqrt(Math.pow(10, -0.4*(m-STAR_VANCHOR))))*vis);
   }
-  return {A, B, C, n, flash:metFlash(flash, flashRGB)};
+  return {A, B, C, n, flash:metFlash(flash, flashRGB), fire};
 }
 const MET_GLSL=`
 uniform vec4 metA[${MET_GL}], metB[${MET_GL}], metC[${MET_GL}]; uniform float metN; uniform vec3 metFlash;
