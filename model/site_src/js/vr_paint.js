@@ -348,6 +348,28 @@ function nightLight(rgb, rel, el, night){ const f=0.6*Math.sqrt(Math.max(rel, 0)
 function setText(el, text){ if(el.textContent!==text) el.textContent=text; }
 // A field of view for the HUD: whole degrees down to 10°, then tenths, then arcminutes and arcseconds.
 function fovLabel(f){ return f>=9.95?Math.round(f)+'°':f>=0.995?f.toFixed(1)+'°':f*60>=0.995?(f*60<9.95?(f*60).toFixed(1):Math.round(f*60))+'′':Math.round(f*3600)+'″'; }
+// The glare's centre: the Sun's, or with the Moon over part of it the middle of the part that
+// still shows (on the drawn disks, as day.js sunCovered measures it), so the glare comes off the
+// crescent and not from behind the Moon.
+function glareCentre(vis){
+  const sd=horizDir(skyNow.sunAz, 90-skyNow.sza);
+  if(!(vis<0.9999) || !skyNow.moon.on) return sd;
+  const md=horizDir(skyNow.moon.az, skyNow.moon.el), d2r=Math.PI/180;
+  const rS=skyNow.moon.sunRadDeg*DISK_SCALE*d2r, rM=skyNow.moon.radDeg*DISK_SCALE*d2r;
+  // The tangent plane at the Sun: the Moon's offset in it, and an axis across.
+  const c=vdot(md, sd), m=[md[0]-sd[0]*c, md[1]-sd[1]*c, md[2]-sd[2]*c], ml=Math.hypot(...m);
+  if(ml<1e-9) return sd;
+  const ex=m.map(v=>v/ml), sep=Math.acos(Math.max(-1, Math.min(1, c)));
+  let sx=0, sy=0, n=0;
+  for(let i=0;i<24;i++) for(let j=0;j<24;j++){
+    const x=((i+0.5)/24*2-1)*rS, y=((j+0.5)/24*2-1)*rS;
+    if(x*x+y*y>rS*rS || (x-sep)*(x-sep)+y*y<rM*rM) continue;
+    sx+=x; sy+=y; n++;
+  }
+  if(!n) return sd;
+  const k=sx/n;
+  return vnorm([sd[0]+ex[0]*k, sd[1]+ex[1]*k, sd[2]+ex[2]*k]);
+}
 function paintVR(){
   if(!vrOn||!vrGL||!skyNow) return;
   // This paint answers any one already asked for.
@@ -477,6 +499,11 @@ function paintVR(){
   // handed over to the beads' own glare as they take over (1.2% left), gone by 0.3%.
   const vis=skyNow.sunVis==null?1:skyNow.sunVis;
   gl.uniform1f(u.sunGlare, skyNow.sunOn?sStep((sunL+4.3)/2.9)*sStep((app+rd)/(2*rd))*(0.25+0.75*vis*vis)*sStep((vis-0.003)/0.03):0);
+  // Over the Moon, all of the glare until the Sun is a twentieth covered, so it emerges from a
+  // quarter covered: faint by a third, plain by a half under a twelfth of the glare, which goes
+  // as the beads come.
+  gl.uniform1f(u.glareMoon, (0.08+0.92*sStep((vis-0.6)/0.35))*sStep((vis-0.05)/0.25));
+  gl.uniform3fv(u.glareDir, glareCentre(vis));
   gl.uniform3fv(u.sunCol, sunCol);
   gl.uniform3fv(u.ground, ground);
   gl.uniform1f(u.showScn, vrScenery?1:0);

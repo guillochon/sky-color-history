@@ -67,6 +67,11 @@ uniform vec3 sunCol,ground,eye;
 // as the air or the Moon dims it toward what the eye can look at, times the share of its disk
 // above the horizon.
 uniform float sunGlare;
+// The share of the glare laid over the Moon: all of it until the Moon has covered a good part
+// of the Sun, none as the beads come, so in an eclipse its disk emerges from the glare.
+uniform float glareMoon;
+// Where the glare is centred: the Sun's centre, or in an eclipse the middle of what still shows.
+uniform vec3 glareDir;
 // The setting Sun (sunDiskAt).
 uniform float refK, sunOff; uniform vec4 sunTau[50]; uniform vec3 sunW[20]; uniform vec3 sunG; uniform vec4 sunLay[4]; uniform vec4 sunMir;
 uniform float corona, coronaMap[16], coronaRim;
@@ -1006,15 +1011,15 @@ void main(){
       vec3 T=exp(-vec3(0.12, 0.22, 0.48)/mu);
       skyC+=corona*T*(I*vec3(1.0, 0.97, 0.92)+rim*vec3(1.0, 0.3, 0.42)*1.5*coronaRim);
     }
-    if(glareK>0.0 && te>-1.0 && !onMoon){
+    if(glareK>0.0 && te>-1.0 && (!onMoon || glareMoon>0.0)){
       // The Sun's glare, the light scattered in the eye about it: a bright bloom hugging the
-      // disk, white near it and the epoch's colour farther out, and a wide glow over the sky.
-      // Not over the Moon, so in an eclipse its dark disk shows against the glare.
-      float a=acos(clamp(dot(src, sd), -1.0, 1.0)), r=max(a/sunRad-1.0, 0.0);
+      // disk, white near it and the epoch's colour farther out, and a wide glow over the sky,
+      // over the Moon too until an eclipse is well along.
+      float a=acos(clamp(dot(src, glareDir), -1.0, 1.0)), r=max(a/sunRad-1.0, 0.0);
       vec3 lin=s2lin3(sunCol); lin/=max(max(lin.r, max(lin.g, lin.b)), 1e-6);
       float I=2.5*exp(-r*1.6)+0.5/(1.0+r*r*0.5)+0.15*exp(-a/0.25);
       vec3 hc=mix(lin, vec3(1.0), 0.6*exp(-r*1.2));
-      skyC=lin2s3(clamp(s2lin3(skyC)+hc*I*glareK, 0.0, 1.0));
+      skyC=lin2s3(clamp(s2lin3(skyC)+hc*I*glareK*(onMoon?glareMoon:1.0), 0.0, 1.0));
     }
     if(beads[0].w>0.0 && te>-1.0){
       // Baily's beads and the diamond ring: glare around each piece of photosphere still
