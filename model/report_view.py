@@ -143,7 +143,7 @@ PLANETS_WHERE = [
 ]
 
 PLANETS_CLOSE = [
-"Zooming in acts as a telescope, gaining 2.5 magnitudes for each tenfold zoom, so faint moons and Uranus "
+"Zooming in acts as a telescope, gaining 5 magnitudes against the sky for each tenfold zoom (magnification spreads the sky's light and leaves a point a point), so faint moons and Uranus "
 "and Neptune come out, and Mercury and Venus show by day. Each planet is a disk of its true angular "
 "size and flattening, on its IAU pole and prime meridian, lit from the Sun's side, so the phases of "
 "Mercury and Venus show; its limb darkens by a Minnaert law. Mercury and Mars wear spacecraft maps, "
@@ -421,6 +421,29 @@ INTRO = [
 "people have made (city light and a sky full of satellites). Each is a reconstruction, with the uncertainties "
 "the sections state: some quantities are measured, some modeled, some estimated to show a trend, and some, "
 "like where the planets stood on a given day four billion years ago, unknowable and drawn at random.",
+
+"This is a living document. Much of what it draws rests on questions that are still argued: when the giant "
+"planets went unstable and whether a fifth giant was lost; how far away the Moon was in its first hundred "
+"million years; how thick the Archean haze was and how much ozone the first oxygen made; how old Saturn's rings "
+"are; whether the Earth had a ring in the Ordovician; how bright the young Sun's corona and wind were. Where the "
+"literature disagrees, the report says which reading it takes and why, and as the consensus moves the site and "
+"this report will move with it: epochs will be redrawn, numbers revised and new findings added. Each version "
+"carries its date, and the code and data that produce it are public, so any figure here can be traced to the "
+"model and the sources behind it.",
+
+"The site computes what it shows as realistically as it can while still loading in seconds and running "
+"smoothly in a browser, and where the two conflict it compromises. Some compromises stand in for physics too "
+"costly to run. Jupiter's clouds are a tracer stirred by a flow made of noise, shaped by the measured winds and "
+"rolled into eddies and billows, a proxy for the planet's true three-dimensional hydrodynamics rather than a "
+"simulation of it; its animation repeats over a 2000-day cycle. The sky's multiple scattering is a two-stream "
+"approximation rather than a full Monte Carlo transfer, computed ahead of time on a grid of Sun heights and "
+"interpolated between them. The clouds are scenery, procedural volumes lit by the model's sky rather than the "
+"output of a climate model, and the Milky Way is a model of its structure rather than a photograph. The "
+"photosphere's granulation and the Moon's craters' shadows are drawn from procedural cells and a limited march "
+"toward the Sun, and the close-up detail of Jupiter, the Sun and the spacecraft maps is built only when the view "
+"zooms in on them. Other compromises are made for the eye: the Sun and Moon are drawn at four times their size, "
+"the sunset's colors are spread further apart than they are, and the Sun's limb darkening is softened. Each "
+"section says where its subject is measured, modeled or approximated.",
 ]
 
 METHOD_VIEW = [

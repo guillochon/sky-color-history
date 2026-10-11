@@ -101,7 +101,7 @@ SECTIONS = [
 "When the Moon covers part of the Sun, all the sunlit sky dims by the fraction of the disk still showing. In "
 "totality the sky is lit from beyond the Moon's shadow, tens to a hundred kilometers away, where the Sun is still "
 "partly up: the epoch's own twilight sky with a sunset glow all round the horizon, a thousandth of the day sky, as "
-"measured (Sharp, Lloyd &amp; Silverman 1966; Shaw et al. 2026). The Hadean and hazy Archean totality skies are "
+"measured (Sharp, Lloyd &amp; Silverman 1966). The Hadean and hazy Archean totality skies are "
 "therefore that era's dusk, peach or amber rather than the deep blue of a modern eclipse.",
 "The corona follows the Sun's age. A younger Sun spun faster and was far more active: its X-ray output goes as "
 "age to the −1.5 (Güdel, Guinan &amp; Skinner 1997), about 530 times today's at 4.5 Ga, and its coronal "
