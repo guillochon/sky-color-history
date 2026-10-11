@@ -12,7 +12,13 @@ it 17 Myr after the first solids:
     age (the older the fainter, worn down by later impacts and darkened by space weathering), with
     a few great basins whose floors are darker melt sheets, and the youngest craters bright with
     fresh, unweathered ejecta and rays.
-The map is albedo only; the shader lights it.
+The map is albedo; the shader lights it. Its heights (km over a sphere of 3400 km) go to
+site/relief/theia.webp from the same basins and craters, drawn after the albedo's so it is
+unchanged: the basins' floors 3-6 km down, flat, with a raised ring at their edge; each crater a
+bowl (depth a fifth of its diameter, at most D^0.3 km, so the large ones flatten out, and at most
+5 km) under a rim a third as high that falls off outside, shallower with age, the young ones
+sharpest with central peaks; and over all of it a gentle roll of a couple of km. One byte from
+RELIEF[0] to [1] km, dithered, lossless (as relief_maps.py's).
 Usage: python theia_map.py <out dir>
 """
 import sys
@@ -22,6 +28,8 @@ import numpy as np
 from PIL import Image
 
 W, H = 1024, 512
+R_KM = 3400.0                                           # surfaces.js SURF_RELIEF
+RELIEF = (-15.0, 7.5)
 rng = np.random.default_rng(4550)
 lat = (0.5 - (np.arange(H) + 0.5) / H) * np.pi
 lon = (np.arange(W) + 0.5) / W * 2 * np.pi
@@ -59,12 +67,24 @@ def patch(c, reach):
 
 # Albedo (relative, mean 1): basalt plains mottled on every scale.
 alb = 1 + 0.10 * noise(7, 2.5) + 0.05 * noise(4, 25.0)
+hgt = np.zeros((H, W))
+
+
+def bowl(ang, D, k, peak=0.0):
+    """A crater's heights (km) at ang (its radii) for diameter D km and freshness k (0-1)."""
+    d = min(0.2 * D, D ** 0.3, 5.0) * (0.25 + 0.75 * k)
+    rim = 0.35 * d
+    inside = rim - (rim + d) * (1 - np.clip(ang, 0, 1) ** 2) + peak * d * np.exp(-(ang / 0.15) ** 2)
+    out = rim * np.clip(ang, 1, None) ** -3 * np.clip(1 - ((ang - 1) / 1.2) ** 2, 0, 1)
+    return np.where(ang < 1, inside, out)
 # Great basins: darker, smoother melt-flooded floors, irregular edges, a faint bright ring.
 edge = noise(5, 6.0)
 for c, r in zip(unit(8), rng.uniform(0.12, 0.40, 8)):
     ang = np.arccos(np.clip(P @ c, -1, 1)) / r * (1 + 0.18 * edge)
     floor = 1 - np.clip((ang - 0.8) / 0.25, 0, 1)
     alb *= 1 - floor * (0.22 + 0.06 * noise(3, 12.0)) + 0.06 * np.exp(-((ang - 1.25) / 0.2) ** 2)
+    depth = 2.0 + 10.0 * r
+    hgt += -depth * floor + 0.25 * depth * np.exp(-((ang - 1.15) / 0.15) ** 2)
 # Craters, saturating the surface: sizes a power law, contrast fading with age.
 n = 24000
 rad = np.minimum(0.0025 * (rng.pareto(1.25, n) + 1), 0.10)
@@ -78,6 +98,7 @@ for c, r, a in zip(unit(n), rad, age):
     f = (1 - 0.08 * k * (ang < 0.9) * (1 - 0.5 * ang)) * (1 + 0.09 * k * np.exp(-0.5 * ((ang - 1.0) / 0.12) ** 2)) \
         * (1 + 0.04 * k * np.exp(-((ang - 1.5) / 0.4) ** 2) * (ang > 1.05))
     alb[ix] = alb[ix] * f
+    hgt[ix] += bowl(ang, 2 * r * R_KM, k)
 # A few young craters: bright, unweathered, with thin rays fading outward.
 for c in unit(6):
     r = rng.uniform(0.008, 0.02)
@@ -90,6 +111,8 @@ for c in unit(6):
     reach = rng.uniform(6, 14) * r
     fade = np.clip(1 - (ang - r) / reach, 0, 1) ** 1.5 * (ang > r)
     alb *= 1 + 0.35 * np.exp(-((ang / r - 1.0) / 0.5) ** 2) + 0.12 * np.exp(-((ang / r - 1.6) / 0.6) ** 2) + 0.18 * rays * fade
+    near = ang < 2.2 * r
+    hgt[near] += bowl(ang[near] / r, 2 * r * R_KM, 1.0, peak=0.4)
 # Colour: FeO-rich basalt, a neutral grey a little brown; the fresh ejecta a little bluer.
 fresh = np.clip((alb - 1.15) / 0.4, 0, 1)
 col = np.stack([0.80 - 0.04 * fresh, np.full_like(fresh, 0.74), 0.67 + 0.06 * fresh], -1) * alb[..., None]
@@ -99,3 +122,10 @@ col *= 0.45 / ((lum * wgt).sum() / wgt.sum())
 out = Path(sys.argv[1])
 Image.fromarray((np.clip(col, 0, 1) * 255 + 0.5).astype(np.uint8)).save(out / 'theia.webp', 'WEBP', quality=88, method=6)
 print('wrote', out / 'theia.webp')
+# The gentle roll, drawn last so the albedo's draws are as they were.
+hgt += 1.2 * noise(5, 1.5)
+q = np.clip(np.round((hgt - RELIEF[0]) / (RELIEF[1] - RELIEF[0]) * 255 + rng.uniform(-0.5, 0.5, hgt.shape)), 0, 255).astype(np.uint8)
+rel = out.parent / 'relief'
+rel.mkdir(exist_ok=True)
+Image.fromarray(q).save(rel / 'theia.webp', lossless=True, method=6)
+print('wrote', rel / 'theia.webp', f'{hgt.min():.2f} to {hgt.max():.2f} km, {(rel / "theia.webp").stat().st_size / 1e6:.2f} MB')
