@@ -3,7 +3,8 @@ function projectBody(elDeg, azDeg, radiusDeg){
   const fy=Math.tan(fov*0.5), fx=fy*(W/Math.max(H,1));
   const yaw=vrYaw*Math.PI/180, pitch=vrPitch*Math.PI/180;
   const cp=Math.cos(pitch), sp=Math.sin(pitch), cy=Math.cos(yaw), sy=Math.sin(yaw);
-  const el=apparentEl(elDeg)*Math.PI/180, az=azDeg*Math.PI/180;
+  // Refracted as the sky shader does it, so a mark or label sits on what is drawn.
+  const el=shaderApparent(elDeg).a*Math.PI/180, az=azDeg*Math.PI/180;
   const sd=[Math.sin(az)*Math.cos(el), Math.cos(az)*Math.cos(el), Math.sin(el)];
   const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
   const depth=dot(sd,[sy*cp, cy*cp, sp]);
@@ -158,7 +159,7 @@ function drawVRLabels(){
   const fy=Math.tan(vrFov*Math.PI/360), fx=fy*W/Math.max(H, 1), yaw=vrYaw*Math.PI/180, pitch=vrPitch*Math.PI/180;
   const cp=Math.cos(pitch), sp=Math.sin(pitch), cy=Math.cos(yaw), sy=Math.sin(yaw);
   const proj=d=>{
-    const e=apparentEl(Math.asin(Math.min(1, d[2]))*180/Math.PI)*Math.PI/180, r=Math.hypot(d[0], d[1])||1, ce=Math.cos(e);
+    const e=shaderApparent(Math.asin(Math.min(1, d[2]))*180/Math.PI).a*Math.PI/180, r=Math.hypot(d[0], d[1])||1, ce=Math.cos(e);
     const v=[d[0]/r*ce, d[1]/r*ce, Math.sin(e)], depth=v[0]*sy*cp+v[1]*cy*cp+v[2]*sp;
     if(depth<0.02) return null;
     const x=(v[0]*cy-v[1]*sy)/depth/fx, y=(-v[0]*sy*sp-v[1]*cy*sp+v[2]*cp)/depth/fy;

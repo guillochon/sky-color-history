@@ -789,8 +789,9 @@ function drawBodies(gl){
   const sd=horizDir(skyNow.sunAz, 90-skyNow.sza), md=horizDir(skyNow.moon.az, skyNow.moon.el);
   let used=null;
   gl.enable(gl.SCISSOR_TEST); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-  list.forEach((b, i)=>{
-    const rPx=b.rad*DISK_SCALE/pxA, Sx=BODY_U.S[i*4], Sy=BODY_U.S[i*4+1];
+  // The planets first, then the moons, so a moon in front of its planet is drawn over it.
+  list.map((b, i)=>i).sort((a, c)=>(list[a].kind===BODY_MOON)-(list[c].kind===BODY_MOON)).forEach(i=>{
+    const b=list[i], rPx=b.rad*DISK_SCALE/pxA, Sx=BODY_U.S[i*4], Sy=BODY_U.S[i*4+1];
     if(rPx<1||Math.abs(Sx)>1e5) return;
     const cx=(Sx/fx*0.5+0.5)*W, cy=(Sy/fy*0.5+0.5)*H, r=rPx*(b.rings?2.3:1)*1.05+3;
     const x0=Math.max(0, Math.floor(cx-r)), y0=Math.max(0, Math.floor(cy-r)), x1=Math.min(W, Math.ceil(cx+r)), y1=Math.min(H, Math.ceil(cy+r));
@@ -811,7 +812,7 @@ function drawBodies(gl){
     gl.uniform4f(u.bP, b.dir[0], b.dir[1], b.dir[2], b.rad*DISK_SCALE);
     gl.uniform4f(u.bC, b.rgb[0], b.rgb[1], b.rgb[2], b.px);
     gl.uniform4f(u.bL, b.light[0], b.light[1], b.light[2], b.mag);
-    gl.uniform4f(u.bN, b.pole[0], b.pole[1], b.pole[2], b.kind+(b.front?8:0)+(b.kind===4&&!b.rings?16:0));
+    gl.uniform4f(u.bN, b.pole[0], b.pole[1], b.pole[2], b.kind+(b.front?8:0)+(b.kind===4&&!b.rings?16:0)+(b.over?32:0));
     gl.uniform4f(u.bS, Sx, Sy, BODY_U.S[i*4+2], 0);
     const m=b.meridian||[0, 0, 0]; gl.uniform4f(u.bM, m[0], m[1], m[2], code);
     const sh=(b.shadows||[]).slice(0, SHADOW_MAX);
@@ -852,8 +853,7 @@ function uploadBodies(gl, u){
     // Where it is on the image plane, seen at its apparent altitude: the sky shader's trueAlt
     // undone by Newton's method, which also gives the squeeze, true over apparent altitude.
     const d=b.dir, h=Math.asin(Math.max(-1, Math.min(1, d[2])))*180/Math.PI;
-    let a=apparentEl(h), k=1;
-    for(let it=0;it<4;it++){ const t=trueAltDeg(a); k=(trueAltDeg(a+1e-4)-t)/1e-4||1; a-=(t-h)/k; }
+    const {a, k}=shaderApparent(h);
     const r=Math.hypot(d[0], d[1])||1, ce=Math.cos(a*Math.PI/180), v=[d[0]/r*ce, d[1]/r*ce, Math.sin(a*Math.PI/180)];
     const depth=v[0]*sy*cp+v[1]*cy*cp+v[2]*sp;
     if(depth>1e-3){ S[o]=(v[0]*cy-v[1]*sy)/depth; S[o+1]=(-v[0]*sy*sp-v[1]*cy*sp+v[2]*cp)/depth; } else { S[o]=S[o+1]=1e6; }

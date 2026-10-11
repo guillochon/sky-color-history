@@ -363,7 +363,9 @@ void main(){
       dc=tr<t?rc*ro+dc*(1.0-ro):dc+rc*ro*(1.0-dk.a);
     }
   }
-  fragColor=vec4(dc*T*diskK*vis*hz, 0.0);
+  // Added to what is behind, except a moon on the near side of its planet (bN.w past 32), which
+  // hides the planet's disk and rings under it: added, the rings' light would show through it.
+  fragColor=vec4(dc*T*diskK*vis*hz, bN.w>31.5?dk.a*diskK*vis*hz:0.0);
 }`;
 // The bodies' program with the close-up detail in set f ('jup', 'map') and none other.
 function bodyFS(f){

@@ -822,3 +822,11 @@ function followVRPin(){
 }
 // Apparent altitude (degrees) to true (Bennett 1982, times refK), as the sky shader's trueAlt.
 function trueAltDeg(a){ return a>80?a:a-refK()/Math.tan((a+7.31/(a+4.4))*Math.PI/180)/60; }
+// Its inverse, true to apparent altitude, by Newton's method from apparentEl's (Sæmundsson)
+// guess, with the squeeze (true over apparent altitude) at that point. The two formulas differ by
+// about an arcsecond, which zoomed in far would put a label tens of pixels off its body.
+function shaderApparent(h){
+  let a=apparentEl(h), k=1;
+  for(let it=0;it<4;it++){ const t=trueAltDeg(a); k=(trueAltDeg(a+1e-4)-t)/1e-4||1; a-=(t-h)/k; }
+  return {a, k};
+}
