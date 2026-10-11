@@ -315,6 +315,14 @@ function renderDay(fast){
   const lunar=lunarEclipseNow(moon);
   const mScale=moonSkyScale(moon, sunAz, 90-sza)*sunFlux*(lunar?lunar.Ymean:1);
   const si=sunSrc.si, st=sunSrc.st, past=sunSrc.past;
+  // The planets and stars, placed now so that a planet bright enough to light the sky can: as the
+  // Moon does, the Sun's sky field evaluated at the planet, scaled by its light over the Sun's
+  // (the Sun's own dimness in the epoch is in the field already). Only past magnitude -6, which
+  // in these skies is Theia passing the proto-Earth, at up to about -9: a few percent of the full
+  // Moon's light.
+  const stars=placeStars(LATDEG[dLat]);
+  const sunLmag=2.5*Math.log10((ep.sunL)||1);
+  const planetLights=stars.marks.filter(s=>s.planet&&!s.host&&s.mag<-6).map(s=>({src:skySource(90-s.el, s.az), k:Math.pow(10, -0.4*(s.mag+sunLmag-MOON_V_SUN))}));
   const NR=DOME_NR, NA=DOME_NA, NC=NA+1, NG=(NR+1)*NC;
   const addField=(X, src, scale, vz, comp)=>{
     if(!src || src.fade<=0) return null;
@@ -370,6 +378,12 @@ function renderDay(fast){
         let azr=Math.abs(comp-moonSrc.az); if(azr>180) azr=360-azr;
         domeSample(slices, ep.key, dayLat(), moonSrc.si, moonSrc.st, vzc, azr, S);
         if(mScale>0){ const f=moonSrc.fade*mScale; X0+=S[0]*f; X1+=S[1]*f; X2+=S[2]*f; }
+      }
+      for(const pl of planetLights){
+        if(pl.src.fade<=0) continue;
+        let azr=Math.abs(comp-pl.src.az); if(azr>180) azr=360-azr;
+        domeSample(slices, ep.key, dayLat(), pl.src.si, pl.src.st, vzc, azr, S);
+        const f=pl.src.fade*pl.k; X0+=S[0]*f; X1+=S[1]*f; X2+=S[2]*f;
       }
       if(rg){ X0+=rg[0]*ringK; X1+=rg[1]*ringK; X2+=rg[2]*ringK; }
       if(zodiOn){ const zl=zodiExtra(ep.key, horizDir(comp, el), ecl)*zAbs*zExt/cduD; X0+=zodiXY[0]*zl; X1+=zodiXY[1]*zl; X2+=zodiXY[2]*zl; }
@@ -480,7 +494,6 @@ function renderDay(fast){
   const sunRelD=rec.sun[visI][2]/noonY;
   const SUNR=DOME_DISK*z*moon.sunRadDeg/SUN_RADIUS_DEG, rr=R*sza/90, a=sunAz*Math.PI/180, sx=cx+rr*Math.sin(a), sy=cy-rr*Math.cos(a);
   const sunRGB=tone(sXd, sXd[1], 0.95,0.4,0.98);
-  const stars=placeStars(LATDEG[dLat]);
   // Comet heads join the stars as points (their coma and tails are drawn per pixel above).
   for(const C of comets){ if(C.el<0) continue; const sh=pointDisplay(cometHeadMag(C)); stars.marks.push({az:C.az, el:C.el, mag:cometHeadMag(C), px:sh.px, rgb:starTint(5200).map(v=>Math.min(2.4, v)*Math.min(1, 0.62*Math.sqrt(Math.pow(10, -0.4*(cometHeadMag(C)-STAR_VANCHOR))))), comet:C}); }
   if(!fast) drawStarsOnDome(stars.marks, rgrid, Yref*cdu, ep.key, moon);
@@ -568,7 +581,7 @@ function renderDay(fast){
   document.getElementById('hclock').textContent=clockLabel(minutes);
   document.getElementById('rday').textContent=`${dayHours()} hours · ${Math.round(yearDays())}-day year`;
   document.getElementById('relev').textContent=(90-sza).toFixed(1)+'°';
-  const sumAt=(vz,comp)=>{ const X=night[Math.min(NR, Math.round(vz/90*NR))].slice(); addField(X,sunSrc,sunVis*sunFlux,vz,comp); addField(X,moonSrc,mScale,vz,comp); addRing(X,vz);
+  const sumAt=(vz,comp)=>{ const X=night[Math.min(NR, Math.round(vz/90*NR))].slice(); addField(X,sunSrc,sunVis*sunFlux,vz,comp); addField(X,moonSrc,mScale,vz,comp); for(const pl of planetLights) addField(X,pl.src,pl.k,vz,comp); addRing(X,vz);
     if(zodiOn){ const el=90-vz, zl=zodiExtra(ep.key, horizDir(comp, el), ecl)*absZenith(ep.key)*(0.4+0.6*extinction(el, ekD))/cduD; for(let q=0;q<3;q++) X[q]+=zodiXY[q]*zl; }
     if(ringSky) for(let q=0;q<3;q++) X[q]+=ringSky[q];
     return X; };

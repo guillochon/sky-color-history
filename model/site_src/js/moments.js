@@ -11,12 +11,13 @@
 // pad during the moment makes that the setting. Dates are in each epoch's own year (calendar.js
 // EPOCH_YEAR): year 0 (2000 underneath) for the older skies, 1815 and 2100 for theirs.
 const MOMENTS=[
-  // Theia's closest pass to the proto-Earth in the epoch's random-phase orbits (planets.js
-  // LOST_PLANETS): every 25 years or so the two come within a few hundredths of an AU, nearest,
-  // 0.0112 AU (1.7 million km, 4.4 times the Moon's distance today), about 1,100 years before
-  // the epoch's year 0. It is then a 31%-lit crescent 14' across, magnitude -8.6, 66 degrees from
-  // the Sun: high in the east before dawn at southern mid-latitudes.
-  {epoch:'protoearth455', date:'0896-08-43', t:285, lat:'Mid-latitude S', look:{planet:'Theia'}, clear:true, title:'Theia’s closest pass, 4.55 Ga', sub:'The world that will make the Moon, a crescent half the Moon’s width, before dawn', art:'theia'},
+  // Theia's closest pass to the proto-Earth, at its brightest, in the epoch's random-phase orbits
+  // (planets.js LOST_PLANETS). Every 25 years or so the two come within a few hundredths of an AU;
+  // over 10,000 years either side of the epoch's year 0 Theia is brightest, magnitude -8.8, about
+  // 1,180 years before it: 0.0121 AU away (1.8 million km), half lit, 88 degrees from the Sun (its
+  // nearest passes, 0.011 AU, show it a thinner crescent, a little fainter). At that moment it
+  // stands 47 degrees up in the south-east in the middle of the night at southern mid-latitudes.
+  {epoch:'protoearth455', date:'0821-08-50', t:178, lat:'Mid-latitude S', look:{planet:'Theia'}, clear:true, title:'Theia’s closest pass, 4.55 Ga', sub:'The world that will make the Moon, half lit, magnitude −8.8, lighting the night', art:'theia'},
   {epoch:'hadean44', date:'2000-02-36', t:1015, title:'A Hadean evening, 4.4 Ga', sub:'Thirty bars of CO₂ under a young, faint Sun', art:'day'},
   {epoch:'archean38', date:'2000-01-38', t:1410, look:[0, 30], clear:true, aurora:true, title:'Aurora over the young Earth, 3.8 Ga', sub:'All night under the young Sun’s stronger wind: nitrogen glowing violet and pink in air with no oxygen', art:'aurora'},
   {epoch:'archean27', date:'2000-03-07', t:913, title:'Archean afternoon, 2.7 Ga', sub:'A pale orange organic haze, like Titan’s', art:'day'},
