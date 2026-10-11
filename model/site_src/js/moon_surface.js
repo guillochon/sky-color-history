@@ -27,8 +27,8 @@ function mareVec(lat, lon){ return [cosd(lat)*sind(lon), sind(lat), cosd(lat)*co
 // molten globe, molten_moon.js). Per square kilometre that lava shines about as brightly as the
 // sunlit Moon (see lunarLava), so the disk glows orange by day and night alike, and the air about
 // it carries a red aureole: the globe's red excess is the share that glows (moonGlow, drawn in the
-// sky shader and drawMoonOnDome).
-const MOON_MOLTEN={hadean45:1};
+// sky shader and drawMoonOnDome), at 0.65 so the lit relief of the rafts stays clear beside it.
+const MOON_MOLTEN={hadean45:0.65};
 function moonGlow(key){ return MOON_MOLTEN[key]||0; }
 // The Moon's whole globe for each epoch (moon_maps.py, from the LRO colour mosaic toned to a
 // full-Moon photograph): today's; before Tycho (108 Myr old; Apollo 17 samples of its ray,
@@ -68,7 +68,7 @@ function moonMap(key){
 // globe. They light the globe's slopes and cast its shadows (the sky shader, from the texture's
 // alpha, moonTexPixels) and shape its limb (moonLimbSync); until they are in, the limb keeps a
 // made-up profile and the globe no relief.
-const MOON_RELIEF={relief:[-9.2, 10.9], molten_relief:[-0.1, 1.5]};
+const MOON_RELIEF={relief:[-9.2, 10.9], molten_relief:[-0.15, 2.25]};
 const moonReliefs={};
 function moonReliefName(key){ return MOON_MOLTEN[key]?'molten_relief':'relief'; }
 function loadMoonRelief(name='relief'){

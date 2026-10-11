@@ -11,8 +11,8 @@
 //
 // Its heights (km over the melt's level) go to the file named after that, as 32-bit floats: the
 // lava, cracks and lakes at the melt's level (the lakes a little below, drawn down where they
-// cooled), the crust's rafts riding above it by their freeboard, a few hundred metres to 1.4 km by
-// their thickness (anorthosite floating on the melt stands out by about a tenth of its thickness),
+// cooled), the crust's rafts riding above it by their freeboard, half a km to 2.1 km by their
+// thickness (anorthosite floating on the melt stands out by about a tenth of its thickness),
 // each generation of plates a little lower than the raft it broke from, and sloping down into
 // every open crack over a few of its widths.
 //
@@ -71,7 +71,7 @@ for(let j=0;j<H;j++){
       edge*=1-(1-sm(0.5*w, 3*w, e))*open;
     }
     // The crust's freeboard: the great raft's by its thickness, less for each plate broken from it.
-    const fb=(0.35+1.05*L[0][2])*(0.85+0.15*L[1][2])*(0.9+0.2*n);
+    const fb=(0.525+1.575*L[0][2])*(0.85+0.15*L[1][2])*(0.9+0.2*n);
     // Some stretches of crack have skinned over and only glow a dull red; others run fresh.
     heat*=0.4+0.6*sm(0.3, 0.65, fbm(9*X, 9*Y, 9*Z, 70));
     // Some second-generation plates have sunk into open lakes, the finest chips still on them.
@@ -82,7 +82,7 @@ for(let j=0;j<H;j++){
       heat=Math.max(heat, (0.55+0.45*n)*lk*(1-floe));
       // A sunk plate's lake, a little below the melt's level where it has cooled, its last chips
       // floating low.
-      h=h*(1-lk)+lk*(floe*0.25*fb-0.08*(1-floe));
+      h=h*(1-lk)+lk*(floe*0.25*fb-0.12*(1-floe));
     }
     // Where it glows the melt shows, at its own level.
     ht[j*W+i]=h*(1-sm(0.25, 0.6, heat));

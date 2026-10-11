@@ -18,7 +18,7 @@ Faces (MOON_MAPS keys), 4096 x 2048, longitude -180 at the left edge, north at t
   ma4000    4.0 Ga   dark), the flooded basins brought to the highlands' brightness and colour
   molten    the newborn Moon's magma ocean, 2048 x 1024 (molten_moon.js, run here with node)
   molten_relief  its heights over the melt's level (molten_moon.js), one byte from MOLTEN_RELIEF_LO
-            to MOLTEN_RELIEF_HI km (6 m a step), dithered, lossless
+            to MOLTEN_RELIEF_HI km (9 m a step), dithered, lossless
   relief    the heights, for the shading, the shadows and the limb (moon_surface.js MOON_RELIEF):
             NASA SVS CGI Moon Kit ldem_16.tif, the LRO laser altimeter's (LOLA) heights over a
             sphere of 1737.4 km, 16 pixels a degree (1.9 km), 5760 x 2880, in one byte from
@@ -45,7 +45,7 @@ PHOTO_R = 0.98                     # the photograph's disk: its radius over half
 PX_DEG = np.degrees(1/(512*PHOTO_R))   # one photograph pixel at its centre, in degrees
 MARE_RAMP = 150
 RELIEF_LO, RELIEF_HI = -9.2, 10.9     # km, as moon_surface.js MOON_RELIEF
-MOLTEN_RELIEF_LO, MOLTEN_RELIEF_HI = -0.1, 1.5   # km, as moon_surface.js MOON_RELIEF
+MOLTEN_RELIEF_LO, MOLTEN_RELIEF_HI = -0.15, 2.25   # km, as moon_surface.js MOON_RELIEF
 
 
 def maria():
