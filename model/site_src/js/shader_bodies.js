@@ -82,27 +82,36 @@ float jupLat(float Y){ return (2.0*atan(exp(Y/20.371833))-1.5707963)*57.2957795;
 // times as long along the winds as across, each scaled so that all turn alike, the finer a little
 // weaker; an octave fades out before its eddies shrink under a few pixels (pxC cells). The eddies
 // drift at u (cells a day), in two copies half a period apart, each restarting when the other is
-// at full strength, so the shear never smears them out.
+// at full strength, so the shear never smears them out. Each octave has its own period, the
+// smaller eddies living shorter (4, 2.6 and 1.7 days), and its own phase, so they renew at
+// different times rather than all at once.
 vec3 jupPsi(vec2 P, float u, float pxC, float T){
-  float ph=T/3.0, f1=fract(ph), wA=1.0-abs(2.0*f1-1.0);
   vec3 g=vec3(0.0);
   // One loop over both copies and the octaves of each (D3D keeps a loop of six as a loop).
   for(int j=0;j<6;j++){
-    float k=float(j/3), o=float(j-3*(j/3)), fk=fract(ph+0.5*k), wk=k<0.5?wA:1.0-wA;
-    vec2 Q=vec2(P.x-u*fk*3.0+k*41.0, P.y+k*17.0), f=vec2(0.5, 1.5)*exp2(o);
+    float k=float(j/3), o=float(j-3*(j/3)), pd=4.0*pow(0.65, o), ph=T/pd+0.37*o;
+    float wA=1.0-abs(2.0*fract(ph)-1.0), fk=fract(ph+0.5*k), wk=(k<0.5?wA:1.0-wA)/max(sqrt(wA*wA+(1.0-wA)*(1.0-wA)), 0.5);
+    vec2 Q=vec2(P.x-u*fk*pd+k*41.0, P.y+k*17.0), f=vec2(0.5, 1.5)*exp2(o);
     vec3 n=vNg(Q*f+o*7.3, 128.0*f.x);
     g+=wk*smoothstep(2.0*pxC, 5.0*pxC, 1.0/f.x)*pow(0.8, o)/(f.x*f.y)*vec3(n.x-0.5, n.yz*f);
   }
-  return g/max(sqrt(wA*wA+(1.0-wA)*(1.0-wA)), 0.5);
+  return g;
 }
-// How strongly the eddies stir at q (cells): most in the belts and their edges and toward the
-// poles, less in the zones, coming and going along the bands; not at all in the Red Spot (gC,
-// gA as in jupiterAlbedo) and its collar, and most west of it, in the South Equatorial Belt, its
-// turbulent wake.
-float jupStir(vec2 q, vec2 gC, vec2 gA){
-  float la=jupLat(q.y);
+// How strongly the eddies stir at q (cells), T days: most in the belts and their edges and toward
+// the poles, less in the zones; in patches of storms some 45 degrees long, calm stretches between,
+// which drift with the wind smoothed over 8 degrees and break out and die away over a dozen days
+// (two slices of noise, each drifting from its own start, the one fading in as the other fades
+// out); not at all in the Red Spot (gC, gA as in jupiterAlbedo) and its collar, and most west of
+// it, in the South Equatorial Belt, its turbulent wake.
+float jupStir(vec2 q, vec2 gC, vec2 gA, float T){
+  float la=jupLat(q.y), uS=jupWindS(la, 8.0)*0.024620/max(cos(la*0.01745329252), 0.1);
   vec2 E=vec2(mod(q.x-gC.x+64.0, 128.0)-64.0, q.y-gC.y)/gA, wq=vec2((E.x+2.8)/1.8, (E.y-0.35)/0.75);
-  float s=(0.55+0.65*clamp(jupBelt(la, 3.0), 0.0, 1.0)+0.5*smoothstep(40.0, 60.0, abs(la)))*(0.55+0.9*jupSlow(q.x*2.8125, la, 2.0));
+  float ph=T/12.0, i0=floor(ph), fr=fract(ph), pa=0.0;
+  for(int k=0;k<2;k++){
+    float sl=i0+float(k), n=vNg(vec2((q.x-uS*(T-12.0*sl))*0.0625+sl*3.7, q.y*0.4+sl*5.3), 8.0).x;
+    pa+=(k==0?1.0-smoothstep(0.0, 1.0, fr):smoothstep(0.0, 1.0, fr))*smoothstep(0.3, 0.7, n);
+  }
+  float s=(0.55+0.65*clamp(jupBelt(la, 3.0), 0.0, 1.0)+0.5*smoothstep(40.0, 60.0, abs(la)))*(0.4+1.2*pa);
   return grsAB.x>0.0?s*(1.0+1.6*exp(-dot(wq, wq)))*smoothstep(1.0, 1.7, length(E)):s;
 }
 // One chain of Kelvin-Helmholtz billows along the boundary at latitude b, N to the circle of
@@ -182,15 +191,18 @@ vec3 jupiterAlbedo(float lat, float lon, float pxD, float glon){
     // The strength here and a twentieth of a cell east and north, in one loop (a loop of four
     // stays a loop in D3D, which would copy the function three times over).
     float Sv[3];
-    for(int j=0;j<4;j++){ if(j==3) break; Sv[j]=jupStir(q+0.05*vec2(j==1, j==2), gC, gA); }
+    for(int j=0;j<4;j++){ if(j==3) break; Sv[j]=jupStir(q+0.05*vec2(j==1, j==2), gC, gA, T); }
     float S=Sv[0], Sx=(Sv[1]-S)*20.0, Sy=(Sv[2]-S)*20.0;
     q+=0.05*vec2(-(S*g.z+g.x*Sy), S*g.y+g.x*Sx)+smoothstep(1.0, 1.7, e)*vec2(0.0025*(jupWind(la)-jupWindS(la, 4.0)), 0.0);
     // The Red Spot, an anticyclone, turning the clouds about it along its ellipses: faster toward
-    // its edge, so what it draws in winds into spirals, and dying away beyond it.
+    // its edge, so what it draws in winds into spirals, and dying away beyond it. Round its edge
+    // the flow also runs a little inward, so the collar is drawn in as arms spiralling onto the
+    // rim rather than circling it in rings (followed back, outward).
     if(e<2.0){
       float a=-0.375*(0.7+0.3*smoothstep(0.3, 0.85, e))*exp(-x*x/0.08);
       E=vec2(mod(q.x-gC.x+64.0, 128.0)-64.0, q.y-gC.y)/gA;
-      E=mat2(cos(a), sin(a), -sin(a), cos(a))*E; q=gC+E*gA;
+      E=mat2(cos(a), sin(a), -sin(a), cos(a))*E*(1.0+0.02*smoothstep(0.93, 1.05, e)*exp(-(e-1.15)*(e-1.15)/0.09));
+      q=gC+E*gA;
     }
   }
   // And its inside turning as a whole, once in about six days, all but its rim (gT, where the
