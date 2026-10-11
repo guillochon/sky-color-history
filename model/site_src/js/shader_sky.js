@@ -848,8 +848,10 @@ void main(){
     float appF=fine?pitch*57.2957795+dAppPx:elevDeg, refF=refK*bennett(appF);
     bool inSun=false; float sunR=2.0; vec3 sunP=vec3(0.0), sunOffV=vec3(0.0);
     // The glare's share: whole while the Sun is small in the view (up to about 50 degrees across),
-    // gone once it spans a tenth of it (about 5 degrees), where the surface is worth seeing.
-    float glareK=sunGlare*(1.0-smoothstep(log(0.04), log(0.4), log(sunRad/fy)));
+    // easing out over a factor of thirty in zoom, gone once the disk nearly fills it (under 2
+    // degrees), where the surface is worth seeing. The glare is so bright it stays white until it
+    // is down to a fraction, so it falls fastest at first, to spread what shows over the zoom.
+    float glareK=sunGlare*pow(1.0-clamp(log(sunRad/fy/0.04)/log(30.0), 0.0, 1.0), 2.5);
     if(sunOn>0.5&&te>-1.5&&dot(src,sd)>cos(sunRad*2.5+0.03)){
       vec4 sk=sunDiskAt(comp, appF, sd, sunRad*57.2957795, sunOffV, fine, fineRel.x+dAzPx, dAppPx, fineRel.y);
       inSun=sk.x+sk.y+sk.z!=0.0; sunR=min(sk.w, 1.0); sunP=max(sk.rgb, vec3(0.0));
