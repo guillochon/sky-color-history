@@ -287,6 +287,43 @@ vec3 jupiterAlbedo(float lat, float lon, float pxD, float glon){
 const float BODY_FLAT[8]=float[8](${BODY_FLAT.map(v=>v.toFixed(5)).join(', ')});
 // How bright each kind's disk is drawn, after its albedo, and its Minnaert k (planets.js BODY_GAIN, BODY_MINN).
 const float BODY_GAIN[8]=float[8](${BODY_GAIN.map(v=>v.toFixed(2)).join(', ')}), BODY_MINN[8]=float[8](${BODY_MINN.map(v=>v.toFixed(2)).join(', ')});
+#if DETAIL_MAP
+// Mercury's and Mars's relief (surfaces.js SURF_RELIEF, their heights in their maps' alpha), as the
+// Moon's (shader_sky.js reliefLight): at surface point nrm (longitude lon, latitude lat; pole n,
+// prime meridian mp), lit from L and seen from V, the slope over two texels or the pixel (pxS
+// degrees) lit by Minnaert's law (k km, terminator width w), and the Sun, its disk sunA radians in
+// radius, hidden behind rims and peaks out some 14 steps toward it, the ray rising off the curved
+// ground. With the Sun lower than the highest ground can see past (sqrt(2·span/R) below the
+// sphere's horizon) everything is dark. Ground the viewer cannot see, a slope turned away or ground
+// behind a rim toward the viewer near the limb, keeps the smooth sphere's light litS, so shadows
+// hidden behind the rims that cast them, near full phase, are not drawn.
+float surfReliefLit(float c, vec3 nrm, vec3 n, vec3 mp, vec3 L, vec3 V, float lon, float lat, float pxS, float km, float w, float litS){
+  bool merc=mod(c, 4.0)<1.5;
+  float R=merc?${SURF_RELIEF.Mercury[2].toFixed(1)}:${SURF_RELIEF.Mars[2].toFixed(1)}, span=merc?${(SURF_RELIEF.Mercury[1]-SURF_RELIEF.Mercury[0]).toFixed(2)}:${(SURF_RELIEF.Mars[1]-SURF_RELIEF.Mars[0]).toFixed(2)}, sunA=merc?0.007:0.0031;
+  float tD=360.0/4096.0, st=max(pxS/tD, 2.0), l5=log2(st)-4.0, d=st*tD, dr=d*0.01745329252;
+  vec3 tE=cross(n, nrm); float cl=length(tE); tE=cl>1e-4?tE/cl:mp; vec3 tN=cross(nrm, tE), cE=cross(n, mp);
+  float dE=(surfH(c, lon+d, lat, l5)-surfH(c, lon-d, lat, l5))/(2.0*dr*R*max(cl, 0.05));
+  float dN=(surfH(c, lon, lat+d, l5)-surfH(c, lon, lat-d, l5))/(2.0*dr*R);
+  vec3 nR=normalize(nrm-dE*tE-dN*tN);
+  float mu0=dot(nR, L), mu=dot(nR, V), m0s=dot(nrm, L), mus=dot(nrm, V), cut=sqrt(2.0*span/R);
+  float sh=m0s>-cut?1.0:0.0, hid=smoothstep(0.08, 0.0, mu);
+  bool toS=m0s>-cut&&m0s<0.4, toV=mus<0.35;
+  if(toS||toV){
+    vec3 dS=toS?normalize(L-nrm*m0s):nrm, dV=toV?normalize(V-nrm*mus):nrm;
+    float eS=asin(clamp(m0s, -1.0, 1.0)), eV=asin(clamp(mus, -1.0, 1.0)), h0=surfH(c, lon, lat, l5), oS=-1.0, oV=-1.0, s=1.5*dr;
+    for(int k=0;k<14;k++){
+      float lk=max(l5, log2(s/(tD*0.01745329252)/3.0)-3.0);
+      if(toS){ vec3 q=nrm*cos(s)+dS*sin(s); float hk=surfH(c, atan(dot(q, cE), dot(q, mp))*57.2957795, asin(clamp(dot(q, n), -1.0, 1.0))*57.2957795, lk); oS=max(oS, atan(hk-((R+h0)*cos(eS)/max(cos(eS+s), 1e-3)-R), R*s)); }
+      if(toV){ vec3 q=nrm*cos(s)+dV*sin(s); float hk=surfH(c, atan(dot(q, cE), dot(q, mp))*57.2957795, asin(clamp(dot(q, n), -1.0, 1.0))*57.2957795, lk); oV=max(oV, atan(hk-((R+h0)*cos(eV)/max(cos(eV+s), 1e-3)-R), R*s)); }
+      s*=1.38;
+    }
+    if(toS) sh=smoothstep(sunA, -sunA, oS);
+    if(toV) hid=max(hid, smoothstep(-0.002, 0.002, oV));
+  }
+  float litR=smoothstep(-w, w, mu0)*sh*min(pow(max(mu0, 0.0)+0.01, km)*pow(max(mu, 0.05), km-1.0), 1.3);
+  return mix(litR, litS, hid);
+}
+#endif
 // A body's disk where the view ray is o (the offset across the sky, in drawn radii) and the line of
 // sight v: its lit colour (rgb) and coverage (a), the surface point x and how far along v it lies
 // (t, toward the observer negative). The disk is the flattened spheroid about pole n, lit from L,
@@ -315,6 +352,8 @@ vec4 bodyDisk(vec3 o, vec3 v, vec3 n, vec3 L, int kind, float rPx, vec3 tint, ve
 #if DETAIL_MAP
   // A body with a spacecraft map (M.w its code, surfaces.js) shows it, mipmapped to the pixel.
   if(M.w>-0.5) alb=surfAt(M.w, lon, lat, log2(max(512.0/360.0*pxS, 1e-6)));
+  // Mercury's and Mars's relief, once the disk is a few pixels across.
+  if(M.w>-0.5 && mod(M.w, 4.0)>0.5 && rPx>8.0) lit=surfReliefLit(M.w, nrm, n, mp, L, -v, lon, lat, pxS, km, w, lit);
 #endif
 #if !DETAIL_JUP
   if(kind==3 && grsAB.x>0.0) alb=grsPaint(alb, nrm, n, lat);

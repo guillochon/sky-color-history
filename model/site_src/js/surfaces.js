@@ -18,17 +18,34 @@
 // the array remade with room for each map as it arrives. Uploading tiles straight from the image
 // made the browser convert the whole image again for each one, freezing the page for half a minute.
 const SURF_FILES=__SURF_FILES__;
+// Mercury's and Mars's heights (relief_maps.py: MESSENGER's and MOLA's), on their maps' grid, one
+// byte from SURF_RELIEF[name][0] to [1] km, and their mean radii (km). They ride in their maps'
+// alpha (level, 255, until they come) and light the slopes and cast the shadows of the bodies'
+// disks (shader_bodies.js surfReliefLit).
+const RELIEF_FILES=__RELIEF_FILES__, SURF_RELIEF={Mercury:[-5.5, 4.7, 2439.4], Mars:[-8.3, 21.3, 3389.5]};
 const surfMaps={};
+let surfReliefIn=0;
+function surfPixels(url){
+  return fetch(url).then(r=>r.blob()).then(b=>createImageBitmap(b, {colorSpaceConversion:'none', premultiplyAlpha:'none'})).then(bm=>{
+    const cv=new OffscreenCanvas(bm.width, bm.height), ctx=cv.getContext('2d', {willReadFrequently:true});
+    ctx.drawImage(bm, 0, 0); const w=bm.width, h=bm.height, px=ctx.getImageData(0, 0, w, h).data; bm.close();
+    return {w, h, px};
+  });
+}
+// The heights into the map's alpha, once both are in.
+function surfMergeRelief(m){
+  if(!m.px||!m.relief||m.reliefIn||m.relief.w!==m.w||m.relief.h!==m.h) return;
+  const a=m.px, r=m.relief.px;
+  for(let i=3;i<a.length;i+=4) a[i]=r[i-3];
+  m.reliefIn=true; m.relief=null; surfReliefIn++; requestVR();
+}
 // Ask for body name's map; true once it is in the texture array.
 function wantSurface(name){
   const s=surfMaps[name];
   if(s) return s.base!=null;
-  const m=surfMaps[name]={px:null, w:0, h:0, base:null};
-  fetch(SURF_FILES[name]).then(r=>r.blob()).then(b=>createImageBitmap(b, {colorSpaceConversion:'none', premultiplyAlpha:'none'})).then(bm=>{
-    const cv=new OffscreenCanvas(bm.width, bm.height), ctx=cv.getContext('2d', {willReadFrequently:true});
-    ctx.drawImage(bm, 0, 0); m.w=bm.width; m.h=bm.height; m.px=ctx.getImageData(0, 0, m.w, m.h).data; bm.close();
-    requestVR();
-  }).catch(()=>{});
+  const m=surfMaps[name]={px:null, w:0, h:0, base:null, relief:null, reliefIn:false};
+  surfPixels(SURF_FILES[name]).then(d=>{ m.w=d.w; m.h=d.h; m.px=d.px; surfMergeRelief(m); requestVR(); }).catch(()=>{});
+  if(RELIEF_FILES[name]) surfPixels(RELIEF_FILES[name]).then(d=>{ m.relief=d; surfMergeRelief(m); }).catch(()=>{});
   return false;
 }
 // The surface's code for the sky shader (bodyM's w): -1 for none, else its first layer times 4
@@ -74,16 +91,24 @@ function buildSkyArray(gl){
 // Make or remake the array when a map has arrived since it was made.
 function syncSurfTex(gl){
   const ready=Object.keys(surfMaps).filter(k=>surfMaps[k].px).length;
-  if(ready&&ready!==(vrGL.skyArrayMaps||0)) buildSkyArray(gl);
+  if(ready&&(ready!==(vrGL.skyArrayMaps||0)||surfReliefIn!==(vrGL.skyArrayRelief||0))){ buildSkyArray(gl); vrGL.skyArrayRelief=surfReliefIn; }
 }
 // The sky shader's lookup: the map with code c (surfCode) at east longitude lon and latitude lat
 // (degrees), lod the level of detail of a 512-texel map round the equator.
 const SURF_GLSL=`
-vec3 surfAt(float c, float lon, float lat, float lod){
+vec4 surfTex(float c, float lon, float lat, float lod){
   float kind=mod(c, 4.0), base=floor(c/4.0+0.01), u=fract(lon/360.0), v=clamp((90.0-lat)/180.0, 0.0, 1.0);
   float layer, s, t;
   if(kind>0.5){ float x=min(u*8.0, 7.9999), y=min(v*4.0, 3.9999); layer=floor(y)*8.0+floor(x); s=fract(x); t=fract(y); lod+=3.0; }
   else { float x=min(u*2.0, 1.9999); layer=floor(x); s=fract(x); t=v; lod+=1.0; }
+  return textureLod(dsoTex, vec3(s, t, base+layer), max(lod, 0.0));
+}
+vec3 surfAt(float c, float lon, float lat, float lod){
   // Mars's disk is drawn brighter (planets.js BODY_GAIN); its map a little darker to match.
-  return textureLod(dsoTex, vec3(s, t, base+layer), max(lod, 0.0)).rgb*(kind>1.5?1.3:1.78);
+  return surfTex(c, lon, lat, lod).rgb*(mod(c, 4.0)>1.5?1.3:1.78);
+}
+// Mercury's (c's kind 1) and Mars's (2) heights in km, from their maps' alpha (SURF_RELIEF).
+float surfH(float c, float lon, float lat, float lod){
+  bool merc=mod(c, 4.0)<1.5;
+  return surfTex(c, lon, lat, lod).a*(merc?${(SURF_RELIEF.Mercury[1]-SURF_RELIEF.Mercury[0]).toFixed(2)}:${(SURF_RELIEF.Mars[1]-SURF_RELIEF.Mars[0]).toFixed(2)})+(merc?${SURF_RELIEF.Mercury[0].toFixed(2)}:${SURF_RELIEF.Mars[0].toFixed(2)});
 }`;
