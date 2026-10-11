@@ -277,7 +277,9 @@ vec4 sunDiskAt(float comp, float app, vec3 sd, float rd, out vec3 off, bool fn, 
     vec4 L=sunLay[i];
     if(L.y<=0.0) continue;
     float w=max(L.y, tan(fov*0.5)/res.y*57.2957795); // at least a pixel thick
-    bend+=L.z*smoothstep(L.x-w, L.x+w, ap);
+    // The jump bends the rays below the layer only: those above never graze it, so a Sun well up
+    // sits where the Moon and the rest of the sky put it.
+    bend+=L.z*(smoothstep(L.x-w, L.x+w, ap)-1.0);
     extra+=L.w*exp(-pow((app-L.x)/w, 2.0));
   }
   float dispX=${DISK_SCALE.toFixed(1)}*(1.0+5.0*exp(-max(ap, 0.0)/0.6)), px=2.0*tan(fov*0.5)/res.y;

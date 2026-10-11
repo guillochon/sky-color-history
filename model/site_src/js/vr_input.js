@@ -549,7 +549,7 @@ function sunImageAt(comp, app){
   for(let i=0;i<4;i++){
     if(lay[i*4+1]<=0) continue;
     const w=Math.max(lay[i*4+1], Math.tan(fov/2)/H*180/Math.PI);
-    bend+=lay[i*4+2]*smooth01(lay[i*4]-w, lay[i*4]+w, ap);
+    bend+=lay[i*4+2]*(smooth01(lay[i*4]-w, lay[i*4]+w, ap)-1);
   }
   const dispX=DISK_SCALE*(1+5*Math.exp(-Math.max(ap, 0)/0.6)), sd=horizDir(skyNow.sunAz, 90-skyNow.sza);
   let r=2, off=[0, 0, 0];
