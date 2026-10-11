@@ -195,7 +195,7 @@ function centralEnd(ms, scale){
   for(let i=0;i<24;i++){ const m=(lo+hi)/2; if(eclipseGap(m, true, scale)<0) lo=m; else hi=m; }
   return lo;
 }
-const moonImg=new Image(), moonSprite=document.createElement('canvas');
+const moonImg=new Image(), moonSprite=document.createElement('canvas'), moonSpriteLit=new Uint8Array(96*96);
 moonSprite.width=moonSprite.height=96;
 let moonReady=false;
 function moonBasis(moon){
@@ -212,11 +212,13 @@ function paintMoonSprite(moon, sunAz, sunEl){
   const E=b.east, N=b.north, M=b.md;
   for(let j=0;j<96;j++) for(let i=0;i<96;i++){
     const u=(i+0.5)/96*2-1, v=1-(j+0.5)/96*2, o=(j*96+i)*4;
-    if(u*u+v*v>1){ px[o+3]=0; continue; }
+    if(u*u+v*v>1){ px[o+3]=0; moonSpriteLit[j*96+i]=0; continue; }
     // The surface normal there, facing us, and its light from the Sun.
     const w=-Math.sqrt(1-u*u-v*v), x=E[0]*u+N[0]*v+M[0]*w, y=E[1]*u+N[1]*v+M[1]*w, z=E[2]*u+N[2]*v+M[2]*w, m=Math.hypot(x,y,z)||1;
     const lit=smooth01(-0.02,0.05, x/m*sd[0]+y/m*sd[1]+z/m*sd[2]);
-    px[o+3]=Math.round(lit*255);
+    // The sunlit share is kept beside the sprite, not in its alpha, as a canvas loses the colour
+    // where alpha is 0 and the molten Moon's night side glows.
+    moonSpriteLit[j*96+i]=Math.round(lit*255);
   }
   sctx.putImageData(img,0,0);
 }
@@ -239,8 +241,10 @@ function drawMoonOnDome(moon, sunAz, sunEl, lu){
   const x1=Math.min(W-1,Math.ceil(mx+rad+1)), y1=Math.min(H-1,Math.ceil(my+rad+1));
   if(x1<x0||y1<y0) return;
   const bw=x1-x0+1, bh=y1-y0+1, img=dctx.getImageData(x0,y0,bw,bh), px=img.data;
+  // The molten Moon's own light (moon_surface.js moltenFace), as in the sky shader.
+  const glow=moonGlow(EP[dIdx].key);
   // The sprite, bilinear, into s (zero outside it).
-  const s=new Float64Array(4), at=(i,j,k)=>(i<0||j<0||i>95||j>95)?0:spr[(j*96+i)*4+k];
+  const s=new Float64Array(4), at=(i,j,k)=>(i<0||j<0||i>95||j>95)?0:k===3?moonSpriteLit[j*96+i]:spr[(j*96+i)*4+k];
   const samp=(u,v)=>{
     const x=(u*0.5+0.5)*96-0.5, y=((1-v)*0.5)*96-0.5, i0=Math.floor(x), j0=Math.floor(y), tx=x-i0, ty=y-j0;
     for(let k=0;k<4;k++){
@@ -260,12 +264,24 @@ function drawMoonOnDome(moon, sunAz, sunEl, lu){
     const Tr=Math.exp(-0.12/mu), Tg=Math.exp(-0.22/mu), Tb=Math.exp(-0.48/mu);
     const o=((y-y0)*bw+(x-x0))*4;
     const skyY=(0.2126*px[o]+0.7152*px[o+1]+0.0722*px[o+2])/255;
-    const veil=1-smooth01(0, 1.15, skyY);
-    px[o]=Math.min(255, px[o]+s[0]/255*wlit*Tr*veil*255);
-    px[o+1]=Math.min(255, px[o+1]+s[1]/255*wlit*Tg*veil*255);
-    px[o+2]=Math.min(255, px[o+2]+s[2]/255*wlit*Tb*veil*255);
+    const veil=1-smooth01(0, 1.15, skyY), w=wlit+(glow?glow*1.3*smooth01(0, 0.7, (s[0]-s[2])/255):0);
+    px[o]=Math.min(255, px[o]+s[0]/255*w*Tr*veil*255);
+    px[o+1]=Math.min(255, px[o+1]+s[1]/255*w*Tg*veil*255);
+    px[o+2]=Math.min(255, px[o+2]+s[2]/255*w*Tb*veil*255);
   }
   dctx.putImageData(img,x0,y0);
+  if(glow){
+    // The red aureole, veiled by the sky beside the Moon.
+    const q=[Math.round(mx+rad*1.5), Math.round(my)], d=dctx.getImageData(Math.max(0, Math.min(W-1, q[0])), Math.max(0, Math.min(H-1, q[1])), 1, 1).data;
+    const veil=1-smooth01(0, 1.15, (0.2126*d[0]+0.7152*d[1]+0.0722*d[2])/255), mu=Math.max(Math.sin(Math.max(moon.el, 0)*Math.PI/180), 0.04);
+    const col=[0.95*Math.exp(-0.12/mu), 0.30*Math.exp(-0.22/mu), 0.07*Math.exp(-0.48/mu)].map(c=>Math.round(255*Math.min(1, c*glow*veil)));
+    const at=e=>`rgba(${col[0]},${col[1]},${col[2]},${e.toFixed(3)})`;
+    const gr=dctx.createRadialGradient(mx, my, rad, mx, my, rad*7);
+    for(let k=0;k<=12;k++){ const t=k/12, dd=6*t; gr.addColorStop(t, at(Math.min(1, 0.30*Math.exp(-dd*4)+0.07*Math.exp(-dd*0.9)))); }
+    dctx.save(); dctx.beginPath(); dctx.arc(cx, cy, R, 0, Math.PI*2); dctx.clip();
+    dctx.beginPath(); dctx.arc(mx, my, rad*7, 0, Math.PI*2); dctx.arc(mx, my, rad, 0, Math.PI*2, true);
+    dctx.globalCompositeOperation='lighter'; dctx.fillStyle=gr; dctx.fill(); dctx.restore();
+  }
 }
 // The epoch's face of the Moon (moon_surface.js) into the walk-around view's texture, when it
 // has changed. True if it did.

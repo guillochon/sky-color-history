@@ -13,7 +13,7 @@ uniform float yaw,pitch,fov,sunAz,sunEl,sunRad,sunOn,nr,na,sunMu,showScn,mtnSnow
 // For a deep zoom (fineEU): the view's azimuth less the Sun's (x, radians) and its altitude less
 // the Sun's true altitude (y, degrees), and the same for the Moon (z, w), in double precision.
 uniform vec4 fineRel;
-uniform float moonAz,moonEl,moonRad,moonOn,latRad,starPx,cloudCov,cloudScale,cloudDrift,cloudOn,clockH,snowCover,waterT,snOn;
+uniform float moonAz,moonEl,moonRad,moonOn,moonGlow,latRad,starPx,cloudCov,cloudScale,cloudDrift,cloudOn,clockH,snowCover,waterT,snOn;
 uniform vec3 snDir,snCol,snLight,mlDir,mlLight;
 uniform vec3 sunCol,ground,eye;
 // The setting Sun (sunDiskAt).
@@ -847,8 +847,18 @@ void main(){
           float t=length(vec2(x, y)-eclU.xy)*eclU.z;
           if(t<1.0) moonC=lin2s3(s2lin3(moonC)*s2lin3(textureLod(noiseTex, vec2((t*${LUN_LUT_N-1}.0+0.5)/128.0, 0.5/128.0), 0.0).gba));
         }
+        // The molten Moon (moon_surface.js moltenFace): the face's red excess is the lava's own
+        // light, on the night side as on the day, and the Earth's shadow does not dim it.
+        if(moonGlow>0.0) moonC+=moonGlow*1.3*alb*smoothstep(0.0, 0.7, alb.r-alb.b)*T;
         float skyY=dot(skyC, vec3(0.2126, 0.7152, 0.0722));
         skyC+=moonC*(1.0-smoothstep(0.0, 1.15, skyY));
+        }
+      } else if(moonGlow>0.0){
+        // Its light scattered in the air about it: a red aureole, close and bright, then wide.
+        float d=am/moonRad-1.0;
+        if(d<6.0){
+          float mu=max(sin(max(te,0.0)*0.01745329252), 0.04), skyY=dot(skyC, vec3(0.2126, 0.7152, 0.0722));
+          skyC+=moonGlow*vec3(0.95, 0.30, 0.07)*exp(-vec3(0.12, 0.22, 0.48)/mu)*(0.30*exp(-d*4.0)+0.07*exp(-d*0.9))*(1.0-smoothstep(0.0, 1.15, skyY));
         }
       }
     }

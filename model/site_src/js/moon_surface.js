@@ -39,6 +39,7 @@ const MOON_PHOTO_R=0.98;
 // pixels to the cell.
 const MOON_HL=0.755, moonFaces=new Map();
 function moonSurface(key){
+  if(MOON_MOLTEN[key]) return moltenFace();
   const f=moonFace(key), id=f.shares.map(v=>v.toFixed(2)).join(',')+'|'+f.tycho, dated=f.shares.some(v=>v<1);
   if(!dated&&f.tycho||!moonReady) return moonImg;
   let c=moonFaces.get(id); if(c) return c;
@@ -146,6 +147,75 @@ function moonSurface(key){
   ctx.putImageData(img, 0, 0);
   moonFaces.set(id, c);
   return c;
+}
+// The newborn Moon, 4.5 Ga, a few million years after the giant impact, still has its magma ocean
+// open at the top: rafts of dark quench crust and the first pale anorthosite floating up, broken
+// by cracks and lakes of lava at 1,400–1,600 K. Per square kilometre that lava shines about as
+// brightly as the sunlit Moon (see lunarLava), so the disk glows orange by day and night alike,
+// and the air about it carries a red aureole. The face is made on the sphere, so the rafts crowd
+// toward the limb, 512 pixels across; its red excess is the share that glows (moonGlow, drawn
+// in the sky shader and drawMoonOnDome).
+const MOON_MOLTEN={hadean45:1};
+function moonGlow(key){ return MOON_MOLTEN[key]||0; }
+let moltenImg=null;
+function moltenFace(){
+  if(moltenImg) return moltenImg;
+  const S=512, c=document.createElement('canvas'); c.width=c.height=S;
+  const ctx=c.getContext('2d'), img=ctx.createImageData(S, S), px=img.data;
+  const hash=(i, j, k, s)=>{
+    let h=Math.imul(i, 374761393)^Math.imul(j, 668265263)^Math.imul(k, 1274126177)^Math.imul(s+1, 461845907);
+    h=Math.imul(h^h>>>13, 1274126177); return ((h^h>>>16)>>>0)/4294967296;
+  };
+  // Value noise and its sum over three octaves (0 to 1), and the cells of a jittered grid: the
+  // distances to the nearest two points and the nearest one's hash.
+  const vn=(x, y, z, s)=>{
+    const i=Math.floor(x), j=Math.floor(y), k=Math.floor(z), u=x-i, v=y-j, w=z-k;
+    const a=u*u*(3-2*u), b=v*v*(3-2*v), e=w*w*(3-2*w), L=(p, q, r)=>hash(i+p, j+q, k+r, s);
+    const x0=(L(0,0,0)*(1-a)+L(1,0,0)*a)*(1-b)+(L(0,1,0)*(1-a)+L(1,1,0)*a)*b;
+    const x1=(L(0,0,1)*(1-a)+L(1,0,1)*a)*(1-b)+(L(0,1,1)*(1-a)+L(1,1,1)*a)*b;
+    return x0*(1-e)+x1*e;
+  };
+  const fbm=(x, y, z, s)=>0.5*vn(x, y, z, s)+0.3*vn(2.1*x, 2.1*y, 2.1*z, s+7)+0.2*vn(4.3*x, 4.3*y, 4.3*z, s+13);
+  const vor=(x, y, z, s)=>{
+    const i=Math.floor(x), j=Math.floor(y), k=Math.floor(z); let f1=9, f2=9, h1=0;
+    for(let p=-1;p<=1;p++) for(let q=-1;q<=1;q++) for(let r=-1;r<=1;r++){
+      const I=i+p, J=j+q, K=k+r, dx=I+hash(I, J, K, s)-x, dy=J+hash(I, J, K, s+1)-y, dz=K+hash(I, J, K, s+2)-z, d=Math.sqrt(dx*dx+dy*dy+dz*dz);
+      if(d<f1){ f2=f1; f1=d; h1=hash(I, J, K, s+3); } else if(d<f2) f2=d;
+    }
+    return [f1, f2, h1];
+  };
+  const sm=(a, b, x)=>{ const t=Math.max(0, Math.min(1, (x-a)/(b-a))); return t*t*(3-2*t); };
+  // Lava by heat: deep red where it has cooled, through orange to yellow where it is freshest.
+  const RAMP=[[0.40, 0.05, 0.02], [0.85, 0.20, 0.03], [1.00, 0.45, 0.07], [1.00, 0.80, 0.38]];
+  for(let j=0;j<S;j++) for(let i=0;i<S;i++){
+    let X=(i+0.5)/S*2-1, Y=(j+0.5)/S*2-1; const r=Math.hypot(X, Y);
+    // Beyond the disk the rim's colour, so the texture's filtering does not darken the limb.
+    if(r>0.999){ X*=0.999/r; Y*=0.999/r; }
+    const Z=Math.sqrt(Math.max(0, 1-X*X-Y*Y));
+    // The rafts' edges wander: the point is pushed about by the noise before the cells are found.
+    const wx=X+0.22*(fbm(1.7*X, 1.7*Y, 1.7*Z, 1)-0.5), wy=Y+0.22*(fbm(1.7*X, 1.7*Y, 1.7*Z, 2)-0.5), wz=Z+0.22*(fbm(1.7*X, 1.7*Y, 1.7*Z, 3)-0.5);
+    const big=vor(3.2*wx, 3.2*wy, 3.2*wz, 10), small=vor(10*wx, 10*wy, 10*wz, 20), n=fbm(6*X, 6*Y, 6*Z, 30);
+    const eB=big[1]-big[0], eS=small[1]-small[0];
+    // Wide cracks between the great rafts, narrower ones within them where the crust is thin,
+    // and some rafts sunk into open lakes with smaller floes still on them.
+    const wB=0.05+0.12*fbm(2.5*X, 2.5*Y, 2.5*Z, 40);
+    let heat=1-sm(0, wB, eB);
+    heat=Math.max(heat, 0.75*(1-sm(0, 0.05+0.04*n, eS))*sm(0.45, 0.6, fbm(3*X, 3*Y, 3*Z, 50)));
+    // Some stretches of crack have skinned over and only glow a dull red; others run fresh.
+    heat*=0.4+0.6*sm(0.3, 0.65, fbm(4*X, 4*Y, 4*Z, 70));
+    if(big[2]<0.22) heat=Math.max(heat, (0.55+0.45*n)*sm(0.06, 0.2, eB)*(1-sm(0.12, 0.2, eS)*sm(0.35, 0.5, n)));
+    // Crust: dark basalt with paler anorthosite, warming to a dull red along the cracks.
+    const g=0.09+0.07*n+0.12*sm(0.55, 0.75, fbm(1.3*X, 1.3*Y, 1.3*Z, 60)), warm=0.18*Math.exp(-eB/0.12)+0.08*Math.exp(-eS/0.05);
+    const crust=[g+warm, g*0.92+warm*0.25, g*0.85+warm*0.1];
+    const t=Math.max(0, Math.min(1, heat))*3, k=Math.min(2, Math.floor(t)), f=t-k, a=sm(0.02, 0.3, heat), o=(j*S+i)*4;
+    for(let q=0;q<3;q++){
+      const lava=RAMP[k][q]+(RAMP[k+1][q]-RAMP[k][q])*f;
+      px[o+q]=Math.round(255*Math.min(1, crust[q]+(lava-crust[q])*a));
+    }
+    px[o+3]=255;
+  }
+  ctx.putImageData(img, 0, 0);
+  return moltenImg=c;
 }
 // The older faces are made while the page is idle, so changing epoch does not wait for them.
 function warmMoonFaces(){
