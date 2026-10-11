@@ -39,16 +39,17 @@ function makeCloudVolumes(gl, prog){
   gl.deleteProgram(prog); gl.deleteFramebuffer(fbo);
   return {base, detail};
 }
-// Coverage, type, base altitude, and how tall the tops run, by era. cov is the long-run
-// average; vary is how far passing weather systems swing it either way.
+// Coverage, type, base altitude, and how tall the tops run, by era. cov is the typical cover;
+// vary is how far passing weather systems swing it, as 12·vary in log-odds per standard deviation
+// of the weather (cloudCover): at 0.25, as today, a day in six is clear and one in six overcast.
 // Type 0 is a thin stratiform deck, 0.5 is fair-weather cumulus, 1 is cumulonimbus.
 const CLOUD_ERA={
   protoearth455:{cov:0.6,vary:0.12,type:0.3,base:1700,top:0.5,cirrus:0.1},
   hadean45:{cov:0.88,vary:0.05,type:0.12,base:1900,top:0.55,cirrus:0.05},
-  hadean40:{cov:0.74,vary:0.08,type:0.16,base:1800,top:0.50,cirrus:0.08},
-  archean38:{cov:0.48,vary:0.15,type:0.35,base:1600,top:0.45,cirrus:0.15},
-  archean27thin:{cov:0.42,vary:0.15,type:0.38,base:1600,top:0.40,cirrus:0.20},
-  archean27:{cov:0.30,vary:0.15,type:0.42,base:1550,top:0.45,cirrus:0.25},
+  hadean40:{cov:0.74,vary:0.12,type:0.16,base:1800,top:0.50,cirrus:0.08},
+  archean38:{cov:0.48,vary:0.2,type:0.35,base:1600,top:0.45,cirrus:0.15},
+  archean27thin:{cov:0.42,vary:0.2,type:0.38,base:1600,top:0.40,cirrus:0.20},
+  archean27:{cov:0.30,vary:0.2,type:0.42,base:1550,top:0.45,cirrus:0.25},
   archean27vthick:{cov:0.16,vary:0.06,type:0.20,base:1700,top:0.30,cirrus:0.10},
   proterozoic22:{cov:0.58,vary:0.2,type:0.40,base:1550,top:0.50,cirrus:0.30},
   snowball07:{cov:0.22,vary:0.12,type:0.04,base:1400,top:0.20,cirrus:0.15},
@@ -57,34 +58,43 @@ const CLOUD_ERA={
   kpg66:{cov:0.08,vary:0.04,type:0.02,base:2200,top:0.15,cirrus:0.05},
   zetaoph:{cov:0.50,vary:0.25,type:0.50,base:1600,top:0.55,cirrus:0.55},
   geminga:{cov:0.50,vary:0.25,type:0.50,base:1600,top:0.55,cirrus:0.55},
-  volcanic:{cov:0.52,vary:0.15,type:0.22,base:1700,top:0.40,cirrus:0.70},
+  volcanic:{cov:0.52,vary:0.2,type:0.22,base:1700,top:0.40,cirrus:0.70},
   modern:{cov:0.50,vary:0.25,type:0.50,base:1600,top:0.55,cirrus:0.55},
   modernpoll:{cov:0.56,vary:0.2,type:0.42,base:1450,top:0.50,cirrus:0.40},
   ozonehole:{cov:0.50,vary:0.25,type:0.50,base:1600,top:0.55,cirrus:0.55},
   y2100:{cov:0.50,vary:0.25,type:0.50,base:1600,top:0.55,cirrus:0.55}
 };
-// Coverage over simulated time: the era's average, plus weather systems that come and go
-// every few days, plus a daily cycle. Cumulus eras (type 0.3 and up) build clouds through the
-// afternoon; stratiform eras start overcast and burn off by midday. Everything is derived from
-// the date and time, so a given moment always looks the same. Near overcast (75% to 95%), deck
-// ramps up: the cloud shader fills the gaps between clouds, and cumulus flattens into a layer
-// about a kilometre thick.
-function cloudCover(key){
-  const e=CLOUD_ERA[key]||CLOUD_ERA.modern;
+// The weather over simulated time: standard normal values, one for the systems that come and go
+// every few days (two timescales) and one for the high cirrus, partly tied to it. Everything is
+// derived from the date and time, so a given moment always looks the same.
+function cloudWeather(key){
   const m=/^(-?\d+)-(\d+)-(\d+)$/.exec(document.getElementById('moonDate').value||'');
   const day=(m?utcDay(+m[1], +m[2], +m[3]):Date.now()/86400000)+(minutes%DAYMIN)/DAYMIN;
-  const seed=key.length*7.31;
-  const wave=(t, period, s)=>{ const x=t/period, i=Math.floor(x), f=x-i, u=f*f*(3-2*f);
-    return h12xy(i, seed+s)*(1-u)+h12xy(i+1, seed+s)*u; };
-  const systems=(wave(day, 3.8, 0.0)*0.7+wave(day, 1.3, 5.0)*0.3)*2-1;
+  const seed=(metHash(key)%1000)*0.731;
+  // Normal values at whole periods, eased between and rescaled so the blend stays standard normal.
+  const wave=(t, period, s)=>{ const x=t/period, i=Math.floor(x), f=x-i, u=f*f*(3-2*f), g=j=>probit(Math.min(0.999, Math.max(0.001, h12xy(j, seed+s))));
+    return (g(i)*(1-u)+g(i+1)*u)/Math.hypot(1-u, u); };
+  const z=0.85*wave(day, 3.8, 0.0)+0.53*wave(day, 1.3, 5.0);
+  return {z, zc:0.5*z+0.87*wave(day, 2.2, 9.0)};
+}
+// Coverage: the era's typical cover, moved in log-odds by the weather systems and a daily cycle, so
+// clear days and overcast ones both come, as often as the era's vary allows. Cumulus eras (type 0.3
+// and up) build clouds through the afternoon; stratiform eras start overcast and burn off by midday.
+// Near overcast (75% to 95%), deck ramps up: the cloud shader fills the gaps between clouds, and
+// cumulus flattens into a layer about a kilometre thick.
+function cloudCover(key, w=cloudWeather(key)){
+  const e=CLOUD_ERA[key]||CLOUD_ERA.modern;
   const h=(minutes%DAYMIN)/60, cumulus=e.type>=0.3;
   const daily=cumulus?Math.exp(-(((h-15)/3.5)**2))-0.35:Math.exp(-(((h-7)/3)**2))-0.3;
-  return Math.min(0.98, Math.max(0.02, e.cov+e.vary*systems+e.vary*0.5*daily));
+  const x=Math.log(e.cov/(1-e.cov))+12*e.vary*(w.z+0.6*daily);
+  return Math.min(0.99, Math.max(0.005, 1/(1+Math.exp(-x))));
 }
 function cloudField(key){
-  const e=CLOUD_ERA[key]||CLOUD_ERA.modern, cov=cloudCover(key);
+  const e=CLOUD_ERA[key]||CLOUD_ERA.modern, w=cloudWeather(key), cov=cloudCover(key, w);
   const deck=smoothstep(0.75, 0.95, cov);
-  return {cov, deck, type:e.type>0.2?e.type+(0.2-e.type)*deck:e.type, base:e.base, top:e.top, cirrus:e.cirrus, scale:1/32000};
+  // The cirrus comes and goes too: none on about a day in ten, up to twice the era's usual.
+  const cirrus=Math.min(1, e.cirrus*Math.min(2, Math.max(0, 1+0.8*w.zc)));
+  return {cov, deck, type:e.type>0.2?e.type+(0.2-e.type)*deck:e.type, base:e.base, top:e.top, cirrus, scale:1/32000};
 }
 function vrCaption(){
   if(vrScenery&&vrClouds) return 'The ground, the shapes, and the clouds are scenery. The sky is the model.';

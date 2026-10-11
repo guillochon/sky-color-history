@@ -57,7 +57,7 @@ function ctNoise(x, y, z){
   return l(zi)*(1-sz)+l(zi+1)*sz;
 }
 // The standard normal's quantile (Abramowitz & Stegun 26.2.23).
-function ctProbit(p){
+function probit(p){
   const q=p<0.5?p:1-p, t=Math.sqrt(-2*Math.log(q)), z=t-(2.515517+0.802853*t+0.010328*t*t)/(1+1.432788*t+0.189269*t*t+0.001308*t*t*t);
   return p<0.5?-z:z;
 }
@@ -107,7 +107,7 @@ function ctLife(f, x, y, alt, T){
   const fill=(CT_ISSR[dLat]??0.12)*(0.25+1.6*ctWave(day, 2.7, 4.2))*(0.5+((vrGL&&vrGL.field)?vrGL.field.cirrus:0.5));
   const nz=ctNoise((x-dr[0]/1000)/140+31.7*Math.floor(day), (y-dr[1]/1000)/140, alt/0.7+7.3*h12xy(Math.floor(day), 1.9));
   // The noise is near normal about 0.5 with a spread of 0.17: the threshold leaving the top fill of it.
-  const thr=0.5+0.17*ctProbit(1-Math.min(0.7, Math.max(0.005, fill)));
+  const thr=0.5+0.17*probit(1-Math.min(0.7, Math.max(0.005, fill)));
   return f.short+f.keep*smooth01(thr-0.03, thr+0.03, nz);
 }
 // One trail as points along it, oldest last: position (m, observer's horizon frame, curving with

@@ -59,8 +59,9 @@ float cloudShape(vec3 p, out float hOut, out vec3 q, out vec2 ng){
   if(h0<0.0||h0>thickMax) return 0.0;
   vec2 pl=p.xy+vec2(cloudDrift, cloudDrift*0.42);
   vec4 w=texture(weather, pl*cloudScale*0.33);
-  // The weather fbm sits near 0.55 with a narrow spread, so normalise it first.
-  float cov=sat(cloudCov+(w.r-0.56)/0.09*0.26);
+  // The weather fbm sits near 0.55 with a narrow spread, so normalise it first. It moves the cover
+  // in log-odds, so a nearly clear sky stays nearly clear everywhere.
+  float cov=1.0/(1.0+exp(-(log(cloudCov/(1.0-cloudCov))+(w.r-0.56)/0.09*1.05)));
   if(cov<0.01) return 0.0;
   float thick=thickMax*mix(0.45, 1.0, sat((w.b-0.30)/0.38));
   float h=h0/thick;
@@ -81,7 +82,8 @@ float cloudShape(vec3 p, out float hOut, out vec3 q, out vec2 ng){
   float pw=(n.r-0.62)/0.23;
   float wf=(n.g*0.5+n.b*0.3+n.a*0.2-0.30)/0.36;
   float shape=sat((pw*0.55+wf*0.45-0.5)*1.5+0.5);
-  float d=sat(remap(shape, 1.0-profile, 1.0, 0.0, 1.0));
+  // Where the noise saturates the remap keeps it whatever the cover, so thin it out as the cover goes.
+  float d=sat(remap(shape, 1.0-profile, 1.0, 0.0, 1.0))*sat(cov*5.0);
   // Near overcast the noise still leaves gaps, so cloudDeck fills the layer with a textured sheet.
   return max(d, cloudDeck*stratus*cov*(0.35+0.45*shape));
 }

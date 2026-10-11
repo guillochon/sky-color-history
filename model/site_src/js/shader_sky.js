@@ -585,7 +585,7 @@ void main(){
       float c0=texture(weather, (gp+wind)*cloudScale*0.33).r;
       vec3 sp=gp3+sd*(1800.0/max(sd.z, 0.2));
       float c1=texture(weather, (sp.xy+wind)*cloudScale*0.33).r;
-      float cov=clamp(cloudCov+(max(c0, c1)-0.56)/0.09*0.26, 0.0, 1.0);
+      float cov=1.0/(1.0+exp(-(log(cloudCov/(1.0-cloudCov))+(max(c0, c1)-0.56)/0.09*1.05)));
       gcol*=mix(1.0, 0.5, smoothstep(0.3, 0.8, cov));
     }
     if(kBest<0.5){
