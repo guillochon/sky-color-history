@@ -143,7 +143,15 @@ function initVR(ready){
 // note stays.
 function precompileVR(){
   if(vrGL||vrBoot||vrOn||vrTouch) return;
-  initVR(()=>{});
+  vrPrep(true);
+  initVR(ok=>{ if(!ok) vrPrep(false); });
+}
+// The "Preloading…" note by the hero's button, while VR is set up in the background. From the
+// browser's shader cache that takes a moment, so the note waits half a second rather than flash.
+let vrPrepTimer=0;
+function vrPrep(on){
+  const el=document.getElementById('vrprep'); clearTimeout(vrPrepTimer);
+  if(on) vrPrepTimer=setTimeout(()=>{ el.hidden=false; }, 500); else el.hidden=true;
 }
 function setupVR(gl, vs, prog, skyJob, cloudJobs, bodyJob){
   gl.useProgram(prog);
@@ -282,7 +290,7 @@ function setupStep(gl){ if(--vrGL.setupLeft===0) warmVR(gl); }
 // whole browser, so it is left to entering VR and its note.
 let vrWarming=false;
 function warmVR(gl){
-  const done=()=>{ if(!vrGL) return; vrGL.warmed=true; nextHit(gl); };
+  const done=()=>{ vrPrep(false); if(!vrGL) return; vrGL.warmed=true; nextHit(gl); };
   if(vrOn||gl.getExtension('KHR_parallel_shader_compile')){ done(); return; }
   afterGPU(gl, ()=>{
     if(!vrGL||vrOn){ done(); return; }
