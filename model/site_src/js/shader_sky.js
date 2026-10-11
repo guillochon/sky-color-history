@@ -1022,6 +1022,24 @@ void main(){
     if(metN>0.5 && te>-0.5) skyC=meteorsAt(skyC+metFlash, src, onBody);
     col=mix(gcol, skyC, smoothstep(-hw,hw,elevDeg));
   }
+#if SCENERY
+  if(seaR>0.0 && showScn>0.5){
+    // Steam off the hot sea (about 200 °C under the 30-bar air): a layer some 50 m deep in wisps
+    // drifting with the wind, sampled at the middle of the ray's run through it. Over a long run
+    // the wisps average out, so the far sea and the islands' feet fade into a pale band.
+    float H=50.0, tEnd=min(kBest>0.5?tBest:(rd.z<0.0?-ro.z/rd.z:30000.0), 30000.0), t0=0.0, t1=tEnd;
+    if(abs(rd.z)>1e-5){ float a=(H-ro.z)/rd.z, b=-ro.z/rd.z; t0=max(t0, min(a, b)); t1=min(t1, max(a, b)); }
+    else if(ro.z>H) t1=t0;
+    float L=max(t1-t0, 0.0);
+    if(L>0.0){
+      vec2 mp=(ro+rd*(0.5*(t0+t1))).xy, dr=vec2(0.6, 0.25)*waterT;
+      float w=vN((mp-dr)/120.0)*0.6+vN((mp-dr*1.7)/38.0+3.1)*0.4;
+      float dens=mix(0.0022*smoothstep(0.42, 0.75, w), 0.00016, smoothstep(600.0, 5000.0, L));
+      float a=(1.0-exp(-dens*L))*smoothstep(0.9, 1.3, length(mp)/seaR)*0.85;
+      col=mix(col, skyLook(normalize(vec3(rd.xy, 0.05)))*1.08, a);
+    }
+  }
+#endif
   fragColor=vec4(col,1.0);
 }`;
 // ANGLE on Windows compiles through Direct3D, whose compiler unrolls a loop of constant count,

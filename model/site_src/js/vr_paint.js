@@ -323,10 +323,12 @@ function syncRoadCells(gl, sc){
 // The land pass draws at no more than this many pixels per CSS pixel; the town pass, whose
 // edges are sharp, stays at the canvas's.
 const TERRAIN_DPR=1.5;
-// Whether a pool that moves (water, swamp, or magma) is on screen and within 6 km.
+// Whether a pool that moves (water, swamp, or magma), or the sea, is on screen and within 6 km.
 function movingPoolInView(){
   if(!vrScenery || vrPitch-vrFov*0.5>0) return false;
   const sc=sceneFor(EP[dIdx].key), c=document.getElementById('vrc');
+  // The sea and its steam fill every view toward the horizon.
+  if(sc.sea>0) return true;
   const half=Math.atan(Math.tan(vrFov*Math.PI/360)*c.width/Math.max(c.height, 1))*180/Math.PI;
   for(let i=0;i<sc.pn;i++){
     if(sc.p[i*4+3]===POND_KIND.ice) continue;
