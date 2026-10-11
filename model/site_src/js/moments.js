@@ -18,7 +18,7 @@ const MOMENTS=[
   // nearest passes, 0.011 AU, show it a thinner crescent, a little fainter). At that moment it
   // stands 47 degrees up in the south-east in the middle of the night at southern mid-latitudes.
   {epoch:'protoearth455', date:'0821-08-50', t:178, lat:'Mid-latitude S', look:{planet:'Theia'}, clear:true, title:'Theia’s closest pass, 4.55 Ga', sub:'The world that will make the Moon, half lit, magnitude −8.5, lighting the night', art:'theia'},
-  {epoch:'hadean45', date:'2000-02-110', t:1015, look:[240, 14], title:'A Hadean evening, 4.5 Ga', sub:'Thirty bars of CO₂ under a young, faint Sun, and the molten newborn Moon', art:'day'},
+  {epoch:'hadean45', date:'2000-02-110', t:1015, look:[240, 14], title:'A Hadean evening, 4.5 Ga', sub:'Thirty bars of CO₂ under a young, faint Sun, and the molten newborn Moon', art:'hadean'},
   {epoch:'archean38', date:'2000-01-38', t:1410, look:[0, 30], clear:true, aurora:true, title:'Aurora over the young Earth, 3.8 Ga', sub:'All night under the young Sun’s stronger wind: nitrogen glowing violet and pink in air with no oxygen', art:'aurora'},
   {epoch:'archean27', date:'2000-03-07', t:913, title:'Archean afternoon, 2.7 Ga', sub:'A pale orange organic haze, like Titan’s', art:'day'},
   {epoch:'ordovician466', date:'2000-10-09', t:1324, look:[200, 18], clear:true, title:'Meteor storm and ring, 466 Ma', sub:'A shattered asteroid’s fragments, and perhaps a ring across the sky', art:'meteors'},
@@ -52,8 +52,26 @@ const MOMENT_ART={
     return `<line x1="${x0.toFixed(1)}" y1="${y0.toFixed(1)}" x2="${x1.toFixed(1)}" y2="${y1.toFixed(1)}" stroke="#f3f6ff" stroke-width="${(0.4+o*0.6).toFixed(2)}" stroke-linecap="round" opacity="${o.toFixed(2)}"/>`; }).join(''),
   stars:'',
   day:'',
+  // The low Sun's glow on the right, and the newborn Moon above: a dark disk, glowing cracks all
+  // over it, a thin crescent lit toward the Sun, and its red aureole.
+  hadean:'<defs><radialGradient id="msun"><stop offset="0" stop-color="#fff0c8" stop-opacity=".95"/><stop offset=".25" stop-color="#ffc37a" stop-opacity=".55"/><stop offset="1" stop-color="#ff9a50" stop-opacity="0"/></radialGradient>'
+    +'<radialGradient id="mhalo"><stop offset=".5" stop-color="#ff6a1e" stop-opacity=".6"/><stop offset="1" stop-color="#ff4a10" stop-opacity="0"/></radialGradient>'
+    +'<radialGradient id="mcrust" cx=".62" cy=".66"><stop offset="0" stop-color="#5a2412"/><stop offset="1" stop-color="#2a0f08"/></radialGradient>'
+    +'<clipPath id="mdisk"><circle cx="48" cy="24" r="14"/></clipPath></defs>'
+    +'<circle cx="100" cy="46" r="20" fill="url(#msun)"/><g transform="translate(15.44 13.72) scale(.72)"><circle cx="48" cy="24" r="27" fill="url(#mhalo)"/>'
+    +'<g clip-path="url(#mdisk)"><circle cx="48" cy="24" r="14" fill="#ffcf8a"/><circle cx="45.4" cy="21.8" r="14" fill="url(#mcrust)"/>'
+    +'<path d="M41 28c2-1 4 0 4 2s-3 3-5 2-1-3 1-4zM55 16c1.5-.5 3 .5 2.5 2s-2.5 1.5-3.2.4.2-2 .7-2.4z" fill="#ff8a2a"/>'
+    +'<g fill="none" stroke-linecap="round" stroke-linejoin="round">'
+    // Wide cracks between the great rafts, then narrower ones within them.
+    +['M33 17l3 1.5 2.5-.5 1.5 2 2.5-1 1.5-3.5 1-2.5-.5-3M40.5 20l.5 3-1 2 1.5 2.5-3 2-2.5 3M41.5 27.5l3 .5 2-1.5 3 .5 2.5-3 1.5-4 2-2.5-1-3.5-1.5-2M52 26l.5 3 2 2.5-1.5 3-3 2.5-2 3M55 31.5l3-1.5 2.5.5 1-3-.5-3 1.5-3',
+      'M44 14.5l2.5-1.5 3 .5 2-1M36 31l-1 2.5.5 3M58 30l1.5 3-.5 3M48 37.5l-3-.5-2.5 1M55 19l3-1 2 1.5 2-.5M45 22l2 1 1.5 2.5M37.5 24l-2 1.5-2 0']
+      .map((d, k)=>`<path d="${d}" stroke="#ff6a1a" stroke-width="${k?1.0:2.0}" opacity=".95"/><path d="${d}" stroke="#ffd27a" stroke-width="${k?0.3:0.7}"/>`).join('')
+    +'</g></g></g>'
+    +'<path d="M0 64V44C8 42 14 39 22 43C30 46 38 42 46 44C56 46 64 40 74 44C84 47 94 44 104 46C110 47 116 45 120 46V64Z" fill="#1c120d"/>',
 };
 function momentGradient(m){
+  // The Hadean evening: the whole dome dimmed to orange as the Sun sets in the 30-bar air.
+  if(m.art==='hadean') return 'linear-gradient(#3e2a22, #8a5a3c 55%, #d3874a)';
   if(m.art==='day'){
     const v=EP.find(e=>e.key===m.epoch).lat['Mid-latitude'];
     return `linear-gradient(${hex(tone(xyY2XYZ(v.z), YREF))}, ${hex(tone(xyY2XYZ(v.h), YREF))})`;
@@ -100,7 +118,7 @@ function openMoment(m){
   MOMENTS.forEach((m, i)=>{
     const b=document.createElement('button');
     b.type='button'; b.className='moment';
-    const night=m.art!=='day';
+    const night=m.art!=='day'&&m.art!=='hadean';
     b.innerHTML=`<span class="moment-sky" style="background:${momentGradient(m)}"><svg viewBox="0 0 120 64" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${night&&m.art!=='eclipse'?starsSVG(i+1):''}${MOMENT_ART[m.art]}</svg></span><span class="moment-text"><b></b><small></small></span>`;
     b.querySelector('b').textContent=m.title; b.querySelector('small').textContent=m.sub;
     b.addEventListener('click', ()=>openMoment(m));
