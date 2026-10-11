@@ -192,20 +192,32 @@ function moltenFace(){
     // Beyond the disk the rim's colour, so the texture's filtering does not darken the limb.
     if(r>0.999){ X*=0.999/r; Y*=0.999/r; }
     const Z=Math.sqrt(Math.max(0, 1-X*X-Y*Y));
-    // The rafts' edges wander: the point is pushed about by the noise before the cells are found.
-    const wx=X+0.22*(fbm(1.7*X, 1.7*Y, 1.7*Z, 1)-0.5), wy=Y+0.22*(fbm(1.7*X, 1.7*Y, 1.7*Z, 2)-0.5), wz=Z+0.22*(fbm(1.7*X, 1.7*Y, 1.7*Z, 3)-0.5);
-    const big=vor(3.2*wx, 3.2*wy, 3.2*wz, 10), small=vor(10*wx, 10*wy, 10*wz, 20), n=fbm(6*X, 6*Y, 6*Z, 30);
-    const eB=big[1]-big[0], eS=small[1]-small[0];
-    // Wide cracks between the great rafts, narrower ones within them where the crust is thin,
-    // and some rafts sunk into open lakes with smaller floes still on them.
-    const wB=0.05+0.12*fbm(2.5*X, 2.5*Y, 2.5*Z, 40);
-    let heat=1-sm(0, wB, eB);
-    heat=Math.max(heat, 0.75*(1-sm(0, 0.05+0.04*n, eS))*sm(0.45, 0.6, fbm(3*X, 3*Y, 3*Z, 50)));
+    // The rafts' edges wander at every scale: the point is pushed about by five octaves of noise,
+    // each half the last, before the cells are found.
+    let wx=X, wy=Y, wz=Z;
+    for(let o=0, f=3, A=0.1;o<5;o++, f*=2.03, A*=0.5){ wx+=A*(vn(f*X, f*Y, f*Z, 1+3*o)-0.5); wy+=A*(vn(f*X, f*Y, f*Z, 2+3*o)-0.5); wz+=A*(vn(f*X, f*Y, f*Z, 3+3*o)-0.5); }
+    const n=fbm(14*X, 14*Y, 14*Z, 30);
+    // Cracks within cracks: four generations of floes, each about half the size of the last, so
+    // the great rafts are themselves broken into plates, and those into chips. A finer crack is
+    // narrower and dimmer, and is open only where the crust there is thin. No crack is narrower
+    // than about half a pixel, so the finest ones do not break up into dots.
+    const L=[], SC=[6, 12, 23, 42], AMP=[1, 0.8, 0.65, 0.5];
+    let heat=0, warm=0;
+    for(let l=0;l<4;l++){
+      const s=SC[l], v=vor(s*wx, s*wy, s*wz, 10+10*l), e=v[1]-v[0], px1=s/(S/2);
+      L.push(v);
+      const w=Math.max((0.04+0.07*fbm(2.5*s/6*X, 2.5*s/6*Y, 2.5*s/6*Z, 40+l))*Math.pow(0.8, l), 0.6*px1);
+      const open=l===0?1:sm(0.4, 0.55, fbm(1.5*s/6*X, 1.5*s/6*Y, 1.5*s/6*Z, 50+l));
+      heat=Math.max(heat, AMP[l]*(1-sm(0, w, e))*open);
+      warm+=0.14*Math.pow(0.5, l)*Math.exp(-e/(2.5*w))*open;
+    }
     // Some stretches of crack have skinned over and only glow a dull red; others run fresh.
-    heat*=0.4+0.6*sm(0.3, 0.65, fbm(4*X, 4*Y, 4*Z, 70));
-    if(big[2]<0.22) heat=Math.max(heat, (0.55+0.45*n)*sm(0.06, 0.2, eB)*(1-sm(0.12, 0.2, eS)*sm(0.35, 0.5, n)));
+    heat*=0.4+0.6*sm(0.3, 0.65, fbm(9*X, 9*Y, 9*Z, 70));
+    // Some second-generation plates have sunk into open lakes, the finest chips still on them.
+    const lake=L[1], eL=lake[1]-lake[0], eC=L[3][1]-L[3][0];
+    if(lake[2]<0.17) heat=Math.max(heat, (0.55+0.45*n)*sm(0.06, 0.2, eL)*(1-sm(0.1, 0.2, eC)*sm(0.4, 0.55, n)));
     // Crust: dark basalt with paler anorthosite, warming to a dull red along the cracks.
-    const g=0.09+0.07*n+0.12*sm(0.55, 0.75, fbm(1.3*X, 1.3*Y, 1.3*Z, 60)), warm=0.18*Math.exp(-eB/0.12)+0.08*Math.exp(-eS/0.05);
+    const g=0.09+0.07*n+0.12*sm(0.55, 0.75, fbm(2.6*X, 2.6*Y, 2.6*Z, 60));
     const crust=[g+warm, g*0.92+warm*0.25, g*0.85+warm*0.1];
     const t=Math.max(0, Math.min(1, heat))*3, k=Math.min(2, Math.floor(t)), f=t-k, a=sm(0.02, 0.3, heat), o=(j*S+i)*4;
     for(let q=0;q<3;q++){
