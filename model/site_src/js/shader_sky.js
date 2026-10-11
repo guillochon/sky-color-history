@@ -1024,19 +1024,27 @@ void main(){
   }
 #if SCENERY
   if(seaR>0.0 && showScn>0.5){
-    // Steam off the hot sea (about 200 °C under the 30-bar air): a layer some 50 m deep in wisps
-    // drifting with the wind, sampled at the middle of the ray's run through it. Over a long run
-    // the wisps average out, so the far sea and the islands' feet fade into a pale band.
-    float H=50.0, tEnd=min(kBest>0.5?tBest:(rd.z<0.0?-ro.z/rd.z:30000.0), 30000.0), t0=0.0, t1=tEnd;
+    // Steam off the hot sea (about 200 °C under the 30-bar air): plumes rising from the water,
+    // thinning with height over some 50 m, leaning and drifting with the wind. Six samples
+    // along the ray's run through the layer, crowded toward the eye where the wisps show. It is
+    // lit from the whole sky, so it stands paler than the water, which mirrors only the horizon.
+    float H=60.0, tEnd=min(kBest>0.5?tBest:(rd.z<0.0?-ro.z/rd.z:30000.0), 30000.0), t0=0.0, t1=tEnd;
     if(abs(rd.z)>1e-5){ float a=(H-ro.z)/rd.z, b=-ro.z/rd.z; t0=max(t0, min(a, b)); t1=min(t1, max(a, b)); }
     else if(ro.z>H) t1=t0;
-    float L=max(t1-t0, 0.0);
-    if(L>0.0){
-      vec2 mp=(ro+rd*(0.5*(t0+t1))).xy, dr=vec2(0.6, 0.25)*waterT;
-      float w=vN((mp-dr)/120.0)*0.6+vN((mp-dr*1.7)/38.0+3.1)*0.4;
-      float dens=mix(0.0022*smoothstep(0.42, 0.75, w), 0.00016, smoothstep(600.0, 5000.0, L));
-      float a=(1.0-exp(-dens*L))*smoothstep(0.9, 1.3, length(mp)/seaR)*0.85;
-      col=mix(col, skyLook(normalize(vec3(rd.xy, 0.05)))*1.08, a);
+    if(t1>t0){
+      vec2 dr=vec2(0.6, 0.25)*waterT;
+      float tau=0.0, tp=t0;
+      for(int i=0;i<6;i++){
+        float f=(float(i)+1.0)/6.0, tq=t0+(t1-t0)*f*f, dt=tq-tp; tp=tq;
+        vec3 p=ro+rd*(tq-0.5*dt);
+        vec2 q=p.xy-dr+vec2(0.7, 0.4)*p.z*0.8;
+        float w=vN(q/90.0+vec2(0.0, -waterT*0.02))*0.6+vN(q/28.0+3.1)*0.4;
+        // Far off, a sample spans many plumes: their mean.
+        float plume=mix(smoothstep(0.45, 0.78, w), 0.3, smoothstep(300.0, 3000.0, dt));
+        tau+=0.0035*plume*exp(-p.z/22.0)*smoothstep(0.9, 1.3, length(p.xy)/seaR)*dt;
+      }
+      vec3 steam=min((skyLook(normalize(vec3(rd.xy, 0.05)))*0.5+skyLook(vec3(0.0, 0.0, 1.0))*0.5)*1.35+0.04, vec3(1.0));
+      col=mix(col, steam, (1.0-exp(-tau))*0.9);
     }
   }
 #endif
