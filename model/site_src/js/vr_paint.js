@@ -464,6 +464,11 @@ function paintVR(){
   const sinApp=Math.max(0, Math.sin(app*Math.PI/180)), sunMu=sinApp*(skyNow.sunVis==null?1:skyNow.sunVis);
   const sunCol=new Float32Array(skyNow.sunRGB.map(v=>v/255)), ground=groundRGB(sunMu);
   gl.uniform1f(u.sunMu, sunMu);
+  // Blinding above a few thousandths of the noon Sun's brightness (a Sun a few degrees up), none
+  // below a ten-thousandth (one at the horizon through thick air, or a total eclipse's corona).
+  const sunL=Math.log10(Math.max((skyNow.sunRel||0)*(skyNow.sunVis==null?1:skyNow.sunVis), 1e-12));
+  const sStep=x=>{ x=Math.max(0, Math.min(1, x)); return x*x*(3-2*x); };
+  gl.uniform1f(u.sunGlare, skyNow.sunOn?sStep((sunL+3.6)/2.2)*sStep((app+rd)/(2*rd)):0);
   gl.uniform3fv(u.sunCol, sunCol);
   gl.uniform3fv(u.ground, ground);
   gl.uniform1f(u.showScn, vrScenery?1:0);

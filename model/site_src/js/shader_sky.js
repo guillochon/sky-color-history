@@ -63,6 +63,10 @@ uniform vec3 fbDir,fbLight,fbSun;
 // The ground's colour in full daylight, which a fireball as bright as the Sun gives it.
 uniform vec3 groundDay;
 uniform vec3 sunCol,ground,eye;
+// How blinding the Sun is (vr_paint.js): 1 for a Sun near full daylight brightness, falling to 0
+// as the air or the Moon dims it toward what the eye can look at, times the share of its disk
+// above the horizon.
+uniform float sunGlare;
 // The setting Sun (sunDiskAt).
 uniform float refK, sunOff; uniform vec4 sunTau[50]; uniform vec3 sunW[20]; uniform vec3 sunG; uniform vec4 sunLay[4]; uniform vec4 sunMir;
 uniform float corona, coronaMap[16], coronaRim;
@@ -836,6 +840,9 @@ void main(){
     float dAzPx=atan(fuv.x, fh), dAppPx=atan(fuv.y-fsp*fh*fw/(sqrt(1.0+fw)+1.0), sqrt(fh*fh+fuv.x*fuv.x)*fcp+(fsp+fuv.y*fcp)*fsp)*57.2957795;
     float appF=fine?pitch*57.2957795+dAppPx:elevDeg, refF=refK*bennett(appF);
     bool inSun=false; float sunR=2.0; vec3 sunP=vec3(0.0), sunOffV=vec3(0.0);
+    // The glare's share: whole while the Sun is small in the view (up to about 50 degrees across),
+    // gone once it spans a tenth of it (about 5 degrees), where the surface is worth seeing.
+    float glareK=sunGlare*(1.0-smoothstep(log(0.04), log(0.4), log(sunRad/fy)));
     if(sunOn>0.5&&te>-1.5&&dot(src,sd)>cos(sunRad*2.5+0.03)){
       vec4 sk=sunDiskAt(comp, appF, sd, sunRad*57.2957795, sunOffV, fine, fineRel.x+dAzPx, dAppPx, fineRel.y);
       inSun=sk.x+sk.y+sk.z!=0.0; sunR=min(sk.w, 1.0); sunP=max(sk.rgb, vec3(0.0));
@@ -870,6 +877,12 @@ void main(){
         vec2 q=vec2(dot(sunOffV, normalize(cross(nS, sd))), dot(sunOffV, nS))/sin(sunRad);
         float ql=length(q); if(ql>0.998) q*=0.998/ql;
         dsk=clamp(dsk*sunSurface(q, 2.0*tan(fov*0.5)/res.y/sunRad), 0.0, 1.0);
+      }
+      // Seen whole, the Sun is far too bright to look at: its disk a white-hot blank tinted the
+      // epoch's colour, no limb or spots. Zoomed in, as through a filter, it dims to the disk above.
+      if(glareK>0.0){
+        vec3 hot=mix(lin/max(lm, 1e-6), vec3(1.0), 0.6);
+        dsk=mix(dsk, hot, glareK); op=mix(op, 1.0, glareK);
       }
       skyC=lin2s3(mix(sl, dsk, op));
     }
@@ -990,6 +1003,15 @@ void main(){
       float mu=max(sin(max(te, 0.0)*0.01745329252), 0.04);
       vec3 T=exp(-vec3(0.12, 0.22, 0.48)/mu);
       skyC+=corona*T*(I*vec3(1.0, 0.97, 0.92)+rim*vec3(1.0, 0.3, 0.42)*1.5*coronaRim);
+    }
+    if(glareK>0.0 && te>-1.0){
+      // The Sun's glare, the light scattered in the eye about it: a bright bloom hugging the
+      // disk, white near it and the epoch's colour farther out, and a wide glow over the sky.
+      float a=acos(clamp(dot(src, sd), -1.0, 1.0)), r=max(a/sunRad-1.0, 0.0);
+      vec3 lin=s2lin3(sunCol); lin/=max(max(lin.r, max(lin.g, lin.b)), 1e-6);
+      float I=2.5*exp(-r*1.6)+0.5/(1.0+r*r*0.5)+0.15*exp(-a/0.25);
+      vec3 hc=mix(lin, vec3(1.0), 0.6*exp(-r*1.2));
+      skyC=lin2s3(clamp(s2lin3(skyC)+hc*I*glareK, 0.0, 1.0));
     }
     if(beads[0].w>0.0 && te>-1.0){
       // Baily's beads and the diamond ring: glare around each piece of photosphere still
