@@ -60,6 +60,71 @@ function moonMap(key){
   if(m.img) moonShown=m;
   return moonShown;
 }
+// The Moon's heights (moon_maps.py relief): the LRO laser altimeter's, over a sphere of 1737.4 km,
+// 5760 x 2880 like the globes, one byte from MOON_RELIEF[0] to [1] km. Fetched once the page is
+// up (boot.js); until then, and for the molten Moon, the limb keeps a made-up profile and the
+// globe no relief. They light the globe's slopes and cast its shadows (the sky shader, from the
+// texture's alpha, moonTexPixels) and shape its limb (moonLimbSync).
+const MOON_RELIEF=[-9.2, 10.9];
+let moonRelief=null, moonReliefAsked=false;
+function loadMoonRelief(){
+  if(moonReliefAsked||!MOON_MAPS.relief) return; moonReliefAsked=true;
+  fetch(MOON_MAPS.relief).then(r=>r.blob()).then(b=>createImageBitmap(b, {colorSpaceConversion:'none', premultiplyAlpha:'none'})).then(bm=>{
+    const c=document.createElement('canvas'); c.width=bm.width; c.height=bm.height;
+    const ctx=c.getContext('2d', {willReadFrequently:true}); ctx.drawImage(bm, 0, 0);
+    const d=ctx.getImageData(0, 0, bm.width, bm.height).data, h=new Uint8Array(bm.width*bm.height);
+    for(let i=0;i<h.length;i++) h[i]=d[i*4];
+    moonRelief={h, w:bm.width, ht:bm.height}; moonLimbKey=''; uploadMoon(); requestRender();
+  }).catch(()=>{});
+}
+function moonReliefOn(){ return !!moonRelief&&!MOON_MOLTEN[EP[dIdx].key]; }
+// A globe's pixels for the walk-around view's texture, the heights in alpha (level where there
+// are none).
+function moonTexPixels(m){
+  const W=m.img.width, H=m.img.height, c=document.createElement('canvas'); c.width=W; c.height=H;
+  const ctx=c.getContext('2d', {willReadFrequently:true}); ctx.drawImage(m.img, 0, 0);
+  const px=ctx.getImageData(0, 0, W, H).data, R=moonRelief;
+  if(R&&m.name!=='molten') for(let j=0;j<H;j++){
+    const rj=Math.floor((j+0.5)*R.ht/H)*R.w;
+    for(let i=0;i<W;i++) px[(j*W+i)*4+3]=R.h[rj+Math.floor((i+0.5)*R.w/W)];
+  }
+  else { const flat=Math.round(-MOON_RELIEF[0]/(MOON_RELIEF[1]-MOON_RELIEF[0])*255); for(let i=3;i<px.length;i+=4) px[i]=flat; }
+  return new Uint8Array(px.buffer);
+}
+// The limb: at each of LIMB_N position angles (from north through east, as moon.js limbH), how far
+// the skyline stands out from the sphere, as a share of its radius: the highest of the ground along
+// that angle from 6° behind the limb to 6° in front of it, projected on the sky, so it changes as
+// the Moon librates. Its height is drawn three times over (LIMB_X), as the made-up profile was, so
+// Baily's beads show on the enlarged disk (DISK_SCALE). Made again when the Moon has turned by
+// 0.06° or so; moonLimbGen counts the profiles.
+const LIMB_N=1024, LIMB_X=3, LIMB_RANGE=0.03, moonLimbProf=new Float32Array(LIMB_N);
+let moonLimbKey='', moonLimbGen=0;
+for(let i=0;i<LIMB_N;i++) moonLimbProf[i]=limbFake(i/LIMB_N*2*Math.PI);
+function moonLimbSync(mo){
+  if(!mo||!mo.ax) return;
+  const relief=moonReliefOn(), b=moonBasis(mo), ax=mo.ax, body=v=>[vdot(v, ax.E), vdot(v, ax.P), vdot(v, ax.M)];
+  const eB=body(b.east), nB=body(b.north), mB=body(b.md);
+  const key=relief?nB.concat(mB).map(x=>Math.round(x*1000)).join(','):MOON_MOLTEN[EP[dIdx].key]?'molten':'made-up';
+  if(key===moonLimbKey) return;
+  moonLimbKey=key; moonLimbGen++;
+  // The made-up profile, and a third of it for the molten Moon's low rafts.
+  if(!relief){ const s=MOON_MOLTEN[EP[dIdx].key]?0.3:1; for(let i=0;i<LIMB_N;i++) moonLimbProf[i]=s*limbFake(i/LIMB_N*2*Math.PI); return; }
+  const R=moonRelief, lo=MOON_RELIEF[0]/MOON_R_KM, k=(MOON_RELIEF[1]-MOON_RELIEF[0])/255/MOON_R_KM;
+  const NF=193, fc=new Float64Array(NF), fs=new Float64Array(NF);
+  for(let j=0;j<NF;j++){ const f=(j-(NF-1)/2)/16*Math.PI/180; fc[j]=Math.cos(f); fs[j]=Math.sin(f); }
+  for(let i=0;i<LIMB_N;i++){
+    const pa=i/LIMB_N*2*Math.PI, sp=Math.sin(pa), cp=Math.cos(pa);
+    const u0=eB[0]*sp+nB[0]*cp, u1=eB[1]*sp+nB[1]*cp, u2=eB[2]*sp+nB[2]*cp;
+    let best=-1;
+    for(let j=0;j<NF;j++){
+      // In the plane of that angle and the line of sight, φ toward the viewer.
+      const p0=u0*fc[j]-mB[0]*fs[j], p1=u1*fc[j]-mB[1]*fs[j], p2=u2*fc[j]-mB[2]*fs[j];
+      const x=Math.min(R.w-1, Math.floor((Math.atan2(p0, p2)/Math.PI+1)*R.w/2)), y=Math.min(R.ht-1, Math.max(0, Math.floor((0.5-Math.asin(Math.max(-1, Math.min(1, p1)))/Math.PI)*R.ht)));
+      const r=(1+lo+R.h[y*R.w+x]*k)*fc[j]; if(r>best) best=r;
+    }
+    moonLimbProf[i]=LIMB_X*(best-1);
+  }
+}
 // The albedo (0-255 RGB, into out) of a globe's small copy at body-frame direction v.
 function moonAlbedo(m, v, out){
   const lon=Math.atan2(v[0], v[2]), lat=Math.asin(Math.max(-1, Math.min(1, v[1])));

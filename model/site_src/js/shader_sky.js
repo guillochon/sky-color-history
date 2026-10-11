@@ -55,7 +55,7 @@ uniform float yaw,pitch,fov,sunAz,sunEl,sunRad,sunOn,nr,na,sunMu,showScn,mtnSnow
 // For a deep zoom (fineEU): the view's azimuth less the Sun's (x, radians) and its altitude less
 // the Sun's true altitude (y, degrees), and the same for the Moon (z, w), in double precision.
 uniform vec4 fineRel;
-uniform vec3 moonE,moonP,moonM;
+uniform vec3 moonE,moonP,moonM; uniform float moonRelief;
 uniform float moonAz,moonEl,moonRad,moonOn,moonGlow,latRad,starPx,cloudCov,cloudScale,cloudDrift,cloudOn,clockH,snowCover,waterT,snOn;
 uniform vec3 snDir,snCol,snLight,mlDir,mlLight;
 // The brightest fireball now: where its head is, the light it casts as moonlight (as mlLight), and
@@ -136,7 +136,46 @@ uniform vec4 bodyP[${BODY_MAX}], bodyC[${BODY_MAX}], bodyL[${BODY_MAX}], bodyN[$
 // it is; x is 0 when there is none.
 uniform vec3 grsDir; uniform vec4 grsAB;
 uniform vec4 shadowM[${SHADOW_MAX}], shadowK[${SHADOW_MAX}]; uniform float shadowCnt;
-float limbH(float pa){ return 0.002*sin(7.0*pa+1.3)+0.00167*sin(12.0*pa+4.1)+0.00133*sin(19.0*pa+2.2)+0.001*sin(29.0*pa+5.0)+0.00083*sin(41.0*pa+0.7)+0.00067*sin(57.0*pa+3.3)+0.0005*sin(83.0*pa+1.9); } // moon.js limbH
+// The Moon's limb profile (moon.js limbH): ${LIMB_N} points round it in the noise texture's rows
+// 1 on, green and blue, read between them.
+float limbAt(float i){ int k=int(mod(i, ${LIMB_N}.0)); vec4 t=texelFetch(noiseTex, ivec2(k%128, 1+k/128), 0); return ((t.g*65280.0+t.b*255.0)/65535.0-0.5)*${(2*LIMB_RANGE).toFixed(3)}; }
+float limbH(float pa){ float x=fract(pa*0.1591549431)*${LIMB_N}.0, i=floor(x); return mix(limbAt(i), limbAt(i+1.0), x-i); }
+// The Moon's globe (moon_surface.js moonMap) at a body-frame direction (x east, y north, z the
+// near side's middle), and its heights in km, in the globe's alpha (moon_surface.js MOON_RELIEF).
+vec2 moonUV(vec3 b){ return vec2(atan(b.x, b.z)*0.1591549431+0.5, 0.5-asin(clamp(b.y, -1.0, 1.0))*0.3183098862); }
+float moonH(vec2 uv, float lod){ return textureLod(moonMap, uv, lod).a*${(MOON_RELIEF[1]-MOON_RELIEF[0]).toFixed(2)}+(${MOON_RELIEF[0].toFixed(2)}); }
+// The relief's light at body-frame point b, the Sun toward sB and the viewer toward vB: x, the
+// sunlit share (the slope's own terminator, and the Sun's disk, 0.27° across, behind rims and
+// peaks out to some 260 km toward it, the ray rising off the curved ground); y, the ground's light
+// (Lommel-Seeliger, μ0/(μ0+μ), on its slope) over the full Moon's, which the globe's albedo is: so
+// the full Moon is as it was, slopes toward the Sun brighten, and the ground dims toward the
+// terminator as the Sun gets low on it.
+// px is a screen pixel on the Moon in radians of its arc; the slopes are taken over it, and over
+// two texels at least, so the heights' dither (moon_maps.py) does not speckle the night side.
+vec2 reliefLight(vec3 b, vec3 sB, vec3 vB, float px){
+  vec2 ts=vec2(textureSize(moonMap, 0));
+  float R=1737.4, st=max(px*ts.y*0.3183098862, 2.0), lod=log2(st)-1.0;
+  vec2 uv=moonUV(b);
+  float cl=max(sqrt(max(1.0-b.y*b.y, 0.0)), 0.05), lon=atan(b.x, b.z);
+  vec3 tE=vec3(cos(lon), 0.0, -sin(lon)), tN=vec3(-b.y*sin(lon), cl, -b.y*cos(lon));
+  float aE=6.283185307*st/ts.x, aN=3.141592654*st/ts.y;
+  float dE=(moonH(uv+vec2(st/ts.x, 0.0), lod)-moonH(uv-vec2(st/ts.x, 0.0), lod))/(2.0*aE*cl*R);
+  float dN=(moonH(uv-vec2(0.0, st/ts.y), lod)-moonH(uv+vec2(0.0, st/ts.y), lod))/(2.0*aN*R);
+  vec3 n=normalize(b-dE*tE-dN*tN);
+  float m0=dot(n, sB), m0s=dot(b, sB), ls=max(m0, 0.0)/(max(m0, 0.0)+max(dot(n, vB), 0.02)), sh=1.0;
+  if(m0s>-0.15&&m0s<0.4){
+    vec3 dT=normalize(sB-b*m0s);
+    float e0=asin(m0s), h0=moonH(uv, lod), occ=-1.0, s=1.5*aN;
+    for(int k=0;k<14;k++){
+      float hk=moonH(moonUV(b*cos(s)+dT*sin(s)), max(lod, log2(s*ts.y*0.3183098862/3.0)));
+      float rr=(R+h0)*cos(e0)/max(cos(e0+s), 1e-3)-R;
+      occ=max(occ, atan(hk-rr, R*s));
+      s*=1.38;
+    }
+    sh=smoothstep(0.0047, -0.0047, occ);
+  }
+  return vec2(smoothstep(-0.02, 0.05, m0)*sh, 2.0*ls);
+}
 uniform vec4 obj[12];
 uniform vec4 pond[8];
 uniform float pondN;
@@ -921,13 +960,19 @@ void main(){
         // The globe (moon_surface.js moonMap) on the Moon's axes (moon.js moonAxes), so it
         // librates: longitude from the near side's middle, east positive, and latitude.
         vec3 sb=vec3(dot(nrm, moonE), dot(nrm, moonP), dot(nrm, moonM));
-        vec3 alb=texture(moonMap, vec2(atan(sb.x, sb.z)*0.1591549431+0.5, 0.5-asin(clamp(sb.y, -1.0, 1.0))*0.3183098862)).rgb;
-        float lit=smoothstep(-0.02, 0.05, dot(nrm,sd));
+        vec3 alb=texture(moonMap, moonUV(sb)).rgb;
+        float lit=smoothstep(-0.02, 0.05, dot(nrm,sd)), shade=1.0;
+        // Its relief, where the heights are in: slopes, shadows and the terminator's ragged edge.
+        if(moonRelief>0.5){
+          vec2 rl=reliefLight(sb, vec3(dot(sd, moonE), dot(sd, moonP), dot(sd, moonM)), -vec3(dot(md, moonE), dot(md, moonP), dot(md, moonM)), fov/res.y/moonRad);
+          // The albedo is display-encoded: the light's share is taken to the same curve.
+          lit=rl.x; shade=pow(rl.y, 0.4545);
+        }
         // The air in front of the Moon extincts it (blue first) and the sky
         // already drawn is that same air, so a bright sky veils the disk.
         float mu=max(sin(max(te,0.0)*0.01745329252), 0.04);
         vec3 T=exp(-vec3(0.12, 0.22, 0.48)/mu);
-        vec3 moonC=alb*(0.06+0.94*lit)*T;
+        vec3 moonC=alb*(0.06+0.94*lit*shade)*T;
         if(eclU.w>0.5){
           float t=length(vec2(x, y)-eclU.xy)*eclU.z;
           if(t<1.0) moonC=lin2s3(s2lin3(moonC)*s2lin3(textureLod(noiseTex, vec2((t*${LUN_LUT_N-1}.0+0.5)/128.0, 0.5/128.0), 0.0).gba));

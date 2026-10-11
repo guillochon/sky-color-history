@@ -434,6 +434,18 @@ function paintVR(){
   // The Moon's axes, for its libration (moon.js moonAxes).
   const mAx=skyNow.moon.ax||{E:[1,0,0], P:[0,0,1], M:[0,1,0]};
   gl.uniform3fv(u.moonE, mAx.E); gl.uniform3fv(u.moonP, mAx.P); gl.uniform3fv(u.moonM, mAx.M);
+  gl.uniform1f(u.moonRelief, moonReliefOn()&&String(vrGL.moonSrc).endsWith('+relief')?1:0);
+  // The limb's profile (moon_surface.js moonLimbSync) rides in the noise texture's rows 1-8, in
+  // green and blue (16 bits, ±LIMB_RANGE), the red keeping the noise.
+  moonLimbSync(skyNow.moon);
+  if(vrGL.limbGen!==moonLimbGen){
+    const b=vrGL.limbRows;
+    for(let i=0;i<LIMB_N;i++){ const v=Math.round(Math.max(0, Math.min(65535, (moonLimbProf[i]/LIMB_RANGE*0.5+0.5)*65535))); b[i*4+1]=v>>8; b[i*4+2]=v&255; }
+    gl.activeTexture(gl.TEXTURE12); gl.bindTexture(gl.TEXTURE_2D, vrGL.noiseTex);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 1, 128, 8, gl.RGBA, gl.UNSIGNED_BYTE, b);
+    gl.activeTexture(gl.TEXTURE0);
+    vrGL.limbGen=moonLimbGen;
+  }
   gl.uniform1f(u.latRad, LATDEG[dLat]*Math.PI/180);
   // The lunar eclipse's shadow table, sent once per epoch, and its place on the disk.
   // The table changes as the Moon moves through the shadow. It rides in the noise texture's first

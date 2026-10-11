@@ -110,10 +110,16 @@ function dayHours(){ return DAY_HOURS[EP[dIdx].key]||24; }
 const MOON_V_FULL=-12.73, MOON_V_SUN=-26.74, MOON_OPP=0.35, MOON_RE_NOW=60.14;
 const MOON_SUN_FULL=Math.pow(10, -0.4*(MOON_V_FULL-MOON_V_SUN));
 // The Moon's limb profile: relative change in its radius at position angle pa (radians from
-// north through east), mountains and valleys from a few fixed waves. Real limb relief is about
-// 0.2% of the radius; this is about three times that, so the beads show on the enlarged disk. Mirrored
-// in the sky shader as limbH.
-function limbH(pa){ return 0.002*Math.sin(7*pa+1.3)+0.00167*Math.sin(12*pa+4.1)+0.00133*Math.sin(19*pa+2.2)+0.001*Math.sin(29*pa+5.0)+0.00083*Math.sin(41*pa+0.7)+0.00067*Math.sin(57*pa+3.3)+0.0005*Math.sin(83*pa+1.9); }
+// north through east), from its heights as it is turned now (moon_surface.js moonLimbSync), read
+// between the profile's points; the sky shader reads the same profile as limbH.
+function limbH(pa){
+  const x=((pa/(2*Math.PI))%1+1)%1*LIMB_N, i=Math.floor(x), f=x-i;
+  return moonLimbProf[i%LIMB_N]*(1-f)+moonLimbProf[(i+1)%LIMB_N]*f;
+}
+// Until the heights are in, and for the molten Moon, mountains and valleys from a few fixed waves:
+// real limb relief is about 0.2% of the radius, and this is about three times that, as the real
+// profile is drawn.
+function limbFake(pa){ return 0.002*Math.sin(7*pa+1.3)+0.00167*Math.sin(12*pa+4.1)+0.00133*Math.sin(19*pa+2.2)+0.001*Math.sin(29*pa+5.0)+0.00083*Math.sin(41*pa+0.7)+0.00067*Math.sin(57*pa+3.3)+0.0005*Math.sin(83*pa+1.9); }
 // Apparent lunar radius at a distance of r Earth radii from the observer.
 function moonRadiusAt(r){ return Math.atan(MOON_R_KM/(r*EARTH_R_KM))*180/Math.PI; }
 // Apparent solar radius for the Sun's mean anomaly M: the mean radius over the Earth-Sun distance in AU,

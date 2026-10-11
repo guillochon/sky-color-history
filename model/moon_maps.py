@@ -17,9 +17,14 @@ Faces (MOON_MAPS keys), 4096 x 2048, longitude -180 at the left edge, north at t
   ma3800    3.8 Ga: also the maria part-flooded (moon_surface.js MARIA: onsets, and 150 Myr to go
   ma4000    4.0 Ga   dark), the flooded basins brought to the highlands' brightness and colour
   molten    the newborn Moon's magma ocean, 2048 x 1024 (molten_moon.js, run here with node)
+  relief    the heights, for the shading, the shadows and the limb (moon_surface.js MOON_RELIEF):
+            NASA SVS CGI Moon Kit ldem_16.tif, the LRO laser altimeter's (LOLA) heights over a
+            sphere of 1737.4 km, 16 pixels a degree (1.9 km), 5760 x 2880, in one byte from
+            RELIEF_LO to RELIEF_HI km (79 m a step), dithered so that slopes in the flat maria
+            under a low Sun do not band into contours; lossless
 Distances in the photograph's pixels are taken as angles at its centre, 0.114 degrees a pixel.
 
-Usage: python moon_maps.py <lroc_color_poles_4k.tif> [face ...]
+Usage: python moon_maps.py <lroc_color_poles_4k.tif> <ldem_16.tif> [face ...]
 """
 import re, subprocess, sys, tempfile
 from pathlib import Path
@@ -30,13 +35,14 @@ Image.MAX_IMAGE_PIXELS = None
 HERE = Path(__file__).resolve().parent
 SITE = HERE.parent / 'site'
 OUT = SITE / 'moon'
-SRC = sys.argv[1]
-ONLY = set(sys.argv[2:])
+SRC, DEM = sys.argv[1:3]
+ONLY = set(sys.argv[3:])
 LUM = np.array([0.2126, 0.7152, 0.0722], np.float32)
 MOON_HL = 0.755                    # the highlands' brightness in the photograph
 PHOTO_R = 0.98                     # the photograph's disk: its radius over half its width
 PX_DEG = np.degrees(1/(512*PHOTO_R))   # one photograph pixel at its centre, in degrees
 MARE_RAMP = 150
+RELIEF_LO, RELIEF_HI = -9.2, 10.9     # km, as moon_surface.js MOON_RELIEF
 
 
 def maria():
@@ -165,8 +171,19 @@ def save(name, rgb):
     print(f'{name}: {(OUT / f"{name}.webp").stat().st_size/1e6:.2f} MB')
 
 
+def relief():
+    h = np.asarray(Image.open(DEM), np.float32)
+    rng = np.random.default_rng(1)
+    q = np.clip(np.round((h-RELIEF_LO)/(RELIEF_HI-RELIEF_LO)*255+rng.uniform(-0.5, 0.5, h.shape)), 0, 255).astype(np.uint8)
+    OUT.mkdir(exist_ok=True)
+    Image.fromarray(q).save(OUT / 'relief.webp', lossless=True, method=6)
+    print(f'relief: {(OUT / "relief.webp").stat().st_size/1e6:.2f} MB, {h.min():.2f} to {h.max():.2f} km')
+
+
 def main():
     want = lambda n: not ONLY or n in ONLY
+    if want('relief'):
+        relief()
     if want('molten'):
         with tempfile.TemporaryDirectory() as td:
             raw = Path(td) / 'molten.rgb'

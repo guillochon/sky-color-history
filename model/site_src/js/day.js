@@ -89,6 +89,7 @@ function skySource(sza, az){
 function findBeads(moon, sunAz, sza, rSun, rMoon, sunUp){
   const out=new Float32Array(24), none={beads:out, beadW:0, beadDir:[0,0,1]};
   if(!sunUp) return none;
+  moonLimbSync(moon);
   const b=moonBasis(moon), sd=horizDir(sunAz, 90-sza), d2r=Math.PI/180;
   const cosSep=Math.max(-1, Math.min(1, vdot(sd, b.md))), sep=Math.acos(cosSep);
   if(sep>(rSun+rMoon*1.01)*d2r) return none;
