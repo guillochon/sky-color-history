@@ -1,6 +1,6 @@
 // Find (f): a box in the middle of the screen takes a name and offers the three best matches as
-// it is typed; Enter (or a click) turns and zooms the walk-around view to the one chosen in two
-// seconds, along van Wijk & Nuij's smooth path (pulling back for a long turn), until it fills half
+// it is typed, any below the horizon greyed and not to be chosen; Enter (or a click) turns and
+// zooms the walk-around view to the one chosen in two seconds, along van Wijk & Nuij's smooth path (pulling back for a long turn), until it fills half
 // the view: the Sun, the Moon, a planet or moon by its drawn disk (rings and all), a nebula or
 // galaxy by its tile's window, a constellation by its figure. A star or supernova, a point, ends in
 // a field FIND_POINT_FOV high. The view then follows it as the sky turns, until the look is moved.
@@ -13,7 +13,8 @@ const FIND_GREEK={α:'alpha', β:'beta', γ:'gamma', δ:'delta', ε:'epsilon', �
 // The flight or follow under way: what, from where, and the path.
 let vrFind=null;
 const findBox=document.getElementById('find'), findQ=document.getElementById('findq'), findList=document.getElementById('findlist');
-let findHits=[], findSel=0;
+// The matches shown, and which are up (only those can be chosen); the chosen one, or -1.
+let findHits=[], findUp=[], findSel=-1;
 function findNorm(s){
   return s.replace(/[α-ω¹²³]/g, c=>' '+FIND_GREEK[c]).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 }
@@ -125,7 +126,7 @@ function findSlerp(a, b, u){
 }
 function findStart(t){
   const w=findWhere(t);
-  if(!w) return;
+  if(!w||w.d[2]<=0) return;
   if(vrLockPin){ vrLockPin=null; syncVRLockBtns(); }
   const d0=horizDir(vrYaw, vrPitch), u1=Math.acos(Math.max(-1, Math.min(1, vdot(d0, w.d))));
   vrFind={t, d0, t0:0, flying:true, moved:0, movedAt:0, path:findPath(vrFov*Math.PI/180, findFov(w.diam)*Math.PI/180, u1)};
@@ -171,14 +172,17 @@ function findRender(){
     }
     findHits=scored.sort((a, b)=>b.r-a.r).slice(0, FIND_MAX).map(h=>h.c);
   }
-  findSel=0;
+  // Up is above the horizon as drawn (refracted); one below it is shown greyed and can't be chosen.
+  findUp=findHits.map(c=>{ const w=findWhere(c.t); return !!w&&w.d[2]>0; });
+  findSel=findUp.indexOf(true);
   findList.textContent='';
   findHits.forEach((c, i)=>{
-    const li=document.createElement('li'), w=findWhere(c.t), b=document.createElement('b'), s=document.createElement('span');
+    const li=document.createElement('li'), b=document.createElement('b'), s=document.createElement('span');
     li.id='findopt'+i; li.setAttribute('role', 'option');
-    b.textContent=c.name;
-    s.textContent=c.kind+(w&&w.el<0?' · below the horizon':'');
+    b.textContent=c.name+(findUp[i]?'':' (below horizon)');
+    s.textContent=c.kind;
     li.append(b, s);
+    if(!findUp[i]){ li.className='down'; li.setAttribute('aria-disabled', 'true'); li.addEventListener('mousedown', e=>e.preventDefault()); findList.append(li); return; }
     li.addEventListener('mousedown', e=>{ e.preventDefault(); findGo(c); });
     li.addEventListener('mousemove', ()=>{ if(findSel!==i){ findSel=i; findMark(); } });
     findList.append(li);
@@ -187,8 +191,8 @@ function findRender(){
   findMark();
 }
 function findMark(){
-  [...findList.children].forEach((li, i)=>li.setAttribute('aria-selected', i===findSel&&findHits.length?'true':'false'));
-  if(findHits.length) findQ.setAttribute('aria-activedescendant', 'findopt'+findSel); else findQ.removeAttribute('aria-activedescendant');
+  [...findList.children].forEach((li, i)=>li.setAttribute('aria-selected', i===findSel?'true':'false'));
+  if(findSel>=0) findQ.setAttribute('aria-activedescendant', 'findopt'+findSel); else findQ.removeAttribute('aria-activedescendant');
 }
 function openFind(){
   // In the walk-around view the box must be inside it, the full-screen element, to show.
@@ -216,9 +220,10 @@ findQ.addEventListener('keydown', e=>{
   if(e.key==='Escape'){ e.preventDefault(); closeFind(); }
   else if(e.key==='ArrowDown'||e.key==='ArrowUp'){
     e.preventDefault();
-    if(findHits.length){ findSel=(findSel+(e.key==='ArrowDown'?1:findHits.length-1))%findHits.length; findMark(); }
+    const n=findHits.length, step=e.key==='ArrowDown'?1:n-1;
+    if(findSel>=0){ let i=findSel; do i=(i+step)%n; while(!findUp[i]); findSel=i; findMark(); }
   }
-  else if(e.key==='Enter'){ e.preventDefault(); const c=findHits[findSel]; if(c) findGo(c); }
+  else if(e.key==='Enter'){ e.preventDefault(); const c=findSel>=0&&findHits[findSel]; if(c) findGo(c); }
 });
 findQ.addEventListener('keyup', e=>e.stopPropagation());
 findQ.addEventListener('blur', ()=>setTimeout(()=>{ if(document.activeElement!==findQ) closeFind(); }, 0));
