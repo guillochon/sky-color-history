@@ -13,7 +13,7 @@ MOON_ORBIT = [
 "The Moon raises tides on the Earth, and the tidal bulge, carried ahead of it by the Earth's spin, "
 "pulls it forward: the Moon has been receding ever since it formed, today by 3.8 cm a year, while the "
 "Earth's day lengthens. Run back, the Moon was closer and bigger, its month shorter, and the day "
-"shorter too. The page takes the distance from Farhat et al. (2022), whose tidal model fits both the "
+"shorter too. We take the distance from Farhat et al. (2022), whose tidal model fits both the "
 "present recession and the geological record of tidal rhythmites, back to 3.2 Ga, where Eulenfeld &amp; "
 "Heubeck (2023) find 70% of today's distance in the Moodies Group rhythmites; older ages extend the "
 "long-term drift. At 4.5 Ga, some ten million years after the giant impact, the Moon is still at about "
@@ -32,7 +32,7 @@ MOON_ORBIT = [
 "days. The proto-Earth of 4.55 Ga has no Moon; how fast it turned before the impact cannot be known, and "
 "its 12-hour day is a guess.",
 
-"The orbit's tilt to the ecliptic also changed. The page carries today's 5.15° back along these distances "
+"The orbit's tilt to the ecliptic also changed. We carry today's 5.15° back along these distances "
 "with the semi-analytic tidal model of Ćuk et al. (2016): the Earth's tides tilt the orbit less as the Moon "
 "recedes, and tides raised in the Moon itself damp the tilt, most strongly near 33 Earth radii, where the "
 "Moon's own obliquity swings large. The orbit comes out a little steeper in the past, 5.5° at 2.7 Ga and "
@@ -130,7 +130,7 @@ PLANETS_WHERE = [
 "Nesvorný &amp; Morbidelli (2012): Jupiter at 5.6 AU and Saturn at 7.34 AU in a 3:2 resonance, a fifth giant "
 "at 9.62 AU, Uranus at 15.3 and Neptune at 20 AU, each in resonance with the next. The fifth giant, an ice "
 "giant like Neptune that Jupiter threw out of the Solar System in the instability (Nesvorný 2011), is named "
-"here Oceanus. The 4.5 Ga sky takes the instability to have come late enough, near 4.5 Ga, to keep it; "
+"here Oceanus. For the 4.5 Ga sky we take the instability to have come late enough, near 4.5 Ga, to keep it; "
 "the bombardment ages argue against that, as the 4.55 Ga sky's account says.",
 
 "Theia, the Mars-sized body whose collision with the proto-Earth made the Moon, is a wandering planet in "
@@ -208,7 +208,7 @@ SATURN = [
 "the B ring's. Edge-on, the rings thin below a pixel.",
 
 "The rings are young. How young is still argued, 100 to 400 million years (Iess et al. 2019; Kempf et al. "
-"2023), and the page takes the account of Wisdom et al. (2022): an icy moon the size of Iapetus, named "
+"2023), and we adopt the account of Wisdom et al. (2022): an icy moon the size of Iapetus, named "
 "Chrysalis, orbiting between Titan and Iapetus in a 3:1 resonance with Titan, was torn apart about 160 "
 "million years ago, freeing Saturn's tilt from Neptune's pull and making the rings of its debris. So the "
 "rings appear in the 66 Ma sky and after, and before them Chrysalis is a moon of magnitude 13 to 14 beside "
@@ -304,7 +304,7 @@ SUPERNOVAE = [
 # ---------------------------------------------------------------------------------------------------
 SUN_YOUNG = [
 "The Sun has brightened by about 30% since the Earth formed, as hydrogen burning has raised the density and "
-"temperature of its core. The page follows the 1 M☉ track of Baraffe et al. (2015): 68% of today's light and "
+"temperature of its core. We follow the 1 M☉ track of Baraffe et al. (2015): 68% of today's light and "
 "5,530 K at 4.5 Ga, 80% and 5,660 K at 2.7 Ga, 94% at 700 Ma, today's 5,772 K by the Cenozoic. Its radius "
 "follows from the luminosity and temperature: 0.90 of today's at 4.5 Ga, 0.93 at 2.7 Ga, 0.98 at 700 Ma, so the "
 "young Sun's disk was smaller as well as dimmer, and the closer Moon covered it easily. The 4.55 Ga Sun is "
@@ -420,7 +420,7 @@ SATELLITES = [
 # ---------------------------------------------------------------------------------------------------
 INTRO = [
 "What did the sky look like from the ground in the Archean, under the young Sun, with the Moon nearer? "
-"This report reconstructs the whole view from Earth's surface at nineteen moments in its history, from a "
+"We reconstruct the whole view from Earth's surface at nineteen moments in its history, from a "
 "proto-Earth 17 million years after the first solids to the year 2100: the color of the sky by day and at dusk, "
 "computed with a spectral radiative-transfer model of each epoch's air, and on that sky everything else that "
 "could be seen from the ground: the Sun and its spots, the Moon's size, face and eclipses, the planets and their "
@@ -442,7 +442,7 @@ INTRO = [
 "planets went unstable and whether a fifth giant was lost; how far away the Moon was in its first hundred "
 "million years; how thick the Archean haze was and how much ozone the first oxygen made; how old Saturn's rings "
 "are; whether the Earth had a ring in the Ordovician; how bright the young Sun's corona and wind were. Where the "
-"literature disagrees, the report says which reading it takes and why, and as the consensus moves the site and "
+"literature disagrees, we say which reading we take and why, and as the consensus moves the site and "
 "this report will move with it: epochs will be redrawn, numbers revised and new findings added. Each version "
 "carries its date, and the code and data that produce it are public, so any figure here can be traced to the "
 "model and the sources behind it.",
@@ -460,10 +460,15 @@ INTRO = [
 "zooms in on them. Other compromises are made for the eye: the Sun and Moon are drawn at four times their size, "
 "the sunset's colors are spread further apart than they are, and the Sun's limb darkening is softened. Each "
 "section says where its subject is measured, modeled or approximated.",
+
+"In {ref:method} we describe how the view is reconstructed. {ref:sky} gives the sky's colors by day and at dusk, "
+"and {ref:sun} through {ref:people} take in turn the Sun, the Moon, the planets, the stars and the Galaxy, the "
+"night and what crosses it, and the sky people made. {ref:epochs} goes through the epochs one by one, and "
+"{ref:caveats} says what the reconstruction leaves out and which of its numbers are estimates.",
 ]
 
 METHOD_VIEW = [
-"The sky's colors come from the radiative-transfer model described below; the rest of the view is drawn on "
+"The sky's colors come from the radiative-transfer model described above; the rest of the view is drawn on "
 "them by the interactive site, in two views: a dome, the whole sky as a fisheye, and a first-person view in "
 "WebGL, with a walkable ground and clouds. Both draw on one photometric scale, calibrated in absolute units: the "
 "clear zenith with the Sun 45° up is 2.7 kcd/m², which puts the full-Moon sky at the measured 18 mag/arcsec². "

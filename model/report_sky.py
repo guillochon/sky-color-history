@@ -30,7 +30,7 @@ SECTIONS = [
 "1.11 times in the oxygen-rich Carboniferous and 0.83 times in Snowball Earth's thinner air, so the Sun sets later "
 "or earlier by a minute or two. The 30-bar Hadean air is 47 times as refractive as today's: a horizontal ray bends "
 "faster than the ground curves and is trapped (ducting), but its Sun is lost in Rayleigh scattering long before "
-"it reaches the horizon, so the drawing holds the bending to three times today's.",
+"it reaches the horizon, so we hold the drawn bending to three times today's.",
 "Each evening also has its own layering of the low air, set by the date so that a given evening always sets the "
 "same way. Thin temperature inversions step the disk's edge, show a strip of it twice (once inverted) where the "
 "rays cross, and draw a dark line across it where trapped rays run through the densest air; over warm water the "
@@ -144,7 +144,7 @@ SECTIONS = [
 "haze leaves a dim brown-red Moon near V = +5.",
 "Two effects are new to the deep past. The closer Moon sat nearer the Earth than the refracted light comes to a "
 "focus (about 300,000 km today, past the Moon's 384,000), so the middle of the shadow is reached only by rays "
-"skimming the ground and goes dark: at 3.8 Ga the center of the shadow is a hundred million times fainter than its "
+"skimming the ground and goes dark: at 3.8 Ga the center of the shadow is a hundred million times fainter than "
 "its edge, a dark core in a glowing ring. And the 30-bar Hadean air is so refractive that below about 19 km its "
 "rays are trapped and run round the planet, while the upper air bends light strongly enough to fill the whole "
 "umbra of a Moon some 39 Earth radii out, an even, deep red at V = −1.7; but the Moon of 4.5 Ga, only 8 Earth radii "
@@ -184,11 +184,11 @@ SECTIONS = [
 "The model is calibrated in absolute units (the clear zenith with the Sun 45° up is 2.7 kcd/m², which puts the "
 "full-Moon sky at the measured 18 mag/arcsec²), so the night can be drawn on the same scale as the day. The sky is "
 "computed for Sun heights down to 20° below the horizon; past 9° below, where the model's twilight fades too "
-"slowly, it is made to dim by about a magnitude per "
+"slowly, we make it dim by about a magnitude per "
 "degree, as measured. Without the Sun or Moon the sky has its own light: today 22.0 mag/arcsec² at a dark zenith "
 "(Leinert et al. 1998), half of it starlight and zodiacal light and half airglow, brighter toward the horizon.",
 "Nearly all of today's airglow needs free oxygen: the 557.7 nm green and 630 nm red lines of oxygen atoms, the "
-"hydroxyl bands (H + O₃), the sodium D lines cycled through ozone, and the NO₂ continuum. It is taken as 90% of "
+"hydroxyl bands (H + O₃), the sodium D lines cycled through ozone, and the NO₂ continuum. We take it as 90% of "
 "today's at 466 Ma, 80% in the Snowball epoch (169 DU of ozone and less O₂), and 30% at 2.2 Ga, where 1% of "
 "today's oxygen leaves few atoms near 95 km. Before the Great Oxidation it is gone, replaced by a faint violet glow "
 "of the O₂ Herzberg II bands from oxygen split off CO₂, as on Venus (Krasnopolsky 1983): about as many photons as "
@@ -248,7 +248,7 @@ SECTIONS = [
 "the Leonids of 1799 to 2002, the Andromedids of 1872 and 1885, the Draconids of 1933 and 1946 and others "
 "(Jenniskens 1995 and the IMO's analyses), with the Leonid peaks predicted for 2034. Showers last thousands of "
 "years, so the older epochs have their own, drawn at random with the geometry, speeds and profiles of today's and "
-"outbursts at today's rate, about 0.5 a year above ZHR 100 and one in 45 years above 10,000. Their number is taken "
+"outbursts at today's rate, about 0.5 a year above ZHR 100 and one in 45 years above 10,000. We take their number "
 "to follow the comets that feed them: three quarters from short-period comets, a quarter from long-period ones "
 "(only about a fifth of known streams have an identified parent; Ye &amp; Jenniskens 2024), giving about 30 times "
 "today's at 4.5 Ga, 5 at 4.0 Ga, today's by 2 Ga and 1.75 at 1.78 Ma, in the comet shower after a star's passage. "
