@@ -236,7 +236,8 @@ vec3 jupiterAlbedo(float lat, float lon, float pxD, float glon){
     vec3 red=mix(vec3(0.88, 0.55, 0.38), vec3(0.80, 0.38, 0.25), smoothstep(0.2, 0.8, e));
     red*=(1.0+0.5*dye*gT)*(1.0-0.22*smoothstep(0.8, 0.95, e));
     red=mix(red, vec3(0.92, 0.70, 0.55), smoothstep(0.12, 0.35, dye)*0.45*(1.0-smoothstep(0.6, 0.85, e)));
-    c=mix(c, red, grsAB.w*ins);
+    // A paler spot (grsAB.w under 1) fades toward pale salmon, not the clouds wound up beneath it.
+    c=mix(c, mix(vec3(0.93, 0.86, 0.78)*(1.0+0.15*dye*gT), red, grsAB.w), ins);
   }
   // The North Equatorial Belt's southern edge, about 7°N: dark blue-grey hot spots, gaps in the
   // clouds a few degrees long, and from some of them thin festoons curving west and down across the
