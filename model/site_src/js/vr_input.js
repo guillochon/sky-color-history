@@ -128,7 +128,7 @@ function lockLook(){
   const p=document.getElementById('vrc').requestPointerLock(); if(p&&p.catch) p.catch(()=>{});
 }
 function exitVR(){
-  if(!vrOn) return; if(momentClouds!==null){ vrClouds=momentClouds; momentClouds=null; } aurActive=false; hideVRLoad(); if(vrGL&&vrGL.note) vrGL.note=''; if(vrInspect) setInspect(false, true); clearVRPins(); hideVRTip(); clearInterval(vrInspectTimer); vrInspectTimer=0; vrHoldEsc(false); vrOn=false; stopVRMusic(); vrRelock=false; vrLinkKey=''; vrHeld.clear(); endStick(); document.getElementById('sunmark').hidden=true; document.getElementById('moonmark').hidden=true; document.getElementById('snmark').hidden=true; if(vrWalk){ cancelAnimationFrame(vrWalk); vrWalk=0; }
+  if(!vrOn) return; if(momentClouds!==null){ vrClouds=momentClouds; momentClouds=null; } aurActive=false; hideVRLoad(); if(vrGL&&vrGL.note) vrGL.note=''; if(vrInspect) setInspect(false, true); vrFind=null; closeFind(); clearVRPins(); hideVRTip(); clearInterval(vrInspectTimer); vrInspectTimer=0; vrHoldEsc(false); vrOn=false; stopVRMusic(); vrRelock=false; vrLinkKey=''; vrHeld.clear(); endStick(); document.getElementById('sunmark').hidden=true; document.getElementById('moonmark').hidden=true; document.getElementById('snmark').hidden=true; if(vrWalk){ cancelAnimationFrame(vrWalk); vrWalk=0; }
   if(!vrNav) clearVRLink();
   const root=document.getElementById('vr'); root.classList.remove('on','locked'); root.setAttribute('aria-hidden','true');
   document.body.style.overflow='';
@@ -267,6 +267,7 @@ document.addEventListener('keydown',e=>{
     if(k==='h'&&!e.repeat){ e.preventDefault(); vrScenery=!vrScenery; requestVR(); syncVRPad(); return; }
     if(k==='c'&&!e.repeat){ e.preventDefault(); vrClouds=!vrClouds; momentClouds=null; requestVR(); syncVRPad(); return; }
     if(k==='l'&&!e.repeat){ e.preventDefault(); vrLabels=!vrLabels; requestVR(); syncVRPad(); return; }
+    if(k==='f'&&!e.repeat){ e.preventDefault(); openFind(); return; }
     if(k==='q'&&!e.repeat&&!vrTouch){ e.preventDefault(); setInspect(!vrInspect); return; }
     if(e.key==='Escape'){ e.preventDefault(); if(vrInspect) setInspect(false); else exitVR(); return; }
     if(e.key===' ' && !e.repeat){ e.preventDefault(); hplay.click(); return; }
@@ -284,7 +285,7 @@ document.addEventListener('keydown',e=>{
   }
   // The page has VR's keys for time and eras: space plays or pauses the day, ← and → step it by
   // five minutes, ↑ and ↓ (or [ and ]) change era, e and t jump to the next eclipse, u and b to the next
-  // lunar one, n to the next meteor shower. Not while
+  // lunar one, n to the next meteor shower, f finds something in the sky (find.js). Not while
   // typing, with the date picker open, or on a control that uses the key itself; with a modifier,
   // the browser's own.
   const t=document.activeElement, tag=t&&t.tagName;
@@ -296,6 +297,7 @@ document.addEventListener('keydown',e=>{
     ArrowUp:()=>stepEpoch(1), ']':()=>stepEpoch(1), ArrowDown:()=>stepEpoch(-1), '[':()=>stepEpoch(-1),
     e:()=>{ if(!e.repeat) jumpNextEclipse(false); }, t:()=>{ if(!e.repeat) jumpNextEclipse(true); },
     u:()=>{ if(!e.repeat) jumpNextLunarEclipse(false); }, b:()=>{ if(!e.repeat) jumpNextLunarEclipse(true); }, n:()=>{ if(!e.repeat) jumpNextShower(); },
+    f:()=>{ if(!e.repeat) openFind(); },
     1:()=>setPlaySpeed('real'), 2:()=>setPlaySpeed('default'), 3:()=>setPlaySpeed('fast')}[k];
   if(act){ e.preventDefault(); act(); }
 });
@@ -681,9 +683,11 @@ function vrPinDir(p){
 }
 // Where a pinned thing is on the page now, or null when it is out of view, set or gone.
 function vrPinPoint(p){ const q=vrPinDir(p); return q&&q.on?vrPointOf(q.d):null; }
-// Before each paint: drop the pins whose bodies have set, and turn a locked view to its pin.
+// Before each paint: drop the pins whose bodies have set, turn a view flying to or following
+// something found to it (find.js), and turn a locked view to its pin.
 function lockVRView(){
   for(const p of vrPins.slice()){ const q=vrPinDir(p); if(q&&q.el<-PIN_SET_DEG) unpinVRTip(p); }
+  findStep();
   const q=vrLockPin&&vrPinDir(vrLockPin);
   if(!q) return;
   vrYaw=(Math.atan2(q.d[0], q.d[1])*180/Math.PI+360)%360;

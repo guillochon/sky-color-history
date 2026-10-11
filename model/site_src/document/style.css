@@ -66,6 +66,18 @@ button.tick.on{background:none;color:var(--ink)}
 #vr #vrlabels{z-index:1;pointer-events:none}
 #vrload{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:8;padding:.6em 1.1em;border-radius:999px;background:rgba(0,0,0,.6);color:#fff;font-size:1.05rem;pointer-events:none;white-space:nowrap}
 #vrload[hidden]{display:none}
+#find{position:fixed;left:50%;top:calc(50% - 2.4rem);transform:translateX(-50%);z-index:60;width:min(34rem,calc(100vw - 2rem));box-sizing:border-box;padding:.75rem;border-radius:12px;background:rgba(12,15,22,.88);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.2);box-shadow:0 12px 40px rgba(0,0,0,.6);color:#fff;cursor:auto;user-select:text;-webkit-user-select:text}
+#find[hidden]{display:none}
+#findq{display:block;width:100%;box-sizing:border-box;font:inherit;font-size:2rem;line-height:1.2;padding:.3rem .55rem;border-radius:8px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.07);color:#fff;outline:none}
+#findq:focus{border-color:rgba(255,255,255,.6)}
+#findq::placeholder{color:rgba(255,255,255,.42)}
+#findlist{list-style:none;margin:.45rem 0 0;padding:0}
+#findlist:empty{display:none}
+#findlist li{display:flex;align-items:baseline;justify-content:space-between;gap:1rem;padding:.4rem .55rem;border-radius:7px;font-size:1.35rem;cursor:pointer}
+#findlist li b{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#findlist li span{flex:none;font-size:.95rem;opacity:.7}
+#findlist li[aria-selected=true]{background:rgba(255,255,255,.17)}
+#findlist li.none{cursor:default;opacity:.6;font-size:1.1rem}
 #vr .tip canvas{position:static;inset:auto}
 #vr canvas{position:absolute;inset:0;width:100%;height:100%;cursor:none}
 .aim{position:absolute;width:36px;height:36px;margin:-18px 0 0 -18px;pointer-events:none;color:#fff}

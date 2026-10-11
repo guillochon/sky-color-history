@@ -206,6 +206,7 @@ PARTS = [
     'js/roads.js',
     'js/vr_hud.js',
     'js/vr_input.js',
+    'js/find.js',
     'js/moments.js',
     'js/boot.js',
     'document/tail.html',

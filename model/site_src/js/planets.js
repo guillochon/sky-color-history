@@ -245,6 +245,9 @@ function grsAt(Y){
 }
 // Whether a moon is hidden behind its host's drawn disk, in the view showing.
 function markHidden(s){ return !!s.host&&s.behind&&s.rho<(vrOn?DISK_SCALE:bodyScale(dome)); }
+// Where every planet and moon of the last render is, set or not, for find (find.js): true
+// altitude, azimuth and angular radius, by name.
+const BODY_WHERE=new Map();
 // Write the planets and their moons into the marks and the walk-around view's bodies. Positions
 // are J2000, precessed to the same year as the stars so they sit correctly among them; each J2000
 // direction (a pole, the way to the Sun) is turned into the local horizon frame the same way.
@@ -258,6 +261,7 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
   const toRaDec=v=>{ const m=Math.hypot(...v); return [(Math.atan2(v[1], v[0])*180/Math.PI+360)%360, Math.asin(v[2]/m)*180/Math.PI]; };
   const horiz=v=>{ const [ra, dec]=toRaDec(v), place=starMeanPlace([ra, dec, 0, 0, 0, 0], epochKey, year), p=raDecAltaz(lat, place.ra, place.dec, LST); return {az:p.az, alt:p.alt, ra:place.ra, dec:place.dec, dir:horizDir(p.az, p.alt)}; };
   const early=!!PRE_INSTABILITY[epochKey];
+  BODY_WHERE.clear();
   PLANETS.forEach(([name, el0, rate0, tint], k)=>{
     const [Rkm, flat, pra, pdec]=PLANET_BODY[k], [el, rate]=early?earlyOrbit(name, el0, rate0):[el0, rate0];
     const h=planetHelio(phases?el.map((v, n)=>n===3?v+phases.planets[k]:v):el, rate, T), g=[h[0]-earth[0], h[1]-earth[1], h[2]-earth[2]];
@@ -268,6 +272,7 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
     const mag=planetMag(name, r, d, i, ringSinB)+dimMag;
     const p=horiz(q);
     const radDeg=Math.atan(Rkm/(d*PL_AU_KM))*180/Math.PI, show=planetDisplay(mag, tint);
+    BODY_WHERE.set(name, {az:p.az, el:p.alt, radDeg, rings:ringed, mag});
     // The Red Spot, in the epochs with a calendar, where the light now arriving left it: its
     // longitude's direction in the planet's equator (System II turns 870.270 degrees a day from
     // 43.3 at J2000; a place at west longitude lon is W-lon on from the equator's node).
@@ -299,6 +304,8 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
         const om=Math.hypot(...off);
         body.shadows.push({m:vscale(horiz(off).dir, om/Rkm), rm:m[2]/Rkm, a:696000/(r*PL_AU_KM)});
       }
+      // Found even while eclipsed or set.
+      { const at=q.map((v, n)=>v*PL_AU_KM+off[n]), w=horiz(at), dw=Math.hypot(...at); BODY_WHERE.set(m[0], {az:w.az, el:w.alt, radDeg:Math.atan(m[2]/dw)*180/Math.PI, host:name, mag:m[3]+5*Math.log10(r*dw/PL_AU_KM)}); }
       // In the host's shadow (a cylinder of its radius away from the Sun): eclipsed.
       const sAlong=vdot(off, sunFrom), sPerp=vscale(vadd(off, vscale(sunFrom, -sAlong), [0, 0, 0]), 1/Rkm);
       if(sAlong<0&&Math.hypot(sPerp[0], sPerp[1], sPerp[2]/(1-flat))<1) return;
@@ -329,6 +336,7 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
     // A giant's phase law (Neptune's: none), or a rocky body's (Mars's).
     const mag=H+5*Math.log10(r*d)+(kind===BODY_MOON?0.016*i:0)+dimMag, p=horiz(q);
     const radDeg=Math.atan(Rkm/(d*PL_AU_KM))*180/Math.PI, show=planetDisplay(mag, tint);
+    BODY_WHERE.set(name, {az:p.az, el:p.alt, radDeg, mag});
     const body={grs:null, meridian:null, map:null, dir:p.dir, rad:radDeg*Math.PI/180, light:vnorm(horiz(eq(h.map(v=>-v))).dir), pole:horiz(pole).dir, kind, px:show.px, rgb:show.rgb, mag, front:d<R, shadows:[], rings:false, tint};
     if(p.alt>0){
       marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb, planet:name, mag, ra:p.ra, dec:p.dec, radDeg, lit:(1+Math.cos(i*Math.PI/180))/2, body, kind, rings:false, unknown:!!phases, ageMa, tint});
