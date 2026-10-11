@@ -1,0 +1,58 @@
+---
+description: Write paper prose in James Guillochon's style
+globs: latex/**/*.tex,model/report_*.py,model/eclipse_report.py
+alwaysApply: false
+---
+
+# Paper prose
+
+Apply this when writing or revising paper prose: the report, the LaTeX, abstracts, and figure captions. Leave code, identifiers, and commit messages alone. Copy the voice and the shape of an argument. Do not import subject matter, numbers, or pet phrases from any particular paper.
+
+Drawn from the five most recent first-author papers (two 2026 preprints, the 2018 MOSFiT paper, and two 2018 research notes). Prefer the later habit when they differ: start at the constraint, and let the abstract carry the result.
+
+## How a section moves
+
+Open on the constraint or the result. Do not open on the state of the field, a history of interest, or "it is important to note."
+
+The abstract is the argument in miniature. One step per sentence. Put the number in the sentence that needs it. End on what an observation would see, or on what actually sets the limit.
+
+Close the introduction with a roadmap in running prose: "In § we …, § describes …, and § concludes." Do not write "This paper is organized as follows."
+
+A section's first sentence says what that section does. Titles are noun phrases, or the question the section answers.
+
+Rejected alternatives stay in one paragraph, labeled (i), (ii), (iii). Say why each fails, then a short sentence for what is left. Bullets are for predictions, design goals, or a genuine list, not for the argument.
+
+After a calculation, name the quantity that sets the limit, and say which larger class that limit does not restrict. Separate the robust piece from the incidental one: the slope can be stable while the normalization carries the uncertainty; an order of magnitude can be the result while a near-coincidence of two timescales is not.
+
+Say what you have not shown. A caveat names the simplification, the factor it moves, and whether the central result survives.
+
+A discussion subsection is one claim, the observation that would test it, and the objection, answered. Close a list of conditions with what they jointly require.
+
+A short note proceeds in the order the evidence was examined and ends on the classification: "Given the preponderance of evidence, …." A tool paper states the gap, then what the tool does in one sentence, then a numbered list of goals, then one line that reduces those goals to adjectives.
+
+## Sentences
+
+First person plural. Decisions are stated as decisions: we adopt, we take, we round, we treat these two cases as the envelope.
+
+The typical sentence is about thirty words: a main clause and one qualifying clause (because, so, which, where). A sentence under fifteen words is for landing the point, not the default. Semicolons are common; use one to attach a second claim that belongs with the first, about once every few sentences, not in every sentence. A colon introduces the consequence. Em dashes set off a list of conditions, sparingly.
+
+Put the comparison in the same sentence as the number: orders of magnitude, a factor of a few, above or below the value a reader already knows. The sentence after an equation gives the number at the fiducial and what it implies. Introduce a normalized symbol once.
+
+Concrete verbs. A choice pins, brackets, misses, or stops. The formality is in the precision.
+
+Italicize the single word that carries a contrast. One hedge, attached to the quantity that is uncertain. Do not stack may, might, and could.
+
+Useful turns, used because the logic needs them: "The same X that sets Y also sets Z." "This departs from the picture above, and the solution forces it." "We note in advance that …." "Two features deserve emphasis. First, … Second, …." "Several things temper this." "We do not claim …." "We have not shown that …." "We do not develop that here."
+
+Citations sit on the clause they support. Name earlier work of your own, then alias it.
+
+Figure captions are arguments: what is plotted, the threshold, and the conclusion a reader can take without the body text.
+
+## Do not
+
+No throat-clearing, no stacked adjectives, no "utilize," "leverage," "foster," or "it is worth noting." Do not break a derivation into one-sentence paragraphs. Do not copy grammatical slips from drafts. American spelling is already required.
+
+```text
+Bad:  In recent years there has been growing interest in this process. It is important to note that several mechanisms may potentially play a role, which could have important implications for the field.
+Good: The obvious arrangement fails on intensity. Spreading the load until the hardware can bear it takes a larger aperture; the published loading takes a larger one still. We treat the two as an envelope. The limit applies to that arrangement. We have not shown that it applies to the process as a class.
+```
