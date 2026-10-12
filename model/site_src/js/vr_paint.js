@@ -1022,7 +1022,8 @@ function uploadBodies(gl, u){
   const inView=i=>{ const r=Math.tan(list[i].rad); return Math.abs(S[i*4])<fx+r&&Math.abs(S[i*4+1])<fy+r; };
   if(list.some((b, i)=>b.kind===3&&radPx(b)>20&&inView(i))) wantDetail(gl, 'jup');
   if(list.some((b, i)=>b.kind===4&&radPx(b)>20&&inView(i))) wantDetail(gl, 'sat');
-  if(list.some((b, i)=>b.kind===6&&radPx(b)>20&&inView(i))) wantDetail(gl, 'nep');
+  const nb=list.find((b, i)=>b.kind===6&&radPx(b)>20&&inView(i));
+  if(nb) wantDetail(gl, 'nep', nb.era&&nb.era[3]?"Oceanus's clouds":"Neptune's clouds");
   list.forEach((b, i)=>{ if(b.map&&radPx(b)>5&&inView(i)){ wantSurface(b.map); wantDetail(gl, 'map'); } });
   gl.uniform4fv(u.bodyP, P); gl.uniform4fv(u.bodyC, C); gl.uniform4fv(u.bodyL, L); gl.uniform4fv(u.bodyN, N); gl.uniform4fv(u.bodyS, S); gl.uniform4fv(u.bodyM, Mr);
   gl.uniform1f(u.bodyCnt, list.length); gl.uniform1f(u.moonGain, moonGain());

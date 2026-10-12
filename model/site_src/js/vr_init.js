@@ -40,14 +40,15 @@ function markSlow(job, prog, label){ if(prog && job.cold) vrSlow.set(prog, label
 // skyDetail), put in place of the one drawing; 'jup', 'sat' or 'map' a program for the bodies' pass
 // (shader_bodies.js bodyFS) drawing Jupiter, Saturn or the mapped bodies, beside the plain one. The
 // compile can hold up the screen, so a note naming the piece goes up first and stays until the
-// program's first draw (paintVR).
+// program's first draw (paintVR). name, when given, is what the note calls it (Oceanus's clouds come
+// from Neptune's program).
 const VR_DETAIL_NAMES={sun:"the Sun's surface", jup:"Jupiter's clouds", sat:"Saturn's clouds", nep:"Neptune's clouds", map:'the surface maps'};
-function wantDetail(gl, f){
+function wantDetail(gl, f, name=VR_DETAIL_NAMES[f]){
   if(!vrGL) return;
   const w=vrGL.detailWant||(vrGL.detailWant=new Set());
   if(w.has(f)) return;
   w.add(f);
-  const note='Loading '+VR_DETAIL_NAMES[f]+'…';
+  const note='Loading '+name+'…';
   vrGL.detailNotes=(vrGL.detailNotes||[]).concat([note]);
   showVRLoad(note);
   afterPaint(()=>{
@@ -62,7 +63,7 @@ function wantDetail(gl, f){
           vrGL.u=setupSkyProg(gl, dp); vrGL.prog=dp; vrGL.detailOn=true; gl.deleteProgram(old);
           skyUploaded=-1;
         }else (vrGL.bodyProg||(vrGL.bodyProg={}))[f]=setupBodyProg(gl, dp);
-        markSlow(job, dp, VR_DETAIL_NAMES[f]);
+        markSlow(job, dp, name);
         vrRestoreGL(gl);
       }
       vrGL.detailDone=(vrGL.detailDone||[]).concat([note]);
