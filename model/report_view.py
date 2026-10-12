@@ -335,12 +335,21 @@ SUN_CLOSE = [
 "inside faculae; penumbral filaments a few thousand kilometers long; umbral dots about 1,000 K hotter than the umbra "
 "around them; and toward the limb the supergranular network, cells some 30,000 km across outlined by brightenings. "
 "Spot and plage edges are ragged down to the pixel. This fine structure is the same in every epoch; only the spots "
-"and faculae change with the Sun's age.",
+"and faculae change with the Sun's age ({ref:fig:sun}).",
 "In the first-person view a Sun near full daylight is not drawn as a disk at all but as the eye sees it: a "
 "blinding white blank tinted the epoch's color, in a bloom that whitens the sky around it. Zooming in, as through "
 "a filter, dims it to the real disk, and the glare eases off as the Sun sets or is eclipsed, until the corona and "
 "Baily's beads take over.",
 ]
+
+SUN_CAPTION = ("The Sun's surface at four epochs, as the site's telescope view draws it at noon through each epoch's "
+"air (sun_figs.py). Top: the whole disk. Middle: its largest spot group. Bottom: that group's largest umbra. "
+"Widths are in km on the Sun, since the site draws the Sun at four times its size. The 17-million-year-old Sun "
+"of 4.55 Ga, orange through the proto-Earth's dusty air, is spotted over a tenth of its surface, its spots at "
+"high latitudes and a dark cap over the pole; at 3.8 Ga spots are on the disk every day; by 2.2 Ga a few groups "
+"keep to the butterfly's latitudes; today's disk is the real cycle 25 near its maximum. Close up the structure "
+"is the same in every epoch: granulation and its network around the spots, penumbral filaments, umbral dots, "
+"and in the 3.8 Ga spot a light bridge of granules.")
 
 MOONLIGHT = [
 "Moonlight is the same sky model with the Moon in place of the Sun, scaled by the lunar phase (the Allen phase law "

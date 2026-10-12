@@ -408,6 +408,7 @@ def blocks():
     B.append(S('Sunspots')); B += ps(*RS['Sunspots'])
     B.append(tab(rs.SUNSPOT_HEAD, rs.SUNSPOT, rs.SUNSPOT_CAPTION, 'tab:sunspots', spec='p{2.3cm}rrrYrr'))
     B.append(S('The Sun close up')); B += ps(*rv.SUN_CLOSE)
+    B.append(fig(ROOT.parent / 'latex' / 'figures' / 'sun_closeup.jpg', rv.SUN_CAPTION, 'fig:sun'))
     B.append(S('The setting Sun')); B += ps(*RS['The setting Sun'])
     B.append(S('Solar eclipses')); B += ps(*RS['Solar eclipses'])
 
