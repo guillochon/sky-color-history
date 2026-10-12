@@ -111,6 +111,22 @@ function moonTexPixels(m){
 // enlarged disk (DISK_SCALE). Made again when the Moon has turned by
 // 0.06° or so; moonLimbGen counts the profiles.
 const LIMB_N=1024, LIMB_X=2, LIMB_RANGE=0.03, moonLimbProf=new Float32Array(LIMB_N);
+// The molten Moon's shape: still fluid, and turning once in its 32-hour orbit at 8 Earth radii, it
+// is drawn out by the Earth's tide and flattened by its spin into an ellipsoid whose long axis
+// points at the Earth. Its radius at body-frame direction p (x east, y north, z the near side's
+// middle), as a share of the mean one, is h_f(q_t P2(z) - q_s P2(y)/3), with q_t = GM_E R^3/(GM_M
+// a^3), q_s = ω²R^3/GM_M, and the fluid Love number h_f = 2.435 from Darwin-Radau and today's
+// moment of inertia, 0.393 MR^2 (2.5 for a uniform Moon). The near side's middle stands 16 km
+// above the mean, the poles 11 km below, the leading and trailing points 4.5 km below: so the disk
+// seen from the Earth, almost down the long axis, is 0.4% narrower pole to pole than across and
+// 0.3–0.7% smaller than the mean sphere. It is drawn at its true size, not the relief's LIMB_X.
+const MOON_HF=2.435, GM_EARTH=398600.4, GM_MOON=4902.8;
+function moonTide(key){
+  if(!MOON_MOLTEN[key]||!MOON_RE[key]) return null;
+  const a=MOON_RE[key]*EARTH_R_KM, r3=MOON_R_KM**3/(a**3*GM_MOON);
+  return [MOON_HF*GM_EARTH*r3, MOON_HF*(GM_EARTH+GM_MOON)*r3/3];
+}
+function tideAt(t, x1, x2){ return t?t[0]*(1.5*x2*x2-0.5)-t[1]*(1.5*x1*x1-0.5):0; }
 let moonLimbKey='', moonLimbGen=0;
 for(let i=0;i<LIMB_N;i++) moonLimbProf[i]=limbFake(i/LIMB_N*2*Math.PI)*LIMB_X/3;
 function moonLimbSync(mo){
@@ -122,7 +138,9 @@ function moonLimbSync(mo){
   moonLimbKey=key; moonLimbGen++;
   // The made-up profile (drawn at three times real relief, so scaled to LIMB_X), and a third of
   // that for the molten Moon's low rafts.
-  if(!R){ const s=(MOON_MOLTEN[EP[dIdx].key]?0.3:1)*LIMB_X/3; for(let i=0;i<LIMB_N;i++) moonLimbProf[i]=s*limbFake(i/LIMB_N*2*Math.PI); return; }
+  // On the molten Moon the tide's shape is added along the limb.
+  const tide=moonTide(EP[dIdx].key), limbTide=(sp, cp)=>tideAt(tide, eB[1]*sp+nB[1]*cp, eB[2]*sp+nB[2]*cp);
+  if(!R){ const s=(MOON_MOLTEN[EP[dIdx].key]?0.3:1)*LIMB_X/3; for(let i=0;i<LIMB_N;i++){ const pa=i/LIMB_N*2*Math.PI; moonLimbProf[i]=s*limbFake(pa)+limbTide(Math.sin(pa), Math.cos(pa)); } return; }
   const lo=R.range[0]/MOON_R_KM, k=(R.range[1]-R.range[0])/255/MOON_R_KM;
   const NF=193, fc=new Float64Array(NF), fs=new Float64Array(NF);
   for(let j=0;j<NF;j++){ const f=(j-(NF-1)/2)/16*Math.PI/180; fc[j]=Math.cos(f); fs[j]=Math.sin(f); }
@@ -134,9 +152,11 @@ function moonLimbSync(mo){
       // In the plane of that angle and the line of sight, φ toward the viewer.
       const p0=u0*fc[j]-mB[0]*fs[j], p1=u1*fc[j]-mB[1]*fs[j], p2=u2*fc[j]-mB[2]*fs[j];
       const x=Math.min(R.w-1, Math.floor((Math.atan2(p0, p2)/Math.PI+1)*R.w/2)), y=Math.min(R.ht-1, Math.max(0, Math.floor((0.5-Math.asin(Math.max(-1, Math.min(1, p1)))/Math.PI)*R.ht)));
-      const r=(1+lo+R.h[y*R.w+x]*k)*fc[j]; if(r>best) best=r;
+      const r=(1+lo+R.h[y*R.w+x]*k+tideAt(tide, p1, p2))*fc[j]; if(r>best) best=r;
     }
-    moonLimbProf[i]=LIMB_X*(best-1);
+    // The heights over the tide's shape at the limb drawn LIMB_X over, that shape as it is.
+    const t0=limbTide(sp, cp);
+    moonLimbProf[i]=LIMB_X*(best-1-t0)+t0;
   }
 }
 // The albedo (0-255 RGB, into out) of a globe's small copy at body-frame direction v.
