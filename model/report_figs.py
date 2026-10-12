@@ -36,8 +36,18 @@ SHOTS = {
     'city':         dict(epoch='modern', date='2026-07-08', t=1380, look=[35, 10], fov=30, wait=8000),
     'sats2100':     dict(moment='Satellites at dusk, 2100'),
     # Telescope views, framed by the find tool and zoomed past it.
-    'jupiter':      dict(epoch='modern', date='2026-10-11', t=240, look={'find': 'Jupiter'}, zoom=0.55, clouds=False, wait=8000),
     'saturn':       dict(epoch='modern', date='2017-06-15', t=1410, look={'find': 'Saturn'}, zoom=0.29, clouds=False, wait=10000),
+    # Jupiter (jup): over the nights from the date (nights of them), the Sun 18° down and Jupiter 30°
+    # up or more, the time its Red Spot best faces us with Jupiter high; the frame's height span of
+    # Jupiter's drawn radii, at aim
+    # 0 on its centre or 1 on the Red Spot. The shot is turned so the equator lies level and cropped
+    # (crop: its aspect; at: where across it the aim falls), in a square frame of size pixels that
+    # leaves room for the turn.
+    # jupiter_montage() puts them together as view_jupiter.jpg: the spot at its largest (1879, as
+    # long as the record gives it and at its reddest) and today, and today's spot close up.
+    'jupiter_1879': dict(epoch='modern', date='1879-08-31', jup=dict(span=3.1, aim=0, nights=10), crop=1, size=2000, clouds=False, scenery=False, wait=8000),
+    'jupiter_2026': dict(epoch='modern', date='2026-10-11', jup=dict(span=3.1, aim=0, nights=10), crop=1, size=2000, clouds=False, scenery=False, wait=8000),
+    'jupiter_grs':  dict(epoch='modern', date='2026-10-11', jup=dict(span=1.3, aim=1, nights=10), crop=2, at=1/3, size=2600, clouds=False, scenery=False, wait=8000),
     # The proto-Earth's meteors: the whole sky at midnight on the page's fisheye dome (dome: the dome
     # alone, at twice the pixels), and the first ground strike after the date of magnitude −26 or
     # brighter with the Sun 18° down, at 80% of its fall (impact: the share of the fall), looked at
@@ -68,7 +78,7 @@ def js_shot(s):
     """The page script that sets up one shot and resolves when it has painted."""
     return """(async()=>{
   const sl=ms=>new Promise(r=>setTimeout(r,ms)), S=%s;
-  let fixT=null;
+  let fixT=null, jupInfo=null;
   // A look is [azimuth, elevation], or {find: name} (an array's own .find must not be mistaken for it).
   for(let i=0;i<80&&typeof openMoment!=='function';i++) await sl(250);
   if(S.dome){
@@ -84,7 +94,7 @@ def js_shot(s):
     openMoment(m);
   } else {
     setEpoch(EP.findIndex(e=>e.key===S.epoch)); dLat=S.lat||'Mid-latitude';
-    document.getElementById('moonDate').value=S.date; minutes=S.t; hslider.value=String(minutes); renderDay();
+    document.getElementById('moonDate').value=S.date; minutes=S.t||0; hslider.value=String(minutes); renderDay();
     if(S.clouds!==undefined) vrClouds=S.clouds;
     if(S.scenery!==undefined) vrScenery=S.scenery;
     if(S.ecl){
@@ -114,6 +124,35 @@ def js_shot(s):
         const a=metApparent(m, 0.5, extK(S.epoch)); vrYaw=(Math.atan2(a.dir[0], a.dir[1])*180/Math.PI+360)%%360; vrPitch=a.el; };
       fixT();
     }
+    if(S.jup){
+      // Jupiter (kind 3), the Red Spot's surface normal (22.4° south planetographic, 19.9°
+      // planetocentric) and how squarely it faces us; the spot sits on the drawn disk at that normal.
+      const J=()=>skyNow.bodies.find(b=>b.kind===3), lat=-19.9*Math.PI/180;
+      const spot=b=>{ const g=b.grs, n=vadd(vscale(g.dir, Math.cos(lat)), vscale(b.pole, Math.sin(lat)), [0, 0, 0]); return {n, face:-vdot(n, b.dir)}; };
+      const setT=([dt, m])=>{ document.getElementById('moonDate').value=dt; minutes=m; hslider.value=String(minutes); renderDay(); };
+      // The nights from the date on (nights of them), every 4 minutes: Jupiter 30° up or more,
+      // and the spot most squarely toward us, then Jupiter highest.
+      let best=null, bs=-9;
+      for(let n=0;n<(S.jup.nights||1);n++){
+        const dt=new Date(Date.parse(S.date+'T00:00Z')+n*864e5).toISOString().slice(0, 10);
+        for(let m=0;m<1440;m+=4){
+          setT([dt, m]); const b=J();
+          if(!b||!b.grs||90-skyNow.sza>-18) continue;
+          const el=Math.asin(b.dir[2]), s=spot(b).face+0.5*Math.sin(el);
+          if(el>30*Math.PI/180&&s>bs){ bs=s; best=[dt, m]; }
+        }
+      }
+      if(best===null) return 'no Jupiter';
+      fixT=()=>{ setT(best); const b=J(), R=DISK_SCALE*b.rad, sp=spot(b);
+        const o=vscale(vadd(sp.n, vscale(b.dir, -vdot(sp.n, b.dir)), [0, 0, 0]), R*S.jup.aim), d=vnorm(vadd(b.dir, o, [0, 0, 0]));
+        const el=Math.asin(d[2])*180/Math.PI;
+        vrYaw=(Math.atan2(d[0], d[1])*180/Math.PI+360)%%360; vrPitch=shaderApparent(el).a; vrFov=S.jup.span*R*180/Math.PI;
+        // The pole's direction on the screen, clockwise from up, by the view's own axes.
+        const y=vrYaw*Math.PI/180, p=vrPitch*Math.PI/180, P=b.pole;
+        const px=P[0]*Math.cos(y)-P[1]*Math.sin(y), py=-P[0]*Math.sin(y)*Math.sin(p)-P[1]*Math.cos(y)*Math.sin(p)+P[2]*Math.cos(p);
+        jupInfo={roll:Math.atan2(px, py)*180/Math.PI, face:sp.face, el:Math.asin(b.dir[2])*180/Math.PI, L:b.grs.L}; };
+      fixT();
+    }
     vrEntryLook=()=>{ if(Array.isArray(S.look)){ vrYaw=S.look[0]; vrPitch=S.look[1]; } };
     enterVR(false); paintVR();
   }
@@ -130,18 +169,20 @@ def js_shot(s):
   if(fixT) fixT();
   requestVR(); await sl(S.wait||5000);
   if(dayPlaying){ document.getElementById('hplay').click(); if(fixT) fixT(); requestVR(); await sl(1500); }
-  return {epoch:EP[dIdx].key, fov:vrFov, yaw:vrYaw, pitch:vrPitch, playing:dayPlaying, date:document.getElementById('moonDate').value, t:minutes, eclipse:skyNow.eclipse};
+  return {epoch:EP[dIdx].key, fov:vrFov, yaw:vrYaw, pitch:vrPitch, playing:dayPlaying, date:document.getElementById('moonDate').value, t:minutes, eclipse:skyNow.eclipse, jup:jupInfo};
 })()""" % (json.dumps(s), "{k:S.look.find==='Sun'?'sun':S.look.find==='Moon'?'moon':'body',name:S.look.find}")
+
+def font(px):
+    from PIL import ImageFont
+    for f in ('C:/Windows/Fonts/arial.ttf', '/System/Library/Fonts/Helvetica.ttc', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'):
+        try: return ImageFont.truetype(f, px)
+        except OSError: pass
+    return ImageFont.load_default()
 
 def eclipse_montage():
     """The eclipse shots as one figure: an epoch a row, the three close-ups cropped square and the
     wide view at its own 16:9, with the phases over the columns and the epochs down the left."""
-    from PIL import Image, ImageDraw, ImageFont
-    def font(px):
-        for f in ('C:/Windows/Fonts/arial.ttf', '/System/Library/Fonts/Helvetica.ttc', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'):
-            try: return ImageFont.truetype(f, px)
-            except OSError: pass
-        return ImageFont.load_default()
+    from PIL import Image, ImageDraw
     S, WW, gap, top, left = 400, 711, 6, 44, 44
     cols = [(S if ph != 'wide' else WW) for ph, _ in ECL_PHASES]
     W = left + sum(cols) + gap * (len(cols) - 1)
@@ -178,6 +219,43 @@ def proto_montage():
     sheet.save(OUT / 'view_proto_meteors.jpg', quality=90)
     print(OUT / 'view_proto_meteors.jpg', sheet.size)
 
+def level_crop(path, roll, aspect, at=0.5):
+    """A Jupiter shot turned by roll degrees so its pole points up and its equator lies level, cropped
+    to the given aspect (width over height) with the frame's middle at the fraction at of the way
+    across, as large as the turned frame leaves whole."""
+    import math
+    from PIL import Image
+    im = Image.open(path).rotate(roll, resample=Image.BICUBIC)
+    a, c, s = im.width, abs(math.cos(math.radians(roll))), math.sin(math.radians(roll))
+    def fits(w):
+        h, x0 = w / aspect, -at * w
+        # Each corner, turned back into the shot's own frame, must lie inside it.
+        return all(abs(x * c - y * s) <= a / 2 and abs(x * s + y * c) <= a / 2
+                   for x in (x0, x0 + w) for y in (-h / 2, h / 2))
+    lo, hi = 0, a
+    for _ in range(30):
+        m = (lo + hi) / 2; lo, hi = (m, hi) if fits(m) else (lo, m)
+    w, h = int(lo), int(lo / aspect)
+    x = a // 2 - int(at * w)
+    im.crop((x, (a - h) // 2, x + w, (a - h) // 2 + h)).save(path, quality=92)
+
+def jupiter_montage():
+    """The Jupiter figure: the two disks side by side, the spot at its largest and today, labeled
+    over each, and today's spot close up below at the full width."""
+    from PIL import Image, ImageDraw
+    a, b, c = (Image.open(OUT / f'view_jupiter_{k}.jpg') for k in ('1879', '2026', 'grs'))
+    gap, top, Wd = 12, 44, 1800
+    s = (Wd - gap) // 2
+    ch = Wd // 2
+    sheet = Image.new('RGB', (Wd, top + s + gap + ch), (255, 255, 255)); d = ImageDraw.Draw(sheet); f = font(26)
+    for i, (im, lab) in enumerate(((a, '1879: the Red Spot at its largest'), (b, '2026'))):
+        x = i * (s + gap)
+        d.text((x + (s - d.textlength(lab, font=f)) / 2, 8), lab, fill=(30, 30, 30), font=f)
+        sheet.paste(im.resize((s, s), Image.LANCZOS), (x, top))
+    sheet.paste(c.resize((Wd, ch), Image.LANCZOS), (0, top + s + gap))
+    sheet.save(OUT / 'view_jupiter.jpg', quality=90)
+    print(OUT / 'view_jupiter.jpg', sheet.size)
+
 async def run(base, names):
     prof = tempfile.mkdtemp(prefix='viewfigs')
     port = 9341
@@ -200,7 +278,8 @@ async def run(base, names):
             await call('Emulation.setDeviceMetricsOverride', width=W, height=H, deviceScaleFactor=1, mobile=False)
             for name in names:
                 # The dome alone is shot, its canvases drawn at twice the pixels.
-                await call('Emulation.setDeviceMetricsOverride', width=W, height=H, deviceScaleFactor=2 if SHOTS[name].get('dome') else 1, mobile=False)
+                sz = SHOTS[name].get('size')
+                await call('Emulation.setDeviceMetricsOverride', width=sz or W, height=sz or H, deviceScaleFactor=2 if SHOTS[name].get('dome') else 1, mobile=False)
                 await call('Page.navigate', url=f'{base}/?cb={time.time()}')
                 await asyncio.sleep(3)
                 await call('Runtime.evaluate', expression=JS_HIDE, returnByValue=True)
@@ -211,14 +290,16 @@ async def run(base, names):
                 clip = v.get('clip') if isinstance(v, dict) else None
                 shot = await call('Page.captureScreenshot', format='jpeg', quality=90, **({'clip': clip} if clip else {}))
                 (OUT / f'view_{name}.jpg').write_bytes(base64.b64decode(shot['result']['data']))
+                if isinstance(v, dict) and v.get('jup'): level_crop(OUT / f'view_{name}.jpg', v['jup']['roll'], SHOTS[name]['crop'], SHOTS[name].get('at', 0.5))
     finally:
         p.kill()
 
 if __name__ == '__main__':
     base = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1].startswith('http') else 'http://localhost:8767'
-    # 'eclipses' or 'proto' alone rebuilds that figure from the shots already taken.
+    # 'eclipses', 'proto' or 'jupiter' alone rebuilds that figure from the shots already taken.
     names = [a for a in sys.argv[1:] if not a.startswith('http')] or list(SHOTS)
     shots = [n for n in names if n in SHOTS]
     if shots: asyncio.run(run(base.rstrip('/'), shots))
     if 'eclipses' in names or any(n.startswith('ecl_') for n in names): eclipse_montage()
     if 'proto' in names or any(n.startswith('proto_') for n in names): proto_montage()
+    if 'jupiter' in names or any(n.startswith('jupiter_') for n in names): jupiter_montage()

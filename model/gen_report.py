@@ -438,7 +438,11 @@ def blocks():
     B.append(S('The planets close up')); B += ps(*rv.PLANETS_CLOSE)
     B.append(fig(ROOT.parent / 'latex' / 'figures' / 'surfaces.jpg', rv.SURFACES_CAPTION, 'fig:surfaces'))
     B.append(S('Jupiter')); B += ps(*rv.JUPITER)
-    B.append(fig(view('jupiter'), "Jupiter close up in the modern sky, as the site's telescope view draws it: belts and zones marbled by eddies, Kelvin–Helmholtz billows along their edges, and the Great Red Spot, a vortex in the same flow, at its 2026 size.", 'fig:jupiter'))
+    B.append(fig(view('jupiter'), "Jupiter close up, as the site's telescope view draws it, each view turned so the equator lies level, "
+                 "north up. Top: the Great Red Spot at its largest, about 35° long in 1879, when it was also reddest, and in "
+                 "2026, about 12° long; in each Jupiter is shown on a night when the spot faces us. Bottom: the 2026 spot close "
+                 "up, a vortex in the same flow as the belts and zones around it, which eddies marble and Kelvin–Helmholtz "
+                 "billows roll along their edges.", 'fig:jupiter'))
     B.append(S('Saturn and its rings')); B += ps(*rv.SATURN)
     B.append(fig(view('saturn'), "Saturn close up in the modern sky on 15 June 2017, at opposition, its rings filling the site's telescope view. The north pole is tilted 27° toward us, showing the hexagon around it, golden inside in the northern summer, with the polar vortex at its center. The belts are stirred by the flow drawn for Jupiter under Cassini's winds, calmer and muted by the haze. The rings are drawn from the Cassini occultation profile with single-scattering photometry; at opposition the globe's shadow on them lies hidden behind it.", 'fig:saturn'))
     B.append(S("The planets' moons")); B += ps(*rv.MOONS)
