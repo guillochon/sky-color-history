@@ -305,6 +305,14 @@ EPOCHS_CAPTION = ("Atmospheres used for each epoch. Gas amounts are partial pres
 # The sky-color panels, one per epoch: the HTML draws domes and strips from the colors, the paper
 # includes make_figs.py's figure of the same.
 def sky_fig(k): return 'modern' if k in SAME_AIR else k
+# Where the report already tells an epoch's story in a section, its panel says so instead of repeating it.
+# The site, which has no such sections, keeps PROSE.
+PAPER_PROSE = {
+'y2100': "The air is today's. What changes is the traffic: the filed megaconstellations and, above them, the Sunrise "
+"orbital datacenters, thousands of them above naked-eye brightness an hour after sunset in a bright band along the "
+"terminator (Satellites, {ref:people}).",
+}
+def paper_prose(k): return PAPER_PROSE.get(k, PROSE[k])
 def epoch_panel(k):
     r = byk[k]
     domes = ''.join(dome(r['lat'][L], L) for L in ['Equator','Mid-latitude','Polar summer'])
@@ -313,11 +321,11 @@ def epoch_panel(k):
     sunset_sun = r['sunset']['sun']['hex'] if r['sunset']['sunY'] > 1e-8 else None
     sundot = f'<i class="sundot" style="background:{sunset_sun}"></i> setting Sun disk' if sunset_sun else '<i class="sundot" style="background:#111"></i> Sun not visible at the horizon'
     h = (f'<section class="epoch" id="{k}"><header><span class="age">{ages[k]}</span><h4>{r["name"]}</h4><p class="sub">{r["sub"]}</p></header>'
-         f'<div class="domes">{domes}</div><div class="strips">{ss}{tw}<p class="sundisk">{sundot}</p></div><p class="prose">{R.link_cites(PROSE[k], BIB, "html")}</p></section>')
+         f'<div class="domes">{domes}</div><div class="strips">{ss}{tw}<p class="sundisk">{sundot}</p></div><p class="prose">{R.link_cites(paper_prose(k), BIB, "html")}</p></section>')
     t = (f"\\par\\vspace{{6pt}}\\noindent\\begin{{minipage}}{{\\linewidth}}\n{{\\normalsize\\bfseries {D.tex(r['name'])}\\par}}\n"
          f"{{\\small\\itshape {D.tex(r['sub'])}\\par}}\\vspace{{3pt}}\n\\centering\\includegraphics[width=\\linewidth]{{figures/sky_{sky_fig(k)}.png}}\n"
          f"\\captionof{{figure}}{{{D.tex(r['name'])}. Top: noon sky dome at the equator, mid-latitude and polar summer, zenith at top, horizon at bottom, Sun's disk in its own color. Below: sky from the solar horizon to the antisolar horizon with the Sun on the horizon and $4^\\circ$ below it.}}\\label{{fig:sky-{k}}}\n"
-         f"\\end{{minipage}}\\par\\vspace{{4pt}}\n{D.tex_text(PROSE[k], BIB)}\n")
+         f"\\end{{minipage}}\\par\\vspace{{4pt}}\n{D.tex_text(paper_prose(k), BIB)}\n")
     b = D.raw(h, t); b['figures'] = [f'fig:sky-{k}']
     return b
 

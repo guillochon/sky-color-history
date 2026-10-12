@@ -398,8 +398,7 @@ CITY = [
 "polluted air, held at today's level in 2100 (the recent 9.6% a year, Kyba et al. 2023, cannot be projected that "
 "far), and almost nothing from the oil lamps of 1815 (Fouquet &amp; Pearson 2006). The glow rises about threefold "
 "toward the horizon, and cloud bases over the city glow orange several times brighter than the clear sky (Kyba et "
-"al. 2011). A star shows only when brighter than the naked-eye limit for the sky around it, so the city keeps only "
-"the brightest stars, and none of the Milky Way.",
+"al. 2011). Against that glow the city keeps only the brightest stars, and none of the Milky Way.",
 ]
 
 SATELLITES = [
@@ -408,11 +407,14 @@ SATELLITES = [
 "naked-eye light pollution near 50° latitude; each is drawn as their diffuse sphere of 0.8 m² effective area, so "
 "its magnitude is on the stars' scale. At the equinox a mid-latitude sky has a few hundred of them above "
 "naked-eye brightness in the hour after sunset, and the Earth's shadow takes them by midnight. On top of that "
-"fleet are the orbital datacenters modeled by Boley, Lawler &amp; Rein (2026): Blue Origin's Sunrise design, "
-"51,600 Sun-synchronous satellites from 500 to 1,800 km in a dawn–dusk cross of rings, each a diffuse sphere of "
-"800 m² at albedo 0.2, two hundred times a communications satellite's reflecting area. An hour after sunset, "
-"thousands of them are above naked-eye brightness, a bright band along the terminator. The paper's all-night "
-"winter rings belong to the December solstice, which the page's equinox geometry does not show.",
+"fleet are the orbital datacenters modeled by Boley, Lawler &amp; Rein (2026). Of their three filed designs we "
+"take the middle one and the more optimistic of their two node spreads: Blue Origin's Sunrise, 51,600 "
+"Sun-synchronous satellites from 500 to 1,800 km in a dawn–dusk cross of rings whose nodes wander 10° to either "
+"side of the terminator. Each is a diffuse sphere of 800 m² at albedo 0.2, the size they call conservative next "
+"to panels several times larger, and two hundred times a communications satellite's reflecting area. An hour "
+"after sunset, thousands of them are above naked-eye brightness, a bright band along the terminator, each "
+"crossing the dome in minutes. The paper's all-night winter rings belong to the December solstice, which the "
+"page's equinox geometry does not show.",
 ]
 
 # ---------------------------------------------------------------------------------------------------

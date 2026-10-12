@@ -181,8 +181,7 @@ SECTIONS = [
 "is an estimate of a good display; the air in front of them is each epoch's."]],
 
 ['Twilight and the night sky', [
-"The model is calibrated in absolute units (the clear zenith with the Sun 45° up is 2.7 kcd/m², which puts the "
-"full-Moon sky at the measured 18 mag/arcsec²), so the night can be drawn on the same scale as the day. The sky is "
+"Because the photometric scale of {ref:method} is absolute, the night is drawn on the same scale as the day. The sky is "
 "computed for Sun heights down to 20° below the horizon; past 9° below, where the model's twilight fades too "
 "slowly, we make it dim by about a magnitude per "
 "degree, as measured. Without the Sun or Moon the sky has its own light: today 22.0 mag/arcsec² at a dark zenith "
@@ -194,13 +193,11 @@ SECTIONS = [
 "of the O₂ Herzberg II bands from oxygen split off CO₂, as on Venus (Krasnopolsky 1983): about as many photons as "
 "today's airglow but only 15% of its luminance, so Archean and Hadean nights were darker and bluer. These strengths "
 "are estimates; no model of an anoxic nightglow exists.",
-"Starlight, the Milky Way and the airglow all come from above the air and are dimmed by it: 0.15 magnitude per "
-"airmass from the gas plus 1.086 times the epoch's aerosol or haze optical depth, so 0.25 in clean air, 0.8 under "
+"Starlight, the Milky Way and the airglow all come from above the air and are dimmed by it, at the rate given in "
+"{ref:method}: 0.25 magnitude per airmass in clean air, 0.8 under "
 "the thick haze or a polluted city, 0.85 under the proto-Earth's guessed air and dust, 2.3 through the "
 "impact-winter soot, and 7.6 under 30 bar of CO₂, which hides "
-"every star. A star shows only when it is brighter than the naked-eye limit for the sky around it, so stars come out "
-"one by one in twilight. The Milky Way is a model in galactic coordinates, peaking at 20.2 mag/arcsec² in the "
-"Sagittarius star cloud, with its center where the Sun's orbit puts it at each age.",
+"every star.",
 "In the modern epochs the observer stands in a mid-sized city: a zenith glow of 18.8 mag/arcsec² today (Falchi et "
 "al. 2016), with orange sodium light in 1980–2000 (Cinzano, Falchi &amp; Elvidge 2001), 1.6 times today's in "
 "polluted air, held at today's level in 2100 (the recent 9.6% a year, Kyba et al. 2023, cannot be projected that "
