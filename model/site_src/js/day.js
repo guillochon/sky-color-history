@@ -190,7 +190,7 @@ const SKYGLOW={modern:[3.09e-3, 0.44, 0.40], modernpoll:[4.94e-3, 0.45, 0.40], o
 // The soot of the impact winter absorbs what it removes; elsewhere the haze mostly scatters it
 // back into the diffuse sky, so only the soot also darkens the airglow's diffuse glow.
 const EXT_K={hadean45:5.8, protoearth455:0.85, hadean40:0.35, archean27:0.8, archean27vthick:1.8, kpg66:2.3, volcanic:0.7, modernpoll:0.8};
-function extK(key){ return EXT_K[key]||0.25; }
+function extK(key){ return airOff()?0:EXT_K[key]||0.25; }
 // Transmission at the zenith relative to clean air, and the part of it lost to absorption.
 function extZenith(key){ return Math.pow(10, -0.4*(extK(key)-0.25)); }
 function absZenith(key){ return key==='kpg66' ? Math.pow(10, -0.4*1.086*1.5) : 1; }
@@ -368,7 +368,9 @@ function renderDay(fast){
   // clouds (shader_clouds.js shaftLayer).
   const srcShare=new Uint8Array(NG*4);
   const zAbs=zodiOn?absZenith(ep.key):0;
-  for(let ir=0;ir<=NR;ir++){ const vz=90*ir/NR, vzc=Math.min(vz,88), nr=night[ir], rg=ring?ring[Math.min(NR, Math.round(vz/90*NR))]:null;
+  // With the air off, no sky: black.
+  if(airOff()) grid.fill(0);
+  else for(let ir=0;ir<=NR;ir++){ const vz=90*ir/NR, vzc=Math.min(vz,88), nr=night[ir], rg=ring?ring[Math.min(NR, Math.round(vz/90*NR))]:null;
     const el=90-vz, zExt=zodiOn?0.4+0.6*extinction(el, ekD):0;
     for(let ia=0;ia<=NA;ia++){ const comp=360*ia/NA;
       let X0=nr[0], X1=nr[1], X2=nr[2], Ys=0, Ym=0;
@@ -445,7 +447,7 @@ function renderDay(fast){
   }
   // Ice halos (halo.js), from the Sun and the Moon: each source's halo luminance over Yref per
   // unit of haloAt, and its colour as linear RGB of unit luminance.
-  const hStr=haloStrength(ep.key, dayLat()), halos=[];
+  const hStr=airOff()?0:haloStrength(ep.key, dayLat()), halos=[];
   let haloVR=null;
   if(hStr>0){
     let rMin=Infinity; for(let c=0;c<NG;c++) if(rgrid[c]<rMin) rMin=rgrid[c];
@@ -494,9 +496,11 @@ function renderDay(fast){
   const hue=i=>rec.sun[i][1]>0 && rec.sun[i][2]>=1e-6;
   let i0=si; while(i0>0 && !hue(i0)) i0--;
   const i1=Math.min(si+1, rec.sun.length-1), c0=rec.sun[i0], c1=hue(i1)?rec.sun[i1]:c0, u=hue(i1)?st:0;
-  const sXd=xyY2XYZ([c0[0]*(1-u)+c1[0]*u, c0[1]*(1-u)+c1[1]*u, 1]);
+  // With the air off, the Sun's light above the air (sunset.js bands), from linear sRGB.
+  const sTop=airOff()?sunBandsAt(90):null;
+  const sXd=sTop?[0.4124*sTop[0]+0.3576*sTop[1]+0.1805*sTop[2], 1, 0.0193*sTop[0]+0.1192*sTop[1]+0.9505*sTop[2]].map((v, q, a)=>q===1?1:v/(0.2126*sTop[0]+0.7152*sTop[1]+0.0722*sTop[2])):xyY2XYZ([c0[0]*(1-u)+c1[0]*u, c0[1]*(1-u)+c1[1]*u, 1]);
   let visI=si; while(visI>0 && rec.sun[visI][2]/noonY<=3e-4) visI--;
-  const sunRelD=rec.sun[visI][2]/noonY;
+  const sunRelD=sTop?1:rec.sun[visI][2]/noonY;
   const SUNR=DOME_DISK*z*moon.sunRadDeg/SUN_RADIUS_DEG, rr=R*sza/90, a=sunAz*Math.PI/180, sx=cx+rr*Math.sin(a), sy=cy-rr*Math.cos(a);
   const sunRGB=tone(sXd, sXd[1], 0.95,0.4,0.98);
   // Comet heads join the stars as points (their coma and tails are drawn per pixel above).

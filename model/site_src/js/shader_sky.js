@@ -75,7 +75,8 @@ uniform float glareMoon;
 // Where the glare is centred: the Sun's centre, or in an eclipse the middle of what still shows.
 uniform vec3 glareDir;
 // The setting Sun (sunDiskAt).
-uniform float refK, sunOff; uniform vec4 sunTau[50]; uniform vec3 sunW[20]; uniform vec3 sunG; uniform vec4 sunLay[4]; uniform vec4 sunMir;
+// airOn 0 with the air off (sunset.js airOff): the Moon not dimmed or reddened, and no aureole.
+uniform float refK, airOn, sunOff; uniform vec4 sunTau[50]; uniform vec3 sunW[20]; uniform vec3 sunG; uniform vec4 sunLay[4]; uniform vec4 sunMir;
 uniform float corona, coronaMap[16], coronaRim;
 // The photosphere's spots and faculae (sunspots.js): its heliographic map, and x the position angle
 // of the Sun's north pole from celestial north, y the latitude of the disk's centre (B0), z the
@@ -1009,7 +1010,7 @@ void main(){
         // The air in front of the Moon extincts it (blue first) and the sky
         // already drawn is that same air, so a bright sky veils the disk.
         float mu=max(sin(max(te,0.0)*0.01745329252), 0.04);
-        vec3 T=exp(-vec3(0.12, 0.22, 0.48)*(1.0+airX)/mu);
+        vec3 T=exp(-airOn*vec3(0.12, 0.22, 0.48)*(1.0+airX)/mu);
         vec3 moonC=alb*(0.06+0.94*lit*shade)*T;
         if(eclU.w>0.5){
           float t=length(vec2(x, y)-eclU.xy)*eclU.z;
@@ -1021,7 +1022,7 @@ void main(){
         float skyY=dot(skyC, vec3(0.2126, 0.7152, 0.0722));
         skyC+=moonC*(1.0-smoothstep(0.0, 1.15, skyY));
         }
-      } else if(moonGlow>0.0){
+      } else if(moonGlow>0.0 && airOn>0.5){
         // Its light scattered in the air about it: a red aureole, close and bright, then wide.
         float d=am/moonRad-1.0;
         if(d<6.0){

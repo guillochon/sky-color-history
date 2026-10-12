@@ -513,7 +513,7 @@ function paintVR(){
   const app=apparentEl(90-skyNow.sza), off=Math.min(...sunTauAt(app));
   const sCen=sunBandsAt(app, off), sLin=skyNow.sunRGB.map(v=>SRGB_LIN[Math.round(v)]);
   const gAll=Math.max(...sLin)/Math.max(...sCen, 1e-30);
-  gl.uniform1f(u.refK, sb.k); vrGL.refKv=sb.k; gl.uniform1f(u.sunOff, off); gl.uniform4fv(u.sunTau, sb.t.map(t=>t-off)); gl.uniform3fv(u.sunW, sb.w);
+  gl.uniform1f(u.refK, refK()); vrGL.refKv=refK(); gl.uniform1f(u.sunOff, off); gl.uniform4fv(u.sunTau, airOff()?sb.t.map(()=>0):sb.t.map(t=>t-off)); gl.uniform1f(u.airOn, airOff()?0:1); gl.uniform3fv(u.sunW, sb.w);
   gl.uniform3fv(u.sunG, sCen.map((v, q)=>Math.max(gAll, v>0?sLin[q]/v:0)));
   gl.uniform4fv(u.sunLay, sl.lay); gl.uniform4fv(u.sunMir, sl.mir);
   // The Sun's light on the ground and the ground's colour, for the sky and cloud passes.
@@ -687,7 +687,7 @@ function paintVR(){
   const aurSt=skyNow.aur, aurOn=!!(aurSt&&aurSt.on&&vrGL.aurProg&&vrPitch+vrFov*0.5>-2);
   if(aurOn){ perfPass('aurora'); drawAuroraVR(gl, aurSt, c); perfPassEnd('aurora', vrGL.aurFbo); }
   perfPass('sky');
-  gl.uniform1f(u.aurOn, aurOn?vrFigGain.aur:0);
+  gl.uniform1f(u.aurOn, aurOn&&!airOff()?vrFigGain.aur:0);
   const hl=skyNow.halo;
   gl.uniform2fv(u.haloK, hl?hl.k:new Float32Array(2));
   if(hl){ gl.uniform3fv(u.haloSunLin, hl.sun); gl.uniform3fv(u.haloMoonLin, hl.moon); }
@@ -696,7 +696,7 @@ function paintVR(){
   if(rg){ gl.uniform4f(u.ringU, rg.R.rIn, rg.R.rOut, rg.R.tau, 0.5*rg.R.H/RE_KM); gl.uniform3fv(u.ringP, rg.P); gl.uniform3fv(u.ringLin, RING_LIN); }
   // Meteors and lunar flashes (meteors.js), as they are this instant.
   const mu=metUniforms();
-  gl.uniform1f(u.metN, mu.n); gl.uniform3fv(u.metFlash, mu.flash||[0, 0, 0]);
+  gl.uniform1f(u.metN, airOff()?0:mu.n); gl.uniform3fv(u.metFlash, mu.flash||[0, 0, 0]);
   vrGL.metFlash=new Float32Array(mu.flash||[0, 0, 0]);
   // The brightest fireball lights the scene from its head, in two parts. As sunlight, in
   // proportion to its brightness against the Sun's, without limit, so one brighter than the Sun
@@ -949,7 +949,7 @@ function drawBodies(gl){
       used=pr; gl.useProgram(pr.p);
       gl.uniform2f(u.res, W, H); gl.uniform2f(u.hitScale, vrGL.hitInfo?vrGL.hitW/W:0, vrGL.hitInfo?vrGL.hitH/H:0);
       gl.uniform1f(u.yaw, vrYaw*Math.PI/180); gl.uniform1f(u.pitch, vrPitch*Math.PI/180); gl.uniform1f(u.fov, vrFov*Math.PI/180);
-      gl.uniform1f(u.showScn, vrScenery?1:0); gl.uniform1f(u.refK, vrGL.refKv||1); gl.uniform1f(u.rCd, skyNow.rCd); gl.uniform1f(u.mwK, skyNow.extK);
+      gl.uniform1f(u.showScn, vrScenery?1:0); gl.uniform1f(u.refK, vrGL.refKv??1); gl.uniform1f(u.airOn, airOff()?0:1); gl.uniform1f(u.rCd, skyNow.rCd); gl.uniform1f(u.mwK, skyNow.extK);
       gl.uniform1f(u.moonGain, moonGain()); gl.uniform1f(u.starPx, 0.35*(vrFov*Math.PI/180)/Math.max(window.innerHeight,1));
       gl.uniform1f(u.nr, vrGL.skyNa[0]); gl.uniform1f(u.na, vrGL.skyNa[1]);
       gl.uniform4f(u.fineT, gT-4096*Math.floor(gT/4096), sT-2000*Math.floor(sT/2000), 0, 0);

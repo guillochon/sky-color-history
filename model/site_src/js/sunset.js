@@ -1,7 +1,12 @@
 /* ---------- the setting Sun: refraction by wavelength, mirages, and the flash ---------- */
 // The epoch's refraction as a multiple of today's (gen_site.py sun_bands): its gases' surface
 // refractivity. apparentEl and the shader's trueAlt scale today's curve by it.
-function refK(){ return (EP[dIdx]&&EP[dIdx].sun)?EP[dIdx].sun.k:1; }
+// With the air off (airOff), none.
+function refK(){ return airOff()?0:(EP[dIdx]&&EP[dIdx].sun)?EP[dIdx].sun.k:1; }
+// The walk-around view with its air taken away (the v key), to judge the colors of what lies
+// beyond it: no sky light, no extinction or reddening, no refraction or mirages, no clouds, halos,
+// aurorae or meteors; the Sun as it is above the air. The page's dome always has its air.
+function airOff(){ return vrOn&&vrAirOff; }
 // The disk is drawn as twenty images, one per 20 nm band centred on 385, 405, ... 765 nm. Air
 // bends band b by SUN_DISP[b] times what it bends 550 nm (Edlén 1966). The spread is tiny: at the
 // horizon the 525 and 565 nm images are 6 arcseconds apart. Like the disk, it is enlarged, and
@@ -12,6 +17,7 @@ const SUN_DISP=Array.from({length:SUN_BANDS}, (_, b)=>+(edlen(385+20*b)/edlen(55
 const SUN_APP=[0, 0.3, 0.7, 1.2, 2, 3, 5, 8, 14, 30];
 // Each band's optical depth at apparent altitude app (degrees).
 function sunTauAt(app){
+  if(airOff()) return new Array(SUN_BANDS).fill(0);
   const t=EP[dIdx].sun.t, a=Math.max(0, Math.min(30, app));
   let i=0; while(i<SUN_APP.length-2 && a>SUN_APP[i+1]) i++;
   const f=(a-SUN_APP[i])/(SUN_APP[i+1]-SUN_APP[i]);
@@ -48,6 +54,7 @@ function sunsetLayers(rd){
   const rnd=mulberry32((day*2654435761^[...key].reduce((h, c)=>h*31+c.charCodeAt(0)|0, 7))>>>0);
   const [pInf, pLay]=MIRAGE_ODDS[key]||[0.35, 0.4];
   const lay=new Float32Array(16), mir=new Float32Array(4);
+  if(airOff()) return {id:'', lay, mir};
   if(rnd()<pLay){
     const n=1+Math.floor(rnd()*4);
     for(let i=0;i<n;i++){

@@ -412,6 +412,7 @@ function spectrumHTML(box, el, az, opts={}){
   if(!spReady(box)) return;
   if(opts.meteor){ const st=meteorSpectrumTip(opts.meteor); spShow(box, st, st.note); return; }
   if(opts.sn||opts.star){ const s=opts.star, st=opts.sn?snSpectrum(opts.sn):s.star?starSpectrum(s, el):reflectedSpectrum(s); spShow(box, st, st.note); return; }
+  if(airOff()){ spBox(box, 'The air is off: the sky has no light here, and the Sun’s and Moon’s spectra are drawn only through it.'); return; }
   const sp=skySpectrum(el, az, opts.disk||null, opts.aurora||null, opts.disk==='sun'?opts.r||0:opts.lit??1, opts.cloud||null, opts.cr??null, opts.moonXY||null, opts.sunXY||null);
   const fmt=Y=>Y>=1?Y.toPrecision(3)+' cd/m²':(Y>=1e-3?(Y*1e3).toPrecision(3)+' mcd/m²':skyMagArcsec(Y).toFixed(1)+' mag/arcsec²');
   // The strongest sources, and on the Moon its own light however faint (earthshine against a
@@ -564,13 +565,40 @@ const REFL={
   icy:{n:[[380, 0.85], [500, 0.95], [780, 1]], note:'sunlight off nearly pure water ice'},
   sat:{n:[[380, 0.85], [780, 1]], note:'sunlight off its metal, panels and paint'},
 };
+// A young giant's reflectance (planets.js giantEra; shader_bodies.js eraAlb's stages): with no
+// ammonia ice on top, Jupiter's and Saturn's NH4SH haze, flatter and less red; with no methane ice,
+// an ice giant's H2S deck, as Uranus's is; a high deck of NH4SH and water clouds, near grey and
+// bright for a gas giant (Sudarsky et al. 2000's class II), for an ice giant cyan, its methane bands
+// shallower above clouds that lie higher; clear (their class III), blue from Rayleigh scattering and
+// dark in the red with deep methane bands. Each stage mixed in as far as the disk's colors are.
+const REFL_ERA={
+  gas:[{n:[[380, 0.75], [450, 0.85], [550, 0.95], [600, 1], [780, 1]], ch4:[[543, 0.06, 3], [619, 0.18, 4], [727, 0.42, 5]], note:'sunlight off NH4SH haze, before ammonia ice formed above it, with the methane above'},
+       {n:[[380, 0.88], [450, 0.94], [550, 0.99], [780, 1]], ch4:[[543, 0.03, 3], [619, 0.1, 4], [727, 0.25, 5]], note:'sunlight off a high deck of NH4SH and water clouds, before ammonia ice formed, through little methane'},
+       {n:[[380, 1], [450, 0.9], [500, 0.72], [550, 0.52], [600, 0.34], [650, 0.24], [700, 0.15], [780, 0.08]], ch4:[[543, 0.3, 4], [619, 0.65, 6], [727, 0.85, 8]], note:'Rayleigh-scattered sunlight from a clear, hot atmosphere, too warm for clouds high up, the red taken out by methane'}],
+  ice:[{n:REFL.Uranus.n, ch4:REFL.Uranus.ch4, note:'sunlight off a deck of H2S ice, before methane ice formed, the red taken out by the methane above'},
+       {n:[[380, 0.88], [450, 1], [550, 0.96], [600, 0.8], [650, 0.66], [700, 0.52], [780, 0.36]], ch4:[[543, 0.15, 4], [619, 0.35, 6], [727, 0.55, 8]], note:'sunlight off a high deck of NH4SH and water clouds, before methane ice formed, through less methane'},
+       {n:[[380, 1], [450, 0.9], [500, 0.72], [550, 0.5], [600, 0.3], [650, 0.2], [700, 0.12], [780, 0.05]], ch4:[[543, 0.35, 4], [619, 0.7, 6], [727, 0.88, 8]], note:'Rayleigh-scattered sunlight from a clear, hot atmosphere, the red taken out by methane'}],
+};
+function reflAt(r, l){
+  const n=r.n, k=Math.max(0, n.findIndex(([x])=>x>=l)-1), [x0, y0]=n[k], [x1, y1]=n[Math.min(k+1, n.length-1)];
+  let t=x1>x0?y0+(y1-y0)*(l-x0)/(x1-x0):y0;
+  for(const [c, d, w] of r.ch4||[]) t*=1-d*Math.exp(-0.5*((l-c)/w)**2);
+  return t;
+}
 function reflectedSpectrum(s){
-  const key=EP[dIdx].key, r=REFL[s.planet==='Oceanus'?'Neptune':s.planet||'sat']||REFL.icy, S=spPlanck(5772), n=r.n;
+  const key=EP[dIdx].key, S=spPlanck(5772), e=s.body&&s.body.era, ice=s.kind===6;
+  let r=REFL[s.planet==='Oceanus'?'Neptune':s.planet||'sat']||REFL.icy;
+  const stages=e?REFL_ERA[ice?'ice':'gas']:null, wts=e?[(ice?0.7:0.6)*e[0], 0.85*e[1], e[2]]:null;
   for(let i=0;i<SP_N;i++){
-    const l=SP_LAM[i], k=Math.max(0, n.findIndex(([x])=>x>=l)-1), [x0, y0]=n[k], [x1, y1]=n[Math.min(k+1, n.length-1)];
-    let t=x1>x0?y0+(y1-y0)*(l-x0)/(x1-x0):y0;
-    for(const [c, d, w] of r.ch4||[]) t*=1-d*Math.exp(-0.5*((l-c)/w)**2);
+    const l=SP_LAM[i];
+    let t=reflAt(r, l);
+    if(stages) stages.forEach((st, j)=>{ if(wts[j]>0) t+=(reflAt(st, l)-t)*wts[j]; });
     S[i]*=SP_FRAUN_T[i]*t;
+  }
+  // Its caption the stage that shows most, with how warm it was.
+  if(stages){
+    const j=wts[2]>0.5?2:wts[1]>0.5?1:wts[0]>0.3?0:-1;
+    if(j>=0) r={...r, ch4:stages[j].ch4, note:`${stages[j].note}: younger and warmer, Teff about ${Math.round(e.teff/5)*5} K against ${s.planet==='Oceanus'?'Neptune’s 59 K now':{Jupiter:'124', Saturn:'95', Neptune:'59'}[s.planet]+' K now'}`};
   }
   const marks=[{l:393.4, t:'Ca II H&K'}, {l:589.3, t:'Na D'}, {l:656.3, t:'Hα'}];
   if(r.band) marks.unshift({a:r.band[0], b:r.band[1], t:r.band[2], band:true});
@@ -591,7 +619,7 @@ function reflectedSpectrum(s){
   // Mars's moons in an epoch before history, where the tides had their orbits (planets.js MOON_TIDE).
   const mt=MOON_TIDE[s.planet]&&s.ageMa?PLANET_MOONS.find(m=>m[0]===s.planet):null;
   const tide=mt?` · its orbit as Mars’s tides had it then: ${(moonTided(mt, s.ageMa)[4]/3389.5).toFixed(2)} Mars radii out, against ${(mt[4]/3389.5).toFixed(2)} now`:'';
-  const note=`${s.planet?s.planet+(s.host?`, a moon of ${s.host}`:kin?`, ${kin}`:''):'A satellite'}${size} · ${s.planet==='Saturn'&&!s.rings?'sunlight off its yellower haze, with methane bands':r.note}${what}${tide}${ring}${spot}${where} · V ${s.mag.toFixed(1)} above the air, ${m.toFixed(1)} through ${X.toFixed(1)} airmass${X>=1.05?'es':''}`;
+  const note=`${s.planet?s.planet+(s.host?`, a moon of ${s.host}`:kin?`, ${kin}`:''):'A satellite'}${size} · ${s.planet==='Saturn'&&!s.rings?'sunlight off its yellower haze, with methane bands':r.note}${what}${tide}${ring}${spot}${where} · ${spAirTail(s.mag, m, X)}`;
   return {S, Y:1, parts:[], marks, note};
 }
 // The supernova, if it is up within tolDeg of dir.
@@ -616,7 +644,7 @@ function snSpectrum(sn){
   spThroughAir(S, marks, key, X);
   const m=starThroughAir(sn.mag, sn.el, key);
   const note=`${sn.name||'A supernova'} · a Type II-P near peak: an ${SN_T.toLocaleString('en-US')} K photosphere, its hydrogen and helium in `
-    +`P Cygni lines from ejecta at ${SN_V.toLocaleString('en-US')} km/s · V ${sn.mag.toFixed(1)} above the air, ${m.toFixed(1)} through ${X.toFixed(1)} airmass${X>=1.05?'es':''}`;
+    +`P Cygni lines from ejecta at ${SN_V.toLocaleString('en-US')} km/s · ${spAirTail(sn.mag, m, X)}`;
   return {S, Y:1, parts:[], marks, note};
 }
 const spRamp=(lo, hi, x)=>Math.max(0, Math.min(1, (x-lo)/(hi-lo)));
@@ -657,17 +685,21 @@ function spAirPerMass(key){
   return spTo1nm(lo.map((v, i)=>Math.max(v-hi[i], D.lo)));
 }
 // A point source's light S through X airmasses of the epoch's air, with the O2 and water bands.
+// With the air off (sunset.js airOff), as it is above it.
 function spThroughAir(S, marks, key, X){
+  if(airOff()) return;
   const air=spAirPerMass(key), o2=(SP_O2[key]??1)*X, h2o=(SP_H2O[key]??1)*X;
   for(let i=0;i<SP_N;i++) S[i]*=Math.pow(air[i], X)*Math.exp(-SP_TAU_O2[i]*o2-SP_TAU_H2O[i]*h2o);
   spAirMarks(marks, o2, h2o);
 }
+// A point source's magnitude above the air and through it, for its caption.
+function spAirTail(mag, m, X){ return airOff()?`V ${mag.toFixed(1)}, with the air off`:`V ${mag.toFixed(1)} above the air, ${m.toFixed(1)} through ${X.toFixed(1)} airmass${X>=1.05?'es':''}`; }
 function starSpectrum(s, el){
   const key=EP[dIdx].key, T=s.star[6]||10000, {S, marks}=starAbove(T), X=Math.min(spAirmass(el), 40);
   spThroughAir(S, marks, key, X);
   const cls=starClass(T), m=starThroughAir(s.mag, s.el, key);
-  const note=`${s.star[7]||(s.star[8]?`${/^[AFMOS]/.test(s.star[8])?'An':'A'} ${starTypeLabel(s.star[8])}, a stand-in for a star no catalogue can trace this far back`:'A star')} · ${cls==='O'||cls==='A'?'an':'a'} ${cls} star, ${Math.round(T/50)*50} K · V ${s.mag.toFixed(1)} above the air, `
-    +`${m.toFixed(1)} through ${X.toFixed(1)} airmass${X>=1.05?'es':''} of it, whose imprint is left in`;
+  const note=`${s.star[7]||(s.star[8]?`${/^[AFMOS]/.test(s.star[8])?'An':'A'} ${starTypeLabel(s.star[8])}, a stand-in for a star no catalogue can trace this far back`:'A star')} · ${cls==='O'||cls==='A'?'an':'a'} ${cls} star, ${Math.round(T/50)*50} K · `
+    +(airOff()?spAirTail(s.mag):`V ${s.mag.toFixed(1)} above the air, ${m.toFixed(1)} through ${X.toFixed(1)} airmass${X>=1.05?'es':''} of it, whose imprint is left in`);
   return {S, Y:1, parts:[], marks, note};
 }
 // The swatch bar under the dome: swatch sw is the sky vz° from the zenith toward the Sun's

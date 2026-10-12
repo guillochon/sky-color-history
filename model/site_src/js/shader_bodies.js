@@ -617,6 +617,8 @@ precision highp float;
 #define DETAIL_MAP 1
 uniform sampler2D sky; uniform sampler2D noiseTex; uniform sampler2D hitInfo; uniform highp sampler2DArray dsoTex;
 uniform vec2 res, hitScale; uniform float yaw, pitch, fov, showScn, refK, rCd, mwK, moonGain, starPx, nr, na;
+// 0 with the air off (sunset.js airOff): no reddening.
+uniform float airOn;
 uniform vec4 fineT; uniform vec3 grsDir; uniform vec4 grsAB;
 // The body (as the sky shader's bodyP..bodyM, one of them), the moons' shadows falling on it, and
 // the Sun's and Moon's directions and drawn radii (w, 0 when not up). For a moon of Saturn that the
@@ -697,7 +699,7 @@ void main(){
   // magnitudes more than red to each airmass.
   float lim=nakedEyeLimit(rBg*rCd), pxA=2.0*fy/res.y;
   float dm=-2.5*log(max(extinctionAt(te, mwK), 1e-9))/2.302585+(mwK-0.25), dim=pow(10.0, -0.2*dm);
-  vec3 T=dim*exp(-vec3(0.0, 0.064, 0.184)/max(sin(teR), 0.04));
+  vec3 T=dim*exp(-airOn*vec3(0.0, 0.064, 0.184)/max(sin(teR), 0.04));
   float rPx=bP.w/pxA, diskK=smoothstep(1.0, 3.0, rPx), vis=1.0-smoothstep(lim-0.8, lim+0.2, bL.w+dm-moonGain);
   // The offset from the body: zoomed in, from the image plane (as the sky shader's).
   vec3 dd=src-bP.xyz;
@@ -791,7 +793,7 @@ function bodyFS(f){
   const def=(k, on)=>s=>s.replace('#define DETAIL_'+k+' 1', '#define DETAIL_'+k+' '+(on?1:0));
   return keepLoops([def('JUP', f.has('jup')), def('SAT', f.has('sat')&&!f.has('jup')), def('NEP', f.has('nep')&&!f.has('jup')&&!f.has('sat')), def('MAP', f.has('map'))].reduce((s, g)=>g(s), BODYFS_SRC));
 }
-const BODY_UNIFORMS=['res','hitScale','yaw','pitch','fov','showScn','refK','rCd','mwK','moonGain','starPx','nr','na','fineT','grsDir','grsAB',
+const BODY_UNIFORMS=['res','hitScale','yaw','pitch','fov','showScn','refK','airOn','rCd','mwK','moonGain','starPx','nr','na','fineT','grsDir','grsAB',
   'bP','bC','bL','bN','bS','bM','bR','bRN','bE','shadowM[0]','shadowK[0]','shadowCnt','sunQ','moonQ','uRingEl[0]','uRingAx'];
 function setupBodyProg(gl, p){
   gl.useProgram(p);

@@ -129,7 +129,7 @@ function lockLook(){
   const p=document.getElementById('vrc').requestPointerLock(); if(p&&p.catch) p.catch(()=>{});
 }
 function exitVR(){
-  if(!vrOn) return; if(momentClouds!==null){ vrClouds=momentClouds; momentClouds=null; } aurActive=false; hideVRLoad(); if(vrGL&&vrGL.note) vrGL.note=''; if(vrInspect) setInspect(false, true); vrFind=null; closeFind(); if(datePop.open) datePop.close(); clearVRPins(); hideVRTip(); clearInterval(vrInspectTimer); vrInspectTimer=0; vrHoldEsc(false); vrOn=false; stopVRMusic(); vrRelock=false; vrLinkKey=''; vrHeld.clear(); endStick(); document.getElementById('sunmark').hidden=true; document.getElementById('moonmark').hidden=true; document.getElementById('snmark').hidden=true; if(vrWalk){ cancelAnimationFrame(vrWalk); vrWalk=0; }
+  if(!vrOn) return; if(vrAirOff){ vrAirOff=false; if(airClouds!==null){ vrClouds=airClouds; airClouds=null; } } if(momentClouds!==null){ vrClouds=momentClouds; momentClouds=null; } aurActive=false; hideVRLoad(); if(vrGL&&vrGL.note) vrGL.note=''; if(vrInspect) setInspect(false, true); vrFind=null; closeFind(); if(datePop.open) datePop.close(); clearVRPins(); hideVRTip(); clearInterval(vrInspectTimer); vrInspectTimer=0; vrHoldEsc(false); vrOn=false; stopVRMusic(); vrRelock=false; vrLinkKey=''; vrHeld.clear(); endStick(); document.getElementById('sunmark').hidden=true; document.getElementById('moonmark').hidden=true; document.getElementById('snmark').hidden=true; if(vrWalk){ cancelAnimationFrame(vrWalk); vrWalk=0; }
   if(!vrNav) clearVRLink();
   const root=document.getElementById('vr'); root.classList.remove('on','locked'); root.setAttribute('aria-hidden','true');
   document.body.style.overflow='';
@@ -291,6 +291,7 @@ document.addEventListener('keydown',e=>{
     if(e.key==='Shift'){ vrHeld.add('shift'); return; }
     if(k==='h'&&!e.repeat){ e.preventDefault(); vrScenery=!vrScenery; requestVR(); syncVRPad(); return; }
     if(k==='c'&&!e.repeat){ e.preventDefault(); vrClouds=!vrClouds; momentClouds=null; requestVR(); syncVRPad(); return; }
+    if(k==='v'&&!e.repeat){ e.preventDefault(); setAirOff(!vrAirOff); return; }
     if(k==='l'&&!e.repeat){ e.preventDefault(); vrLabels=!vrLabels; requestVR(); syncVRPad(); return; }
     if(k==='f'&&!e.repeat){ e.preventDefault(); openFind(); return; }
     if(k==='y'&&!e.repeat){ e.preventDefault(); openDatePop(); return; }
@@ -335,6 +336,15 @@ document.addEventListener('keydown',e=>{
   if(act){ e.preventDefault(); act(); }
 });
 const SPEED_KEYS={1:'real', 2:'default', 3:'fast'};
+// The air taken away (sunset.js airOff) or put back; its clouds go with it and come back as they were.
+let airClouds=null;
+function setAirOff(on){
+  if(on===vrAirOff) return;
+  vrAirOff=on;
+  if(on){ airClouds=vrClouds; vrClouds=false; }
+  else if(airClouds!==null){ vrClouds=airClouds; airClouds=null; }
+  sunsetCache=null; renderDay(); requestVR(); syncVRPad();
+}
 function syncVRPad(){
   const set=(id,on)=>{ const b=document.getElementById(id); if(b) b.setAttribute('aria-pressed', on?'true':'false'); };
   set('vrpad-scenery', vrScenery);
@@ -342,7 +352,7 @@ function syncVRPad(){
   set('vrpad-labels', vrLabels);
   set('vrpad-music', !musicMuted);
   set('vrpad-run', vrRun);
-  for(const [id, on] of [['vrk-scenery', vrScenery], ['vrk-clouds', vrClouds], ['vrk-labels', vrLabels]]){ const el=document.getElementById(id); if(el) el.classList.toggle('on', on); }
+  for(const [id, on] of [['vrk-scenery', vrScenery], ['vrk-clouds', vrClouds], ['vrk-labels', vrLabels], ['vrk-air', !vrAirOff]]){ const el=document.getElementById(id); if(el) el.classList.toggle('on', on); }
   const sp=document.getElementById('vrpad-speed');
   if(sp){ sp.dataset.speed=playSpeed; sp.setAttribute('aria-label', 'Speed: '+(playSpeed==='real'?'real time':playSpeed==='fast'?'fast':'normal')); }
   const walk=document.getElementById('vrwalk');

@@ -303,7 +303,9 @@ YOUNG_GIANTS = [
 "hue, the ice giants' storms of moist convection rising bright out of their mid-latitudes. Above about 380 K "
 "water no longer condenses high up and the planet is clear, their class III, a dark azure of Rayleigh "
 "scattering and methane absorption: Jupiter in the 4.55 Ga sky, and most of Saturn. Each planet's point is "
-"tinted and brightened or dimmed with its disk.",
+"tinted and brightened or dimmed with its disk, and its spectrum's reflectance mixed toward the stage's: flatter "
+"and grey for the NH4SH and water decks, with shallower methane bands above the higher clouds, and blue and "
+"dark in the red, with deep methane bands, when clear.",
 
 "Oceanus, of about Neptune's mass, cools as Neptune does; nearer the Sun, at 9.6 AU, its effective "
 "temperature is 270 K in the 4.55 Ga sky and 180 K in the 4.5 Ga sky, so in both it has the high bright deck "
