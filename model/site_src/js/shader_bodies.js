@@ -530,6 +530,15 @@ vec4 bodyDisk(vec3 o, vec3 v, vec3 n, vec3 L, int kind, float rPx, vec3 tint, ve
   float cov=clamp(0.5+(edge-sqrt(rho2))*rPx, 0.0, 1.0);
   t=1e9; x=o;
   if(cov<=0.0) return vec4(0.0);
+#if DETAIL_MAP
+  // Within a raised or sunk outline, the ray is moved in toward the middle, by the whole of the
+  // height at the outline and none of it at the middle, so the outline meets the spheroid's limb:
+  // past the limb every ray would meet the same limb point, the map smeared out from it.
+  if(edge!=1.0){
+    float s=1.0+(edge-1.0)*rho2/(edge*edge);
+    op=bh*vp+(op-bh*vp)/s; o=op-(k/(1.0+k))*dot(op, n)*n; rho2/=s*s;
+  }
+#endif
   t=-bh-sqrt(max(1.0-rho2, 0.0)/a); x=o+t*v;
   vec3 nrm=normalize(x+(1.0/((1.0-f)*(1.0-f))-1.0)*dot(x, n)*n), pc=normalize(x);
   float mu0=dot(nrm, L), mu=max(dot(nrm, -v), 0.05), w=1.5/max(rPx, 1.0);

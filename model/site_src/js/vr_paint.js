@@ -940,7 +940,8 @@ function drawBodies(gl){
   list.map((b, i)=>i).sort((a, c)=>(list[a].kind===BODY_MOON)-(list[c].kind===BODY_MOON)).forEach(i=>{
     const b=list[i], rPx=b.rad/pxA, Sx=BODY_U.S[i*4], Sy=BODY_U.S[i*4+1];
     if(rPx<1||Math.abs(Sx)>1e5) return;
-    const cx=(Sx/fx*0.5+0.5)*W, cy=(Sy/fy*0.5+0.5)*H, r=rPx*(b.rings?2.35:b.uRings?2.06:1)*1.05+3;
+    // The box takes in the rings, and the ground a body's heights raise past its spheroid.
+    const sr=b.map&&SURF_RELIEF[b.map], cx=(Sx/fx*0.5+0.5)*W, cy=(Sy/fy*0.5+0.5)*H, r=rPx*(b.rings?2.35:b.uRings?2.06:sr?1+1.2*sr[1]/sr[2]:1)*1.05+3;
     const x0=Math.max(0, Math.floor(cx-r)), y0=Math.max(0, Math.floor(cy-r)), x1=Math.min(W, Math.ceil(cx+r)), y1=Math.min(H, Math.ceil(cy+r));
     if(x1<=x0||y1<=y0) return;
     const code=surfCode(b.map), pr=(b.kind===3&&bp.jup)||(b.kind===4&&bp.sat)||(b.kind===6&&bp.nep)||(code>-0.5&&bp.map)||bp.base, u=pr.u;
