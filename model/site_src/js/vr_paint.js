@@ -962,6 +962,8 @@ function drawBodies(gl){
     gl.uniform4f(u.bL, b.light[0], b.light[1], b.light[2], b.mag);
     // Jupiter's Red Spot or Neptune's dark vortex, each its own.
     if(b.kind===3||b.kind===6){ const g=b.kind===3?b.grs:b.nds; gl.uniform3fv(u.grsDir, g?g.dir:[1, 0, 0]); gl.uniform4f(u.grsAB, g?g.L:0, g?g.W:0, g?(g.lat??GRS_LAT):GRS_LAT, g?g.k:0); }
+    // A young giant's clouds (planets.js giantEra), and whether it is Oceanus.
+    const e=b.era; gl.uniform4f(u.bE, e?e[0]:0, e?e[1]:0, e?e[2]:0, e?e[3]:0);
     gl.uniform4f(u.bN, b.pole[0], b.pole[1], b.pole[2], b.kind+(b.front?8:0)+((b.kind===4&&!b.rings)||(b.kind===5&&!b.uRings)?16:0)+(b.over?32:0));
     if(b.uRings){ gl.uniform4fv(u.uRingEl, b.uRings.el); gl.uniform3fv(u.uRingAx, b.uRings.ax); }
     gl.uniform4f(u.bS, Sx, Sy, BODY_U.S[i*4+2], b.flat!=null?b.flat+1:0);

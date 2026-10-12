@@ -277,6 +277,44 @@ NEPTUNE = [
 "at random as their rates and sizes have it, since where one was on any given day is not known.",
 ]
 
+YOUNG_GIANTS = [
+"The giant planets were warmer when young, and their clouds were different. Each cools as it ages: we take "
+"its intrinsic temperature, the effective temperature its own heat alone would give it, to fall as the age to "
+"the −0.29, a power-law fit to the cooling tracks of Burrows et al. (1997), scaled to today's (98 K for "
+"Jupiter, 78 K for Saturn, 53 K for Neptune, from the effective temperatures Voyager measured, Hanel et al. "
+"1981, 1983 and Pearl &amp; Conrath 1991, less the sunlight's share), and add the young Sun's light at each "
+"planet's distance. For planets of these masses the hot and cold starts of formation meet within a few tens of "
+"millions of years (Spiegel &amp; Burrows 2012), so the history is surest over the last four billion years and "
+"least sure in the oldest sky. Then Jupiter's effective temperature was near 500 K in the 4.55 Ga sky, 330 K "
+"in the 4.5 Ga sky, 185 K at 4.0 Ga and 170 K at 3.8 Ga, against 124 K now; Saturn's 395, 265, 145 and 135 K, "
+"against 95; Neptune's 270, 180, 98 and 90 K, against 59. Uranus is drawn as it is now: it gives out too "
+"little heat for any model that starts it hot (Fortney et al. 2011), and how warm it was is not known.",
+
+"A cloud deck forms where the air is cold enough for its gas to condense, and the coldest air, at the top "
+"of the troposphere, is near 0.85 of the effective temperature, so as each planet cooled its clouds formed "
+"in turn from the bottom up; young, Jupiter and Saturn had no ammonia clouds and a top deck of water clouds, "
+"and the ice giants' clouds lay higher (Fortney et al. 2011). We draw three stages. Above about 165 K Jupiter "
+"and Saturn have no ammonia ice on top and show the NH4SH haze beneath, paler and less colored, as Jupiter "
+"is at 4.0 and 3.8 Ga; above about 85 K Neptune has no methane ice, no bright streaks, and shows its H2S deck "
+"higher up, as pale a cyan as Uranus, whose top deck is H2S now (Irwin et al. 2018), as Neptune is at 4.0 and "
+"3.8 Ga. Warmer still, above about 230 K for the gas giants and 155 K for the ice giants, the top is a high "
+"deck of NH4SH and water clouds, bright and near white, Sudarsky et al.'s (2000) class II: Jupiter and Saturn "
+"in the 4.5 Ga sky and the ice giants in both of the oldest, their bands showing more in brightness than in "
+"hue, the ice giants' storms of moist convection rising bright out of their mid-latitudes. Above about 380 K "
+"water no longer condenses high up and the planet is clear, their class III, a dark azure of Rayleigh "
+"scattering and methane absorption: Jupiter in the 4.55 Ga sky, and most of Saturn. Each planet's point is "
+"tinted and brightened or dimmed with its disk.",
+
+"Oceanus, of about Neptune's mass, cools as Neptune does; nearer the Sun, at 9.6 AU, its effective "
+"temperature is 270 K in the 4.55 Ga sky and 180 K in the 4.5 Ga sky, so in both it has the high bright deck "
+"of NH4SH and water clouds, a pale banded cyan. Its bands are laid out as the ice giants' circulation runs, "
+"air rising at mid-latitudes, where clouds are thick and bright, and sinking at the equator and poles, where "
+"they are thin (Fletcher et al. 2020): a broad darker equatorial belt, bright zones from about 18° to 45°, "
+"narrower belts near 50° and darker polar caps, carried and stirred as Neptune's are, in Neptune's winds, with "
+"bright storm tops in the rising zones of both hemispheres. Its day, unknown, is taken as 16 hours. Through the "
+"tens of bars of CO2 of the 4.5 Ga sky none of this can be seen from the ground.",
+]
+
 MOONS = [
 "The moons with fitted orbits, fitted here to JPL Horizons over 1980–2060, are Io, Europa, Ganymede and "
 "Callisto; Mimas, Enceladus, Tethys, Dione, Rhea, Titan and Iapetus; Miranda, Ariel, Umbriel, Titania and "

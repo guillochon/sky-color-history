@@ -238,9 +238,10 @@ function earlyOrbit(name, el, rate){
 // drawn as Neptune is, whose size and brightness it would have had. Theia: Mars-sized, on an orbit
 // near the Earth's (made up: any that would meet the Earth's will do). Its crust is dark FeO-rich
 // basalt, airless and saturated with craters (theia_map.py): geometric albedo about 0.12, so H
-// -1.25 for its 6,800 km, against Mars's -1.52 at 0.17. Its day, unknown, is taken as 20 hours.
+// -1.25 for its 6,800 km, against Mars's -1.52 at 0.17. Their days, unknown, are taken as 16 hours,
+// near Neptune's and Uranus's, and 20.
 const LOST_PLANETS=[
-  ['Oceanus', [9.62, 0.01, 1.0, 0, 30, 60], [0, 0, 0, 36000/Math.pow(9.62, 1.5), 0, 0], [0.62, 0.82, 1.0], [25000, 0.017, 45, 62], -7.0, 6, PRE_INSTABILITY],
+  ['Oceanus', [9.62, 0.01, 1.0, 0, 30, 60], [0, 0, 0, 36000/Math.pow(9.62, 1.5), 0, 0], [0.62, 0.82, 1.0], [25000, 0.017, 45, 62], -7.0, 6, PRE_INSTABILITY, [0, 540]],
   ['Theia', [0.95, 0.07, 1.5, 0, 200, 140], [0, 0, 0, 36000/Math.pow(0.95, 1.5), 0, 0], [0.80, 0.72, 0.62], [3400, 0, 300, 70], -1.25, 7, {protoearth455:true}, [120, 432]],
 ];
 // The three largest asteroids, which reach the naked eye or binoculars: Vesta magnitude 5.2 at its
@@ -374,13 +375,63 @@ function markHidden(s){ return !!s.host&&s.behind&&s.rho<1; }
 // Where every planet and moon of the last render is, set or not, for find (find.js): true
 // altitude, azimuth and angular radius, by name.
 const BODY_WHERE=new Map();
+// The giants when young. Each cools as it ages: its intrinsic temperature, the effective
+// temperature its own heat alone would give it, falling as the age to the -0.29 (a power-law fit
+// to Burrows et al. 1997's cooling tracks), scaled to today's (Jupiter 98 K, Saturn 78 K, Neptune
+// 53 K: Voyager's Teff of 124.4, 95.0 and 59.3 K, Hanel et al. 1981, 1983 and Pearl & Conrath 1991,
+// less the sunlight's share); with the epoch's sunlight at its orbit's distance, Teff^4 = Tint^4 +
+// Teq^4 (Fortney et al. 2011). Their cooling is near today's measure over the last few Gyr, and the young planets' hot or cold starts
+// meet within a few tens of Myr for these masses (Spiegel & Burrows 2012); the start of the Solar
+// System, 17 Myr before the first epoch, is where it is least sure. Oceanus, of about Neptune's
+// mass, cools as Neptune does. Uranus is drawn as it is now: it gives out too little heat for any
+// model with a hot start (Fortney et al. 2011), and how warm it was is not known. A cloud deck
+// forms where the air's temperature meets its gas's condensation; the coldest air, at the top of
+// the troposphere, is near 0.85 Teff, so as a planet cools each cloud first forms in turn (Fortney
+// et al. 2011: young, Jupiter and Saturn had no ammonia clouds and a top deck of water clouds,
+// and the ice giants' clouds were higher). Returned for shader_bodies.js eraAlb: x how far its top
+// ice cloud, ammonia (near 150 K) or methane (near 80 K), was yet to form; y a high deck of NH4SH
+// and water clouds instead (Sudarsky et al. 2000's class II, its tropopause too warm for H2S or
+// ammonia); z too warm for even water clouds high up (their class III, clear and dark blue); w 1 for
+// Oceanus, drawn with its own bands. Null when today's.
+const GIANT_TINT={Jupiter:98, Saturn:78, Neptune:53, Oceanus:53}, GIANT_BOND={Jupiter:0.343, Saturn:0.342, Neptune:0.29, Oceanus:0.29};
+function giantTeff(name, ageMa, a, sunL){
+  const t=Math.max(4567-ageMa, 10), Tint=GIANT_TINT[name]*Math.pow(t/4567, -0.29);
+  const Teq=278.6*Math.pow(sunL*(1-GIANT_BOND[name]), 0.25)/Math.sqrt(a);
+  return Math.pow(Tint**4+Teq**4, 0.25);
+}
+function giantEra(name, ageMa, a, sunL){
+  if(!GIANT_TINT[name]||(!ageMa&&name!=='Oceanus')) return null;
+  const T=giantTeff(name, ageMa, a, sunL), ice=name==='Neptune'||name==='Oceanus';
+  const e=ice?[smooth01(80, 95, T), smooth01(140, 170, T), smooth01(330, 430, T), name==='Oceanus'?1:0]:[smooth01(150, 180, T), smooth01(210, 250, T), smooth01(330, 430, T), 0];
+  return e[0]+e[1]+e[2]+e[3]>0.002?Object.assign(e, {teff:T}):null;
+}
+// shader_bodies.js eraAlb, for the dome and the planets' points.
+function eraAlb(kind, c, e){
+  if(!e||kind<3||kind>6||kind===5) return c;
+  const l=0.30*c[0]+0.55*c[1]+0.15*c[2], ice=kind===6;
+  c=mix3(c, (ice?[0.75, 1.08, 1.19]:[1.05, 1.01, 0.92]).map(v=>l*v+(ice?0:0.06)), (ice?0.7:0.6)*e[0]);
+  c=mix3(c, (ice?[0.76, 0.91, 1.0]:[0.96, 0.95, 0.92]).map(v=>v*(0.35+0.8*l)), 0.85*e[1]);
+  return mix3(c, [0.13, 0.21, 0.42].map(v=>v*(0.8+0.3*l)), e[2]);
+}
+// A young giant's point: its tint turned as its disk's colors are, and its magnitude by how much
+// brighter or darker its disk is, over its latitudes.
+function eraLook(kind, tint, e){
+  if(!e) return {tint, dm:0};
+  const a=[0, 0, 0], b=[0, 0, 0];
+  for(let lat=-60;lat<=60;lat+=10){
+    const c=bodyAlbedo(kind, lat, tint, e), ce=eraAlb(kind, c, e), w=Math.cos(lat*Math.PI/180);
+    for(let k=0;k<3;k++){ a[k]+=w*ce[k]; b[k]+=w*c[k]; }
+  }
+  const lum=v=>0.30*v[0]+0.55*v[1]+0.15*v[2], t=tint.map((v, k)=>v*a[k]/b[k]), m=Math.max(...tint)/Math.max(...t);
+  return {tint:t.map(v=>v*m), dm:-2.5*Math.log10(lum(a)/lum(b))};
+}
 // Write the planets and their moons into the marks and the walk-around view's bodies. Positions
 // are J2000, precessed to the same year as the stars so they sit correctly among them; each J2000
 // direction (a pole, the way to the Sun) is turned into the local horizon frame the same way.
 // Each shines by the epoch's sunlight: the young Sun's fainter light dims them all alike.
 function placePlanets(lat, marks, bodies, epochKey, year, LST){
   const phases=planetPhases(epochKey), ageMa=PLANET_AGE_MA[epochKey]||0, rings=ageMa<RINGS_MA;
-  const dimMag=-2.5*Math.log10((EP[dIdx]&&EP[dIdx].sunL)||1);
+  const sunL=(EP[dIdx]&&EP[dIdx].sunL)||1, dimMag=-2.5*Math.log10(sunL);
   const T=(astroDay()-1.5)/36525, tD=T*36525;
   const earth=planetHelio(PLANET_EARTH[0], PLANET_EARTH[1], T), R=Math.hypot(...earth);
   const eps=23.43928*Math.PI/180, ce=Math.cos(eps), se=Math.sin(eps), eq=v=>[v[0], v[1]*ce-v[2]*se, v[1]*se+v[2]*ce];
@@ -398,7 +449,7 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
     return toRaDec(eq(v.map((vi, j)=>vi*c+x[j]*sn+n[j]*nv*(1-c))));
   };
   BODY_WHERE.clear();
-  PLANETS.forEach(([name, el0, rate0, tint], k)=>{
+  PLANETS.forEach(([name, el0, rate0, tint0], k)=>{
     const [Rkm, flat, pra0, pdec0]=PLANET_BODY[k], [el, rate]=early?earlyOrbit(name, el0, rate0):[el0, rate0];
     const [pra, pdec]=name==='Saturn'?saturnPole(pra0, pdec0):[pra0, pdec0];
     const h=planetHelio(phases?el.map((v, n)=>n===3?v+phases.planets[k]:v):el, rate, T), g=[h[0]-earth[0], h[1]-earth[1], h[2]-earth[2]];
@@ -406,7 +457,9 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
     const q=eq(g), qn=q.map(v=>v/d), pole=eqVec(pra, pdec);
     const i=Math.acos(Math.max(-1, Math.min(1, (r*r+d*d-R*R)/(2*r*d))))*180/Math.PI;
     const ringed=name==='Saturn'&&rings, ringSinB=ringed?Math.abs(vdot(qn, pole)):0;
-    const mag=planetMag(name, r, d, i, ringSinB)+dimMag;
+    // A young giant's clouds, which change its color and brightness (giantEra).
+    const era=ageMa?giantEra(name, ageMa, el[0], sunL):null, look=eraLook(k, tint0, era), tint=look.tint;
+    const mag=planetMag(name, r, d, i, ringSinB)+dimMag+look.dm;
     const p=horiz(q);
     const radDeg=Math.atan(Rkm/(d*PL_AU_KM))*180/Math.PI, show=planetDisplay(mag, tint);
     BODY_WHERE.set(name, {az:p.az, el:p.alt, radDeg, rings:ringed, mag});
@@ -429,7 +482,7 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
       const s=nepSpotAt(2000+(tD-d*LIGHT_DAY_AU)/365.25);
       if(s){ const w=Wr+s.lon*Math.PI/180; nds={...s, dir:horiz(vadd(vscale(axk.i, Math.cos(w)), vscale(axk.j, Math.sin(w)), [0, 0, 0])).dir}; }
     }
-    const body={grs, meridian, map:SURF_FILES[name]?name:null, dir:p.dir, rad:radDeg*Math.PI/180, light:vnorm(horiz(eq(h.map(v=>-v))).dir), pole:horiz(pole).dir, kind:k, px:show.px, rgb:show.rgb, mag, front:d<R, shadows:[], rings:ringed, ringAge:(RINGS_MA-ageMa)/RINGS_MA, tint, nds};
+    const body={grs, meridian, map:SURF_FILES[name]?name:null, dir:p.dir, rad:radDeg*Math.PI/180, light:vnorm(horiz(eq(h.map(v=>-v))).dir), pole:horiz(pole).dir, kind:k, px:show.px, rgb:show.rgb, mag, front:d<R, shadows:[], rings:ringed, ringAge:(RINGS_MA-ageMa)/RINGS_MA, tint, nds, era};
     // Uranus's rings, where the light now arriving left them: their state, and the node their
     // longitudes count from (the IAU pole's, the equator's ascending node on the J2000 equator).
     if(name==='Uranus') body.uRings={el:uraRingEl(tD-d*LIGHT_DAY_AU), ax:horiz(axk.i).dir};
@@ -500,17 +553,18 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
   // kind it is drawn as, its prime meridian at J2000 and turning (or none), the phase drawn for the
   // epoch (null on a dated sky), its magnitude from its distances from the Sun and us (AU) and phase
   // angle (degrees), and what it is (find.js, the spectrum's note).
-  const placeAlone=(name, el, rate, tint, Rkm, flat, pra, pdec, kind, spin, ph, magOf, what)=>{
+  const placeAlone=(name, el, rate, tint0, Rkm, flat, pra, pdec, kind, spin, ph, magOf, what, era=null)=>{
+    const look=eraLook(kind, tint0, era), tint=look.tint;
     const h=planetHelio(ph!=null?el.map((v, n)=>n===3?v+ph:v):el, rate, T), g=[h[0]-earth[0], h[1]-earth[1], h[2]-earth[2]];
     const r=Math.hypot(...h), d=Math.hypot(...g), q=eq(g), pole=eqVec(pra, pdec);
     const i=Math.acos(Math.max(-1, Math.min(1, (r*r+d*d-R*R)/(2*r*d))))*180/Math.PI;
-    const mag=magOf(r, d, i)+dimMag, p=horiz(q);
+    const mag=magOf(r, d, i)+dimMag+look.dm, p=horiz(q);
     const radDeg=Math.atan(Rkm/(d*PL_AU_KM))*180/Math.PI, show=planetDisplay(mag, tint);
     BODY_WHERE.set(name, {az:p.az, el:p.alt, radDeg, mag, what});
     // Its prime meridian, where the light now arriving left it, as the planets'.
     let meridian=null;
     if(spin){ const ax=equatorAxes(pra, pdec), Wr=(spin[0]+spin[1]*(tD-d*LIGHT_DAY_AU))*Math.PI/180; meridian=horiz(vadd(vscale(ax.i, Math.cos(Wr)), vscale(ax.j, Math.sin(Wr)), [0, 0, 0])).dir; }
-    const body={grs:null, meridian, map:SURF_FILES[name]?name:null, dir:p.dir, rad:radDeg*Math.PI/180, light:vnorm(horiz(eq(h.map(v=>-v))).dir), pole:horiz(pole).dir, kind, flat, px:show.px, rgb:show.rgb, mag, front:d<R, shadows:[], rings:false, tint};
+    const body={grs:null, meridian, map:SURF_FILES[name]?name:null, dir:p.dir, rad:radDeg*Math.PI/180, light:vnorm(horiz(eq(h.map(v=>-v))).dir), pole:horiz(pole).dir, kind, flat, px:show.px, rgb:show.rgb, mag, front:d<R, shadows:[], rings:false, tint, era};
     if(p.alt>0){
       marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb, planet:name, mag, ra:p.ra, dec:p.dec, radDeg, dist:d, lit:(1+Math.cos(i*Math.PI/180))/2, body, kind, rings:false, unknown:!!phases, ageMa, tint, what});
       bodies.push(body);
@@ -519,7 +573,7 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
   // The planets only the earliest epochs have: a giant's phase law (Neptune's: none), or a rocky
   // body's (Mars's).
   LOST_PLANETS.forEach(([name, el, rate, tint, [Rkm, , pra, pdec], H, kind, eps, spin], li)=>{
-    if(eps[epochKey]) placeAlone(name, el, rate, tint, Rkm, undefined, pra, pdec, kind, spin, phases?phases.lost[li]:null, (r, d, i)=>H+5*Math.log10(r*d)+(kind===BODY_MOON?0.016*i:0), name==='Theia'?'a planet-sized body':'a lost ice giant');
+    if(eps[epochKey]) placeAlone(name, el, rate, tint, Rkm, undefined, pra, pdec, kind, spin, phases?phases.lost[li]:null, (r, d, i)=>H+5*Math.log10(r*d)+(kind===BODY_MOON?0.016*i:0), name==='Theia'?'a planet-sized body':'a lost ice giant', giantEra(name, ageMa, el[0], sunL));
   });
   // The largest asteroids, in every epoch, by the H, G law.
   ASTEROIDS.forEach(([name, el, rate, terms, tint, [Rkm, flat, pra, pdec], spin, H, G, what], ai)=>{
@@ -542,7 +596,11 @@ const BODY_GAIN=[1.6, 2.0, 1.2, 1.0, 0.9, 1.0, 1.0, 1.0];
 const BODY_MINN=[0.6, 0.55, 0.7, 0.9, 0.9, 0.85, 0.85, 0.6];
 function bandOf(lat, a, b, w){ return smooth01(a-w, a+w, lat)-smooth01(b-w, b+w, lat); }
 const mix3=(a, b, t)=>a.map((v, i)=>v+(b[i]-v)*t);
-function bodyAlbedo(kind, lat, tint){
+// Oceanus's bands (shader_bodies.js ocBelt, ocColor).
+function ocBelt(lat, w){ return 0.7*bandOf(lat, -15, 15, w*2)+0.25*(bandOf(lat, 28, 32, w)+bandOf(lat, -32, -28, w))+0.55*(bandOf(lat, 46, 56, w)+bandOf(lat, -56, -46, w)); }
+function ocColor(lat, belt){ return mix3(mix3([0.70, 0.84, 0.95], [0.48, 0.62, 0.84], Math.min(1, Math.max(0, belt))), [0.52, 0.66, 0.86], 0.7*smooth01(60, 75, Math.abs(lat))); }
+// era: giantEra's, for Oceanus's own bands (its colors for the era are eraAlb's, after).
+function bodyAlbedo(kind, lat, tint, era){
   if(kind===0) return [0.66, 0.62, 0.57];
   if(kind===1) return [1.0, 0.96, 0.84];
   if(kind===2) return mix3(mix3([0.86, 0.52, 0.33], [0.66, 0.42, 0.30], 0.6*bandOf(lat, -45, -5, 6)), [0.95, 0.95, 0.97], smooth01(68, 74, Math.abs(lat)));
@@ -551,6 +609,7 @@ function bodyAlbedo(kind, lat, tint){
     return mix3(mix3([0.95, 0.91, 0.82], [0.70, 0.53, 0.40], Math.min(1, Math.max(0, belt))), [0.62, 0.60, 0.58], smooth01(45, 70, Math.abs(lat)));
   }
   if(kind===5) return mix3([0.58, 0.84, 0.92], [0.70, 0.88, 0.92], smooth01(50, 80, Math.abs(lat)));
+  if(kind===6&&era&&era[3]) return ocColor(lat, ocBelt(lat, 4));
   if(kind===6) return mix3(mix3([0.56, 0.74, 0.95], [0.45, 0.60, 0.88], 0.3*bandOf(lat, -10, 10, 4)+0.5*bandOf(lat, -64, -57, 2)), [0.62, 0.80, 0.96], 0.5*smooth01(65, 85, Math.abs(lat)));
   if(kind===4) return mix3(mix3([0.93, 0.85, 0.64], [0.78, 0.68, 0.50], 0.5*(bandOf(lat, 18, 32, 3)+bandOf(lat, -32, -18, 3))), [0.70, 0.70, 0.64], smooth01(55, 75, Math.abs(lat)));
   const m=Math.max(...tint, 1e-4); return tint.map(c=>c/m*0.85);
@@ -589,9 +648,10 @@ function bodyPixel(b, src, rad, rPx){
     const mu0=vdot(nrm, L), mu=Math.max(-vdot(nrm, v), 0.05), w=1.5/Math.max(rPx, 1);
     const km=BODY_MINN[b.kind], lit=smooth01(-w, w, mu0)*Math.min(Math.pow(Math.max(mu0, 0)+0.01, km)*Math.pow(mu, km-1), 1.3);
     const lat=Math.asin(Math.max(-1, Math.min(1, vdot(nrm, n))))*180/Math.PI;
-    let alb=bodyAlbedo(b.kind, lat, b.tint);
+    let alb=bodyAlbedo(b.kind, lat, b.tint, b.era);
     if(b.grs) alb=grsPaint(alb, b.grs, nrm, n, lat);
     if(b.kind===4) alb=satSeason(alb, lat, vdot(n, L));
+    alb=eraAlb(b.kind, alb, b.era);
     dc=alb.map(c=>c*lit*cov*BODY_GAIN[b.kind]);
     for(const s of b.shadows||[]){ const sh=moonShadow(x, s, L, rPx); dc=dc.map(c=>c*sh); }
     // A moon of Saturn in the rings' shadow (the bodies' shader's).

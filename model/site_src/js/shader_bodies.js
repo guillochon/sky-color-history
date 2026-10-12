@@ -9,8 +9,19 @@ const BODY_GLSL=`
 // A planet's cloud tops or ground at planetographic latitude lat (degrees): Mercury's grey rock,
 // Venus's clouds, Mars's ochre with its darker south and polar caps, Jupiter's belts and zones,
 // Saturn's fainter bands, Uranus's pale cyan (paler toward the poles), Neptune's paler blue with a
-// darker equator and its dark band near 60°S; a moon in its own tint.
+// darker equator and its dark band near 60°S, or Oceanus's own (bE.w 1); a moon in its own tint.
 float bandOf(float lat, float a, float b, float w){ return smoothstep(a-w, a+w, lat)-smoothstep(b-w, b+w, lat); }
+// Oceanus's bands (planets.js ocBelt, ocColor), edges w degrees wide: an ice giant's, laid out as
+// Neptune's and Uranus's circulation is, air rising at mid-latitudes, where the clouds are thick and
+// bright, and sinking at the equator and the poles, where they are thin (Fletcher et al. 2020): a
+// broad darker equatorial belt, bright zones from about 18° to 45°, narrower belts near 50°, darker
+// polar caps. Drawn first in Neptune's colors; giantEra (bE) then makes them its own warmer deck's.
+float ocBelt(float lat, float w){
+  return 0.7*bandOf(lat, -15.0, 15.0, w*2.0)+0.25*(bandOf(lat, 28.0, 32.0, w)+bandOf(lat, -32.0, -28.0, w))+0.55*(bandOf(lat, 46.0, 56.0, w)+bandOf(lat, -56.0, -46.0, w));
+}
+vec3 ocColor(float lat, float belt){
+  return mix(mix(vec3(0.70, 0.84, 0.95), vec3(0.48, 0.62, 0.84), clamp(belt, 0.0, 1.0)), vec3(0.52, 0.66, 0.86), 0.7*smoothstep(60.0, 75.0, abs(lat)));
+}
 vec3 bodyAlbedo(int kind, float lat, vec3 tint){
   if(kind==0) return vec3(0.66, 0.62, 0.57);
   if(kind==1) return vec3(1.0, 0.96, 0.84);
@@ -20,6 +31,7 @@ vec3 bodyAlbedo(int kind, float lat, vec3 tint){
     return mix(mix(vec3(0.95, 0.91, 0.82), vec3(0.70, 0.53, 0.40), clamp(belt, 0.0, 1.0)), vec3(0.62, 0.60, 0.58), smoothstep(45.0, 70.0, abs(lat)));
   }
   if(kind==5) return mix(vec3(0.58, 0.84, 0.92), vec3(0.70, 0.88, 0.92), smoothstep(50.0, 80.0, abs(lat)));
+  if(kind==6 && bE.w>0.5) return ocColor(lat, ocBelt(lat, 4.0));
   if(kind==6) return mix(mix(vec3(0.56, 0.74, 0.95), vec3(0.45, 0.60, 0.88), 0.3*bandOf(lat, -10.0, 10.0, 4.0)+0.5*bandOf(lat, -64.0, -57.0, 2.0)), vec3(0.62, 0.80, 0.96), 0.5*smoothstep(65.0, 85.0, abs(lat)));
   if(kind==4) return mix(mix(vec3(0.93, 0.85, 0.64), vec3(0.78, 0.68, 0.50), 0.5*(bandOf(lat, 18.0, 32.0, 3.0)+bandOf(lat, -32.0, -18.0, 3.0))), vec3(0.70, 0.70, 0.64), smoothstep(55.0, 75.0, abs(lat)));
   return tint/max(max(tint.r, tint.g), max(tint.b, 1e-4))*0.85;
@@ -39,6 +51,22 @@ vec3 grsPaint(vec3 c, vec3 nrm, vec3 n, float lat){
 vec3 satSeason(vec3 c, float lat, float sl){
   float w=clamp(-sl*sign(lat)/0.45, 0.0, 1.0)*smoothstep(20.0, 45.0, abs(lat));
   return mix(c, vec3(0.62, 0.74, 0.86), 0.5*w);
+}
+// A giant's clouds when it was young and warmer (planets.js giantEra, in bE): as it cooled, the
+// clouds that top it now formed only later (Fortney et al. 2011). bE.x, its top ice cloud not yet
+// formed: Jupiter's and Saturn's ammonia, whose cloud tops lay under NH4SH haze, paler and less
+// colored; Neptune's and Oceanus's methane, leaving its deck of H2S higher, as Uranus's top deck
+// is H2S now (Irwin et al. 2018), and as pale a cyan. bE.y, warmer still, a high deck of NH4SH and water clouds (Sudarsky et al. 2000's
+// class II): bright and near white, a gas giant's a little cream, an ice giant's pale cyan through
+// the methane above it, its bands in brightness more than hue. bE.z, too warm for water to condense
+// high (their class III): clear, a deep azure of Rayleigh scattering and methane absorption, dark.
+vec3 eraAlb(int kind, vec3 c){
+  if(kind<3 || kind>6 || kind==5 || bE.x+bE.y+bE.z<=0.0) return c;
+  float l=dot(c, vec3(0.30, 0.55, 0.15));
+  bool ice=kind==6;
+  c=mix(c, ice?l*vec3(0.75, 1.08, 1.19):l*vec3(1.05, 1.01, 0.92)+0.06, ice?0.7*bE.x:0.6*bE.x);
+  c=mix(c, (ice?vec3(0.76, 0.91, 1.0):vec3(0.96, 0.95, 0.92))*(0.35+0.8*l), 0.85*bE.y);
+  return mix(c, vec3(0.13, 0.21, 0.42)*(0.8+0.3*l), bE.z);
 }
 #if DETAIL_JUP || DETAIL_SAT || DETAIL_NEP
 // Jupiter close up (bodyDisk, once its disk is a few dozen pixels across), after Voyager, Cassini,
@@ -92,15 +120,20 @@ const float CL_MS=0.19989;
 // Bands: the equator a little darker, and the dark circumpolar wave near 60°S (drawn with its wander
 // below); in true colour Neptune is a pale greenish blue only a little bluer than Uranus (Irwin et
 // al. 2024), not the deep blue of the contrast-stretched Voyager images.
+// Oceanus has its own (bodyAlbedo's).
 float clBelt(float lat, float w){
+  if(bE.w>0.5) return ocBelt(lat, w);
   return 0.3*bandOf(lat, -10.0, 10.0, w*2.0)+0.5*bandOf(lat, -64.0, -57.0, w);
 }
 vec3 clColor(float lat, float belt){
+  if(bE.w>0.5) return ocColor(lat, belt);
   return mix(mix(vec3(0.56, 0.74, 0.95), vec3(0.45, 0.60, 0.88), clamp(belt, 0.0, 1.0)), vec3(0.62, 0.80, 0.96), 0.5*smoothstep(65.0, 85.0, abs(lat)));
 }
 const float CL_B[12]=float[12](10.0, 20.0, 30.0, 45.0, 56.0, 68.0, -10.0, -20.0, -30.0, -45.0, -56.0, -68.0);
-// Its deck is smooth: little stirring, and no billows rolled up between bands.
-const float CL_STIR=0.3, CL_KH=0.0;
+// Its deck is smooth: little stirring, and no billows rolled up between bands. A deck of water
+// clouds, when the planet was warm enough (bE.y), is stirred more by the storms that latent heat drives.
+#define CL_STIR (0.3+0.3*bE.y)
+const float CL_KH=0.0;
 // The dark vortex, when there is one (planets.js nepSpotAt, in grsAB); it turns as an anticyclone,
 // one way in the south and the other in the north.
 #define CL_SPOT (grsAB.x>0.0)
@@ -327,7 +360,7 @@ vec3 cloudAlbedo(float lat, float lon, float pxD, float aux){
   c*=1.0+(0.12+0.4*pol)*mix(1.0-belt, 1.0, pol)*dye;
 #elif DETAIL_NEP
   // Neptune's deck barely varies: faint shading along the bands, a little bluer or greener.
-  c*=1.0+0.25*(hv.x*vec3(-0.04, 0.0, 0.05)+hv.y*vec3(0.02, 0.03, -0.02)+0.04*hv.z)+0.04*dye;
+  c*=1.0+0.25*(hv.x*vec3(-0.04, 0.0, 0.05)+hv.y*vec3(0.02, 0.03, -0.02)+0.04*hv.z)+mix(0.04, 0.12, bE.y)*dye;
 #else
   // Saturn's the same, a half to a third as strong through its haze: the belts browner and the
   // zones paler along some stretches; toward the poles, many fine bands of differing shades.
@@ -395,8 +428,11 @@ vec3 cloudAlbedo(float lat, float lon, float pxD, float aux){
   // (Voyager; Keck and HST since). Each lives some days, drawn out by the shear of the winds that
   // carry it: two generations of noise, each carried by the wind at its latitude from its own start
   // eight days apart, the one fading in as the other fades out, so the shear never builds past that.
+  // None while it was too warm for methane ice (bE.x), but when warmer still, the tops of storms
+  // of moist convection in the water clouds (bE.y), in the same rising mid-latitudes; on Oceanus in
+  // both hemispheres alike.
   {
-    float env=0.9*bandOf(la, -50.0, -21.0, 3.0)+0.7*bandOf(la, 22.0, 40.0, 3.0)+0.7*bandOf(la, -73.0, -66.0, 1.5);
+    float oc=bE.w, env=max(1.0-bE.x, bE.y)*(mix(0.9, 0.8, oc)*bandOf(la, -50.0, -21.0, 3.0)+mix(0.7, 0.8, oc)*bandOf(la, 22.0, mix(40.0, 50.0, oc), 3.0)+0.7*(1.0-oc)*bandOf(la, -73.0, -66.0, 1.5));
     if(env>0.01){
       float ph=T/8.0, i0=floor(ph), fr=fract(ph), cw=0.0, ud=clWindDeg(la);
       for(int k=0;k<2;k++){
@@ -410,7 +446,7 @@ vec3 cloudAlbedo(float lat, float lon, float pxD, float aux){
   // The dark circumpolar wave near 60°S (the South Polar Wave), wandering a few degrees in latitude
   // round the planet and drifting 4.866° a day in System III (Karkoschka 2011; Chavez et al. 2023),
   // with the bright band just north of it.
-  if(la<-48.0 && la>-72.0){
+  if(la<-48.0 && la>-72.0 && bE.w<0.5){
     float lw=-60.5+2.5*sin((lon-4.866*T)*0.01745329252)+0.4*dye;
     c=mix(c, vec3(0.38, 0.52, 0.84), 0.45*exp(-(la-lw)*(la-lw)/6.0));
     c*=1.0+0.10*exp(-(la-lw-5.5)*(la-lw-5.5)/4.0);
@@ -556,6 +592,7 @@ vec4 bodyDisk(vec3 o, vec3 v, vec3 n, vec3 L, int kind, float rPx, vec3 tint, ve
   if(kind==6) alb=cloudAlbedo(lat, lon, pxS, atan(dot(grsDir, cross(n, mp)), dot(grsDir, mp))*57.2957795);
 #endif
   if(kind==4) alb=satSeason(alb, lat, dot(n, L));
+  alb=eraAlb(kind, alb);
 #if DETAIL_MAP
   // A body with a spacecraft map (M.w its code, surfaces.js) shows it, mipmapped to the pixel, at the
   // planetocentric latitude the maps are drawn in.
@@ -586,6 +623,8 @@ uniform vec4 fineT; uniform vec3 grsDir; uniform vec4 grsAB;
 // rings may shade (planets.js ring), bR its middle from Saturn's (Saturn radii) and its radius, bRN
 // Saturn's pole and the Sun's angular radius there; bR.w 0 for any other body.
 uniform vec4 bP, bC, bL, bN, bS, bM, bR, bRN;
+// A giant's clouds in its youth (planets.js giantEra; eraAlb), and w 1 for Oceanus.
+uniform vec4 bE;
 // Uranus's rings (planets.js URA_RINGS, uraRingEl): each ring's semimajor axis, a·e, half its mean
 // width (Uranus's radii) and periapse (radians, from uRingAx about the IAU pole bN backwards).
 uniform vec4 uRingEl[${URA_RINGS.length}]; uniform vec3 uRingAx;
@@ -753,7 +792,7 @@ function bodyFS(f){
   return keepLoops([def('JUP', f.has('jup')), def('SAT', f.has('sat')&&!f.has('jup')), def('NEP', f.has('nep')&&!f.has('jup')&&!f.has('sat')), def('MAP', f.has('map'))].reduce((s, g)=>g(s), BODYFS_SRC));
 }
 const BODY_UNIFORMS=['res','hitScale','yaw','pitch','fov','showScn','refK','rCd','mwK','moonGain','starPx','nr','na','fineT','grsDir','grsAB',
-  'bP','bC','bL','bN','bS','bM','bR','bRN','shadowM[0]','shadowK[0]','shadowCnt','sunQ','moonQ','uRingEl[0]','uRingAx'];
+  'bP','bC','bL','bN','bS','bM','bR','bRN','bE','shadowM[0]','shadowK[0]','shadowCnt','sunQ','moonQ','uRingEl[0]','uRingAx'];
 function setupBodyProg(gl, p){
   gl.useProgram(p);
   bindSamplers(gl, p, [['sky',0],['noiseTex',12],['hitInfo',10],['dsoTex',6],['satRingTex',16]]);
