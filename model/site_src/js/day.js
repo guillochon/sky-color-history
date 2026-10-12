@@ -208,7 +208,6 @@ function nightRows(key, NR){
 }
 // Linear sRGB of XYZ, without the clip in XYZ2rgb.
 function xyzLin(X){ return [0,1,2].map(i=>M[i][0]*X[0]+M[i][1]*X[1]+M[i][2]*X[2]); }
-let MW_LIN=null; // milkyway.js loads after this file
 const SRGB_LIN=Array.from({length:256}, (_, i)=>ginv(i/255));
 // Adding the Milky Way (luminance ratio rMw) to sky of luminance ratio rBg under the display
 // curve: the pixel goes to the curve's value for the sum, its colour the luminance-weighted mix.
@@ -414,17 +413,18 @@ function renderDay(fast){
   // mwB (three channels) of their light.
   const mwA=(mwOn||dsoList.length)&&!fast?new Float32Array(geo.nb):null, mwB=mwA?new Float32Array(geo.nb*3):null;
   if(mwA){
-    if(!MW_LIN) MW_LIN=xyzLin(xyY2XYZ([MW_XY[0], MW_XY[1], 1]));
     const lgrid=DOME_LOGR; for(let c=0;c<NG;c++) lgrid[c]=Math.log(rgrid[c]);
     const ext=domeExtinction(geo, ek), extZ=extZenith(ep.key), scale=cdu*Yref, T=toneLUT(k, p), bl=geo.bl, dir=geo.dir;
-    const [b0, b1, b2]=galB||GAL_AXES, db=galB?galB.db:0, dd=[0, 0, 0], Ld=[0, 0, 0], blockRad=Math.PI/R;
+    const [b0, b1, b2]=galB||GAL_AXES, db=galB?galB.db:0, dd=[0, 0, 0], Ld=[0, 0, 0], Lm=[0, 0, 0], blockRad=Math.PI/R;
     for(let bi=0;bi<geo.nb;bi++){
       const c=bl.cell[bi]; if(c===0xFFFF) continue;
       const d0=dir[bi*3], d1=dir[bi*3+1], d2=dir[bi*3+2];
       let rMw=0;
       if(mwOn){
         const x=d0*b0[0]+d1*b0[1]+d2*b0[2], y=d0*b1[0]+d1*b1[1]+d2*b1[2], z=d0*b2[0]+d1*b2[1]+d2*b2[2];
-        rMw=mwSample(Math.atan2(y, x)*180/Math.PI, Math.asin(Math.max(-1, Math.min(1, z)))*180/Math.PI-db)*ext[bi]*extZ/scale;
+        const s=ext[bi]*extZ/scale;
+        rMw=mwSample(Math.atan2(y, x)*180/Math.PI, Math.asin(Math.max(-1, Math.min(1, z)))*180/Math.PI-db, Lm)*s;
+        Lm[0]*=s; Lm[1]*=s; Lm[2]*=s;
       }
       let rD=0;
       if(dsoList.length){
@@ -442,7 +442,7 @@ function renderDay(fast){
       if(rD>0){ const rb=rBg+rMw; tNew=toneDso(rMw>0?toneAt(T, rb):tBg, rb, rNew, tNew, DSO_REF_CD/scale); }
       const g=tNew/rNew;
       mwA[bi]=tBg>0?(tNew/tBg)*(rBg/rNew):0;
-      for(let q=0;q<3;q++) mwB[bi*3+q]=g*(MW_LIN[q]*rMw+(rD>0?Ld[q]:0));
+      for(let q=0;q<3;q++) mwB[bi*3+q]=g*((rMw>0?Lm[q]:0)+(rD>0?Ld[q]:0));
     }
   }
   // Ice halos (halo.js), from the Sun and the Moon: each source's halo luminance over Yref per

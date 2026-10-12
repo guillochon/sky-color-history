@@ -1033,14 +1033,15 @@ void main(){
     }
     float rMwBg=0.0;
     if(mwOn>0.5 && !onBody && te>-1.0 && rBg<6e-6){
-      // The Milky Way, behind the air: its light dimmed by extinction and added to the sky's
-      // under the same display curve, coloured by its share.
+      // The Milky Way, behind the air: its light (linear sRGB, its colour its starlight's and
+      // its dust's) dimmed by extinction and added to the sky's under the same display curve.
       vec3 gq=vec3(dot(src, galX), dot(src, galY), dot(src, galZ));
       float gb=asin(clamp(gq.z, -1.0, 1.0))*57.2957795-mwDB;
       if(abs(gb)<${MW_BMAX.toFixed(1)}){
         float gl=atan(gq.y, gq.x)*57.2957795;
-        float rMw=texture(mwTex, vec2((gl+180.0)/360.0, (gb+${MW_BMAX.toFixed(1)})/${(2*MW_BMAX).toFixed(1)})).r*mwScale*extinctionAt(te, mwK);
-        if(rMw>rBg*0.003){ skyC=overSky(skyC, rBg, rMw, vec3(${mwLinGLSL()})*rMw); rMwBg=rMw; }
+        vec3 Lmw=texture(mwTex, vec2((gl+180.0)/360.0, (gb+${MW_BMAX.toFixed(1)})/${(2*MW_BMAX).toFixed(1)})).rgb*mwScale*extinctionAt(te, mwK);
+        float rMw=dot(Lmw, vec3(0.2126, 0.7152, 0.0722));
+        if(rMw>rBg*0.003){ skyC=overSky(skyC, rBg, rMw, Lmw); rMwBg=rMw; }
       }
     }
     if(dsoCnt>0.5 && !onBody && te>-1.0){

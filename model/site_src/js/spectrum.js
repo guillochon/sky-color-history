@@ -12,7 +12,8 @@
 //   - City light: high-pressure sodium (broadened, self-absorbed D lines) and white LEDs
 //     (a 452 nm chip under a broad phosphor), mixed to each epoch's glow colour, or 1815's oil
 //     flames (1850 K).
-//   - The Milky Way: the light of its stars, old and young mixed to the band's colour (spMW).
+//   - The Milky Way: the light of its stars, old and young in the map's share there, reddened by
+//     its dust (spMWAt).
 //   - A nebula or galaxy: a galaxy's stars by its type, a nebula's lights mixed to the colour
 //     drawn there (dso.js dsoSpectrum).
 //   - The aurora: its four emissions at that point, as aurora.js lists their lines.
@@ -73,7 +74,25 @@ function spMix(comps, u){
   return {S:spAdd(...best.map(([i, w])=>[w/sum, comps[i].S])), mix};
 }
 const spComp=(k, S)=>({k, S, rgb:spRGB(S)});
-// The Milky Way: old and young starlight mixed to the band's colour (milkyway.js MW_XY).
+// The dust's extinction relative to V, A_λ/A_V, by Cardelli, Clayton & Mathis 1989 (ApJ 345, 245)
+// with R_V = 3.1, their optical and near-infrared fit (x = 1/λ in µm⁻¹, here 1.28 to 2.63).
+const SP_CCM=Float32Array.from(SP_LAM, l=>{
+  const x=1000/l;
+  if(x<1.1){ const p=Math.pow(x, 1.61); return 0.574*p-0.527*p/3.1; }
+  const y=x-1.82, a=1+y*(0.17699+y*(-0.50447+y*(-0.02427+y*(0.72085+y*(0.01979+y*(-0.77530+y*0.32999))))));
+  const b=y*(1.41338+y*(2.28305+y*(1.07233+y*(-5.38434+y*(-0.62251+y*(5.30260+y*-2.09002))))));
+  return a+b/3.1;
+});
+// The Milky Way at a place on the map: old and young starlight, young the young stars' share of
+// the light, under dust that takes tau e-folds out of V, reddening what gets through. Unit luminance;
+// mix as spMix's, with dust for its reddening in e-folds of V.
+function spMWAt(young, tau){
+  const S=spAdd([1-young, spPop('old')], [young, spPop('young')]);
+  if(tau>0) for(let i=0;i<SP_N;i++) S[i]*=Math.exp(-tau*(SP_CCM[i]-1));
+  return {S:spNorm(S), mix:{old:1-young, young, dust:tau}};
+}
+// The band's mean starlight, old and young mixed to its mean colour (milkyway.js MW_XY), for the
+// stars behind a nebula (dso.js).
 let SP_MW=null;
 function spMW(){ return SP_MW||(SP_MW=spMix([spComp('old', spPop('old')), spComp('young', spPop('young'))], xyzLin(xyY2XYZ([MW_XY[0], MW_XY[1], 1])))); }
 // The features each light shows, labelled when that light is at least a tenth of what is plotted,
@@ -83,10 +102,11 @@ const SP_MIX_MARKS={old:[{l:393.4, t:'Ca II H&K'}, {l:430.8, t:'G band'}, {l:517
   stars:[{l:393.4, t:'Ca II H&K'}, {l:517.3, t:'Mg b'}, {l:589.3, t:'Na D'}],
   young:[{l:486.1, t:'Hβ'}, {l:434.0, t:'Hγ'}, {l:410.2, t:'Hδ'}],
   hii:[{l:656.3, t:'Hα', em:true}, {l:486.1, t:'Hβ', em:true}, {l:671.6, t:'[S II]', em:true}, {l:434.0, t:'Hγ', em:true}],
-  oiii:[{l:500.7, t:'[O III]', em:true}], heii:[{l:500.7, t:'[O III]', em:true}, {l:468.6, t:'He II', em:true}],
+  oiii:[{l:500.7, t:'[O III]', em:true}], dust:[{a:380, b:520, t:'reddened by dust', band:true}], heii:[{l:500.7, t:'[O III]', em:true}, {l:468.6, t:'He II', em:true}],
   sync:[{a:380, b:780, t:'synchrotron', band:true}], scat:[{a:380, b:480, t:'scattered starlight', band:true}]};
 const SP_MIX_LINES=new Set(['hii', 'oiii', 'heii']);
-function spMixMarks(mix, f, marks){ for(const k in mix) if(f*mix[k]>(SP_MIX_LINES.has(k)?0.002:0.1)) marks.push(...(SP_MIX_MARKS[k]||[])); }
+// The dust's is labelled when it takes a third of the blue out relative to V (tau 0.25 or so).
+function spMixMarks(mix, f, marks){ for(const k in mix) if(k==='dust'?f>0.3&&mix[k]>0.25:f*mix[k]>(SP_MIX_LINES.has(k)?0.002:0.1)) marks.push(...(SP_MIX_MARKS[k]||[])); }
 // The chromosphere's flash spectrum, by energy: Balmer lines, helium D3, and calcium H and K.
 const SP_CHROMO=spNorm(spLines([[656.3, 1], [486.1, 0.25], [434.0, 0.1], [587.6, 0.15], [393.4, 0.3], [396.8, 0.25]].map(([l, e])=>[l, e*l])));
 // Aurora emissions per kR, with their photopic luminance (aurora.js).
@@ -319,7 +339,10 @@ function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null, cr=null, moo
     if(air) add('violet O₂ airglow', AIRGLOW_SHARE*fc*NIGHT_NATURAL*f, SP_HERZ);
     const glow=SKYGLOW[key];
     if(air&&glow) add(key==='volcanic'?'oil lamps':'city light', glow[0]*(1+2.2*Math.exp(-el/12)), spGlow(key));
-    if(mwMap&&skyNow.gal){ const L=mwAt(skyNow.gal, horizDir(az, el))*extinction(el, extK(key))*extZenith(key); add('Milky Way', L, spMW().S); if(L>0) mixes.push(['Milky Way', spMW().mix]); }
+    if(mwMap&&skyNow.gal){
+      const age=[0, 0], L=mwAt(skyNow.gal, horizDir(az, el), age)*extinction(el, extK(key))*extZenith(key);
+      if(L>0){ const mw=spMWAt(age[0], age[1]); add('Milky Way', L, mw.S); mixes.push(['Milky Way', mw.mix]); }
+    }
     if(skyNow.dso&&skyNow.dso.length){
       const L=[0, 0, 0], p=dsoAt(skyNow.dso, horizDir(az, el), Math.PI/180*90/domeView().R, L);
       if(p){ const ds=dsoSpectrum(p.o, L); add(p.o.name, (L[0]*0.2126+L[1]*0.7152+L[2]*0.0722)*extinction(el, extK(key))*extZenith(key), ds.S); mixes.push([p.o.name, ds.mix]); }
