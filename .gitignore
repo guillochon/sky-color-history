@@ -6,6 +6,7 @@ latex/*.blg
 latex/*.fls
 latex/*.fdb_latexmk
 latex/citations_ads.md
+view-from-earth-arxiv.zip
 __pycache__/
 .DS_Store
 .claude/
