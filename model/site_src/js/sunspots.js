@@ -41,7 +41,11 @@ function sunspotLib(){
   };
   SUN_ACT.archean27=SUN_ACT.archean27vthick=SUN_ACT.archean27thin;
   for(const k of ['volcanic','ozonehole','modernpoll','y2100']) SUN_ACT[k]=SUN_ACT.modern;
-  function sunAct(key){ return SUN_ACT[key]||SUN_ACT.modern; }
+  // The activity for the year shown (sunActAt), set for the epoch's key: the key still seeds the
+  // spots, and the activity comes from the time.
+  const CUR={};
+  function setAct(key, a){ CUR[key]=a; }
+  function sunAct(key){ return CUR[key]||SUN_ACT[key]||SUN_ACT.modern; }
 
   // The solar cycle, each cycle's sunspot number (version 2) as R(t)=A·F((t−t0)/b), Hathaway,
   // Wilson & Reichmann's (1994) shape F(x)=x³/(exp(x²)−0.71), held to a peak of 1. Strong cycles
@@ -424,9 +428,25 @@ function sunspotLib(){
     }
     return {key, D, W, H, px, levels};
   }
-  return {sunAct, spotCoverage, spotGroups, buildSunMap, planckRatio, diffRot};
+  return {SUN_ACT, setAct, sunAct, spotCoverage, spotGroups, buildSunMap, planckRatio, diffRot};
 }
 const SS=sunspotLib();
+// The Sun's activity at year A: SUN_ACT at its epochs; between them the rotation slows as P ∝ t^0.5
+// (P² linear in time), the coverage and the groups' size fall geometrically, the rest run linearly,
+// and what is a kind rather than an amount (latitudes spread evenly or in a butterfly, a cycle or
+// none, today's recorded cycles) is the nearer epoch's.
+const actPts=once(()=>MAIN_EPOCHS.filter(k=>SS.SUN_ACT[k]).map(k=>[epochAnchor(k), SS.SUN_ACT[k]]));
+function sunActAt(A){
+  const P=actPts(), [i, u]=timeBracket(P, A), a=P[i][1], b=P[Math.min(i+1, P.length-1)][1];
+  if(u===0) return a; if(u===1) return b;
+  const lin=(x, y)=>x+(y-x)*u, geo=(x, y)=>x*Math.pow(y/x, u);
+  const o={...(u<0.5?a:b), age:lin(a.age, b.age), prot:Math.sqrt(lin(a.prot**2, b.prot**2)), cap:lin(a.cap, b.cap), size:geo(a.size, b.size), fac:lin(a.fac, b.fac), alon:lin(a.alon, b.alon)};
+  if(!a.real && !b.real){ o.cover=geo(a.cover, b.cover); o.depth=lin(a.depth, b.depth); if(a.cyc && b.cyc) o.cyc=lin(a.cyc, b.cyc); }
+  if(a.lat && b.lat) o.lat=[lin(a.lat[0], b.lat[0]), lin(a.lat[1], b.lat[1])];
+  if(a.lat0!=null && b.lat0!=null) o.lat0=lin(a.lat0, b.lat0);
+  return o;
+}
+const sunActNow=byTime(sunActAt);
 // The maps for the epoch, made in a worker for whole days: the day shown and the next, so the
 // drawing can carry the spots smoothly through the day (sunMapsNow). Each comes first as the
 // placeholder (SUN_LO texels round), then as the full map (SUN_HI) once a disk more than
@@ -439,7 +459,8 @@ function sunCached(key, D, W){ return sunCache.find(m=>m.key===key&&m.D===D&&m.W
 // B for the next (null until it is made in the same detail), and how far through the day it is.
 // Without the day's own map, A is the epoch's nearest one made, carried to the time shown.
 function sunMapsNow(rad=0){
-  const ep=EP[dIdx], key=ep.key, t=astroDay(), D=Math.floor(t), teff=ep.teff||5772, wantHi=rad>SUN_HI_PX;
+  const key=EP[dIdx].key, t=astroDay(), D=Math.floor(t), teff=sunTeff(), wantHi=rad>SUN_HI_PX;
+  SS.setAct(key, sunActNow());
   for(const d of [D, D+1]) if(!sunCached(key, d, SUN_LO)) requestSunMap(key, d, teff, SUN_LO);
   if(wantHi) for(const d of [D, D+1]) if(!sunCached(key, d, SUN_HI)) requestSunMap(key, d, teff, SUN_HI);
   const W=wantHi&&sunCached(key, D, SUN_HI)?SUN_HI:SUN_LO;
@@ -453,7 +474,7 @@ function requestSunMap(key, D, teff, W){
   // Requests for another epoch, or days already past, are stale.
   const D0=sunMapDay();
   sunQueue=sunQueue.filter(q=>q.sent||(q.key===key&&q.D>=D0&&q.D<=D0+1));
-  sunQueue.push({key, D, teff, W});
+  sunQueue.push({key, D, teff, W, act:sunActNow()});
   sunQueue.sort((a, b)=>a.sent?-1:b.sent?1:a.W-b.W||a.D-b.D);
   pumpSunJobs();
 }
@@ -461,7 +482,7 @@ function sunWorkerGet(){
   if(sunWorker!==undefined) return sunWorker;
   try{
     const src=`const sunspotLib=${sunspotLib.toString()};const SS=sunspotLib();`+
-      'onmessage=e=>{const w=e.data, m=SS.buildSunMap(w.key, w.D, w.teff, w.W); postMessage(m, m.levels.map(l=>l.px.buffer));};';
+      'onmessage=e=>{const w=e.data; SS.setAct(w.key, w.act); const m=SS.buildSunMap(w.key, w.D, w.teff, w.W); postMessage(m, m.levels.map(l=>l.px.buffer));};';
     sunWorker=new Worker(URL.createObjectURL(new Blob([src], {type:'text/javascript'})));
   }catch(e){ sunWorker=null; }
   return sunWorker;
@@ -485,9 +506,9 @@ function pumpSunJobs(){
   const wk=sunWorkerGet();
   if(wk){
     wk.onmessage=e=>done(e.data);
-    wk.onerror=()=>{ sunWorker=null; done(SS.buildSunMap(w.key, w.D, w.teff, w.W)); };
-    wk.postMessage({key:w.key, D:w.D, teff:w.teff, W:w.W});
-  }else setTimeout(()=>done(SS.buildSunMap(w.key, w.D, w.teff, w.W)), 0);
+    wk.onerror=()=>{ sunWorker=null; SS.setAct(w.key, w.act); done(SS.buildSunMap(w.key, w.D, w.teff, w.W)); };
+    wk.postMessage({key:w.key, D:w.D, teff:w.teff, W:w.W, act:w.act});
+  }else setTimeout(()=>{ SS.setAct(w.key, w.act); done(SS.buildSunMap(w.key, w.D, w.teff, w.W)); }, 0);
 }
 // Orientation at day number d: the position angle P of the Sun's north pole from celestial north
 // (toward east) and B0, the latitude of the disk's centre (Meeus, Astronomical Algorithms ch. 29;
@@ -545,7 +566,7 @@ function sunSurfaceAt(S, o, u, v, n, out){
 function sunFeatureAt(u, v){
   const ep=EP[dIdx], S=sunMapsNow(Infinity);
   if(!S||u*u+v*v>=1) return null;
-  const s=sunMapSample(S, sunOrientation(ep.key, astroDay()), u, v, 0), teff=ep.teff||5772;
+  const s=sunMapSample(S, sunOrientation(ep.key, astroDay()), u, v, 0), teff=sunTeff();
   let lo=1500, hi=teff;
   if(s.I[1]>=0.995) lo=teff;
   else for(let i=0;i<40;i++){ const T=(lo+hi)/2; if(SS.planckRatio(545, T, teff)<s.I[1]) lo=T; else hi=T; }

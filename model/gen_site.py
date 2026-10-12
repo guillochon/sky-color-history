@@ -92,7 +92,7 @@ def shaft(key):
 EP = []
 for k in order:
     r = byk[k]
-    EP.append(dict(key=k, name=r['name'], sub=r['sub'].replace('tau(550nm)','τ(550 nm)'), age=ages[k], short=short[k], prose=PROSE[k], air=air_atoms(k), sun=sun_bands(epoch(k)['key']), teff=epoch(k)['sun'][0], sunL=epoch(k)['sun'][1], sunR=sun_radius(k), shadow=shadow(k), shaft=shaft(epoch(k)['key']) if epoch(k)['key']==k else epoch(k)['key'],
+    EP.append(dict(key=k, name=r['name'], sub=r['sub'].replace('tau(550nm)','τ(550 nm)'), age=ages[k], short=short[k], prose=PROSE[k], air=air_atoms(k), sun=sun_bands(epoch(k)['key']), own=epoch(k)['key']==k, teff=epoch(k)['sun'][0], sunL=epoch(k)['sun'][1], sunR=sun_radius(k), shadow=shadow(k), shaft=shaft(epoch(k)['key']) if epoch(k)['key']==k else epoch(k)['key'],
                    lat={L: dict(z=[v['zenith']['x'], v['zenith']['y'], v['zenith']['Y']], h=[v['horizon']['x'], v['horizon']['y'], v['horizon']['Y']],
                                 zc=int(v['zenith']['cct']), hc=int(v['horizon']['cct'])) for L, v in r['lat'].items()},
                    limb=LIMB[k]))
@@ -179,6 +179,7 @@ PARTS = [
     'js/vr_perf.js',
     'js/globe.js',
     'js/day.js',
+    'js/moon_history.js',
     'js/moon.js',
     'js/sunset.js',
     'js/calendar.js',

@@ -227,6 +227,30 @@ def motion_js(pma, pmd, dist, rv):
     return f'{pma:.4f},{pmd:.4f},{dist:.4g},{rv:.1f}'
 
 
+# The Sun's own track back to the Solar System's birth, every TRACK_MYR, by the same steps as
+# trace_back (so it passes through the traced epochs' values exactly): the Galactic centre's
+# longitude in today's coordinates, unwrapped so it runs on smoothly, and the Sun's height (pc).
+TRACK_MYR = 2
+
+
+def sun_track(end_myr=4568):
+    p, v, dt = np.array([[-R0, 0.0, Z0]]), np.array([SUN_UVW]) * PC_MYR, -0.05
+    per = int(round(TRACK_MYR / -dt))
+    v += 0.5 * dt * accel(p)
+    ls, zs = [], []
+    for i in range(int(round(end_myr / -dt)) + 1):
+        if i % per == 0:
+            ls.append(math.degrees(math.atan2(-p[0, 1], -p[0, 0])))
+            zs.append(float(p[0, 2]))
+        p += dt * v
+        v += dt * accel(p)
+    return [round(float(x), 2) for x in np.unwrap(np.radians(ls)) * 180 / math.pi], [round(z, 1) for z in zs]
+
+
+track_l, track_z = sun_track()
+print(f"Sun's track: {len(track_l)} points; l = {track_l[33]:.2f}°, z = {track_z[33]:.1f} pc at 66 Ma")
+
+
 def rows_js(rows):
     return "\n".join(f'[{ra:.4f},{dec:.4f},{v:.2f},{bv:.2f},{k},{json.dumps(name, ensure_ascii=False)}'
                      + (f',{motion_js(*m[0])}' if m else '') + '],'
@@ -269,6 +293,9 @@ out.append("const STAR_MOTION=[" + ",".join(motion) + "];")
 out.append("// For each traced epoch: the galactic longitude (in today's coordinates) of the Galactic centre")
 out.append("// as seen from the Sun then, where the Milky Way was brightest, and the Sun's height above the plane (pc).")
 out.append("const STAR_EPOCH_GAL=" + json.dumps(epoch_meta) + ";")
+out.append(f"// The Sun's track through time (milkyway.js sunGalAt), every {TRACK_MYR} Myr back from now: the Galactic")
+out.append("// centre's longitude (today's coordinates, unwrapped) and the Sun's height above the plane (pc).")
+out.append("const STAR_SUN_TRACK=" + json.dumps(dict(step=TRACK_MYR, l=track_l, z=track_z), separators=(',', ':')) + ";")
 path = Path(__file__).with_name('site_src') / 'js' / 'stars_epochs.js'
 path.write_text("\n".join(out) + "\n", encoding="utf-8")
 print('wrote', path)

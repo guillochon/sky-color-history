@@ -24,7 +24,10 @@
 const ZODI={protoearth455:10, hadean45:2000, hadean40:300, archean38:50, archean27thin:1.5, archean27:1.5, archean27vthick:1.5, ordovician466:30};
 const ZODI_BAND={ordovician466:0.6};
 const S10_CD=8.35e-7; // one S10 in cd/m² (27.78 mag/arcsec²)
-function zodiK(key){ return ZODI[key]||1; }
+// Between the epochs it runs geometrically through time (epoch_time.js rateCurve); the Ordovician
+// break-up's dust keeps its epoch's through its span.
+const zodiNow=byTime(rateCurve(ZODI, ['ordovician466']));
+function zodiK(key){ return key===EP[dIdx].key?zodiNow():ZODI[key]||1; }
 // Today's zodiacal light toward direction v (unit, horizon frame), in S10. F holds the Sun's
 // direction s and the ecliptic pole N.
 function zodiS10(v, F, band=0){

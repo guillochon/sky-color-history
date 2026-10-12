@@ -17,8 +17,18 @@ const MONTH_NAMES=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','
 const MONTH_DAYS=[31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 const GREG_LO=-3000, GREG_HI=7000;
 function pageYear(){ const m=/^(-?\d+)-/.exec(document.getElementById('moonDate').value||''); return m?+m[1]:new Date().getFullYear(); }
+// The year on the timeline that the sky's physics is worked out for (epoch_time.js): the page
+// year's, read straight from the date so the calendar can ask it for the day's length.
+let timeMemo=['', -1, 0];
+function physTime(){
+  const v=document.getElementById('moonDate').value;
+  if(v!==timeMemo[0] || dIdx!==timeMemo[1]) timeMemo=[v, dIdx, pageYear()+epochShift()];
+  return timeMemo[2];
+}
 function gregorian(Y=pageYear()){ return dayHours()===24 && Y>=GREG_LO && Y<=GREG_HI; }
 function yearDays(){ return TROPICAL_YEAR*24/dayHours(); }
+// Days near 24 hours (365 to 366 of them a year) keep the Gregorian months and the week.
+function gregMonths(){ const n=yearDays(); return n>=365 && n<366; }
 // Day index (days of the epoch since 2000 Jan 1) where year Y starts, and its length.
 function gregDays(Y){ return Math.round(utcDay(Y, 1, 1)-utcDay(2000, 1, 1)); }
 function yearStart(Y){
@@ -30,15 +40,15 @@ function yearStart(Y){
 function yearLen(Y){ return yearStart(Y+1)-yearStart(Y); }
 // Day within the year where month m (1–12) starts, and its length.
 function monthStart(Y, m){
-  if(dayHours()!==24) return Math.round((m-1)*yearLen(Y)/12);
+  if(!gregMonths()) return Math.round((m-1)*yearLen(Y)/12);
   let s=0; for(let i=1;i<m;i++) s+=monthLen(Y, i);
   return s;
 }
 function monthLen(Y, m){
-  if(dayHours()===24) return MONTH_DAYS[m-1]+(m===2?yearLen(Y)-365:0);
+  if(gregMonths()) return MONTH_DAYS[m-1]+(m===2?yearLen(Y)-365:0);
   return (m===12?yearLen(Y):monthStart(Y, m+1))-monthStart(Y, m);
 }
-// Day of the week (0 Sunday) in the 24-hour calendars: 2000 Jan 1 was a Saturday.
+// Day of the week (0 Sunday) where there are weeks: 2000 Jan 1 was a Saturday.
 function weekday(Y, M, D){ return ((epochDayIndex(Y, M, D)+6)%7+7)%7; }
 function fmtDate(Y, M, D){ const p=n=>String(n).padStart(2,'0'); return (Y<0?'-':'')+String(Math.abs(Y)).padStart(4,'0')+'-'+p(M)+'-'+p(D); }
 // The page date as [Y, M, D], with the month and day held to this epoch's calendar.
@@ -92,9 +102,9 @@ function dateAtFraction(Y, f){
 // and sine amplitudes, arcseconds). Each sky's year 0 has today's axis, and the years either side
 // of it turn and tilt it as they have around today: the obliquity runs between about 22° and 25°.
 // Beyond ±200,000 years the series no longer holds, and the axis goes on from where it left off:
-// the equator's pole turning about the ecliptic's (held where the series leaves it) at today's
-// 50.29″ a year, and the tilt rocking between 22.1° and 24.5° every 41,040 years, joined to the
-// series' tilt and its trend there.
+// the equator's pole turning about the ecliptic's (held where the series leaves it), and the tilt
+// rocking between 22.1° and 24.5° every 41,040 years, joined to the series' tilt and its trend
+// there. It turns at today's 50.29″ a year scaled to the year on the timeline (precScale).
 const LTP_PQ=[[5851.607687, -0.1189000, -0.00028913, 0.000000101], [-1600.886300, 1.1689818, -0.00000020, -0.000000437]];
 const LTP_PQ_PER=[[708.15, -5486.751211, -684.661560, 667.666730, -5523.863691], [2309.00, -17.127623, 2446.283880, -2354.886252, -549.747450],
   [1620.00, -617.517403, 399.671049, -428.152441, -310.998056], [492.20, 413.442940, -356.652376, 376.202861, 421.535876],
@@ -133,16 +143,26 @@ function ltpEdge(side){
   const k=vdot3(equ, ecl), u=equ.map((c, i)=>c-k*ecl[i]), m=Math.hypot(...u), e1=u.map(c=>c/m);
   return LTP_EDGE[side]={b, ecl, ph, e1, e2:vcross3(ecl, e1)};
 }
-// The rotation from J2000 to the mean equator and equinox of year: its rows are the equinox, the
-// point 90° east of it, and the pole, in J2000 coordinates; eps is the obliquity (degrees).
+// The precession rate at year A over today's. The pull of the Sun and the Moon on the Earth's
+// equatorial bulge turns the axis at a rate that goes as the bulge (the flattening, as the spin
+// squared) over the spin, times the pulls: the Moon's, 2.17 times the Sun's today, goes as its
+// distance cubed, and is gone when the Moon lies in the equator's plane or is not there.
+function precScale(A){
+  const moon=noMoon()||moonInEquatorAt(A)?0:2.17*Math.pow(MOON_RE_NOW/moonDistAt(A), 3);
+  return 24/dayHoursAt(A)*(1+moon)/3.17;
+}
+// The rotation from J2000 to the mean equator and equinox of year (the epoch's own year): its
+// rows are the equinox, the point 90° east of it, and the pole, in J2000 coordinates; eps is the
+// obliquity (degrees).
 const LTP_CACHE=new Map();
 function precessionMatrix(year){
-  let R=LTP_CACHE.get(year);
+  const inSeries=Math.abs(year-2000)<=LTP_SPAN, id=inSeries?year:year+'|'+dIdx;
+  let R=LTP_CACHE.get(id);
   if(R) return R;
   let ecl, equ;
-  if(Math.abs(year-2000)<=LTP_SPAN) ({ecl, equ}=ltpPoles(year));
+  if(inSeries) ({ecl, equ}=ltpPoles(year));
   else {
-    const E=ltpEdge(Math.sign(year-2000)), dt=year-E.b, th=-PREC_RATE*dt;
+    const E=ltpEdge(Math.sign(year-2000)), dt=year-E.b, th=-PREC_RATE*precScale(year+epochShift())*dt;
     const eps=(OBL_MEAN+OBL_AMP*Math.cos(2*Math.PI*dt/OBL_PERIOD+E.ph))*Math.PI/180;
     ecl=E.ecl; equ=ecl.map((c, i)=>Math.cos(eps)*c+Math.sin(eps)*(Math.cos(th)*E.e1[i]+Math.sin(th)*E.e2[i]));
   }
@@ -150,7 +170,7 @@ function precessionMatrix(year){
   R=[eqx, vcross3(equ, eqx), equ];
   R.eps=Math.acos(vdot3(equ, ecl))*180/Math.PI;
   if(LTP_CACHE.size>64) LTP_CACHE.clear();
-  LTP_CACHE.set(year, R); return R;
+  LTP_CACHE.set(id, R); return R;
 }
 // The obliquity at day number d (default: the instant shown), to the nearest year.
 function obliquity(d=astroDay()){ return precessionMatrix(Math.round(2000+(d-DN_2000)/TROPICAL_YEAR)).eps; }
@@ -178,8 +198,11 @@ function dateLabel(){ const [,M,D]=pageDate(); return `${MONTH_NAMES[M-1]} ${D},
 // A new epoch keeps the season, and takes its own year when that differs from the last one's.
 function epochDate(prevKey, yf){
   const Yp=epochYear(prevKey), Yn=epochYear(EP[dIdx].key);
-  return dateAtFraction(Yn!==Yp?Yn:yf[0], yf[1]);
+  return dateInYear(Yn!==Yp?Yn:yf[0], yf[1]);
 }
+// The date at fraction f through year Y of the epoch shown, in that year's calendar: the page is
+// moved into the year first, since its day length (and so its months) goes with the year.
+function dateInYear(Y, f){ document.getElementById('moonDate').value=fmtDate(Y, 1, 1); return dateAtFraction(Y, f); }
 // The date picker: a button with the date, opening a dialog with the year on the timeline (typed
 // as a year or an age, or stepped by a year up to a billion), a bookmark for each epoch, the
 // twelve months and the month's days, as many as this epoch's calendar gives it; laid out in
@@ -187,7 +210,8 @@ function epochDate(prevKey, yf){
 const dateBtn=document.getElementById('dateBtn'), datePop=document.getElementById('datePop'), dpYear=document.getElementById('dpYear'),
   dpMonths=document.getElementById('dpMonths'), dpDays=document.getElementById('dpDays'), dpNote=document.getElementById('dpNote'), dpBack=document.getElementById('dpBack'),
   dpMonthSel=document.getElementById('dpMonthSel'), dpDaySel=document.getElementById('dpDaySel'), datePopHome=datePop.parentNode,
-  dpStep=document.getElementById('dpStep'), dpEpochs=document.getElementById('dpEpochs'), dpEpochSel=document.getElementById('dpEpochSel');
+  dpStep=document.getElementById('dpStep'), dpEpochs=document.getElementById('dpEpochs'), dpEpochSel=document.getElementById('dpEpochSel'),
+  dpAuto=document.getElementById('dpAuto');
 MONTH_NAMES.forEach((n, i)=>{ const b=document.createElement('button'); b.type='button'; b.dataset.m=String(i+1); b.textContent=n; dpMonths.appendChild(b); dpMonthSel.add(new Option(n, String(i+1))); });
 const DP_STEPS=[[1, '1 year'], [10, '10 years'], [100, '100 years'], [1e3, '1,000 years'], [1e4, '10,000 years'], [1e5, '100,000 years'],
   [1e6, '1 million years'], [1e7, '10 million years'], [1e8, '100 million years'], [1e9, '1 billion years']];
@@ -199,10 +223,15 @@ EP.forEach((ep, i)=>{
   b.innerHTML='<b></b><span></span>'; b.querySelector('b').textContent=ep.age; b.querySelector('span').textContent=ep.short;
   dpEpochs.appendChild(b); dpEpochSel.add(new Option(`${ep.age} · ${ep.short}`, String(i)));
 });
-function setPageDate(Y, M, D){ document.getElementById('moonDate').value=fmtDate(Y, M, Math.max(1, Math.min(D, monthLen(Y, M)))); renderDay(); }
+// The month's length is taken in the new year's calendar, so the page goes to its first day first.
+function setPageDate(Y, M, D){
+  const el=document.getElementById('moonDate');
+  el.value=fmtDate(Y, M, 1); el.value=fmtDate(Y, M, Math.max(1, Math.min(D, monthLen(Y, M)))); renderDay();
+}
 let datePopDrawn='';
 function drawDatePop(){
-  const [Y,M,D]=pageDate(), key=EP[dIdx].key, z=yearZero(), greg=gregorian(Y), weeks=dayHours()===24, id=[key, Y, M, D].join('|');
+  const [Y,M,D]=pageDate(), key=EP[dIdx].key, z=yearZero(), greg=gregorian(Y), weeks=gregMonths(), id=[key, Y, M, D].join('|');
+  dpAuto.checked=autoEpoch;
   if(document.activeElement!==dpYear){ dpYear.value=fmtTime(pageTime()); dpYear.removeAttribute('aria-invalid'); }
   if(id===datePopDrawn) return;
   datePopDrawn=id;
@@ -223,9 +252,11 @@ function drawDatePop(){
   const lens=MONTH_NAMES.map((_, i)=>monthLen(Y, i+1)), lo=Math.min(...lens), hi=Math.max(...lens);
   const sh=epochShift(key), [from, to]=epochSpan(key), ep=EP[dIdx];
   dpNote.textContent=(greg?(z?'Today’s 24-hour days and calendar.':'The Gregorian calendar.')
-    :weeks?`Gregorian months, with leap days set to keep step with the seasons outside ${fmtTime(GREG_LO+sh)} to ${fmtTime(GREG_HI+sh)}: ${yearLen(Y)} days this year.`
-    :`${dayHours()}-hour days: twelve months of ${lo===hi?lo:lo+'–'+hi} days, ${yearLen(Y)} this year.`)
-    +` This sky (${ep.short}, ${ep.age}) holds from ${fmtTime(from)} to ${fmtTime(to)}.`;
+    :dayHours()===24?`Gregorian months, with leap days set to keep step with the seasons outside ${fmtTime(GREG_LO+sh)} to ${fmtTime(GREG_HI+sh)}: ${yearLen(Y)} days this year.`
+    :weeks?`${dayHoursLabel()}-hour days: Gregorian months, with leap days set to keep step with the seasons: ${yearLen(Y)} days this year.`
+    :`${dayHoursLabel()}-hour days: twelve months of ${lo===hi?lo:lo+'–'+hi} days, ${yearLen(Y)} this year.`)
+    +(autoEpoch?` This sky (${ep.short}, ${ep.age}) holds from ${fmtTime(from)} to ${fmtTime(to)}.`
+      :` This sky (${ep.short}, ${ep.age}) stays at every year while auto-select is off; the Sun, the Moon and the day follow the year.`);
   dpBack.textContent=EPOCH_YEAR[key]==='now'?'Today':`Back to ${ep.age}`;
 }
 function syncDateUI(){ dateBtn.textContent=dateLabel(); if(datePop.open) drawDatePop(); }
@@ -268,4 +299,11 @@ for(const [id, sign] of [['dpPrev', -1], ['dpNext', 1]]) document.getElementById
 dpEpochs.addEventListener('click', e=>{ const b=e.target.closest('[data-e]'); if(b) goToEpoch(+b.dataset.e); });
 dpEpochSel.addEventListener('change', ()=>goToEpoch(+dpEpochSel.value));
 dpBack.addEventListener('click', ()=>goToEpoch(dIdx));
+// Turned on, it brings the epoch nearest the year shown at once.
+dpAuto.addEventListener('change', ()=>{
+  autoEpoch=dpAuto.checked;
+  try{ localStorage.setItem('autoEpoch', autoEpoch?'1':'0'); }catch(e){}
+  if(autoEpoch) goToYear(pageTime());
+  datePopDrawn=''; drawDatePop();
+});
 document.getElementById('dpDone').addEventListener('click', ()=>datePop.close());

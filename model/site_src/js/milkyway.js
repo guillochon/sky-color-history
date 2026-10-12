@@ -123,6 +123,7 @@ const MW_DL=5, MW_MB=[-50, -40, -30, -25, -20, -16, -13, -10, -8, -6, -5, -4, -3
 const mwModels={};
 function mwModel(p){
   if(mwModels[p.T]) return mwModels[p.T];
+  if(Object.keys(mwModels).length>40) for(const t in mwModels) if(+t!==0) delete mwModels[t];
   const NL=360/MW_DL, NB=MW_MB.length, o=new Float32Array(NL*NB), y=new Float32Array(NL*NB), nd=new Float32Array(NL*NB), now=MW_EPOCH.now;
   const disc=(L, rd, h)=>L/(4*Math.PI*rd*rd*h), cO=disc(p.Lo, p.rdo, p.ho), cY=disc(p.Ly, p.rdy, p.hy), cK=disc(p.Lk, p.rdk, p.hk);
   const rb=0.6, cB=0.25*(now.Lo+now.Ly+now.Lk)*p.Lb/now.Lb/(8*Math.PI*rb*rb*rb), z0=0.0208, kap=0.74*p.D*Math.exp(8.2/3.5);
@@ -161,16 +162,29 @@ function mwColour(y, tau, out){
   }
   return out;
 }
-// The map for the epoch shown, made again when the epoch changes to one whose Galaxy differs.
+// The Galaxy's model at year A (MW_EPOCH.grid, every 50 Myr and at each epoch): its parameters
+// between the grid's times, at a time rounded to 10 Myr, or to an epoch's own within 5 Myr of it,
+// since the map is made again whenever that changes. The sky's particular features stay the
+// epoch's (its seed).
+const MW_TS=Object.entries(MW_EPOCH).filter(([k])=>k!=='grid').map(([, p])=>p.T);
+function mwParamsAt(A){
+  const G=MW_EPOCH.grid, T0=Math.max(0, (2000-A)/1e9);
+  const near=MW_TS.reduce((b, t)=>Math.abs(t-T0)<Math.abs(b-T0)?t:b, Infinity), T=Math.abs(near-T0)<0.005?near:Math.round(T0*100)/100;
+  let i=0; while(i<G.T.length-2 && G.T[i+1]<=T) i++;
+  const u=Math.max(0, Math.min(1, (T-G.T[i])/(G.T[i+1]-G.T[i]))), p={T};
+  G.names.forEach((n, j)=>{ p[n]=G.rows[i][j]*(1-u)+G.rows[i+1][j]*u; });
+  return p;
+}
+// The map for the year shown, made again when the Galaxy's model or the epoch's features change.
 // The layout's light is set so its brightest field, under today's dust, is MW_PEAK, as today's is;
 // then each place's old and young light is scaled by the model's then over now. The model's dust
 // does the dimming; what more of it there is than today, in e-folds (the model's light without the
 // dust over with it, then over now), adds to the map's own for the reddening.
 let mwFor=null;
 function buildMilkyWay(){
-  const p=MW_EPOCH[EP[dIdx].key], id=p?p.T:0;
+  const pe=MW_EPOCH[EP[dIdx].key], p=mwParamsAt(physTime()), seed=pe?pe.seed:0, id=p.T+'|'+seed;
   if(mwMap&&mwFor===id) return mwMap;
-  const Y=mwLayout(p?p.seed:0), M=p&&p.T>0?mwModel(p):null, M0=M?mwModel(MW_EPOCH.now):null;
+  const Y=mwLayout(seed), M=p.T>0?mwModel(p):null, M0=M?mwModel(MW_EPOCH.now):null;
   const n=MW_W*MW_H, m=new Float32Array(n), age=new Float32Array(n*2), rgb=new Float32Array(n*3), c=[0, 0, 0];
   const cols=Array.from({length:MW_W}, (_, i)=>mwColumn(-180+(i+0.5)/MW_W*360, Y)), NL=360/MW_DL;
   let peak=0;
@@ -224,19 +238,26 @@ function galacticBasis(lat){
     const p=raDecAltaz(lat, place.ra, place.dec, LST); return horizDir(p.az, p.alt);
   };
   // Rows of GAL_AXES are the galactic axes in J2000 equatorial coordinates. At a traced epoch
-  // (STAR_EPOCH_GAL, from build_star_epochs.py) the plane is where it is now, but the Sun was
-  // elsewhere on its orbit, so the Galactic centre, and the bright part of the band, lay at
+  // the plane is where it is now, but the Sun was elsewhere on its orbit (sunGal, from
+  // build_star_epochs.py), so the Galactic centre, and the bright part of the band, lay at
   // another longitude: the first two axes turn about the pole to put it there.
-  const [x, y, z]=GAL_AXES.map(toHoriz), L=((STAR_EPOCH_GAL[epochKey]||{}).mwL||0)*Math.PI/180;
+  const [x, y, z]=GAL_AXES.map(toHoriz), L=sunGal().l*Math.PI/180;
   const c=Math.cos(L), s=Math.sin(L);
   const basis=[[c*x[0]+s*y[0], c*x[1]+s*y[1], c*x[2]+s*y[2]], [c*y[0]-s*x[0], c*y[1]-s*x[1], c*y[2]-s*x[2]], z];
-  basis.db=mwLatShift(epochKey);
+  basis.db=mwLatShift();
   return basis;
 }
 // How far the band sits from the galactic equator (degrees): seen from above the plane it
 // shifts the other way, by the Sun's extra height over the 1.5 kpc or so that most of the
 // band's light comes from. Today's 20.8 pc is already in the map.
-function mwLatShift(key){ const g=STAR_EPOCH_GAL[key]; return g?-Math.atan((g.sunZ-20.8)/1500)*180/Math.PI:0; }
+function mwLatShift(){ return -Math.atan((sunGal().z-20.8)/1500)*180/Math.PI; }
+// The Sun's place in the Galaxy at year A (STAR_SUN_TRACK, traced as the epochs are): the galactic
+// longitude, in today's coordinates, of the Galactic centre seen from it, and its height (pc).
+function sunGalAt(A){
+  const T=STAR_SUN_TRACK, n=T.l.length, x=Math.max(0, Math.min(n-1, (2000-A)/1e6/T.step)), i=Math.min(n-2, Math.floor(x)), u=x-i;
+  return {l:T.l[i]*(1-u)+T.l[i+1]*u, z:T.z[i]*(1-u)+T.z[i+1]*u};
+}
+const sunGal=byTime(sunGalAt);
 // Brightness (cd/m²) of the Milky Way seen in horizon direction d, before the air; into age (if
 // given) the young stars' share of it and the dust's tau.
 function mwAt(basis, d, age){

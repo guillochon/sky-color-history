@@ -101,6 +101,11 @@ def main():
         print(f"{k:>16} {p['T']:6.3f} {p['R']:5.2f} {p['rdo']:5.2f} {p['ho']:5.3f} {p['hy']:5.3f} "
               f"{p['Lo'] / now['Lo']:5.2f} {p['Ly'] / now['Ly']:5.2f} {p['Lk'] / now['Lk']:5.2f} {p['Lb'] / now['Lb']:5.2f} "
               f"{p['D']:5.2f}  {ys:.2f}")
+    # The same parameters through time, every 50 Myr and at each epoch, for any time between
+    # (milkyway.js mwParamsAt); the seed is the epoch's.
+    names = [k for k in now if k not in ('T', 'seed')]
+    Ts = sorted({round(float(t), 3) for t in np.arange(0, T_SUN + 1e-9, 0.05)} | {p['T'] for p in out.values()})
+    out['grid'] = dict(names=names, T=Ts, rows=[[epoch(t)[k] for k in names] for t in Ts])
     OUT.write_text(json.dumps(out, separators=(',', ':')), encoding='utf-8')
     print(f"wrote {OUT.name}")
 

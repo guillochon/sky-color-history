@@ -47,14 +47,18 @@ function epochIndexAt(A, cur=EP[dIdx].key){
   for(const k of MAIN_EPOCHS) if(Math.abs(A-epochAnchor(k))<Math.abs(A-epochAnchor(best))) best=k;
   return EP.findIndex(e=>e.key===((EPOCH_PARENT[cur]||cur)===best?cur:best));
 }
+// Whether a new year brings the epoch nearest it (the picker's "Auto-select epoch"): on unless
+// the viewer has turned it off. Off, the epoch shown stays at any year.
+let autoEpoch=true;
+try{ autoEpoch=localStorage.getItem('autoEpoch')!=='0'; }catch(e){}
 // Go to year A on the timeline, changing the epoch when A is in another's span. Within the same
 // epoch the month and day stay; into another, the season does (its calendar may differ).
 function goToYear(A){
   A=Math.round(Math.max(TIME_MIN, Math.min(TIME_MAX, A)));
-  const i=epochIndexAt(A), [Y,M,D]=pageDate();
+  const i=autoEpoch?epochIndexAt(A):dIdx, [,M,D]=pageDate();
   if(i===dIdx){ setPageDate(A-epochShift(), M, D); return; }
   const f=yearFraction()[1];
-  setEpoch(i, ()=>dateAtFraction(A-epochShift(EP[i].key), f));
+  setEpoch(i, ()=>dateInYear(A-epochShift(EP[i].key), f));
 }
 // Go to epoch i at its own year (today for today's skies), keeping the season.
 function goToEpoch(i){
@@ -62,5 +66,55 @@ function goToEpoch(i){
   if(EPOCH_YEAR[key]==='now' && i===dIdx){ document.getElementById('moonDate').value=localISODate(new Date()); renderDay(); return; }
   if(i===dIdx){ const [,M,D]=pageDate(); setPageDate(epochYear(key), M, D); return; }
   const f=yearFraction()[1];
-  setEpoch(i, ()=>dateAtFraction(epochYear(key), f));
+  setEpoch(i, ()=>dateInYear(epochYear(key), f));
 }
+
+/* ---------- the sky's physics through time ---------- */
+// The Sun, the Moon and the day, the Sun's place in the Galaxy, and the rates of comets, meteors
+// and dust follow the year shown (physTime), whichever epoch's sky is drawn: each is set at the
+// epochs that give it a value, and runs between them along a curve suited to it. An alternative
+// epoch takes its main epoch's values. An event (ζ Oph's comet shower, the Ordovician break-up's
+// dust and meteors) keeps its value through its epoch's span until events have durations of
+// their own. What is drawn from tables made for each epoch (the air's colours, the maps and the
+// star lists) is still the epoch's own.
+// [year, value] at each main epoch that table gives a value for, and today's (now) if given, in time order.
+function epochPoints(table, now){
+  const P=MAIN_EPOCHS.filter(k=>table[k]!=null).map(k=>[epochAnchor(k), table[k]]);
+  if(now!=null && table.modern==null) P.push([epochAnchor('modern'), now]);
+  return P.sort((a, b)=>a[0]-b[0]);
+}
+// Where year A falls among points P: the point before it, and how far on to the next (0–1),
+// held at either end.
+function timeBracket(P, A){
+  const n=P.length-1;
+  if(n<1 || A<=P[0][0]) return [0, 0];
+  if(A>=P[n][0]) return [n-1, 1];
+  let lo=0, hi=n;
+  while(hi-lo>1){ const m=(lo+hi)>>1; if(P[m][0]<=A) lo=m; else hi=m; }
+  return [lo, (A-P[lo][0])/(P[lo+1][0]-P[lo][0])];
+}
+// The value at year A along points P, running linearly in time in the space `to` maps it into.
+function alongTime(P, A, to=x=>x, from=x=>x){
+  const [i, u]=timeBracket(P, A);
+  return u===0?P[i][1]:u===1?P[i+1][1]:from(to(P[i][1])*(1-u)+to(P[i+1][1])*u);
+}
+// A rate through time from its values at the epochs and today's 1: geometric between them (the
+// long declines of the bombardment), and an event epoch's own value through its span.
+function rateCurve(table, events=[]){
+  let P=null;
+  return A=>{
+    for(const k of events){ const [lo, hi]=epochSpan(k); if(A>=lo && A<hi) return table[k]; }
+    P=P||epochPoints(Object.fromEntries(Object.entries(table).filter(([k])=>!events.includes(k))), 1);
+    return alongTime(P, A, Math.log, Math.exp);
+  };
+}
+// fn of the year shown, worked out once for each year.
+function byTime(fn){ let A0=NaN, v; return ()=>{ const A=physTime(); if(A!==A0){ A0=A; v=fn(A); } return v; }; }
+// The Sun: its luminosity and temperature at each epoch with a Sun of its own (epochs.py; EP own);
+// between them the luminosity grows as the young-Sun law of Gough 1981 has it (1/L linear in
+// time), the temperature linearly, and the radius follows from both, as gen_site.py sun_radius.
+const SUN_OWN=EP.filter(e=>e.own), SUN_L_PTS=epochPoints(Object.fromEntries(SUN_OWN.map(e=>[e.key, e.sunL]))),
+  SUN_T_PTS=epochPoints(Object.fromEntries(SUN_OWN.map(e=>[e.key, e.teff])));
+function sunLumAt(A){ return alongTime(SUN_L_PTS, A, x=>1/x, x=>1/x); }
+function sunTeffAt(A){ return alongTime(SUN_T_PTS, A); }
+const sunLum=byTime(sunLumAt), sunTeff=byTime(sunTeffAt), sunRadiusRel=byTime(A=>Math.sqrt(sunLumAt(A))/(sunTeffAt(A)/5772)**2);

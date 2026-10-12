@@ -180,12 +180,17 @@ let SHOWER_LIST=null;
 function showerList(){ return SHOWER_LIST||(SHOWER_LIST=SHOWERS.map(showerFromRow)); }
 // The short-period comets relative to today's (see above).
 const SHOWER_J={protoearth455:30, hadean45:30, hadean40:5, archean38:4, archean27thin:1.5, archean27:1.5, archean27vthick:1.5, proterozoic22:1.2};
-function showerFactor(key){ return 0.75*(SHOWER_J[key]??1)+0.25*(COMET_RATE[key]??1); }
+// Through time like the comet rate (comets.js).
+const showerJNow=byTime(rateCurve(SHOWER_J));
+function showerFactor(key){ return key===EP[dIdx].key?0.75*showerJNow()+0.25*cometRateNow():0.75*(SHOWER_J[key]??1)+0.25*(COMET_RATE[key]??1); }
 // The showers of epoch key: today's list in the modern-era skies, or the epoch's own.
 const SHOWER_SETS={};
 function showerSet(key){
   if(COMET_REAL_EPOCHS.has(key)) return showerList();
-  if(SHOWER_SETS[key]) return SHOWER_SETS[key];
+  // Drawn again when the rate has moved by about a percent.
+  const id=key+'|'+showerFactor(key).toPrecision(3);
+  if(SHOWER_SETS[id]) return SHOWER_SETS[id];
+  if(Object.keys(SHOWER_SETS).length>40) for(const k in SHOWER_SETS) delete SHOWER_SETS[k];
   const T=showerList(), rng=mulberry32(metHash('showers|'+key)), G=()=>gauss01(rng), out=[];
   const pois=l=>{ if(l>40) return Math.max(0, Math.round(l+Math.sqrt(l)*G())); let n=0, p=Math.exp(-l), s=p; const u=rng(); while(u>s){ n++; p*=l/n; s+=p; } return n; };
   const n=Math.min(pois(T.length*showerFactor(key)), 2500);
@@ -194,7 +199,7 @@ function showerSet(key){
     out.push({code:null, name:null, member:null, parent:null, lmax:360*rng(), dl:t.dl+8*G(), beta:Math.max(-89, Math.min(89, t.beta+8*G())),
       v:Math.max(11.5, Math.min(72, t.v*(1+0.08*G()))), r:t.r, Z:Math.max(1, t.Z*Math.pow(10, 0.3*G())), Bm:t.Bm, Bp:t.Bp, f:t.f, Bbm:t.Bbm, Bbp:t.Bbp, a0:t.a0, a1:t.a1, rho:t.rho});
   }
-  return SHOWER_SETS[key]=out;
+  return SHOWER_SETS[id]=out;
 }
 // A shower's ZHR at solar longitude lam, and its radiant there.
 function showerZHR(sh, lam){

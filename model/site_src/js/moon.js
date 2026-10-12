@@ -51,7 +51,7 @@ function noMoon(){ return !!MOONLESS[EP[dIdx].key]; }
 // ecliptic (Tremaine, Touma & Namouni 2009, eq. 24). For the present Earth that radius is 8.4
 // Earth radii. A fluid Earth on a 5.9-hour day has J2 larger by (24/5.9)^2, and the radius
 // larger by (24/5.9)^(2/5), about 15 Earth radii: the 4.5 Ga Moon, at 8, is drawn in the equator.
-const MOON_EQUATORIAL={hadean45:true};
+function moonInEquatorAt(A){ return moonDistAt(A)<8.4*Math.pow(24/dayHoursAt(A), 0.4); }
 // The orbit's tilt to the ecliptic in degrees (lunar_inclination.py): today's 5.145° taken back
 // along the distances above with the tidal model of Ćuk, Hamilton, Lock & Stewart 2016 (Nature
 // 539, 402). Earth's tides tilt the orbit less as the Moon recedes, and tides raised in the Moon
@@ -103,10 +103,58 @@ const DAY_HOURS={
   // How fast the proto-Earth turned before the impact cannot be known; half a day is a guess.
   protoearth455:12
 };
-// The page's clock runs over one solar day of the epoch, so a day has dayHours() hours. The
+// The Moon and the day through time (epoch_time.js): the values above at the epochs, and between
+// them the Moon's history from lunar_inclination.py (moon_history.js), worked out once.
+const once=f=>{ let v; return ()=>v||(v=f()); };
+// The Moon's distance at year A: through the nodes of that history (the epochs' MOON_RE, and 3.2
+// and 4.4 Ga), linearly in time between them as that model takes it; from 4.4 Ga back to the 4.50
+// Ga Moon at 8 Earth radii it recedes under a constant tidal response (da/dt as a^-5.5, so a^6.5
+// runs linearly in time); older than that epoch, it is that epoch's.
+const moonPts=once(()=>MOON_HIST.a.map(([ma, a])=>[2000-ma*1e6, a]).concat([[epochAnchor('hadean45'), MOON_RE.hadean45]]).sort((p, q)=>p[0]-q[0]));
+function moonDistAt(A){ const P=moonPts(); return A<P[1][0]?alongTime(P.slice(0, 2), A, a=>a**6.5, x=>x**(1/6.5)):alongTime(P, A); }
+// Between epochs, something that follows the Moon runs in step with the square root of its distance
+// (the orbit's angular momentum) rather than with time.
+function alongMoon(P, A, to=x=>x, from=x=>x){
+  const [i, u]=timeBracket(P, A);
+  if(u===0) return P[i][1]; if(u===1) return P[i+1][1];
+  const s0=Math.sqrt(moonDistAt(P[i][0])), s1=Math.sqrt(moonDistAt(P[i+1][0])), f=Math.abs(s1-s0)>1e-12?(Math.sqrt(moonDistAt(A))-s0)/(s1-s0):u;
+  return f===0?P[i][1]:from(to(P[i][1])*(1-f)+to(P[i+1][1])*f);
+}
+// The day at year A: DAY_HOURS at the epochs that give it and 24 hours now; between them, with
+// the Earth–Moon angular momentum held, the spin rate (1/day) runs in step with the Moon. Older
+// than the 4.50 Ga epoch its 5.9 hours, and before the giant impact (the proto-Earth's span) that
+// epoch's guess.
+const dayPts=once(()=>epochPoints({...DAY_HOURS, protoearth455:undefined}, 24));
+function dayHoursAt(A){ return A<epochSpan('hadean45')[0]?DAY_HOURS.protoearth455:alongMoon(dayPts(), A, h=>1/h, x=>1/x); }
+// The orbit's tilt and the Moon's obliquity: the history's (MOON_HIST.it, by age) scaled to meet
+// MOON_INC and MOON_OBL (and today's) exactly at the epochs. Older than 4.4 Ga the tilt holds, and
+// inside the Cassini-state transition at 33 Earth radii the obliquity is 0 (state 1).
+function moonHistAt(A, col){
+  const H=MOON_HIST.it, ma=Math.max(0, (2000-A)/1e6);
+  if(ma>=H[H.length-1][0]) return H[H.length-1][col];
+  let lo=0, hi=H.length-1;
+  while(hi-lo>1){ const m=(lo+hi)>>1; if(H[m][0]<=ma) lo=m; else hi=m; }
+  const u=(ma-H[lo][0])/(H[hi][0]-H[lo][0]); return H[lo][col]*(1-u)+H[hi][col]*u;
+}
+const incScale=once(()=>epochPoints(MOON_INC, MOON_INC_NOW).map(([A, v])=>[A, v/moonHistAt(A, 1)]));
+const oblScale=once(()=>epochPoints({...MOON_OBL, hadean45:undefined}, MOON_OBL_NOW).map(([A, v])=>[A, v/moonHistAt(A, 2)]));
+function moonIncAt(A){ return moonHistAt(A, 1)*alongTime(incScale(), A); }
+function moonOblAt(A){ return moonDistAt(A)<33?0:moonHistAt(A, 2)*alongTime(oblScale(), A); }
+// The eccentricity: MOON_ECC at the epochs and today's now, in step with the Moon between them.
+const eccPts=once(()=>epochPoints(MOON_ECC, MOON_ECC_NOW));
+function moonEccAt(A){ return alongMoon(eccPts(), A); }
+// At the year shown.
+const moonDistNow=byTime(moonDistAt), dayHoursNow=byTime(dayHoursAt), moonIncNow=byTime(moonIncAt), moonOblNow=byTime(moonOblAt),
+  moonEccNow=byTime(moonEccAt), moonInEquatorNow=byTime(moonInEquatorAt);
+function moonDist(){ return moonDistNow(); }
+function moonInc(){ return moonIncNow(); }
+function moonObl(){ return moonOblNow(); }
+function moonInEquator(){ return moonInEquatorNow(); }
+// The page's clock runs over one solar day of the year shown, so a day has dayHours() hours. The
 // variable `minutes` stays the fraction of that day times 1440, so the Sun, Moon, stars and
 // calendar all keep step with it.
-function dayHours(){ return DAY_HOURS[EP[dIdx].key]||24; }
+function dayHours(){ return dayHoursNow(); }
+function dayHoursLabel(){ const h=dayHours(); return h===24?'24':h.toFixed(2).replace(/\.?0+$/, ''); }
 // Allen 1976 phase law, as used by Krisciunas & Schaefer 1991, PASP 103, 1033.
 // Full-Moon V is −12.73 and the Sun is −26.74, both at mean distance. Within 7°
 // of full the Moon is up to 35% brighter than that curve (opposition surge).
@@ -126,9 +174,9 @@ function limbFake(pa){ return 0.002*Math.sin(7*pa+1.3)+0.00167*Math.sin(12*pa+4.
 // Apparent lunar radius at a distance of r Earth radii from the observer.
 function moonRadiusAt(r){ return Math.atan(MOON_R_KM/(r*EARTH_R_KM))*180/Math.PI; }
 // Apparent solar radius for the Sun's mean anomaly M: the mean radius over the Earth-Sun distance in AU,
-// times the epoch's Sun over today's (gen_site.py sun_radius, from its luminosity and temperature:
+// times the Sun's then over today's (epoch_time.js sunRadiusRel, from its luminosity and temperature:
 // 0.90 at 4.5 Ga, 0.93 at 2.7 Ga, 0.98 at 700 Ma). SUN_RADIUS_DEG stays the drawings' scale.
-function sunRadiusAt(M){ return SUN_RADIUS_DEG*((EP[dIdx]&&EP[dIdx].sunR)||1)/(1.00014-0.01671*cosd(M)-0.00014*cosd(2*M)); }
+function sunRadiusAt(M){ return SUN_RADIUS_DEG*sunRadiusRel()/(1.00014-0.01671*cosd(M)-0.00014*cosd(2*M)); }
 function rev(x){ x%=360; return x<0?x+360:x; }
 function sind(x){ return Math.sin(x*Math.PI/180); }
 function cosd(x){ return Math.cos(x*Math.PI/180); }
@@ -192,8 +240,8 @@ function moonEquatorial(d, rate=1, inc=MOON_INC_NOW, eqPlane=false, e=MOON_ECC_N
 // place, and where the viewer stands, is its libration: the sky shader and the dome draw the
 // globe on these axes.
 function moonAxesEq(d){
-  const k=EP[dIdx].key, eq=moonEquatorial(d, moonRate(), MOON_INC[k]||MOON_INC_NOW, !!MOON_EQUATORIAL[k], moonEcc());
-  const th=MOON_OBL[k]??MOON_OBL_NOW, n=[cosd(eq.Nm), sind(eq.Nm), 0];
+  const eq=moonEquatorial(d, moonRate(), moonInc(), moonInEquator(), moonEcc());
+  const th=moonObl(), n=[cosd(eq.Nm), sind(eq.Nm), 0];
   const h=[sind(eq.i)*sind(eq.Nm), -sind(eq.i)*cosd(eq.Nm), cosd(eq.i)], q=vcross(h, n);
   const P=vnorm(vadd(vscale(h, cosd(th)), vscale(q, sind(th)), [0, 0, 0])), e2=vcross(P, n);
   const M=vscale(vadd(vscale(n, cosd(eq.F)), vscale(e2, sind(eq.F)), [0, 0, 0]), -1), E=vcross(P, M);
@@ -214,20 +262,21 @@ const DN_UNIX=dayNumber(1970,1,1,0), DN_NEW0=dayNumber(2000,1,6,18.23);
 // 27.6 days of today's at 700 Ma, 22.6 at 2.2 Ga, 20.3 at 2.7 Ga and 15.3 at 4.0 Ga: 28 to 31
 // of each epoch's own shorter days, and 18 months a year at 2.7 Ga, as tidal rhythmites suggest.
 // At 4.5 Ga, 8 Earth radii out, it is 1.33 days, 5.4 of that epoch's own.
-function moonRate(){ return Math.pow(MOON_RE_NOW/(MOON_RE[EP[dIdx].key]||MOON_RE_NOW), 1.5); }
+function moonRate(){ return Math.pow(MOON_RE_NOW/moonDist(), 1.5); }
 function synodic(){ return 360/(13.17639648*moonRate()-0.98564736); }
 function dayOfMs(ms){ return DN_UNIX+ms/86400000; }
 function eqVec(ra, dec){ return [cosd(dec)*cosd(ra), cosd(dec)*sind(ra), sind(dec)]; }
-function moonEcc(){ return MOON_ECC[EP[dIdx].key]??MOON_ECC_NOW; }
-function geoPair(d){ const k=EP[dIdx].key, eq=moonEquatorial(d, moonRate(), MOON_INC[k]||MOON_INC_NOW, !!MOON_EQUATORIAL[k], moonEcc()), sun=sunEquatorial(d); return {eq, m:eqVec(eq.RA, eq.Dec), s:eqVec(sun.RA, sun.Dec)}; }
+function moonEcc(){ return moonEccNow(); }
+function geoPair(d){ const eq=moonEquatorial(d, moonRate(), moonInc(), moonInEquator(), moonEcc()), sun=sunEquatorial(d); return {eq, m:eqVec(eq.RA, eq.Dec), s:eqVec(sun.RA, sun.Dec)}; }
 // A Moon this close shifts by several degrees from where the Earth's centre sees it (7° at 8 Earth
 // radii): it is placed as seen from the ground, and the best seat below is left out.
-function moonNear(){ return (MOON_RE[EP[dIdx].key]||MOON_RE_NOW)<20; }
+function moonNear(){ return moonDist()<20; }
 // Closest geocentric approach of the Moon to that Sun in lunation k (golden-section search
 // within 2.5 days of the mean new Moon), cached per Moon speed and tilt.
 const lunations=new Map();
 function lunation(k){
-  const id=k+'|'+moonRate()+'|'+(MOON_INC[EP[dIdx].key]||MOON_INC_NOW)+'|'+moonEcc(); let L=lunations.get(id); if(L) return L;
+  const id=k+'|'+moonRate()+'|'+moonInc()+'|'+moonEcc(); let L=lunations.get(id); if(L) return L;
+  if(lunations.size>4000) lunations.clear();
   const f=t=>{ const g=geoPair(t); return -(g.m[0]*g.s[0]+g.m[1]*g.s[1]+g.m[2]*g.s[2]); };
   const P=synodic(), w=Math.min(2.5, 0.2*P), gr=(Math.sqrt(5)-1)/2; let a=DN_NEW0+k*P-w, b=a+2*w, c=b-gr*(b-a), e=a+gr*(b-a), fc=f(c), fe=f(e);
   for(let i=0;i<40;i++){
@@ -246,7 +295,7 @@ function lunation(k){
 // hours away, when the Moon is far from the Sun.
 function moonAt(d){
   const g=geoPair(d), k=Math.round((d-DN_NEW0)/synodic()), L=lunation(k);
-  const sc=(MOON_RE[EP[dIdx].key]||MOON_RE_NOW)/MOON_RE_NOW, gap=Math.hypot(L.d[0], L.d[1], L.d[2]);
+  const sc=moonDist()/MOON_RE_NOW, gap=Math.hypot(L.d[0], L.d[1], L.d[2]);
   const w=moonNear()?0:(1-smooth01(0.35, 0.7, Math.abs(d-L.t0)))*Math.min(1, Math.asin(1/(L.r*sc))/Math.max(gap, 1e-9));
   const v=vnorm([g.m[0]+L.d[0]*w, g.m[1]+L.d[1]*w, g.m[2]+L.d[2]*w]);
   return {v, s:g.s, RA:Math.atan2(v[1], v[0])*180/Math.PI, Dec:Math.asin(Math.max(-1, Math.min(1, v[2])))*180/Math.PI, Ls:g.eq.Ls, Ms:g.eq.Ms, r:g.eq.r*sc};

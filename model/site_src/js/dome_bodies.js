@@ -131,7 +131,7 @@ function moonSkyScale(moon, sunAz, sunEl){
   const a=Math.acos(Math.max(-1, Math.min(1, -d)))*180/Math.PI;
   const phase=Math.pow(10, -0.4*(0.026*a + 4e-9*a*a*a*a));
   const opp=a<7 ? 1+MOON_OPP*(1-a/7) : 1;
-  const re=MOON_RE[EP[dIdx].key]||MOON_RE_NOW;
+  const re=moonDist();
   return MOON_SUN_FULL*phase*opp*(MOON_RE_NOW/re)*(MOON_RE_NOW/re);
 }
 // Fraction of a solar disk of radius rSun covered by a lunar disk of radius rMoon.

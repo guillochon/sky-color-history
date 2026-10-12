@@ -431,7 +431,7 @@ function eraLook(kind, tint, e){
 // Each shines by the epoch's sunlight: the young Sun's fainter light dims them all alike.
 function placePlanets(lat, marks, bodies, epochKey, year, LST){
   const phases=planetPhases(epochKey), ageMa=PLANET_AGE_MA[epochKey]||0, rings=ageMa<RINGS_MA;
-  const sunL=(EP[dIdx]&&EP[dIdx].sunL)||1, dimMag=-2.5*Math.log10(sunL);
+  const sunL=sunLum(), dimMag=-2.5*Math.log10(sunL);
   const T=(astroDay()-1.5)/36525, tD=T*36525;
   const earth=planetHelio(PLANET_EARTH[0], PLANET_EARTH[1], T), R=Math.hypot(...earth);
   const eps=23.43928*Math.PI/180, ce=Math.cos(eps), se=Math.sin(eps), eq=v=>[v[0], v[1]*ce-v[2]*se, v[1]*se+v[2]*ce];

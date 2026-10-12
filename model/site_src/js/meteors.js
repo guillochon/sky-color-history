@@ -54,8 +54,12 @@ const MET_EPOCH={
 };
 // Today's mix of sources, by number among naked-eye meteors.
 const MET_MIX_TODAY={apex:0.28, helion:0.2, antihelion:0.2, toroidal:0.12, iso:0.08, aster:0.12};
+// The flux of the epoch shown runs geometrically through time between the epochs (epoch_time.js
+// rateCurve), the Ordovician break-up's keeping its epoch's through its span; the rest is the epoch's.
+const metFluxNow=byTime(rateCurve(Object.fromEntries(Object.entries(MET_EPOCH).map(([k, e])=>[k, e.F])), ['ordovician466']));
 function metEpoch(key){
-  const e=MET_EPOCH[key]||{};
+  const e={...MET_EPOCH[key]};
+  if(key===EP[dIdx].key) e.F=metFluxNow();
   const mix=Object.assign({}, e.mix&&Object.keys(e.mix).length>1?{}:MET_MIX_TODAY, e.mix||{});
   return {F:e.F??1, rf:e.rf??3.0, rb:e.rb??2.3, mix, dh:e.dh||0, ring:e.ring||0, flash:e.flash||0};
 }
@@ -361,7 +365,7 @@ function jumpNextImpact(back){
 // horizon, hides them when they are drawn.
 function flashBin(got, b, E, key, D, id){
   // A closer Moon: the same impacts look brighter by 5 log of the distance ratio.
-  const dm=5*Math.log10((MOON_RE[key]||MOON_RE_NOW)/MOON_RE_NOW);
+  const dm=5*Math.log10(moonDist()/MOON_RE_NOW);
   const mc=Math.min(10, D.lim-1+0.6-dm+0.5-(extK(key)-0.25));
   const n=metPoisson(FLASH_Q10*E.F*Math.pow(FLASH_R, mc-10)/3600);
   for(let i=0;i<n;i++){

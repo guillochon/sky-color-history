@@ -321,7 +321,7 @@ function renderDay(fast){
   // in these skies is Theia passing the proto-Earth, at up to about -8.5: a few percent of the full
   // Moon's light.
   const stars=placeStars(LATDEG[dLat]);
-  const sunLmag=2.5*Math.log10((ep.sunL)||1);
+  const sunLmag=2.5*Math.log10(sunLum());
   const planetLights=stars.marks.filter(s=>s.planet&&!s.host&&s.mag<-6).map(s=>({src:skySource(90-s.el, s.az), k:Math.pow(10, -0.4*(s.mag+sunLmag-MOON_V_SUN))}));
   const NR=DOME_NR, NA=DOME_NA, NC=NA+1, NG=(NR+1)*NC;
   const addField=(X, src, scale, vz, comp)=>{
@@ -590,7 +590,7 @@ function renderDay(fast){
   dctx.font='15px Newsreader, Georgia, serif'; dctx.fillText(`${ep.age} · ${dLat==='Equator'?'equator':latLabel()+' latitude'}`, 12, H-8);
   // readouts
   document.getElementById('hclock').textContent=clockLabel(minutes);
-  document.getElementById('rday').textContent=`${dayHours()} hours · ${Math.round(yearDays())}-day year`;
+  document.getElementById('rday').textContent=`${dayHoursLabel()} hours · ${Math.round(yearDays())}-day year`;
   document.getElementById('relev').textContent=(90-sza).toFixed(1)+'°';
   const sumAt=(vz,comp)=>{ const X=night[Math.min(NR, Math.round(vz/90*NR))].slice(); addField(X,sunSrc,sunVis*sunFlux,vz,comp); addField(X,moonSrc,mScale,vz,comp); for(const pl of planetLights) addField(X,pl.src,pl.k,vz,comp); addRing(X,vz);
     if(zodiOn){ const el=90-vz, zl=zodiExtra(ep.key, horizDir(comp, el), ecl)*absZenith(ep.key)*(0.4+0.6*extinction(el, ekD))/cduD; for(let q=0;q<3;q++) X[q]+=zodiXY[q]*zl; }

@@ -20,7 +20,7 @@ function shadowRec(key){
 // The shadow at day number d: the Moon's offset from the axis (equatorial, Earth radii), its
 // distance, and the umbra's and penumbra's radii there.
 function lunarShadowGeo(d){
-  const g=geoPair(d), sc=(MOON_RE[EP[dIdx].key]||MOON_RE_NOW)/MOON_RE_NOW, r=g.eq.r*sc;
+  const g=geoPair(d), sc=moonDist()/MOON_RE_NOW, r=g.eq.r*sc;
   const a=[-g.s[0], -g.s[1], -g.s[2]], ma=vdot(g.m, a);
   const off=[(g.m[0]-ma*a[0])*r, (g.m[1]-ma*a[1])*r, (g.m[2]-ma*a[2])*r];
   const sun=sunEquatorial(d), sR=sunRadiusAt(sun.Ms)*Math.PI/180, sP=EARTH_R_KM/AU_KM/sun.au;

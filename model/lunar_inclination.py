@@ -1,4 +1,4 @@
-"""The Moon's orbital inclination to the ecliptic in each epoch, for moon.js MOON_INC.
+"""The Moon's orbital inclination to the ecliptic through time -> site_src/js/moon_history.js.
 
 Integrated backward from today's 5.145° with the semi-analytic tidal model of Ćuk, Hamilton,
 Lock & Stewart 2016 (Nature 539, 402; Methods eqs. M3, M5, M7, M8):
@@ -14,10 +14,13 @@ The lunar tides grow fast as the Moon nears the Cassini-state transition at abou
 where θ swings large, so the inclination climbs steeply toward the oldest epochs. Ćuk et al.
 argue these values are lower bounds (a warmer young Moon damps more).
 """
+import json
+from pathlib import Path
+
 import numpy as np
 
 # Age (Ma) and mean distance (Earth radii), as moon.js MOON_RE.
-HIST = [(0, 60.14), (66, 59.93), (300, 58.56), (466, 58.21), (700, 57.71), (2200, 50.98),
+HIST = [(0, 60.14), (0.342, 60.14), (1.78, 60.14), (66, 59.93), (300, 58.56), (466, 58.21), (700, 57.71), (2200, 50.98),
         (2700, 47.60), (3200, 42.10), (3800, 40.4), (4000, 39.8), (4400, 38.7)]
 EPOCH_MA = dict(kpg66=66, carbon30=300, ordovician466=466, snowball07=700, proterozoic22=2200,
                 archean27=2700, archean38=3800, hadean40=4000)
@@ -73,6 +76,21 @@ def main():
     for k, ma in EPOCH_MA.items():
         a = np.interp(ma, ages, dist)
         print('%-14s %5d Ma  %5.2f R_E  i = %5.2f°  θ = %5.2f°' % (k, ma, a, out[float(ma)], np.degrees(theta(a, np.radians(out[float(ma)])))))
+    # For the page: the distance nodes, and i and θ every 10 Myr and at each node.
+    oa = np.array(sorted(out)); oi = np.array([out[x] for x in oa])
+    grid = sorted(set(range(0, 4401, 10)) | {h[0] for h in HIST})
+    rows = []
+    for ma in grid:
+        a, inc = np.interp(ma, ages, dist), np.interp(ma, oa, oi)
+        rows.append([ma, round(float(inc), 3), round(float(np.degrees(theta(a, np.radians(inc)))), 2)])
+    js = ("// The Moon through time, from lunar_inclination.py: its mean distance (Earth radii) at each\n"
+          "// node of its history by age (Ma), and its orbit's tilt to the ecliptic and its obliquity (degrees)\n"
+          "// every 10 Myr and at the nodes, for moon.js.\n"
+          "const MOON_HIST={a:" + json.dumps([[h[0], h[1]] for h in HIST], separators=(',', ':'))
+          + ",it:" + json.dumps(rows, separators=(',', ':')) + "};\n")
+    path = Path(__file__).with_name('site_src') / 'js' / 'moon_history.js'
+    path.write_text(js, encoding='utf-8')
+    print('wrote', path)
 
 
 if __name__ == '__main__':

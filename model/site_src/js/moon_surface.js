@@ -122,8 +122,8 @@ const LIMB_N=1024, LIMB_X=2, LIMB_RANGE=0.03, moonLimbProf=new Float32Array(LIMB
 // 0.3–0.7% smaller than the mean sphere. It is drawn at its true size, not the relief's LIMB_X.
 const MOON_HF=2.435, GM_EARTH=398600.4, GM_MOON=4902.8;
 function moonTide(key){
-  if(!MOON_MOLTEN[key]||!MOON_RE[key]) return null;
-  const a=MOON_RE[key]*EARTH_R_KM, r3=MOON_R_KM**3/(a**3*GM_MOON);
+  if(!MOON_MOLTEN[key]) return null;
+  const a=moonDist()*EARTH_R_KM, r3=MOON_R_KM**3/(a**3*GM_MOON);
   return [MOON_HF*GM_EARTH*r3, MOON_HF*(GM_EARTH+GM_MOON)*r3/3];
 }
 function tideAt(t, x1, x2){ return t?t[0]*(1.5*x2*x2-0.5)-t[1]*(1.5*x1*x1-0.5):0; }
@@ -177,7 +177,7 @@ function lunarLava(key){
   const ma=MOON_MA[key]||0, live=MARIA.filter(m=>ma<=m[4]*1000+50&&ma>=m[4]*1000-500&&mareVec(m[1], m[2])[2]>0);
   if(!live.length) return [];
   const k=Math.floor((astroDay()-DN_NEW0)/synodic()+0.5), rnd=mulberry32(metHash(key+'|lava|'+k)), out=[];
-  const n=1+Math.floor(rnd()*3), dm=5*Math.log10((MOON_RE[key]||40)/40), tot=live.reduce((a, m)=>a+m[3]*m[3], 0);
+  const n=1+Math.floor(rnd()*3), dm=5*Math.log10(moonDist()/40), tot=live.reduce((a, m)=>a+m[3]*m[3], 0);
   for(let i=0;i<n;i++){
     let u=rnd()*tot, m=live[0]; for(const c of live){ u-=c[3]*c[3]; if(u<=0){ m=c; break; } }
     // A vent within 0.6 of the mare's radius of its centre, on the near side; the brightness is

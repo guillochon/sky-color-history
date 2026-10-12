@@ -569,7 +569,7 @@ function paintVR(){
   const glow=moonGlow(EP[dIdx].key);
   vrGL.mlLight=!moonUp?new Float32Array(3):!glow?nightLight([0.82, 0.88, 1.0], skyNow.moonRel||0, mo.el, night):nightLight(MOLTEN_REFL_RGB, MOLTEN_REFL*(skyNow.moonRel||0), mo.el, night);
   if(moonUp&&glow){
-    const area=Math.pow(MOON_RE_NOW/(MOON_RE[EP[dIdx].key]||MOON_RE_NOW), 2), lv=nightLight(MOLTEN_LAVA_RGB, 0.4*glow*area, mo.el, night);
+    const area=Math.pow(MOON_RE_NOW/moonDist(), 2), lv=nightLight(MOLTEN_LAVA_RGB, 0.4*glow*area, mo.el, night);
     for(let q=0;q<3;q++) vrGL.mlLight[q]+=lv[q];
   }
   gl.uniform3fv(u.mlDir, vrGL.mlDir); gl.uniform3fv(u.mlLight, vrGL.mlLight);
