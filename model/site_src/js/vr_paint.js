@@ -940,7 +940,7 @@ function drawBodies(gl){
   list.map((b, i)=>i).sort((a, c)=>(list[a].kind===BODY_MOON)-(list[c].kind===BODY_MOON)).forEach(i=>{
     const b=list[i], rPx=b.rad*DISK_SCALE/pxA, Sx=BODY_U.S[i*4], Sy=BODY_U.S[i*4+1];
     if(rPx<1||Math.abs(Sx)>1e5) return;
-    const cx=(Sx/fx*0.5+0.5)*W, cy=(Sy/fy*0.5+0.5)*H, r=rPx*(b.rings?2.35:1)*1.05+3;
+    const cx=(Sx/fx*0.5+0.5)*W, cy=(Sy/fy*0.5+0.5)*H, r=rPx*(b.rings?2.35:b.uRings?2.06:1)*1.05+3;
     const x0=Math.max(0, Math.floor(cx-r)), y0=Math.max(0, Math.floor(cy-r)), x1=Math.min(W, Math.ceil(cx+r)), y1=Math.min(H, Math.ceil(cy+r));
     if(x1<=x0||y1<=y0) return;
     const code=surfCode(b.map), pr=(b.kind===3&&bp.jup)||(b.kind===4&&bp.sat)||(code>-0.5&&bp.map)||bp.base, u=pr.u;
@@ -959,7 +959,8 @@ function drawBodies(gl){
     gl.uniform4f(u.bP, b.dir[0], b.dir[1], b.dir[2], b.rad*DISK_SCALE);
     gl.uniform4f(u.bC, b.rgb[0], b.rgb[1], b.rgb[2], b.px);
     gl.uniform4f(u.bL, b.light[0], b.light[1], b.light[2], b.mag);
-    gl.uniform4f(u.bN, b.pole[0], b.pole[1], b.pole[2], b.kind+(b.front?8:0)+(b.kind===4&&!b.rings?16:0)+(b.over?32:0));
+    gl.uniform4f(u.bN, b.pole[0], b.pole[1], b.pole[2], b.kind+(b.front?8:0)+((b.kind===4&&!b.rings)||(b.kind===5&&!b.uRings)?16:0)+(b.over?32:0));
+    if(b.uRings){ gl.uniform4fv(u.uRingEl, b.uRings.el); gl.uniform3fv(u.uRingAx, b.uRings.ax); }
     gl.uniform4f(u.bS, Sx, Sy, BODY_U.S[i*4+2], b.flat!=null?b.flat+1:0);
     const m=b.meridian||[0, 0, 0]; gl.uniform4f(u.bM, m[0], m[1], m[2], code);
     const rs=b.ring; gl.uniform4f(u.bR, rs?rs.c[0]:0, rs?rs.c[1]:0, rs?rs.c[2]:0, rs?rs.rm:0); gl.uniform4f(u.bRN, rs?rs.n[0]:0, rs?rs.n[1]:0, rs?rs.n[2]:1, rs?rs.a:0);

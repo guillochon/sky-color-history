@@ -15,13 +15,18 @@ Sources, all public domain (NASA/USGS; Cassini maps NASA/JPL-Caltech/SSI/LPI):
             3840 px copies of the figures, cropped to the map)
   Triton    Schenk's (LPI) Voyager 2 colour map, PIA18668 ("Triton map no grid", Wikimedia 3840 px
             copy), centred on longitude 0; its north, in darkness in 1989, has no data and is filled
+  Miranda, Ariel, Umbriel, Titania, Oberon  USGS Voyager 2 mosaics (T. Becker), 1440 x 720 TIFFs from
+            NASA's 3D Resources (science.nasa.gov/3d-resources/uranus-<name>; JPL's Solar System
+            Simulator maps), grey, longitude 180 at the left edge (Umbriel's Wunda at 273.6 E, Miranda's
+            Arden and Elsinore coronae at 74 and 257 E fall there); only their southern hemispheres,
+            sunlit in 1986, have data, and the rest is filled
 Each map is turned so its left edge is longitude 0 (east to the right), its no-data pixels are
 filled from round about (push-pull over a pyramid, wrapping in longitude), its colour is toned
 down toward true colour by a factor per body, and it is scaled to a mean luminance of 0.45
 (cosine-weighted; the shader brings it to 0.8). One file per body, fetched only when the view zooms
 in on it: Mercury's and Mars's 4096 x 2048, each moon's 1024 x 512 (site/surf/<name>.webp).
 
-Usage: python surfaces.py <download dir with io/io.jpg, europa/europa.jpg, ...>
+Usage: python surfaces.py <download dir with io/io.jpg, europa/europa.jpg, ..., miranda/miranda.tif, ...>
        <mercury 4096x2048 png> <mars 4096x2048 png> <out dir> <preview dir> [name ...]
 (the 4096 px pngs are box-downsampled from the GeoTIFFs; either may be - to skip it, and names
 given last make only those moons)
@@ -46,6 +51,11 @@ BODIES = [
     ('enceladus', f'{dl}/enceladus/enceladus.jpg', 0, 0.22, None),
     ('iapetus', f'{dl}/iapetus/iapetus.jpg', 0, 0.3, None),
     ('triton', f'{dl}/triton/triton.jpg', 180, 0.35, None),
+    ('miranda', f'{dl}/miranda/miranda.tif', 180, 1.0, (0.92, 0.92, 0.92)),
+    ('ariel', f'{dl}/ariel/ariel.tif', 180, 1.0, (0.95, 0.94, 0.92)),
+    ('umbriel', f'{dl}/umbriel/umbriel.tif', 180, 1.0, (0.86, 0.85, 0.84)),
+    ('titania', f'{dl}/titania/titania.tif', 180, 1.0, (0.94, 0.92, 0.89)),
+    ('oberon', f'{dl}/oberon/oberon.tif', 180, 1.0, (0.93, 0.9, 0.86)),
 ]
 # The Cassini figures: the map, then captions and insets below on white; cropped to the map.
 FIGURE = {'mimas', 'enceladus', 'iapetus'}
@@ -53,12 +63,13 @@ FIGURE = {'mimas', 'enceladus', 'iapetus'}
 # gaps are ringed by near-black compression fringes. A third value moves the latitude past which
 # the cut-off holds from 55 degrees: Triton's gap, its north in the dark in 1989, reaches the equator.
 GAP = {'callisto': (40, 6), 'triton': (14, 6, -1)}
+GAP.update({n: (40, 8, -1) for n in ('miranda', 'ariel', 'umbriel', 'titania', 'oberon')})
 # The mean luminance a map is scaled to, 0.45 unless given: Iapetus's bright trailing side is ten
 # times its dark leading one, and would clip.
 MEAN = {'iapetus': 0.3}
 LUM = np.array([0.2126, 0.7152, 0.0722])
 # Maps whose source's edges, turned to meet in the middle, leave a seam there.
-SEAM = {'mars'}
+SEAM = {'mars', 'miranda', 'ariel', 'umbriel', 'titania', 'oberon'}
 
 
 def load(path, size):

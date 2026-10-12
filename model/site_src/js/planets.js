@@ -58,6 +58,36 @@ const PL_AU_KM=149597870.7, LIGHT_DAY_AU=1/173.1446;
 // for those drawn with longitudes: Mercury's, Mars's, Jupiter's System II (the clouds' and the Red
 // Spot's), not the IAU's System III, and Saturn's System III (its winds' and the hexagon's).
 const PLANET_W=[[329.5988, 6.1385108], null, [176.630, 350.89198226], [43.3, 870.270], [38.90, 810.7939024], null, null];
+// Uranus's ten narrow rings, from 34 stellar and radio occultations of 1977-2006 (French et al. 2024,
+// Icarus 411, 115957, tables 5 and 14): name, semimajor axis and a·e (km), longitude of periapse at
+// 1986 Jan 19.5 TDB and its precession (degrees, degrees a day; counted about the rings' angular
+// momentum, Uranus's IAU south pole, from the ascending node of its equator on the J2000 equator),
+// mean width (km) and how the width grows with radius round the ring (the ε ring's from 20 km at
+// periapse to 97 at apoapse), and normal optical depth at the mean width (Voyager's and the
+// occultations', after Esposito et al. 1991: the ε ring's 2.5 at periapse to 0.5 at apoapse taken as
+// a constant equivalent depth). The η, δ and λ rings are circles here (δ's and γ's normal modes of a
+// few km left out), and the faint dusty rings (ζ, ν, μ and η's sheet, at depths of 10⁻⁴ to 10⁻⁵) are not
+// drawn: in sunlight from near the Sun's direction, as the Earth sees them, they are too faint to show.
+const URA_RINGS=[
+  ['6', 41837.092, 42.499, 181.657, 2.7619579, 2.316, 0.020, 0.3],
+  ['5', 42234.893, 80.237, 176.819, 2.6715756, 2.684, 0.005, 0.5],
+  ['4', 42571.124, 45.347, 255.880, 2.5980293, 3.231, 0.018, 0.3],
+  ['α', 44718.473, 33.916, 206.074, 2.1855003, 7.277, 0.083, 0.35],
+  ['β', 45661.056, 20.106, 317.925, 2.0308229, 8.516, 0.158, 0.2],
+  ['η', 47176.009, 0, 0, 0, 2.227, 0, 0.2],
+  ['γ', 47626.170, 5.306, 48.720, 1.7514650, 3.258, 0.086, 1.5],
+  ['δ', 48300.227, 0, 0, 0, 4.977, 0, 0.4],
+  ['λ', 50026.557, 0, 0, 0, 1.5, 0, 0.15],
+  ['ε', 51149.279, 405.894, 307.076, 1.3632575, 58.574, 0.095, 0.85],
+];
+const URA_RING_T0=2446450-2451545;
+// The rings' state t days after J2000 for the bodies' shader (uRingEl): per ring its semimajor axis,
+// a·e, half its mean width (all in Uranus's radii) and its periapse (radians, in the frame above).
+function uraRingEl(t){
+  const R=PLANET_BODY[5][0], out=new Float32Array(URA_RINGS.length*4);
+  URA_RINGS.forEach(([, a, ae, w0, wd, W], k)=>out.set([a/R, ae/R, 0.5*W/R, ((w0+wd*(t-URA_RING_T0))%360)*Math.PI/180], k*4));
+  return out;
+}
 // The major moons of Jupiter and Saturn: name, host (index in PLANETS), radius (km), absolute
 // magnitude H, orbit radius (km), mean longitude at J2000 TDB (degrees, in the host's equator
 // from its ascending node on the J2000 equator), mean motion (degrees a day) and a tint. Fit to JPL
@@ -371,6 +401,9 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
     const Wk=PLANET_W[k], axk=equatorAxes(pra, pdec), Wr=Wk?(Wk[0]+Wk[1]*(tD-d*LIGHT_DAY_AU))*Math.PI/180:0;
     const meridian=horiz(vadd(vscale(axk.i, Math.cos(Wr)), vscale(axk.j, Math.sin(Wr)), [0, 0, 0])).dir;
     const body={grs, meridian, map:SURF_FILES[name]?name:null, dir:p.dir, rad:radDeg*Math.PI/180, light:vnorm(horiz(eq(h.map(v=>-v))).dir), pole:horiz(pole).dir, kind:k, px:show.px, rgb:show.rgb, mag, front:d<R, shadows:[], rings:ringed, ringAge:(RINGS_MA-ageMa)/RINGS_MA, tint};
+    // Uranus's rings, where the light now arriving left them: their state, and the node their
+    // longitudes count from (the IAU pole's, the equator's ascending node on the J2000 equator).
+    if(name==='Uranus') body.uRings={el:uraRingEl(tD-d*LIGHT_DAY_AU), ax:horiz(axk.i).dir};
     if(p.alt>0){
       marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb, planet:name, mag, ra:p.ra, dec:p.dec, radDeg, dist:d, lit:(1+Math.cos(i*Math.PI/180))/2, body, kind:k, rings:ringed, unknown:!!phases, ageMa, grs, tint});
       bodies.push(body);
@@ -425,8 +458,10 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
       if(m[0]==='Iapetus') mmag-=0.85*vdot(qn, vnorm(vcross(pl.k, off)));
       const ms=planetDisplay(mmag, m[7]);
       const mark={az:mp.az, el:mp.alt, px:ms.px, rgb:ms.rgb, planet:m[0], host:name, mag:mmag, ra:mp.ra, dec:mp.dec, radDeg:Math.atan(m[2]/(dm*PL_AU_KM))*180/Math.PI, dist:dm, lit:(1+Math.cos(i*Math.PI/180))/2, behind:along>0, rho, tint:m[7], unknown:!!phases, ageMa};
-      // The moons turn synchronously: longitude 0 faces the host, about their orbit's pole.
-      mark.body={dir:mp.dir, meridian:horiz(vscale(off, -1)).dir, map:SURF_FILES[m[0]]?m[0]:null, rad:mark.radDeg*Math.PI/180, light:body.light, pole:m[10]?horiz(pl.k).dir:body.pole, kind:BODY_MOON, flat:BODY_FLAT_OF[m[0]], px:ms.px, rgb:ms.rgb, mag:mmag, front:false, over:!mark.behind, tint:m[7], ring, mark};
+      // The moons turn synchronously: longitude 0 faces the host, about their IAU north pole, on the
+      // host's north side of their orbit's plane (for the retrograde Triton and Miranda, whose
+      // orbits turn the other way about it, the pole opposite their orbit's).
+      mark.body={dir:mp.dir, meridian:horiz(vscale(off, -1)).dir, map:SURF_FILES[m[0]]?m[0]:null, rad:mark.radDeg*Math.PI/180, light:body.light, pole:m[10]?horiz(vdot(pl.k, ax.k)<0?vscale(pl.k, -1):pl.k).dir:body.pole, kind:BODY_MOON, flat:BODY_FLAT_OF[m[0]], px:ms.px, rgb:ms.rgb, mag:mmag, front:false, over:!mark.behind, tint:m[7], ring, mark};
       marks.push(mark);
       if(!(mark.behind&&rho<DISK_SCALE)) bodies.push(mark.body);
     });

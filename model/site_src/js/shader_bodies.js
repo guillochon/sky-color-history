@@ -506,6 +506,9 @@ uniform vec4 fineT; uniform vec3 grsDir; uniform vec4 grsAB;
 // rings may shade (planets.js ring), bR its middle from Saturn's (Saturn radii) and its radius, bRN
 // Saturn's pole and the Sun's angular radius there; bR.w 0 for any other body.
 uniform vec4 bP, bC, bL, bN, bS, bM, bR, bRN;
+// Uranus's rings (planets.js URA_RINGS, uraRingEl): each ring's semimajor axis, a·e, half its mean
+// width (Uranus's radii) and periapse (radians, from uRingAx about the IAU pole bN backwards).
+uniform vec4 uRingEl[${URA_RINGS.length}]; uniform vec3 uRingAx;
 uniform vec4 shadowM[${SHADOW_MAX}], shadowK[${SHADOW_MAX}]; uniform float shadowCnt;
 uniform vec4 sunQ, moonQ;
 out vec4 fragColor;
@@ -526,6 +529,31 @@ float trueAlt(float app){ return app-refK*bennett(app); }
 ${VIEW_RAY_GLSL}
 ${SURF_GLSL}
 ${BODY_GLSL}
+// Uranus's rings at xr (Uranus's radii, in the equator), averaged over radii xr±w: brightness,
+// opacity toward the viewer and the Sun, and the grey part of the brightness (all of it), as
+// saturnRing. Each ring the ellipse of its orbit, its width growing with its radius and its depth
+// thinning in proportion, so that what it blocks is the same all round; a band of particles lit
+// and seen as Saturn's rings' (rings.js), but dark: an opaque ring lit and seen square on is drawn
+// 0.05, against the B ring's 0.95, as the particles' albedo of a few hundredths (Voyager) makes it.
+const float URA_TAU[${URA_RINGS.length}]=float[${URA_RINGS.length}](${URA_RINGS.map(r=>r[7].toFixed(3)).join(', ')});
+const float URA_DWDR[${URA_RINGS.length}]=float[${URA_RINGS.length}](${URA_RINGS.map(r=>r[6].toFixed(3)).join(', ')});
+vec4 uranusRing(vec3 xr, float w, float muV, float mu0, bool lit){
+  float r=length(xr);
+  if(r+w<1.6 || r-w>2.06) return vec4(0.0);
+  vec3 n=bN.xyz; float th=3.14159265-atan(dot(xr, cross(n, uRingAx)), dot(xr, uRingAx));
+  muV=max(muV, 0.002); mu0=max(mu0, 0.002);
+  vec4 acc=vec4(0.0);
+  for(int k=0;k<${URA_RINGS.length};k++){
+    vec4 E=uRingEl[k];
+    float e=E.y/E.x, rr=E.x*(1.0-e*e)/(1.0+e*cos(th-E.w)), hw=max(E.z+0.5*URA_DWDR[k]*(rr-E.x), 1e-6);
+    float f=max(0.0, min(r+w, rr+hw)-max(r-w, rr-hw))/(2.0*w);
+    if(f<=0.0) continue;
+    float tau=URA_TAU[k]*E.z/hw, eV=exp(-tau/muV), e0=exp(-tau/mu0);
+    float I=lit?0.1*mu0/(muV+mu0)*(1.0-eV*e0):0.1*(abs(muV-mu0)<1e-4?tau/muV*eV:mu0/(muV-mu0)*(eV-e0));
+    acc+=f*vec4(I, 1.0-eV, 1.0-e0, I);
+  }
+  return acc;
+}
 void main(){
   float fy=tan(fov*0.5);
   vec3 rd=viewRay(gl_FragCoord.xy, res, fov, yaw, pitch);
@@ -543,7 +571,7 @@ void main(){
   float rBg=pow(10.0, skyT.a*${LOGR_SPAN.toFixed(1)}+${LOGR_LO.toFixed(1)});
   bool inSun=sunQ.w>0.0 && dot(src, sunQ.xyz)>cos(sunQ.w);
   int kind=int(mod(bN.w, 8.0)+0.5);
-  bool ringed=kind==4 && bN.w<15.5;
+  bool ringed=kind==4 && bN.w<15.5, uRinged=kind==5 && bN.w<15.5;
   if(inSun && mod(bN.w, 16.0)<7.5) discard;
   // Its brightness as the sky shader's point's: by its magnitude through the air against the
   // naked-eye limit here; the air dims it and reddens it, green and blue losing about 0.07 and 0.2
@@ -560,7 +588,10 @@ void main(){
     vec3 axR=vec3(cos(yaw), -sin(yaw), 0.0), axU=vec3(-sin(yaw)*fsp, -cos(yaw)*fsp, fcp);
     dd=axR*(fuv.x-bS.x)+axU*((fuv.y-bS.y)*bS.z);
   }
-  vec3 o=(dd-bP.xyz*dot(dd, bP.xyz))/sin(bP.w), x; float t;
+  // Over the radius's sine; for a radius under a milliradian the radius itself, as exact there and
+  // safe from the GPU's sine, which loses its last digits for tiny angles (a small moon deep in the
+  // zoom, a few 1e-7 radians, was drawn at half its size).
+  vec3 o=(dd-bP.xyz*dot(dd, bP.xyz))/(bP.w<1e-3?bP.w:sin(bP.w)), x; float t;
   float hz=smoothstep(-hw, hw, elevDeg);
   if(inSun){
     // A planet nearer than the Sun, dark against it: the sky without the Sun laid over it.
@@ -612,6 +643,25 @@ void main(){
       dc=tr<t?rc+dc*(1.0-ro):dc+rc*(1.0-dk.a);
     }
   }
+  if(uRinged && abs(vn)>1e-4){
+    // Uranus's rings, as Saturn's: lit on the Sun's side, in the planet's shadow behind it, and
+    // casting their shadows on it, blurred by a pixel's width.
+    vec3 Lr=bL.xyz; float ln=dot(Lr, bN.xyz), muV=abs(vn), mu0=abs(ln); bool lit=ln*vn<0.0;
+    if(dk.a>0.0){ float ts=-dot(x, bN.xyz)/ln; if(ts>0.0) dc*=1.0-uranusRing(x+ts*Lr, max(0.8/rPx/max(mu0, 0.05), 1e-5), muV, mu0, lit).z; }
+    float tr=-dot(o, bN.xyz)/vn; vec3 xr=o+tr*bP.xyz;
+    vec4 rg=uranusRing(xr, 0.8/rPx/max(muV, 0.03), muV, mu0, lit);
+    if(rg.y>0.0){
+      float s=dot(xr, Lr), sh=1.0, fade=smoothstep(0.0, 0.03, muV);
+      if(s<0.0){
+        vec3 e1=normalize(cross(bN.xyz, Lr)), e2=cross(Lr, e1), q=xr-s*Lr;
+        float c=1.0-BODY_FLAT[5], pb=sqrt(c*c*(1.0-ln*ln)+ln*ln), pw=1.0/rPx;
+        sh=smoothstep(1.0-pw, 1.0+pw, length(vec2(dot(q, e1), dot(q, e2)/pb)));
+      }
+      vec3 rc=vec3(0.72, 0.71, 0.69)*rg.x*sh*fade;
+      float ro=rg.y*fade;
+      dc=tr<t?rc+dc*(1.0-ro):dc+rc*(1.0-dk.a);
+    }
+  }
   // Added to what is behind, except a moon on the near side of its planet (bN.w past 32), which
   // hides the planet's disk and rings under it: added, the rings' light would show through it.
   fragColor=vec4(dc*T*diskK*vis*hz, bN.w>31.5?dk.a*diskK*vis*hz:0.0);
@@ -623,7 +673,7 @@ function bodyFS(f){
   return keepLoops([def('JUP', f.has('jup')), def('SAT', f.has('sat')&&!f.has('jup')), def('MAP', f.has('map'))].reduce((s, g)=>g(s), BODYFS_SRC));
 }
 const BODY_UNIFORMS=['res','hitScale','yaw','pitch','fov','showScn','refK','rCd','mwK','moonGain','starPx','nr','na','fineT','grsDir','grsAB',
-  'bP','bC','bL','bN','bS','bM','bR','bRN','shadowM[0]','shadowK[0]','shadowCnt','sunQ','moonQ'];
+  'bP','bC','bL','bN','bS','bM','bR','bRN','shadowM[0]','shadowK[0]','shadowCnt','sunQ','moonQ','uRingEl[0]','uRingAx'];
 function setupBodyProg(gl, p){
   gl.useProgram(p);
   bindSamplers(gl, p, [['sky',0],['noiseTex',12],['hitInfo',10],['dsoTex',6],['satRingTex',16]]);
