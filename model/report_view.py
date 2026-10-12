@@ -48,7 +48,7 @@ MOON_ORBIT = [
 "page draws the globe on these axes, so the Moon visibly librates.",
 
 "The consequences show in the sky. At 3.8 Ga the Moon is one and a half times today's width and more than "
-"twice as bright when full. At 4.5 Ga it is 4° across, seven and a half times today's width and 56 times "
+"twice as bright when full. At 4.5 Ga it is 4° across, seven and a half times today's width and 57 times "
 "its area, and so close that it is placed as seen from the ground: it shifts 7° against the stars between "
 "the horizon and the zenith. It crosses the sky in hours, rising and setting several times a day. In the "
 "plane of the equator, it eclipses the Sun at every new Moon for weeks around each equinox, somewhere on "
@@ -60,8 +60,8 @@ MOON_FACE = [
 "match a full-Moon photograph, and the Laser Altimeter's heights (NASA's CGI Moon Kit). The heights light "
 "the slopes, cast shadows toward the terminator, and shape the limb, so a zoomed crescent shows a ragged "
 "terminator and crater shadows, and the edge of the Moon in an eclipse breaks the last sunlight into "
-"Baily's beads. Five globes cover the Moon's history ({ref:fig:surfaces}). Tycho, 108 million years old (Arvidson et al. "
-"1976), is taken away with its rays for the epochs older than 108 Ma. Before about 3.9 Ga the maria had "
+"Baily's beads. Five globes cover the Moon's history ({ref:fig:surfaces}). Tycho, about 109 million years old (Stöffler &amp; Ryder 2001, from the exposure ages of Arvidson et al. "
+"1976), is taken away with its rays for the epochs older than 109 Ma. Before about 3.9 Ga the maria had "
 "not been flooded: basalts filled the great basins from about 3.9 Ga and most of them by 3.3 Ga "
 "(Hiesinger et al. 2011), so each mare darkens over 150 million years from an onset just before its oldest "
 "dated basalt. At 3.8 Ga Tranquillitatis is two-thirds dark, Serenitatis and Nectaris a third, and Imbrium "
@@ -70,7 +70,7 @@ MOON_FACE = [
 "eruptions a lunation glow on the night side, a few to a hundred square kilometers of lava at about "
 "1,400 K, as bright per area as the sunlit Moon and far redder, magnitude +3 to −1 as seen from the Earth.",
 
-"The Moon of 4.5 Ga is not yet solid. Its magma ocean is open at the top, a few million years after the "
+"The Moon of 4.5 Ga is not yet solid. Its magma ocean is open at the top, some ten million years after the "
 "impact: rafts of dark quench crust and the first pale anorthosite, floating a few hundred meters to a "
 "kilometre and a half above the melt, broken by cracks and lava lakes at 1,400 to 1,600 K in four "
 "generations of floes, each a network of cracks within the last. The lava shines about as brightly per "
@@ -135,7 +135,7 @@ PLANETS_WHERE = [
 
 "Theia, the Mars-sized body whose collision with the proto-Earth made the Moon, is a wandering planet in "
 "the 4.55 Ga sky. Its orbit is made up, as any that would meet the Earth's will do, since where it lay "
-"is not known (Branco, Raymond &amp; Machado 2025). Every 25 years or so it passes within a few hundredths "
+"is not known (Branco, Machado &amp; Raymond 2025). Every 25 years or so it passes within a few hundredths "
 "of an AU, and at its closest it reaches magnitude −8.5, half lit, brighter than any planet has been "
 "since, lighting the night. Its face is invented too: an airless, cratered, iron-rich basaltic crust "
 "(Meier, Reufer &amp; Wieler 2014), its steam atmosphere lost to the young Sun within a few tens of "
@@ -207,10 +207,10 @@ SATURN = [
 "size, as Cassini saw the north before 2009. That change lags the season by several years, and the lag is "
 "not drawn.",
 
-"Saturn's rings are drawn from the Cassini radio occultation of 3 May 2005 (Marouf et al.), its optical "
+"Saturn's rings are drawn from the Cassini radio occultation of 3 May 2005 (Marouf et al. n.d.), its optical "
 "depth at 10 km resolution from the C ring to the outer A ring, corrected to visible light in the C ring, "
-"the Cassini division and the outer A ring by the Ka-band occultation (whose sub-centimetre particles "
-"Jerousek et al. 2016 find), with the F ring added. Each ring is a single-scattering layer (as Cuzzi et "
+"the Cassini division and the outer A ring by the same occultation's Ka band, which sees the sub-centimetre particles the X band misses (in the outer A ring "
+"Jerousek et al. 2016 find them too), with the F ring added. Each ring is a single-scattering layer (as Cuzzi et "
 "al. 1984): lit from the Sun's side it shines by its depth and particle brightness, the A ring 0.7 of the "
 "B ring's and the C ring and Cassini division half of it and grayer; seen from the unlit side only light "
 "passing through it shows, so the B ring is black and the C ring and Cassini division glow. The rings "
@@ -219,7 +219,7 @@ SATURN = [
 "them is banded by their shadow and dimmed by what they let through, Mimas by up to 4 magnitudes deep in "
 "the B ring's. Edge-on, the rings thin below a pixel.",
 
-"The rings are young. How young is still argued, 100 to 400 million years (Iess et al. 2019; Kempf et al. "
+"The rings are young. How young is still argued, from tens to a few hundred million years (Iess et al. 2019; Kempf et al. "
 "2023), and we adopt the account of Wisdom et al. (2022): an icy moon the size of Iapetus, named "
 "Chrysalis, orbiting between Titan and Iapetus in a 3:1 resonance with Titan, was torn apart about 160 "
 "million years ago, freeing Saturn's tilt from Neptune's pull and making the rings of its debris. So the "
@@ -315,7 +315,7 @@ SUPERNOVAE = [
 # The Sun
 # ---------------------------------------------------------------------------------------------------
 SUN_YOUNG = [
-"The Sun has brightened by about 30% since the Earth formed, as hydrogen burning has raised the density and "
+"The Sun was about 30% fainter when the Earth formed and has brightened since, as hydrogen burning has raised the density and "
 "temperature of its core. We follow the 1 M☉ track of Baraffe et al. (2015): 68% of today's light and "
 "5,530 K at 4.5 Ga, 80% and 5,660 K at 2.7 Ga, 94% at 700 Ma, today's 5,772 K by the Cenozoic. Its radius "
 "follows from the luminosity and temperature: 0.90 of today's at 4.5 Ga, 0.93 at 2.7 Ga, 0.98 at 700 Ma, so the "
@@ -355,7 +355,7 @@ MOONLIGHT = [
 "Moonlight is the same sky model with the Moon in place of the Sun, scaled by the lunar phase (the Allen phase law "
 "with the opposition surge, as in Krisciunas &amp; Schaefer 1991) and by the inverse square of the Moon's distance. "
 "It stays nearly the same in color from epoch to epoch but not in brightness: the full Moon lit the sky 2.2 times "
-"as brightly at 3.8 Ga and 56 times at 4.5 Ga, where it lit a 30-bar sky that, like its day sky, was a "
+"as brightly at 3.8 Ga and 57 times at 4.5 Ga, where it lit a 30-bar sky that, like its day sky, was a "
 "featureless peach glow.",
 ]
 
@@ -415,7 +415,7 @@ SCENERY = [
 # ---------------------------------------------------------------------------------------------------
 CITY = [
 "In the modern epochs the observer stands in a mid-sized city: a zenith glow of 18.8 mag/arcsec² today (Falchi et "
-"al. 2016), with orange sodium light in 1980–2000 (Cinzano, Falchi &amp; Elvidge 2001), 1.6 times today's in "
+"al. 2016), with orange sodium light in 1980–2000, at the brightness of the first World Atlas (Cinzano, Falchi &amp; Elvidge 2001), 1.6 times today's in "
 "polluted air, held at today's level in 2100 (the recent 9.6% a year, Kyba et al. 2023, cannot be projected that "
 "far), and almost nothing from the oil lamps of 1815 (Fouquet &amp; Pearson 2006). The glow rises about threefold "
 "toward the horizon, and cloud bases over the city glow orange several times brighter than the clear sky (Kyba et "
@@ -432,7 +432,7 @@ SATELLITES = [
 "take the middle one and the more optimistic of their two node spreads: Blue Origin's Sunrise, 51,600 "
 "Sun-synchronous satellites from 500 to 1,800 km in a dawn–dusk cross of rings whose nodes wander 10° to either "
 "side of the terminator. Each is a diffuse sphere of 800 m² at albedo 0.2, the size they call conservative next "
-"to panels several times larger, and two hundred times a communications satellite's reflecting area. An hour "
+"to panels several times larger: 160 m² of effective area, two hundred times a communications satellite's. An hour "
 "after sunset, thousands of them are above naked-eye brightness, a bright band along the terminator, each "
 "crossing the dome in minutes. The paper's all-night winter rings belong to the December solstice, which the "
 "page's equinox geometry does not show.",
@@ -519,7 +519,7 @@ TEN_THINGS = [
 "horizon.",
 "Before the Great Oxidation every twilight ended in a cream zenith; the first ozone turned it pale blue, and the "
 "deep blue dusk needs a near-modern column.",
-"Snowball Earth had the bluest sky in Earth's history; the K–Pg impact winter had no sunsets at all.",
+"Snowball Earth had the bluest mid-latitude sky in Earth's history; the K–Pg impact winter had no sunsets at all.",
 "The eclipsed Moon is copper today, orange-rimmed before there was ozone, dark-cored when the Moon was close, and "
 "gone under the K–Pg soot, the thick Archean haze or a Tambora veil.",
 "Before the Great Oxidation the nights were darker and violet: no oxygen airglow, nitrogen aurorae reaching the "

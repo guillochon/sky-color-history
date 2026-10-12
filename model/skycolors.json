@@ -894,7 +894,7 @@
  {
   "key": "archean27thin",
   "name": "Neoarchean, ~2.7 Ga (thin haze)",
-  "sub": "biogenic CH4/CO2 ~0.1: intermittent thin organic haze",
+  "sub": "biogenic CH4/CO2 ~0.06: intermittent thin organic haze",
   "note": "",
   "lat": {
    "Equator": {
@@ -1340,7 +1340,7 @@
  {
   "key": "archean27vthick",
   "name": "Neoarchean, ~2.7 Ga (very thick haze)",
-  "sub": "upper-end haze, tau(550nm)~1.5: CH4/CO2 well above 0.2",
+  "sub": "upper-end haze, tau(550nm)~1.5: CH4/CO2 ~0.2",
   "note": "",
   "lat": {
    "Equator": {

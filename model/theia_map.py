@@ -4,7 +4,7 @@ No one has seen Theia, so the map is made from what it was likely made of and wh
 it 17 Myr after the first solids:
   - A Mars-sized embryo whose mantle held more iron oxide than the Earth's (about 20% FeO: Meier,
     Reufer & Wieler 2014, who find it reconciles the Earth's and Moon's mantles), perhaps
-    carbonaceous (even odds, Branco, Raymond & Machado 2025). Its crust is FeO-rich basalt: dark,
+    carbonaceous (even odds, Branco, Machado & Raymond 2025). Its crust is FeO-rich basalt: dark,
     a neutral to brownish grey, geometric albedo about 0.12 (Mars's is 0.17, the lunar maria's 0.07-0.1).
   - Airless: a Mars-sized embryo loses its steam atmosphere to the young Sun's EUV within a few to a
     few tens of Myr (Odert et al. 2018), and a small body's magma ocean freezes soon after it forms.

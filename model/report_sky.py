@@ -55,7 +55,7 @@ SECTIONS = [
 "et al. 2022). The Sun's rotation follows the slow-rotator sequence it most likely took (Gallet &amp; Bouvier "
 "2013): 3.1 days at 4.5 Ga, 16 at 2.7 Ga, 23 at 700 Ma.",
 "Fast rotators carry spots at high latitudes and large cool polar caps, as Doppler images of young solar analogs "
-"show (Barnes et al. 2005), so the Hadean and early Archean Suns have their spots between 10° and 75° and caps "
+"show (Strassmeier 2009; Barnes et al. 2005), so the Hadean and early Archean Suns have their spots between 10° and 75° and caps "
 "round the poles. A regular cycle sets in at a few hundred million years (Katsova 2020); from 2.7 Ga the spots "
 "emerge in a butterfly pattern, from mid-latitudes toward the equator over each cycle (Hathaway 2011), on cycles "
 "lengthening from 8 to 11 years. On Gregorian dates the modern epochs follow the real cycles, each cycle's sunspot "
@@ -76,24 +76,24 @@ SECTIONS = [
 "own fine structure takes over (<em>The Sun close up</em>).",
 "A spot about an arcminute across, some 500 millionths of the hemisphere, is the smallest the eye can see unaided "
 "through a haze or a filter (Vaquero 2007). Today one is on the disk about one day in 25, mostly near solar "
-"maximum; in the Proterozoic every other day; in the Archean and Hadean always, about 30 at once at 4.5 Ga. Spots "
+"maximum; at 2.2 Ga every other day; in the Archean and Hadean always, about 30 at once at 4.5 Ga. Spots "
 "then take about 3% off the Sun's light, and they gather toward the poles, darkening the top and bottom of the "
 "disk. The young Sun's shape does not change visibly: rotating in 3 days flattens it by only 0.05%, and even a "
-"1-day rotation by 0.5%, 5 arcseconds on a 32-arcminute disk."]],
+"1-day rotation by 0.5%, 10 arcseconds off the width of a 32-arcminute disk."]],
 ['Moonlight and the Moon', [
 "Moonlight is the same sky model with the Moon in place of the Sun, scaled by the lunar phase (the Allen phase law "
 "with the opposition surge, as in Krisciunas &amp; Schaefer 1991) and by the inverse square of the Earth–Moon "
 "distance, which follows Farhat et al. (2022) back to 2.2 Ga and reaches about 70% of today's by 3.2 Ga (Eulenfeld "
 "&amp; Heubeck 2023): 47.6 Earth radii at 2.7 Ga and 39.8 at 4.0 Ga, when the full Moon was up to 2.3 times as "
 "bright and 1.5 times as wide. At 4.5 Ga, ten million years after the giant impact, it was only 8 Earth radii out "
-"(Korenaga 2023): 56 times as bright and 7.5 times as wide. Holding the Earth–Moon angular momentum fixed gives days of 23.8 hours at 66 Ma, "
+"(Korenaga 2023): 57 times as bright and 7.5 times as wide. Holding the Earth–Moon angular momentum fixed gives days of 23.8 hours at 66 Ma, "
 "17.4 at 2.2 Ga, 15.6 at 2.7 Ga and about 12½ at 4.0 Ga, matching Farhat et al., and 5.9 at 4.5 Ga; the closer Moon also went "
 "round faster, so a month was 20 of today's days at 2.7 Ga and 15 at 4.0 Ga, still 28 to 31 of the shorter days, and "
 "at 4.5 Ga only 32 hours.",
 "The Moon's face changes too. Its dark maria are basalt that flooded the great basins from about 3.9 Ga, most of "
 "it by 3.3 Ga (Hiesinger et al. 2011), so each mare is darkened from a date just before its oldest dated basalt: "
 "at 3.8 Ga Tranquillitatis is two-thirds dark while Imbrium is still a bright basin, and in the Hadean the near side "
-"is bright highland from limb to limb. Tycho's rays, 108 million years old, are missing from the older Moons. "
+"is bright highland from limb to limb. Tycho's rays, about 109 million years old, are missing from the older Moons. "
 "Moonlight therefore stays nearly the same in color but not in brightness: a Hadean full Moon lit a 30-bar sky "
 "that, like its day sky, was a featureless peach glow."]],
 
@@ -124,8 +124,8 @@ SECTIONS = [
 ['Lunar eclipses', [
 "In a lunar eclipse the Moon passes through the Earth's shadow, which is lit only by sunlight bent into it through "
 "the Earth's limb: every sunrise and sunset on Earth at once. Its color and brightness are a measurement of the "
-"whole atmosphere at the terminator, which is why eclipses darkened after Tambora, Krakatoa, El Chichón and Pinatubo "
-"(Keen 1983; Stothers 2004) and dimmed measurably after the small Kasatochi eruption of 2008 (García Muñoz et al. "
+"whole atmosphere at the terminator, which is why eclipses darkened after Tambora and El Chichón "
+"(Stothers 2005; Keen 1983), why the eclipse of August 2008 carried the imprint of the small Kasatochi eruption (García Muñoz et al. "
 "2011), and why the eclipsed Moon's spectrum is Earth's transmission spectrum as an exoplanet would show it (Pallé "
 "et al. 2009). The same physics, run on each epoch's air, gives the eclipse of every era.",
 "The model (<em>lunar_eclipse.py</em>) traces rays from the Sun through the epoch's atmosphere at tangent heights "
@@ -140,7 +140,7 @@ SECTIONS = [
 "where ozone's Chappuis band removes the orange from the highest rays (the turquoise fringe of eclipse photographs). "
 "Before the Great Oxidation there is no ozone and that edge is orange too. A Tambora-sized sulfate veil puts the "
 "Moon near V = +11, a surface brightness of 27 mag/arcsec², far below the night sky: it vanishes, as it did to "
-"observers in June 1816 (Stothers 2004). The K–Pg soot and the thick Neoarchean haze remove it entirely; the thin "
+"observers in June 1816 (Stothers 2005). The K–Pg soot and the thick Neoarchean haze remove it entirely; the thin "
 "haze leaves a dim brown-red Moon near V = +5.",
 "Two effects are new to the deep past. The closer Moon sat nearer the Earth than the refracted light comes to a "
 "focus (about 300,000 km today, past the Moon's 384,000), so the middle of the shadow is reached only by rays "
@@ -151,7 +151,7 @@ SECTIONS = [
 "out, sits well inside the focus, and at mid-eclipse it is gone, V = +12.",
 "The shadow's geometry follows the distances and the young Sun's size. The umbra was 3.1 Moon widths across at "
 "4.0 Ga against 2.7 today, and with twice as many full Moons a year, total lunar eclipses came nearly three times as "
-"often, while totality itself lasted at most 104 to 109 minutes in every epoch from 4.0 Ga on ({ref:tab:lunar}). At 4.5 Ga "
+"often, while totality itself lasted at most 105 to 109 minutes in every epoch from 4.0 Ga on ({ref:tab:lunar}). At 4.5 Ga "
 "the Moon, inside about 17 Earth radii, orbits in the plane of the Earth's equator, its shadow is 3.6 Moon widths "
 "across and it races through it: around each equinox every full Moon is eclipsed, some 3,900 total eclipses a "
 "century, none longer than an hour. The rate also depends on "
@@ -199,13 +199,13 @@ SECTIONS = [
 "impact-winter soot, and 7.6 under 30 bar of CO₂, which hides "
 "every star.",
 "In the modern epochs the observer stands in a mid-sized city: a zenith glow of 18.8 mag/arcsec² today (Falchi et "
-"al. 2016), with orange sodium light in 1980–2000 (Cinzano, Falchi &amp; Elvidge 2001), 1.6 times today's in "
+"al. 2016), with orange sodium light in 1980–2000, at the brightness of the first World Atlas (Cinzano, Falchi &amp; Elvidge 2001), 1.6 times today's in "
 "polluted air, held at today's level in 2100 (the recent 9.6% a year, Kyba et al. 2023, cannot be projected that "
 "far), and almost nothing from the oil lamps of 1815 (Fouquet &amp; Pearson 2006)."]],
 
 ['Aurorae', [
 "The aurora is an oval round the magnetic pole, fixed relative to the Sun: on a moderately active night today "
-"(Kp 3) it spans about 63–72° latitude on the night side (Feldstein's ovals). Its field lines reach out to the "
+"(Kp 3) it spans about 63–72° latitude on the night side (the ovals of Feldstein &amp; Starkov 1967). Its field lines reach out to the "
 "magnetopause, whose distance goes as the sixth root of the field's pressure over the solar wind's. At 3.45 Ga a "
 "field half to 70% of today's and the young Sun's dense wind held the magnetopause at about half today's distance "
 "(Tarduno et al. 2010), which brings the oval's edge down to about 50° even in quiet times, and the young Sun's "
@@ -235,7 +235,7 @@ SECTIONS = [
 "epoch's air: the metals of the meteoroid, a hotter component that grows with speed, and the air's own emission, "
 "oxygen and nitrogen today or carbon monoxide bands in a CO₂-rich air, which no one has measured. And in the "
 "Early Hadean's 30 bar every density level sits higher, so meteors burn about 22 km higher up.",
-"The rate follows the lunar cratering record (Neukum et al. 2001): about 10,000 times today's at 4.5 Ga, in the giant impact's debris, 500 at "
+"The rate follows the lunar cratering record (Neukum et al. 2001): about 10,000 times today's at 4.5 Ga, extrapolated past the record's oldest ages, in the giant impact's debris, 500 at "
 "4.0 Ga and 120 at 3.8 Ga, of slow, yellow-orange fireballs from a main-belt-like population (Strom et al. 2015; "
 "Marchi et al. 2014), with impact flashes on the closer Moon's dark side; twice today's at 2.7 Ga; and a hundred "
 "times today's fireballs at 466 Ma, after the L-chondrite parent body broke up (Schmitz et al. 2019).",
@@ -255,7 +255,7 @@ SECTIONS = [
 ['Dust, comets and the Ordovician ring', [
 "The zodiacal light, sunlight off interplanetary dust, is part of today's natural night sky. Where the inner Solar "
 "System held more dust the excess is drawn along the ecliptic, with the gegenschein opposite the Sun: 30 times "
-"today's after the L-chondrite break-up and 50 to 1,000 times during the bombardment (estimates after Nesvorný et "
+"today's after the L-chondrite break-up and 50 to 2,000 times during the bombardment (estimates after Nesvorný et "
 "al. 2010), as bright as a moonlit sky, hiding the fainter stars and meteors. At 466 Ma the speculative debris ring "
 "of Tomkins, Martin &amp; Cawood (2024) is drawn between 1.55 and 2.75 Earth radii with a normal optical depth of "
 "at most 0.00015: lost in the blue by day, a low arch at night cut by the Earth's shadow, and at the equator a "
@@ -373,8 +373,8 @@ REFS = [
 ("Kaltenegger L., Lin Z., Madden J. (2020). High-resolution transmission spectra of Earth through geological time. <i>Astrophysical Journal Letters</i> 892, L17.", "kaltenegger2020", "@article{kaltenegger2020, author={Kaltenegger, Lisa and Lin, Zifan and Madden, Jack}, title={High-resolution transmission spectra of {Earth} through geological time}, journal={Astrophysical Journal Letters}, volume={892}, pages={L17}, year={2020}}"),
 ("Link F. (1969). <i>Eclipse Phenomena in Astronomy</i>. Springer.", "link1969", "@book{link1969, author={Link, Franti{\\v{s}}ek}, title={Eclipse Phenomena in Astronomy}, publisher={Springer}, year={1969}}"),
 ("Keen R.A. (1983). Volcanic aerosols and lunar eclipses. <i>Science</i> 222, 1011.", "keen1983", "@article{keen1983, author={Keen, Richard A.}, title={Volcanic aerosols and lunar eclipses}, journal={Science}, volume={222}, pages={1011--1013}, year={1983}}"),
-("Stothers R.B. (2004). Stratospheric transparency derived from total lunar eclipse colors, 1801–1881. <i>PASP</i> 116, 886.", "stothers2004", "@article{stothers2004, author={Stothers, Richard B.}, title={Stratospheric transparency derived from total lunar eclipse colors, 1801--1881}, journal={Publications of the Astronomical Society of the Pacific}, volume={116}, pages={886--893}, year={2004}}"),
-("García Muñoz A., Pallé E., Zapatero Osorio M.R., Martín E.L. (2011). The impact of the Kasatochi eruption on the Moon's illumination during the August 2008 lunar eclipse. <i>Geophysical Research Letters</i> 38, doi:10.1029/2011GL047981.", "garciamunoz2011", "@article{garciamunoz2011, author={Garc{\\'i}a Mu{\\~n}oz, A. and Pall{\\'e}, E. and Zapatero Osorio, M. R. and Mart{\\'i}n, E. L.}, title={The impact of the {Kasatochi} eruption on the {Moon}'s illumination during the {August} 2008 lunar eclipse}, journal={Geophysical Research Letters}, volume={38}, year={2011}, doi={10.1029/2011GL047981}}"),
+("Stothers R.B. (2005). Stratospheric transparency derived from total lunar eclipse colors, 1801–1881. <i>PASP</i> 117, 1445.", "stothers2005", "@article{stothers2005, author={Stothers, Richard B.}, title={Stratospheric transparency derived from total lunar eclipse colors, 1801--1881}, journal={Publications of the Astronomical Society of the Pacific}, volume={117}, pages={1445}, year={2005}, doi={10.1086/497016}}"),
+("García Muñoz A., Pallé E., Zapatero Osorio M.R., Martín E.L. (2011). The impact of the Kasatochi eruption on the Moon's illumination during the August 2008 lunar eclipse. <i>Geophysical Research Letters</i> 38, doi:10.1029/2011GL047981.", "garciamunoz2011", "@article{garciamunoz2011, author={Garc{\\'i}a Mu{\\~n}oz, A. and Pall{\\'e}, E. and Zapatero Osorio, M. R. and Mart{\\'i}n, E. L.}, title={The impact of the {Kasatochi} eruption on the {Moon}'s illumination during the {August} 2008 lunar eclipse}, journal={Geophysical Research Letters}, volume={38}, pages={L14805}, year={2011}, doi={10.1029/2011GL047981}}"),
 ("Pallé E. et al. (2009). Earth's transmission spectrum from lunar eclipse observations. <i>Nature</i> 459, 814.", "palle2009", "@article{palle2009, author={Pall{\\'e}, E. and Zapatero Osorio, M. R. and Barrena, R. and Monta{\\~n}{\\'e}s-Rodr{\\'i}guez, P. and Mart{\\'i}n, E. L.}, title={Earth's transmission spectrum from lunar eclipse observations}, journal={Nature}, volume={459}, pages={814--816}, year={2009}}"),
 ("Espenak F. &amp; Meeus J. (2009). <i>Five Millennium Canon of Lunar Eclipses: −1999 to +3000</i>. NASA/TP-2009-214172.", "espenak2009", "@techreport{espenak2009, author={Espenak, Fred and Meeus, Jean}, title={Five Millennium Canon of Lunar Eclipses: -1999 to +3000}, institution={NASA}, number={TP-2009-214172}, year={2009}}"),
 ("Ćuk M., Hamilton D.P., Lock S.J., Stewart S.T. (2016). Tidal evolution of the Moon from a high-obliquity, high-angular-momentum Earth. <i>Nature</i> 539, 402.", "cuk2016", "@article{cuk2016, author={{\\'C}uk, Matija and Hamilton, Douglas P. and Lock, Simon J. and Stewart, Sarah T.}, title={Tidal evolution of the {Moon} from a high-obliquity, high-angular-momentum {Earth}}, journal={Nature}, volume={539}, pages={402--406}, year={2016}}"),
@@ -398,19 +398,19 @@ REFS = [
 ("Tarduno J.A. et al. (2010). Geodynamo, solar wind, and magnetopause 3.4 to 3.45 billion years ago. <i>Science</i> 327, 1238.", "tarduno2010", "@article{tarduno2010, author={Tarduno, John A. and others}, title={Geodynamo, solar wind, and magnetopause 3.4 to 3.45 billion years ago}, journal={Science}, volume={327}, pages={1238--1240}, year={2010}}"),
 ("Airapetian V.S., Glocer A., Gronoff G., Hébrard E., Danchi W. (2016). Prebiotic chemistry and atmospheric warming of early Earth by an active young Sun. <i>Nature Geoscience</i> 9, 452.", "airapetian2016", "@article{airapetian2016, author={Airapetian, V. S. and Glocer, A. and Gronoff, G. and H{\\'e}brard, E. and Danchi, W.}, title={Prebiotic chemistry and atmospheric warming of early {Earth} by an active young {Sun}}, journal={Nature Geoscience}, volume={9}, pages={452--455}, year={2016}}"),
 ("Wood B.E. et al. (2005). New mass-loss measurements from astrospheric Lyα absorption. <i>Astrophysical Journal Letters</i> 628, L143.", "wood2005", "@article{wood2005, author={Wood, Brian E. and others}, title={New mass-loss measurements from astrospheric {Ly}$\\alpha$ absorption}, journal={Astrophysical Journal Letters}, volume={628}, pages={L143--L146}, year={2005}}"),
-("Knutsen E.W. et al. (2025). Detection of visible-wavelength aurora on Mars. <i>Science Advances</i>.", "knutsen2025", "@article{knutsen2025, author={Knutsen, Elise W. and others}, title={Detection of visible-wavelength aurora on {Mars}}, journal={Science Advances}, year={2025}}"),
+("Knutsen E.W. et al. (2025). Detection of visible-wavelength aurora on Mars. <i>Science Advances</i>.", "knutsen2025", "@article{knutsen2025, author={Knutsen, Elise W. and others}, title={Detection of visible-wavelength aurora on {Mars}}, journal={Science Advances}, volume={11}, pages={eads1563}, year={2025}, doi={10.1126/sciadv.ads1563}}"),
 ("Jacchia L.G., Verniani F., Briggs R.E. (1967). An analysis of the atmospheric trajectories of 413 precisely reduced photographic meteors. <i>Smithsonian Contributions to Astrophysics</i> 10, 1.", "jacchia1967", "@article{jacchia1967, author={Jacchia, Luigi G. and Verniani, Franco and Briggs, Robert E.}, title={An analysis of the atmospheric trajectories of 413 precisely reduced photographic meteors}, journal={Smithsonian Contributions to Astrophysics}, volume={10}, pages={1--139}, year={1967}}"),
 ("Neukum G., Ivanov B.A., Hartmann W.K. (2001). Cratering records in the inner Solar System in relation to the lunar reference system. <i>Space Science Reviews</i> 96, 55.", "neukum2001", "@article{neukum2001, author={Neukum, Gerhard and Ivanov, Boris A. and Hartmann, William K.}, title={Cratering records in the inner {Solar System} in relation to the lunar reference system}, journal={Space Science Reviews}, volume={96}, pages={55--86}, year={2001}}"),
 ("Strom R.G. et al. (2015). The inner solar system cratering record and the evolution of impactor populations. <i>Research in Astronomy and Astrophysics</i> 15, 407.", "strom2015", "@article{strom2015, author={Strom, Robert G. and others}, title={The inner solar system cratering record and the evolution of impactor populations}, journal={Research in Astronomy and Astrophysics}, volume={15}, pages={407--434}, year={2015}}"),
 ("Marchi S. et al. (2014). Widespread mixing and burial of Earth's Hadean crust by asteroid impacts. <i>Nature</i> 511, 578.", "marchi2014", "@article{marchi2014, author={Marchi, S. and others}, title={Widespread mixing and burial of {Earth}'s {Hadean} crust by asteroid impacts}, journal={Nature}, volume={511}, pages={578--582}, year={2014}}"),
 ("Schmitz B. et al. (2019). An extraterrestrial trigger for the mid-Ordovician ice age: dust from the breakup of the L-chondrite parent body. <i>Science Advances</i> 5, eaax4184.", "schmitz2019", "@article{schmitz2019, author={Schmitz, Birger and others}, title={An extraterrestrial trigger for the mid-{Ordovician} ice age: Dust from the breakup of the {L}-chondrite parent body}, journal={Science Advances}, volume={5}, pages={eaax4184}, year={2019}}"),
-("Nesvorný D. et al. (2010). Cometary origin of the zodiacal cloud and carbonaceous micrometeorites. <i>Astrophysical Journal</i> 713, 816.", "nesvorny2010", "@article{nesvorny2010, author={Nesvorn{\\'y}, David and others}, title={Cometary origin of the zodiacal cloud and carbonaceous micrometeorites}, journal={Astrophysical Journal}, volume={713}, pages={816--836}, year={2010}}"),
+("Nesvorný D. et al. (2010). Cometary origin of the zodiacal cloud and carbonaceous micrometeorites. <i>Astrophysical Journal</i> 713, 816.", "nesvorny2010", "@article{nesvorny2010, author={Nesvorn{\\'y}, David and others}, title={Cometary origin of the zodiacal cloud and carbonaceous micrometeorites. {Implications} for hot debris disks}, journal={Astrophysical Journal}, volume={713}, pages={816--836}, year={2010}}"),
 ("Tomkins A.G., Martin E.L., Cawood P.A. (2024). Evidence suggesting that Earth had a ring in the Ordovician. <i>Earth and Planetary Science Letters</i> 646, 118991.", "tomkins2024", "@article{tomkins2024, author={Tomkins, Andrew G. and Martin, Erin L. and Cawood, Peter A.}, title={Evidence suggesting that {Earth} had a ring in the {Ordovician}}, journal={Earth and Planetary Science Letters}, volume={646}, pages={118991}, year={2024}}"),
 ("Jenniskens P. (1994). Meteor stream activity. I. The annual streams. <i>Astronomy and Astrophysics</i> 287, 990.", "jenniskens1994", "@article{jenniskens1994, author={Jenniskens, Peter}, title={Meteor stream activity. {I}. {The} annual streams}, journal={Astronomy and Astrophysics}, volume={287}, pages={990--1013}, year={1994}}"),
 ("Jenniskens P. (1995). Meteor stream activity. II. Meteor outbursts. <i>Astronomy and Astrophysics</i> 295, 206.", "jenniskens1995", "@article{jenniskens1995, author={Jenniskens, Peter}, title={Meteor stream activity. {II}. {Meteor} outbursts}, journal={Astronomy and Astrophysics}, volume={295}, pages={206--235}, year={1995}}"),
 ("Rendtel J. (2027). Meteor Shower Calendar 2027. International Meteor Organization, IMO INFO(3-26).", "rendtel2027", "@misc{rendtel2027, author={Rendtel, J{\\\"u}rgen}, title={Meteor Shower Calendar 2027}, howpublished={International Meteor Organization, IMO INFO(3-26), \\url{https://www.imo.net/files/meteor-shower/cal2027.pdf}}, year={2027}, doi={10.13140/RG.2.2.16856.46082}}"),
 ("Ye Q. &amp; Jenniskens P. (2024). Comets and meteor showers. In <i>Comets III</i>, p. 799.", "ye2022", "@incollection{ye2022, author={Ye, Quanzhi and Jenniskens, Peter}, title={Comets and meteor showers}, booktitle={Comets III}, publisher={University of Arizona Press}, pages={799}, year={2024}, doi={10.2458/azu_uapress_9780816553631-ch024}}"),
-("Kaib N.A. &amp; Raymond S.N. (2026). A potential signature of HD 7977's passage among observed long-period comet orbits. <i>Planetary Science Journal</i>, doi:10.3847/PSJ/ae7a65.", "kaib2026", "@article{kaib2026, author={Kaib, Nathan A. and Raymond, Sean N.}, title={A potential signature of {HD 7977}'s passage among observed long-period comet orbits}, journal={Planetary Science Journal}, year={2026}, doi={10.3847/PSJ/ae7a65}}"),
+("Kaib N.A. &amp; Raymond S.N. (2026). A potential signature of HD 7977's passage among observed long-period comet orbits. <i>Planetary Science Journal</i>, doi:10.3847/PSJ/ae7a65.", "kaib2026", "@article{kaib2026, author={Kaib, Nathan A. and Raymond, Sean N.}, title={A potential signature of {HD 7977}'s passage among observed long-period comet orbits}, journal={Planetary Science Journal}, volume={7}, pages={160}, year={2026}, doi={10.3847/PSJ/ae7a65}}"),
 ('Morris B.M. (2020). A relationship between stellar age and spot coverage. <i>Astrophysical Journal</i> 893, 67.', 'morris2020', '@article{morris2020, author={Morris, Brett M.}, title={A relationship between stellar age and spot coverage}, journal={Astrophysical Journal}, volume={893}, pages={67}, year={2020}, doi={10.3847/1538-4357/ab79a0}}'),
 ('Nichols-Fleming F. &amp; Blackman E.G. (2020). Determination of starspot covering fraction as a function of stellar age from observational data. <i>MNRAS</i> 491, 2706.', 'nicholsfleming2020', '@article{nicholsfleming2020, author={Nichols-Fleming, Fiona and Blackman, Eric G.}, title={Determination of starspot covering fraction as a function of stellar age from observational data}, journal={Monthly Notices of the Royal Astronomical Society}, volume={491}, pages={2706--2717}, year={2020}, doi={10.1093/mnras/stz3197}}'),
 ('Shapiro A.I. et al. (2014). The variability of Sun-like stars: reproducing observed photometric trends. <i>Astronomy &amp; Astrophysics</i> 569, A38.', 'shapiro2014', '@article{shapiro2014, author={Shapiro, A. I. and others}, title={The variability of {Sun}-like stars: reproducing observed photometric trends}, journal={Astronomy \\& Astrophysics}, volume={569}, pages={A38}, year={2014}, doi={10.1051/0004-6361/201323086}}'),
@@ -418,7 +418,7 @@ REFS = [
 ('Nemec N.-E. et al. (2022). Faculae cancel out on the surfaces of active Suns. <i>Astrophysical Journal Letters</i> 934, L23.', 'nemec2022', '@article{nemec2022, author={Nemec, N.-E. and others}, title={Faculae cancel out on the surfaces of active {Suns}}, journal={Astrophysical Journal Letters}, volume={934}, pages={L23}, year={2022}, doi={10.3847/2041-8213/ac8155}}'),
 ('Gallet F. &amp; Bouvier J. (2013). Improved angular momentum evolution model for solar-like stars. <i>Astronomy &amp; Astrophysics</i> 556, A36.', 'gallet2013', "@article{gallet2013, author={Gallet, Florian and Bouvier, J{\\'e}r{\\^o}me}, title={Improved angular momentum evolution model for solar-like stars}, journal={Astronomy \\& Astrophysics}, volume={556}, pages={A36}, year={2013}, doi={10.1051/0004-6361/201321302}}"),
 ('Barnes J.R. et al. (2005). The dependence of differential rotation on temperature and rotation. <i>MNRAS</i> 357, L1.', 'barnes2005', '@article{barnes2005, author={Barnes, J. R. and others}, title={The dependence of differential rotation on temperature and rotation}, journal={Monthly Notices of the Royal Astronomical Society}, volume={357}, pages={L1--L5}, year={2005}, doi={10.1111/j.1745-3933.2005.08587.x}}'),
-('Katsova M.M. (2020). The evolution of the solar-stellar activity. <i>Journal of Atmospheric and Solar-Terrestrial Physics</i>, doi:10.1016/j.jastp.2020.105456.', 'katsova2020', '@article{katsova2020, author={Katsova, Maria}, title={The evolution of the solar-stellar activity}, journal={Journal of Atmospheric and Solar-Terrestrial Physics}, year={2020}, doi={10.1016/j.jastp.2020.105456}}'),
+('Katsova M.M. (2020). The evolution of the solar-stellar activity. <i>Journal of Atmospheric and Solar-Terrestrial Physics</i>, doi:10.1016/j.jastp.2020.105456.', 'katsova2020', '@article{katsova2020, author={Katsova, Maria}, title={The evolution of the solar-stellar activity}, journal={Journal of Atmospheric and Solar-Terrestrial Physics}, volume={211}, pages={105456}, year={2020}, doi={10.1016/j.jastp.2020.105456}}'),
 ('Hathaway D.H. (2011). A standard law for the equatorward drift of the sunspot zones. <i>Solar Physics</i> 273, 221.', 'hathaway2011', '@article{hathaway2011, author={Hathaway, David H.}, title={A standard law for the equatorward drift of the sunspot zones}, journal={Solar Physics}, volume={273}, pages={221--230}, year={2011}}'),
 ('Hathaway D.H., Wilson R.M., Reichmann E.J. (1994). The shape of the sunspot cycle. <i>Solar Physics</i> 151, 177.', 'hathaway1994', '@article{hathaway1994, author={Hathaway, David H. and Wilson, Robert M. and Reichmann, Edwin J.}, title={The shape of the sunspot cycle}, journal={Solar Physics}, volume={151}, pages={177--190}, year={1994}}'),
 ('Usoskin I.G., Solanki S.K., Kovaltsov G.A. (2007). Grand minima and maxima of solar activity: new observational constraints. <i>Astronomy &amp; Astrophysics</i> 471, 301.', 'usoskin2007', '@article{usoskin2007, author={Usoskin, I. G. and Solanki, S. K. and Kovaltsov, G. A.}, title={Grand minima and maxima of solar activity: new observational constraints}, journal={Astronomy \\& Astrophysics}, volume={471}, pages={301--309}, year={2007}}'),

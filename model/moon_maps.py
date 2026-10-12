@@ -11,7 +11,7 @@ the 85th percentile of the photograph's brightness 20 pixels across).
 
 Faces (MOON_MAPS keys), 4096 x 2048, longitude -180 at the left edge, north at the top:
   now       today's Moon
-  notycho   before Tycho, 108 Ma (Arvidson et al. 1976): its rays pulled down to the ground around
+  notycho   before Tycho, 109 Ma (Stöffler & Ryder 2001; Arvidson et al. 1976): its rays pulled down to the ground around
             them, strongest near the crater and fading 48 degrees out, and the crater itself covered
             with the ground 5 degrees north and 15.5 degrees east of it
   ma3800    3.8 Ga: also the maria part-flooded (moon_surface.js MARIA: onsets, and 150 Myr to go

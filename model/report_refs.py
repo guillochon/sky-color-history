@@ -12,14 +12,11 @@ import report_sky as rs
 BIB = r"""@article{arney2016, author={Arney, Giada and Domagal-Goldman, Shawn D. and Meadows, Victoria S. and others}, title={The Pale Orange Dot: The Spectrum and Habitability of Hazy {Archean} {Earth}}, journal={Astrobiology}, volume={16}, pages={873--899}, year={2016}}
 @article{catling2020, author={Catling, David C. and Zahnle, Kevin J.}, title={The {Archean} atmosphere}, journal={Science Advances}, volume={6}, pages={eaax1420}, year={2020}}
 @misc{goldblatt2024, author={Goldblatt, Colin and Eager-Nash, Jake K. and Horne, Julia E.}, title={Evolution of the {Archean} Atmosphere}, howpublished={arXiv:2409.13105}, note={In: The {Archean} {Earth}, Elsevier (in press)}, year={2024}}
-@article{mak2023, author={Mak, M. T. and others}, title={{3D} simulations of the {Archean} {Earth} including photochemical haze profiles}, journal={Journal of Geophysical Research: Atmospheres}, year={2023}, doi={10.1029/2023JD039343}}
-@article{hoffman2017, author={Hoffman, Paul F. and others}, title={Snowball {Earth} climate dynamics and {Cryogenian} geology-geobiology}, journal={Science Advances}, volume={3}, pages={e1600983}, year={2017}}
-@article{lynch2005, author={Lynch, David K. and Mazuk, Steven}, title={On the colors of distant objects}, journal={Applied Optics}, year={2005}}
+@article{mak2023, author={Mak, M. T. and others}, title={{3D} simulations of the {Archean} {Earth} including photochemical haze profiles}, journal={Journal of Geophysical Research: Atmospheres}, volume={128}, pages={e2023JD039343}, year={2023}, doi={10.1029/2023JD039343}}
+@article{lynch2005, author={Lynch, David K. and Mazuk, Steven}, title={On the colors of distant objects}, journal={Applied Optics}, volume={44}, pages={5737}, year={2005}}
 @article{peyvandi2016, author={Peyvandi, Shahram and others}, title={Colorimetric analysis of outdoor illumination across varieties of atmospheric conditions}, journal={Journal of the Optical Society of America A}, volume={33}, pages={1049}, year={2016}}
 @article{lee2017, author={Lee, Raymond L. and Mollner, Duncan C.}, title={Tropospheric haze and colors of the clear twilight sky}, journal={Applied Optics}, volume={56}, pages={G179}, year={2017}}
-@article{hernandez1999, author={Hern{\'a}ndez-Andr{\'e}s, Javier and Lee, Raymond L. and Romero, Javier}, title={Calculating correlated color temperatures across the entire gamut of daylight and skylight chromaticities}, journal={Applied Optics}, volume={38}, pages={5703--5709}, year={1999}}
-@article{zhu2020, author={Zhu, Yunqian and others}, title={Persisting volcanic ash particles impact stratospheric {SO}$_2$ lifetime and aerosol optical properties}, journal={Nature Communications}, year={2020}}
-@article{serdyuchenko2014, author={Serdyuchenko, Anna and Gorshelev, Victor and Weber, Mark and Burrows, John P.}, title={High spectral resolution ozone absorption cross-sections -- {Part} 2: Temperature dependence}, journal={Atmospheric Measurement Techniques}, volume={7}, pages={625--636}, year={2014}}
+@article{serdyuchenko2014, author={Serdyuchenko, Anna and Gorshelev, Victor and Weber, Mark and Chehade, Wissam and Burrows, John P.}, title={High spectral resolution ozone absorption cross-sections -- {Part} 2: Temperature dependence}, journal={Atmospheric Measurement Techniques}, volume={7}, pages={625--636}, year={2014}}
 @article{cooke2021, author={Cooke, Gregory J. and Marsh, Daniel R. and Walsh, Catherine and Black, Benjamin and Lamarque, Jean-Francois}, title={A revised lower estimate of ozone columns during {Earth}'s oxygenated history}, journal={Royal Society Open Science}, volume={9}, pages={211165}, year={2022}, doi={10.1098/rsos.211165}}
 @article{lawler2022, author={Lawler, Samantha M. and Boley, Aaron C. and Rein, Hanno}, title={Visibility predictions for near-future satellite megaconstellations: latitudes near 50 degrees will experience the worst light pollution}, journal={Astronomical Journal}, volume={163}, pages={21}, year={2022}}
 @article{boley2026, author={Boley, Aaron C. and Lawler, Samantha M. and Rein, Hanno}, title={Rings in the sky: orbital data centres and potential impacts to astronomy and the sky}, journal={arXiv e-prints}, pages={arXiv:2608.02757}, year={2026}}
@@ -27,20 +24,26 @@ BIB = r"""@article{arney2016, author={Arney, Giada and Domagal-Goldman, Shawn D.
 @article{anderson2012, author={Anderson, E. and Francis, Ch.}, title={{XHIP}: An extended {Hipparcos} compilation}, journal={Astronomy Letters}, volume={38}, pages={331--346}, year={2012}}
 @article{gaia2023, author={{Gaia Collaboration} and Vallenari, A. and others}, title={{Gaia} {Data Release 3}: Summary of the content and survey properties}, journal={Astronomy \& Astrophysics}, volume={674}, pages={A1}, year={2023}}
 @article{schoenrich2010, author={Sch{\"o}nrich, Ralph and Binney, James and Dehnen, Walter}, title={Local kinematics and the local standard of rest}, journal={Monthly Notices of the Royal Astronomical Society}, volume={403}, pages={1829--1833}, year={2010}}
-@article{pellizza2005,author={Pellizza, L. J. and Mignani, R. P. and Grenier, I. A. and Mirabel, I. F.}, title={On the local birth place of {Geminga}}, journal={Astronomy \& Astrophysics}, year={2005}, doi={10.1051/0004-6361:20042377}}
-@article{salvati2008, author={Salvati, M. and Sacco, B.}, title={The {Milagro} anticenter hot spots: cosmic rays from the {Geminga} supernova?}, journal={Astronomy \& Astrophysics}, year={2008}, doi={10.1051/0004-6361:200809586}}
+@article{pellizza2005,author={Pellizza, L. J. and Mignani, R. P. and Grenier, I. A. and Mirabel, I. F.}, title={On the local birth place of {Geminga}}, journal={Astronomy \& Astrophysics}, volume={435}, pages={625}, year={2005}, doi={10.1051/0004-6361:20042377}}
+@article{salvati2008, author={Salvati, M. and Sacco, B.}, title={The {Milagro} anticenter hot spots: cosmic rays from the {Geminga} supernova?}, journal={Astronomy \& Astrophysics}, volume={485}, pages={527}, year={2008}, doi={10.1051/0004-6361:200809586}}
 @article{richardson2014, author={Richardson, Dean and Jenkins, Robert L. and Wright, John and Maddox, Larry}, title={Absolute-magnitude distributions of supernovae}, journal={Astronomical Journal}, volume={147}, pages={118}, year={2014}}
 @article{thomas2016, author={Thomas, Brian C. and others}, title={Terrestrial effects of nearby supernovae in the early {Pleistocene}}, journal={Astrophysical Journal Letters}, volume={826}, pages={L3}, year={2016}}
 @article{neuhauser2019, author={Neuh{\"a}user, Ralph and Gie{\ss}ler, Frank and Hambaryan, Valeri V.}, title={A nearby recent supernova that ejected the runaway star $\zeta$ {Oph}, the pulsar {PSR B1706-16}, and $^{60}${Fe} found on {Earth}}, journal={Monthly Notices of the Royal Astronomical Society}, volume={498}, pages={899}, year={2020}, doi={10.1093/mnras/stz2629}}
 @article{wyman2013, author={Wyman, Chris and Sloan, Peter-Pike and Shirley, Peter}, title={Simple analytic approximations to the {CIE} {XYZ} color matching functions}, journal={Journal of Computer Graphics Techniques}, volume={2}, number={2}, pages={1--11}, year={2013}, url={https://jcgt.org/published/0002/02/01/}}
 @misc{dziewanowski_flowfields, author={Dziewanowski, Emil}, title={Flowfields}, howpublished={\url{https://emildziewanowski.com/flowfields/}}, year={2024}, note={Accessed 11 October 2026}}
+@article{stoffler2001, author={St{\"o}ffler, Dieter and Ryder, Graham}, title={Stratigraphy and isotope ages of lunar geologic units: chronological standard for the inner solar system}, journal={Space Science Reviews}, volume={96}, pages={9--54}, year={2001}}
+@article{strassmeier2009, author={Strassmeier, Klaus G.}, title={Starspots}, journal={Astronomy and Astrophysics Review}, volume={17}, pages={251--308}, year={2009}, doi={10.1007/s00159-009-0020-6}}
+@article{feldstein1967, author={Feldstein, Y. I. and Starkov, G. V.}, title={Dynamics of auroral belt and polar geomagnetic disturbances}, journal={Planetary and Space Science}, volume={15}, pages={209--229}, year={1967}}
+@article{wallner2016, author={Wallner, A. and others}, title={Recent near-{Earth} supernovae probed by global deposition of interstellar radioactive $^{60}${Fe}}, journal={Nature}, volume={532}, pages={69--72}, year={2016}}
+@article{fimiani2016, author={Fimiani, L. and others}, title={Interstellar $^{60}${Fe} on the surface of the {Moon}}, journal={Physical Review Letters}, volume={116}, pages={151104}, year={2016}}
+@misc{marouf_corss, author={Marouf, Essam A. and others}, title={Cassini radio occultation by {Saturn}'s rings, {Rev} 7 egress, 3 {May} 2005}, howpublished={NASA Planetary Data System, Ring-Moon Systems Node, volume CORSS\_8001}, year={n.d.}}
 """ + "\n".join(r[2] for r in rs.REFS) + "\n" + r"""
 """
 
 # Entries added with the report's widening from the sky's colour to everything seen from the
 # ground: the sources the site's code cites for the Sun, Moon, planets, stars and transients.
 BIB += r"""
-@article{sanroma2012, author={Sanrom{\`a}, Esther and Pall{\'e}, Enric}, title={Reconstructing the photometric light curves of {Earth} as a planet along its history}, journal={Astrophysical Journal}, volume={744}, pages={188}, year={2012}, doi={10.1088/0004-637X/744/2/188}}
+@article{sanroma2012, author={Sanrom{\'a}, Esther and Pall{\'e}, Enric}, title={Reconstructing the photometric light curves of {Earth} as a planet along its history}, journal={Astrophysical Journal}, volume={744}, pages={188}, year={2012}, doi={10.1088/0004-637X/744/2/188}}
 @article{baraffe2015, author={Baraffe, Isabelle and Homeier, Derek and Allard, France and Chabrier, Gilles}, title={New evolutionary models for pre-main sequence and main sequence low-mass stars down to the hydrogen-burning limit}, journal={Astronomy \& Astrophysics}, volume={577}, pages={A42}, year={2015}}
 @article{korenaga2023, author={Korenaga, Jun}, title={Rapid solidification of {Earth}'s magma ocean limits early lunar recession}, journal={Icarus}, volume={400}, pages={115564}, year={2023}}
 @article{daher2021, author={Daher, Houraa and Arbic, Brian K. and Williams, James G. and others}, title={Long-term {Earth-Moon} evolution with high-level orbit and ocean tide models}, journal={Journal of Geophysical Research: Planets}, volume={126}, pages={e2021JE006875}, year={2021}}
@@ -53,7 +56,7 @@ BIB += r"""
 @article{liu2022, author={Liu, Beibei and Raymond, Sean N. and Jacobson, Seth A.}, title={Early {Solar System} instability triggered by dispersal of the gaseous disk}, journal={Nature}, volume={604}, pages={643--646}, year={2022}}
 @article{nesvorny2011, author={Nesvorn{\'y}, David}, title={Young {Solar System}'s fifth giant planet?}, journal={Astrophysical Journal Letters}, volume={742}, pages={L22}, year={2011}}
 @article{nesvorny2012, author={Nesvorn{\'y}, David and Morbidelli, Alessandro}, title={Statistical study of the early {Solar System}'s instability with four, five, and six giant planets}, journal={Astronomical Journal}, volume={144}, pages={117}, year={2012}}
-@misc{branco2025, author={Branco, Duarte and Raymond, Sean N. and Machado, Pedro}, title={Dynamical origin of {Theia}, the last giant impactor on {Earth}}, howpublished={arXiv:2507.01826}, year={2025}}
+@article{branco2025, author={Branco, Duarte and Machado, Pedro and Raymond, Sean N.}, title={Dynamical origin of {Theia}, the last giant impactor on {Earth}}, journal={Icarus}, volume={441}, pages={116724}, year={2025}, doi={10.1016/j.icarus.2025.116724}}
 @article{meier2014, author={Meier, Matthias M. M. and Reufer, Andreas and Wieler, Rainer}, title={On the origin and composition of {Theia}: constraints from new models of the {Giant Impact}}, journal={Icarus}, volume={242}, pages={316--328}, year={2014}}
 @article{odert2018, author={Odert, Petra and Lammer, Helmut and Erkaev, Nikolai V. and others}, title={Escape and fractionation of volatiles and noble gases from {Mars}-sized planetary embryos and growing protoplanets}, journal={Icarus}, volume={307}, pages={327--346}, year={2018}}
 @inproceedings{becker2016, author={Becker, K. J. and Robinson, M. S. and Becker, T. L. and others}, title={First global digital elevation model of {Mercury}}, booktitle={47th Lunar and Planetary Science Conference}, pages={2959}, year={2016}}
@@ -178,7 +181,8 @@ def cite_forms(e):
     """How the text cites an entry ('Cooke et al.', 'Lee & Mollner', 'Sharp, Lloyd & Silverman'), and its year."""
     names = _names(e)
     yr = re.search(r'\d{4}|n\.d\.', e.get('year', ''))
-    if not names or not yr or names[0].startswith('Gaia'): return [], None
+    if not names or not yr: return [], None
+    if names[0].startswith('Gaia'): return [names[0]], yr.group(0)
     sur = [surname(n) for n in names if n != 'others']
     etal = 'others' in names or len(sur) > 3
     forms = []

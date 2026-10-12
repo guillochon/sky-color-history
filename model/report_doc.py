@@ -99,7 +99,8 @@ def tex(s):
     s = re.sub(r'<a href="([^"]+)">(.*?)</a>', lambda m: r'\href{' + m.group(1).replace('%', r'\%').replace('#', r'\#') + '}{' + m.group(2) + '}', s)
     s = re.sub(r'<[^>]+>', '', s)
     # Runs of superscript characters (⁶⁰Fe, 10⁻⁴) become one superscript.
-    s = re.sub('[' + ''.join(SUPERS) + ']+', lambda m: '$^{' + ''.join(SUPERS[c] for c in m.group(0)) + '}$', s)
+    sup = '[' + ''.join(SUPERS) + ']+'
+    s = re.sub(sup + '(?:·' + sup + ')*', lambda m: '$^{' + ''.join(SUPERS.get(c, '.') for c in m.group(0)) + '}$', s)
     # Escape, leaving the LaTeX already put in (\emph{...}, \href{...}, $...$) alone.
     parts = re.split(r'(\\(?:emph|textbf|href)\{|\$[^$]*\$|\}\{|\})', s)
     out = []

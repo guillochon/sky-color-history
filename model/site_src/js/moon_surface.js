@@ -22,7 +22,7 @@ const MARIA=[['Tranquillitatis', 8.5, 31.4, 13, 3.90], ['Serenitatis', 28, 17.5,
   ['Orientale', -19.4, -92.8, 6, 3.75], ['Moscoviense', 27.3, 147.9, 4, 3.90], ['Ingenii', -33.7, 163.5, 3, 3.60],
   ['Procellarum', 18, -57, 20, 3.60]];
 function mareVec(lat, lon){ return [cosd(lat)*sind(lon), sind(lat), cosd(lat)*cosd(lon)]; }
-// The newborn Moon, 4.5 Ga, a few million years after the giant impact, still has its magma ocean
+// The newborn Moon, 4.5 Ga, some ten million years after the giant impact, still has its magma ocean
 // open at the top: rafts of dark crust broken by cracks and lakes of lava at 1,400–1,600 K (the
 // molten globe, molten_moon.js). Per square kilometre that lava shines about as brightly as the
 // sunlit Moon (see lunarLava), so the disk glows orange by day and night alike, and the air about
@@ -47,7 +47,7 @@ const MOON_MAPS=__MOON_MAPS__;
 function moonMapName(key){
   if(MOON_MOLTEN[key]) return 'molten';
   const ma=MOON_MA[key]||0;
-  return ma>=4000?'ma4000':ma>=3800?'ma3800':ma>=108?'notycho':'now';
+  return ma>=4000?'ma4000':ma>=3800?'ma3800':ma>=109?'notycho':'now';
 }
 // Each globe is fetched the first time its epoch is shown: the image for the walk-around view's
 // texture, and a 1024 x 512 copy of its pixels for the dome (dome_bodies.js paintMoonSprite).

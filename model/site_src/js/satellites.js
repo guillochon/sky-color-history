@@ -12,7 +12,7 @@ const SAT_PREF=(2/(3*Math.PI*Math.PI))*(0.8/((SAT_AU*1000)*(SAT_AU*1000)));
 // panels at albedo 0.2, and nodes relaxed ±10° of the terminator rather than a
 // single tight ring. Not the million-satellite SpaceX filing, and not panels of
 // several thousand square meters.
-const ODC_PREF=SAT_PREF*(160/0.8);
+const ODC_PREF=SAT_PREF*(160/0.8);   // 800 m² at albedo 0.2: 160 m² of effective area
 function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15, 1|a); t=t+Math.imul(t^t>>>7, 61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
 function gauss01(rng){ let u=0, v=0; while(u===0) u=rng(); while(v===0) v=rng(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
 function ssoInc(aKm){

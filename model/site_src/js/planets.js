@@ -125,7 +125,7 @@ const BODY_NOTES={
   Harmonia:'hypothetical, named here: the moon Ćuk et al. 2020 find tilted Deimos’s orbit, one of the generations of Mars’s ring–moon cycle (Hesselbrock & Minton 2017)',
   Kymo:'hypothetical, named here: one of Neptune’s first moons, scattered and destroyed when it captured Triton (Rufu & Canup 2017)',
   Oceanus:'hypothetical, named here: the fifth giant planet of Nesvorný (2011) and Nesvorný & Morbidelli (2012), thrown out of the Solar System by Jupiter in the instability',
-  Theia:'the Mars-sized body thought to strike the proto-Earth and make the Moon; where its orbit lay is not known (Branco, Raymond & Machado 2025). Its surface is imagined: airless, dark basalt richer in iron oxide than Earth’s (Meier et al. 2014), saturated with craters',
+  Theia:'the Mars-sized body thought to strike the proto-Earth and make the Moon; where its orbit lay is not known (Branco, Machado & Raymond 2025). Its surface is imagined: airless, dark basalt richer in iron oxide than Earth’s (Meier et al. 2014), saturated with craters',
 };
 BODY_NOTES.Galene=BODY_NOTES.Thetis=BODY_NOTES.Amphitrite=BODY_NOTES.Kymo;
 // The bodies the walk-around view draws as disks at once (bodyP..bodyN in the sky shader): those on
@@ -206,7 +206,7 @@ function zoomedDisplay(o){ return o.tint?planetDisplay(o.mag-moonGain(), o.tint)
 // statistically before.
 const PLANET_AGE_MA={protoearth455:4550, hadean45:4500, hadean40:4000, archean38:3800, archean27thin:2700, archean27:2700, archean27vthick:2700, proterozoic22:2200, snowball07:700, ordovician466:466, carbon30:300, kpg66:66, zetaoph:1.78, geminga:0.342};
 // Saturn's rings may be young: their mass and how little meteoroid dust darkens them put them at
-// 100-400 Myr (Iess et al. 2019; Kempf et al. 2023), though whether they are is still argued.
+// tens to a few hundred Myr (Iess et al. 2019; Kempf et al. 2023), though whether they are is still argued.
 // They are drawn from Chrysalis's break-up, about 160 Myr ago, on, and left out before, where
 // Chrysalis is drawn.
 const RINGS_MA=160, RINGS_DEBATED_MA=100;
