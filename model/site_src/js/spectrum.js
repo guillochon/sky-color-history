@@ -216,6 +216,9 @@ function cloudLight(px, key, lat){
 function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null, cr=null, moonXY=null, sunXY=null){
   const key=EP[dIdx].key, lat=dayLat(), cdu=cdPerUnit(), vz=Math.min(90-el, 88), parts=[], marks=[];
   const S=new Float32Array(SP_N), sunlit=new Float32Array(SP_N), coronaEW=[];
+  // With the air off (sunset.js airOff) only what lies beyond it: the Milky Way, the nebulae and
+  // galaxies, comets and the corona, as the sky drawing then shows them.
+  const air=!airOff();
   // sun: true for sunlight (it gets the Sun's lines), 'post' for light already through the air.
   const post=new Float32Array(SP_N);
   const add=(name, Y, shape, sun)=>{ if(!(Y>0)) return; parts.push([name, Y]); const T=sun==='post'?post:sun?sunlit:S; for(let i=0;i<SP_N;i++) T[i]+=Y*shape[i]; };
@@ -242,9 +245,9 @@ function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null, cr=null, moo
       }else add('the Moon, sunlit', day*litHere, spNorm(red), true);
       add('the Moon, earthshine', day*2e-4*(1-frac)*(1-litHere), spNorm(red.map((v, i)=>v*550/SP_LAM[i])), true);
     }
-    if(sunSrc.fade>0){ const X=domeXYZ(key, lat, sunSrc.si, sunSrc.st, vz, azr(skyNow.sunAz)); add('sunlit air', X[1]*sunSrc.fade*skyNow.sunVis*skyNow.sunFlux*cdu, spSky(key, lat, skyNow.sza, vz, azr(skyNow.sunAz)), true); }
+    if(air&&sunSrc.fade>0){ const X=domeXYZ(key, lat, sunSrc.si, sunSrc.st, vz, azr(skyNow.sunAz)); add('sunlit air', X[1]*sunSrc.fade*skyNow.sunVis*skyNow.sunFlux*cdu, spSky(key, lat, skyNow.sza, vz, azr(skyNow.sunAz)), true); }
     const mo=skyNow.moon, mSrc=skySource(90-mo.el, mo.az);
-    if(mSrc.fade>0&&skyNow.mScale>0){ const X=domeXYZ(key, lat, mSrc.si, mSrc.st, vz, azr(mo.az)); add('moonlit air', X[1]*mSrc.fade*skyNow.mScale*cdu, spNorm(spSky(key, lat, 90-mo.el, vz, azr(mo.az)).map((v, i)=>v*SP_MOON_RED[i])), true); }
+    if(air&&mSrc.fade>0&&skyNow.mScale>0){ const X=domeXYZ(key, lat, mSrc.si, mSrc.st, vz, azr(mo.az)); add('moonlit air', X[1]*mSrc.fade*skyNow.mScale*cdu, spNorm(spSky(key, lat, 90-mo.el, vz, azr(mo.az)).map((v, i)=>v*SP_MOON_RED[i])), true); }
     // The corona and the chromosphere around the hidden Sun, as far as the drawing shows them.
     if(disk!=='moon'&&cr!=null&&cr>=1&&skyNow.corona>0){
       const st=coronaState(key), [K, F]=coronaKF(st, cr), ex=skyNow.corona*st.B*coronaThroughAir(key, el);
@@ -260,9 +263,9 @@ function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null, cr=null, moo
     // The natural night sky and city light, as nightRows draws them.
     const q=6371/6471, sz=Math.sin(vz*Math.PI/180), f=absZenith(key)*(0.4+0.6*extinction(el, extK(key)))/Math.sqrt(1-q*q*sz*sz);
     const fo=AIRGLOW_O[key]??1, fc=AIRGLOW_CO2[key]||0;
-    add('zodiacal light and stars', (1-AIRGLOW_SHARE)*NIGHT_NATURAL*f, SP_SUN5772, true);
+    if(air) add('zodiacal light and stars', (1-AIRGLOW_SHARE)*NIGHT_NATURAL*f, SP_SUN5772, true);
     // Debris (debris.js): the extra zodiacal light, the ring, and the ring's light in the air.
-    if(skyNow.ecl&&zodiK(key)>1) add(`zodiacal light, ${zodiK(key)}× today’s`, zodiExtra(key, horizDir(az, el), skyNow.ecl)*absZenith(key)*(0.4+0.6*extinction(el, extK(key))), SP_SUN5772, true);
+    if(air&&skyNow.ecl&&zodiK(key)>1) add(`zodiacal light, ${zodiK(key)}× today’s`, zodiExtra(key, horizDir(az, el), skyNow.ecl)*absZenith(key)*(0.4+0.6*extinction(el, extK(key))), SP_SUN5772, true);
     // Comets: each part's light here, with its own spectrum.
     for(const C of skyNow.comets||[]){
       const pc=cometAt(C, horizDir(az, el), Math.PI/180*90/domeView().R, {}), ex=extinction(el, extK(key))*absZenith(key), nm=C.c.name;
@@ -272,24 +275,24 @@ function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null, cr=null, moo
       add(`${nm}, ion tail`, pc.ion*ex, SP_COMET_ION);
     }
     const rg=skyNow.ring;
-    if(rg){
+    if(air&&rg){
       const sd=horizDir(skyNow.sunAz, 90-skyNow.sza), pw=Math.PI/180*90/domeView().R;
       add('the ring, sunlit', ringAt(rg.R, horizDir(az, el), sd, rg.P, pw, skyNow.sunFlux)*extinction(el, extK(key))*absZenith(key), SP_RING, true);
       add('ring-lit air', 0.027*ringIlluminance(rg.R, sd, rg.P, skyNow.sunFlux, extK(key)), SP_RINGSKY, true);
     }
-    add('airglow', AIRGLOW_SHARE*fo*NIGHT_NATURAL*f, SP_AIRGLOW);
-    add('violet O₂ airglow', AIRGLOW_SHARE*fc*NIGHT_NATURAL*f, SP_HERZ);
+    if(air) add('airglow', AIRGLOW_SHARE*fo*NIGHT_NATURAL*f, SP_AIRGLOW);
+    if(air) add('violet O₂ airglow', AIRGLOW_SHARE*fc*NIGHT_NATURAL*f, SP_HERZ);
     const glow=SKYGLOW[key];
-    if(glow) add(key==='volcanic'?'oil lamps':'city light', glow[0]*(1+2.2*Math.exp(-el/12)), spGlow(key));
+    if(air&&glow) add(key==='volcanic'?'oil lamps':'city light', glow[0]*(1+2.2*Math.exp(-el/12)), spGlow(key));
     if(mwMap&&skyNow.gal){ const L=mwAt(skyNow.gal, horizDir(az, el))*extinction(el, extK(key))*extZenith(key); add('Milky Way', L, SP_MW); }
     if(skyNow.dso&&skyNow.dso.length){
       const L=[0, 0, 0], p=dsoAt(skyNow.dso, horizDir(az, el), Math.PI/180*90/domeView().R, L);
       if(p) add(p.o.name, (L[0]*0.2126+L[1]*0.7152+L[2]*0.0722)*extinction(el, extK(key))*extZenith(key), dsoSpectrum(p.o.k));
     }
-    if(aurora) aurora.forEach((I, k)=>add(['aurora, oxygen green', 'aurora, oxygen red', 'aurora, nitrogen violet', 'aurora, nitrogen red'][k], I*SP_AUR_Y[k], SP_AUR[k]));
+    if(air&&aurora) aurora.forEach((I, k)=>add(['aurora, oxygen green', 'aurora, oxygen red', 'aurora, nitrogen violet', 'aurora, nitrogen red'][k], I*SP_AUR_Y[k], SP_AUR[k]));
   }
   // A cloud in front: its own light, over what of the sky shows through it.
-  const cl=cloudPx&&disk!=='sun'?cloudLight(cloudPx, key, lat):null;
+  const cl=air&&cloudPx&&disk!=='sun'?cloudLight(cloudPx, key, lat):null;
   if(cl){
     const f=1-cl.a;
     for(let i=0;i<SP_N;i++){ S[i]*=f; sunlit[i]*=f; }
@@ -297,7 +300,7 @@ function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null, cr=null, moo
     for(const [name, w, shape, sun] of cl.comps) add(name, cl.a*cl.Y*w, shape, sun);
   }
   // Air along the way.
-  const X=Math.min(spAirmass(el)+(disk==='sun'?0:(sunSrc.fade>0?spAirmass(90-skyNow.sza)*0.5:0)), 40), o2=(SP_O2[key]??1)*X, h2o=(SP_H2O[key]??1)*X;
+  const X=air?Math.min(spAirmass(el)+(disk==='sun'?0:(sunSrc.fade>0?spAirmass(90-skyNow.sza)*0.5:0)), 40):0, o2=(SP_O2[key]??1)*X, h2o=(SP_H2O[key]??1)*X;
   for(let i=0;i<SP_N;i++){ const T=Math.exp(-SP_TAU_O2[i]*o2-SP_TAU_H2O[i]*h2o); S[i]=(S[i]+sunlit[i]*SP_FRAUN_T[i])*T+post[i]; }
   const Y=parts.reduce((s, p)=>s+p[1], 0);
   // What to label: the strongest sources' own features.
@@ -412,8 +415,9 @@ function spectrumHTML(box, el, az, opts={}){
   if(!spReady(box)) return;
   if(opts.meteor){ const st=meteorSpectrumTip(opts.meteor); spShow(box, st, st.note); return; }
   if(opts.sn||opts.star){ const s=opts.star, st=opts.sn?snSpectrum(opts.sn):s.star?starSpectrum(s, el):reflectedSpectrum(s); spShow(box, st, st.note); return; }
-  if(airOff()){ spBox(box, 'The air is off: the sky has no light here, and the Sun’s and Moon’s spectra are drawn only through it.'); return; }
+  if(airOff()&&opts.disk){ spBox(box, 'The air is off: the Sun’s and Moon’s spectra are drawn only through it.'); return; }
   const sp=skySpectrum(el, az, opts.disk||null, opts.aurora||null, opts.disk==='sun'?opts.r||0:opts.lit??1, opts.cloud||null, opts.cr??null, opts.moonXY||null, opts.sunXY||null);
+  if(!(sp.Y>0)){ spBox(box, 'The air is off: the sky has no light here.'); return; }
   const fmt=Y=>Y>=1?Y.toPrecision(3)+' cd/m²':(Y>=1e-3?(Y*1e3).toPrecision(3)+' mcd/m²':skyMagArcsec(Y).toFixed(1)+' mag/arcsec²');
   // The strongest sources, and on the Moon its own light however faint (earthshine against a
   // day or twilight sky is well under a percent).
