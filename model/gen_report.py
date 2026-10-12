@@ -441,7 +441,6 @@ def blocks():
                  'tab:encounters', spec='Yllrrrr'))
     B.append(p(ENC_PROSE[1]))
     B.append(S('The Milky Way, nebulae and galaxies')); B += ps(*rv.MILKY_WAY)
-    B.append(fig(view('milkyway300'), "The Milky Way at 300 Ma, under the dark, clean Carboniferous sky: its center where the Sun's traced orbit puts it, among stand-in stars with today's statistics. The Milky Way is brightened for print, 80 times its surface brightness on the site, where a true dark sky is too dim to reproduce on paper.", 'fig:milkyway'))
     B.append(S('Supernovae')); B += ps(*rv.SUPERNOVAE)
     B.append(fig(view('geminga'), "The Geminga supernova 342,000 years ago, near magnitude −11 in Orion, a fifth of the full Moon's light from a single point, among the stars moved back along their measured motions.", 'fig:geminga'))
 

@@ -28,7 +28,6 @@ SHOTS = {
     'aurora':       dict(moment='Aurora over the young Earth, 3.8 Ga', gain={'aur': 100}, wait=8000),
     'archean':      dict(moment='Archean afternoon, 2.7 Ga'),
     'ordovician':   dict(moment='Meteor storm and ring, 466 Ma'),
-    'milkyway300':  dict(moment='The Milky Way, 300 Ma', gain={'mw': 80}, fov=80, wait=9000),
     'kpg':          dict(moment='Noon after the asteroid'),
     'geminga':      dict(moment='The Geminga supernova'),
     'town1815':     dict(moment='A town night in 1815'),
