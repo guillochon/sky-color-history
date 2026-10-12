@@ -12,7 +12,9 @@
 //   - City light: high-pressure sodium (broadened, self-absorbed D lines) and white LEDs
 //     (a 452 nm chip under a broad phosphor), mixed to each epoch's glow colour, or 1815's oil
 //     flames (1850 K).
-//   - The Milky Way: old starlight, as a 4800 K body.
+//   - The Milky Way: the light of its stars, old and young mixed to the band's colour (spMW).
+//   - A nebula or galaxy: a galaxy's stars by its type, a nebula's lights mixed to the colour
+//     drawn there (dso.js dsoSpectrum).
 //   - The aurora: its four emissions at that point, as aurora.js lists their lines.
 //   - In totality, the corona and the chromosphere (corona.js): the electrons' light, sunlight
 //     without the Fraunhofer lines; the dust's, with them; the coronal iron and calcium lines;
@@ -56,7 +58,35 @@ const SP_HERZ=spNorm(Float32Array.from(SP_LAM, l=>Math.exp(-0.5*((l-450)/45)**2)
 const SP_HPS=spNorm(spAdd([1, Float32Array.from(SP_LAM, l=>(0.9*Math.exp(-0.5*((l-583)/5)**2)/5+Math.exp(-0.5*((l-596)/6)**2)/6+1.6*Math.exp(-0.5*((l-589)/22)**2)/22)/l)],
   [0.4, spLines([[568.8, 0.06], [615.4, 0.05], [498.3, 0.02], [466.5, 0.015]])]));
 const SP_LED=spNorm(Float32Array.from(SP_LAM, l=>(0.13*Math.exp(-0.5*((l-452)/10)**2)/10+Math.exp(-0.5*((l-575)/50)**2)/50)/l));
-const SP_OIL=spNorm(spPlanck(1850)), SP_MW=spNorm(spPlanck(4800));
+const SP_OIL=spNorm(spPlanck(1850));
+// Starlight added up, by each kind of star's share of the light in V: an old population (the
+// bulge, an elliptical, a disk's old stars), its light mostly from K giants with the G dwarfs and
+// a few M giants, deep in metal lines; a young one, B, A and F stars, blue with broad hydrogen
+// lines. Unit luminance, made on first use.
+const SP_POP_MIX={old:[[5800, 0.2], [5100, 0.3], [4500, 0.35], [3700, 0.15]], young:[[20000, 0.3], [10000, 0.4], [7500, 0.3]]}, SP_POP={};
+function spPop(k){ return SP_POP[k]||(SP_POP[k]=spNorm(spAdd(...SP_POP_MIX[k].map(([T, w])=>[w, spNorm(starAbove(T).S)])))); }
+// The mix of a set of lights comps ({k, S, rgb: spRGB of S}) whose colour comes nearest linear
+// sRGB u of unit luminance: {S, mix: each light's share of the luminance by k}.
+function spMix(comps, u){
+  const best=spNNLS(comps.map(c=>c.rgb), u)||[[0, 1]], sum=best.reduce((s, [, w])=>s+w, 0)||1, mix={};
+  for(const [i, w] of best) mix[comps[i].k]=w/sum;
+  return {S:spAdd(...best.map(([i, w])=>[w/sum, comps[i].S])), mix};
+}
+const spComp=(k, S)=>({k, S, rgb:spRGB(S)});
+// The Milky Way: old and young starlight mixed to the band's colour (milkyway.js MW_XY).
+let SP_MW=null;
+function spMW(){ return SP_MW||(SP_MW=spMix([spComp('old', spPop('old')), spComp('young', spPop('young'))], xyzLin(xyY2XYZ([MW_XY[0], MW_XY[1], 1])))); }
+// The features each light shows, labelled when that light is at least a tenth of what is plotted,
+// or for an emission line's light (SP_MIX_LINES) two thousandths: a line holds its light in a
+// nanometre or two, so even that much stands well over the continuum.
+const SP_MIX_MARKS={old:[{l:393.4, t:'Ca II H&K'}, {l:430.8, t:'G band'}, {l:517.3, t:'Mg b'}, {l:589.3, t:'Na D'}],
+  stars:[{l:393.4, t:'Ca II H&K'}, {l:517.3, t:'Mg b'}, {l:589.3, t:'Na D'}],
+  young:[{l:486.1, t:'Hβ'}, {l:434.0, t:'Hγ'}, {l:410.2, t:'Hδ'}],
+  hii:[{l:656.3, t:'Hα', em:true}, {l:486.1, t:'Hβ', em:true}, {l:671.6, t:'[S II]', em:true}, {l:434.0, t:'Hγ', em:true}],
+  oiii:[{l:500.7, t:'[O III]', em:true}], heii:[{l:500.7, t:'[O III]', em:true}, {l:468.6, t:'He II', em:true}],
+  sync:[{a:380, b:780, t:'synchrotron', band:true}], scat:[{a:380, b:480, t:'scattered starlight', band:true}]};
+const SP_MIX_LINES=new Set(['hii', 'oiii', 'heii']);
+function spMixMarks(mix, f, marks){ for(const k in mix) if(f*mix[k]>(SP_MIX_LINES.has(k)?0.002:0.1)) marks.push(...(SP_MIX_MARKS[k]||[])); }
 // The chromosphere's flash spectrum, by energy: Balmer lines, helium D3, and calcium H and K.
 const SP_CHROMO=spNorm(spLines([[656.3, 1], [486.1, 0.25], [434.0, 0.1], [587.6, 0.15], [393.4, 0.3], [396.8, 0.25]].map(([l, e])=>[l, e*l])));
 // Aurora emissions per kR, with their photopic luminance (aurora.js).
@@ -146,6 +176,20 @@ function spRGB(S){
   const [X, Y, Z]=spXYZ(S);
   return M.map(r=>(r[0]*X+r[1]*Y+r[2]*Z)/Y);
 }
+// Non-negative least squares for at most three of the columns of A against u, by trying each set:
+// [[column, weight]] for the best, or null.
+function spNNLS(A, u){
+  const n=A.length; let best=null, bestR=Infinity;
+  for(let mask=1;mask<(1<<n);mask++){
+    const cols=[]; for(let i=0;i<n;i++) if(mask&(1<<i)) cols.push(i);
+    if(cols.length>3) continue;
+    const w=spLSQ(A, cols, u);
+    if(!w||w.some(v=>v<0)) continue;
+    let r=0; for(let c=0;c<3;c++){ let s=-u[c]; cols.forEach((i, j)=>{ s+=w[j]*A[i][c]; }); r+=s*s; }
+    if(r<bestR-1e-12){ bestR=r; best=cols.map((i, j)=>[i, w[j]]); }
+  }
+  return best;
+}
 // Least squares for the columns cols of A (3 rows) against u, or null if singular.
 function spLSQ(A, cols, u){
   const m=cols.length, G=cols.map(i=>cols.map(j=>A[i][0]*A[j][0]+A[i][1]*A[j][1]+A[i][2]*A[j][2]).concat([A[i][0]*u[0]+A[i][1]*u[1]+A[i][2]*u[2]]));
@@ -191,17 +235,8 @@ function cloudLight(px, key, lat){
   if(!(t>0)) return null;
   const L=cloudLights(key, lat);
   if(!L) return null;
-  const {lights, A, perSky, perCity}=L, u=rgb.map(v=>v/t), n=lights.length;
-  let best=null, bestR=Infinity;
-  for(let mask=1;mask<(1<<n);mask++){
-    const cols=[]; for(let i=0;i<n;i++) if(mask&(1<<i)) cols.push(i);
-    if(cols.length>3) continue;
-    const w=spLSQ(A, cols, u);
-    if(!w||w.some(v=>v<0)) continue;
-    let r=0; for(let c=0;c<3;c++){ let s=-u[c]; cols.forEach((i, j)=>{ s+=w[j]*A[i][c]; }); r+=s*s; }
-    if(r<bestR-1e-12){ bestR=r; best=cols.map((i, j)=>[i, w[j]]); }
-  }
-  if(!best) best=[[0, 1]];
+  const {lights, A, perSky, perCity}=L, u=rgb.map(v=>v/t);
+  const best=spNNLS(A, u)||[[0, 1]];
   const sum=best.reduce((s, [, w])=>s+w, 0)||1;
   const Ys=best.map(([i, w])=>w/sum*t*(lights[i][3]?perCity:perSky)), Y=Ys.reduce((s, v)=>s+v, 0);
   if(!(Y>0)) return null;
@@ -215,7 +250,7 @@ function cloudLight(px, key, lat){
 // parts: [[name, Y]], marks: annotations}.
 function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null, cr=null, moonXY=null, sunXY=null){
   const key=EP[dIdx].key, lat=dayLat(), cdu=cdPerUnit(), vz=Math.min(90-el, 88), parts=[], marks=[];
-  const S=new Float32Array(SP_N), sunlit=new Float32Array(SP_N), coronaEW=[];
+  const S=new Float32Array(SP_N), sunlit=new Float32Array(SP_N), coronaEW=[], mixes=[];
   // With the air off (sunset.js airOff) only what lies beyond it: the Milky Way, the nebulae and
   // galaxies, comets and the corona, as the sky drawing then shows them.
   const air=!airOff();
@@ -284,10 +319,10 @@ function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null, cr=null, moo
     if(air) add('violet O₂ airglow', AIRGLOW_SHARE*fc*NIGHT_NATURAL*f, SP_HERZ);
     const glow=SKYGLOW[key];
     if(air&&glow) add(key==='volcanic'?'oil lamps':'city light', glow[0]*(1+2.2*Math.exp(-el/12)), spGlow(key));
-    if(mwMap&&skyNow.gal){ const L=mwAt(skyNow.gal, horizDir(az, el))*extinction(el, extK(key))*extZenith(key); add('Milky Way', L, SP_MW); }
+    if(mwMap&&skyNow.gal){ const L=mwAt(skyNow.gal, horizDir(az, el))*extinction(el, extK(key))*extZenith(key); add('Milky Way', L, spMW().S); if(L>0) mixes.push(['Milky Way', spMW().mix]); }
     if(skyNow.dso&&skyNow.dso.length){
       const L=[0, 0, 0], p=dsoAt(skyNow.dso, horizDir(az, el), Math.PI/180*90/domeView().R, L);
-      if(p) add(p.o.name, (L[0]*0.2126+L[1]*0.7152+L[2]*0.0722)*extinction(el, extK(key))*extZenith(key), dsoSpectrum(p.o.k));
+      if(p){ const ds=dsoSpectrum(p.o, L); add(p.o.name, (L[0]*0.2126+L[1]*0.7152+L[2]*0.0722)*extinction(el, extK(key))*extZenith(key), ds.S); mixes.push([p.o.name, ds.mix]); }
     }
     if(air&&aurora) aurora.forEach((I, k)=>add(['aurora, oxygen green', 'aurora, oxygen red', 'aurora, nitrogen violet', 'aurora, nitrogen red'][k], I*SP_AUR_Y[k], SP_AUR[k]));
   }
@@ -323,6 +358,8 @@ function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null, cr=null, moo
   if(share('oil')+share('cloud, lit by oil')>0.15) marks.push({l:700, t:'flames, 1850 K', em:true});
   if(share('corona')>0.3) CORONA_LINES.forEach(([l, , , n], j)=>{ if(coronaEW[j]>0.2) marks.push({l, t:`${n} ${l}`, em:true}); });
   if(share('chromosphere')>0.2) marks.push({l:656.3, t:'Hα', em:true}, {l:587.6, t:'He I D3', em:true}, {l:486.1, t:'Hβ', em:true}, {l:393.4, t:'Ca II H&K', em:true});
+  // The Milky Way's and a nebula's or galaxy's own lines, as each of their lights shows them.
+  for(const [n, mix] of mixes) spMixMarks(mix, parts.filter(p=>p[0]===n).reduce((s, p)=>s+p[1], 0)/Math.max(Y, 1e-30), marks);
   if(share('aurora, oxygen green')>0.05) marks.push({l:557.7, t:'[O I] 557.7', em:true});
   if(share('aurora, oxygen red')>0.03) marks.push({l:630, t:'[O I] 630', em:true});
   if(share('aurora, nitrogen violet')>0.02) marks.push({l:391.4, t:'N₂⁺ 391', em:true}, {l:427.8, t:'N₂⁺ 428', em:true});

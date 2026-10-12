@@ -106,19 +106,49 @@ function dsoAt(list, d, pix, out){
   }
   return best;
 }
-// The spectra the probe gives them (spectrum.js): galaxies their stars' light; an H II region
-// Balmer and forbidden lines over a little scattered starlight; a planetary nebula's light mostly
-// doubly ionised oxygen; the Crab's synchrotron glow and its filaments; a reflection nebula the
-// blue of its stars, scattered.
-const DSO_SP={};
-function dsoSpectrum(kind){
+// The spectra the probe gives them (spectrum.js). A galaxy's is old and young starlight (spPop)
+// and the lines of its H II regions, in the shares of the light in V usual for its Hubble type
+// (DSO_GAL), from an elliptical's old stars alone to an irregular's or a starburst's young ones and
+// strong Hα: the plates' colour, near white for all of them, says little of their stars. A
+// nebula's is a mix of its kind's lights matched to the colour drawn there (linear sRGB L), so a
+// pink core and a green-blue rim differ as they look:
+//   - an H II region: the low-ionisation zone (Balmer lines at case B, 2.86 Hα to Hβ, with [N II]
+//     and [S II]), the high-ionisation zone ([O III] 500.7 and 495.9, three to one, and a little
+//     Hβ), and its stars' light scattered by dust (bluer as 1/λ);
+//   - a planetary nebula: the low-ionisation zone, the high with He II 468.6, and its hot central star;
+//   - the Crab: its synchrotron glow (F_λ as λ^-0.6 over the visible) and its filaments' lines;
+//   - a reflection nebula: a B star's light scattered, and its stars' own.
+// The surveys' colour also holds the stars behind and around a nebula, too faint to have been taken
+// out, so each nebula may take some of the Milky Way's starlight (spMW) as well; a pale pixel is
+// mostly that. Line strengths are energy relative to Hβ.
+const DSO_GAL_MIX={E:{old:1}, Sa:{old:0.9, young:0.1}, Sb:{old:0.75, young:0.25, hii:0.003}, Sc:{old:0.5, young:0.5, hii:0.006},
+  Irr:{old:0.3, young:0.7, hii:0.012}, SB:{old:0.45, young:0.55, hii:0.03}};
+const DSO_GAL={M87:'E', M49:'E', 'NGC 5128':'E', M104:'Sa', M31:'Sb', M81:'Sb', M64:'Sb', M94:'Sb', M63:'Sb', M106:'Sb',
+  M33:'Sc', M101:'Sc', M51:'Sc', M83:'Sc', 'NGC 253':'Sc', 'NGC 2403':'Sc', 'NGC 300':'Sc', 'NGC 55':'Sc', LMC:'Irr', SMC:'Irr', M82:'SB'};
+const DSO_SP={}, DSO_GAL_SP={};
+function dsoComps(kind){
   if(DSO_SP[kind]) return DSO_SP[kind];
-  const hii=[[656.3, 3], [658.4, 1], [654.8, 0.33], [486.1, 1], [434.0, 0.47], [500.7, 1.5], [495.9, 0.5], [671.6, 0.2], [673.1, 0.2]];
-  const pn=[[500.7, 10], [495.9, 3.3], [486.1, 1], [434.0, 0.47], [656.3, 3], [658.4, 2], [654.8, 0.66], [468.6, 0.4]];
-  const S={g:SP_MW, n:spNorm(spAdd([1, spLines(hii)], [0.1, SP_MW])), p:spNorm(spAdd([1, spLines(pn)], [0.03, SP_MW])),
-    s:spNorm(spAdd([1, spNorm(Float32Array.from(SP_LAM, l=>Math.pow(l/550, -0.6)))], [0.4, spLines([[656.3, 3], [658.4, 3], [500.7, 2], [671.6, 1], [673.1, 1]])])),
-    r:spNorm(spPlanck(16000))}[kind];
-  return DSO_SP[kind]=S;
+  const E=list=>spNorm(spLines(list.map(([l, e])=>[l, e*l])));
+  const hii=E([[656.3, 2.86], [658.4, 0.9], [654.8, 0.3], [486.1, 1], [434.0, 0.47], [410.2, 0.26], [671.6, 0.3], [673.1, 0.25], [630.0, 0.05]]);
+  const oiii=E([[500.7, 3], [495.9, 1], [486.1, 0.35]]), heii=E([[500.7, 3], [495.9, 1], [486.1, 0.35], [468.6, 0.3]]);
+  const scat=T=>spNorm((T?spPlanck(T):spPop('young')).map((v, i)=>v*550/SP_LAM[i]));
+  const C=spComp, c={g:[C('old', spPop('old')), C('young', spPop('young')), C('hii', hii)],
+    n:[C('hii', hii), C('oiii', oiii), C('scat', scat()), C('stars', spMW().S)],
+    p:[C('hii', hii), C('heii', heii), C('star', spNorm(spPlanck(80000))), C('stars', spMW().S)],
+    s:[C('sync', spNorm(Float32Array.from(SP_LAM, l=>Math.pow(l/550, -0.6)))), C('hii', hii), C('oiii', oiii), C('stars', spMW().S)],
+    r:[C('scat', scat(16000)), C('young', spPop('young')), C('hii', hii)]}[kind]||[C('old', spPop('old'))];
+  return DSO_SP[kind]=c;
+}
+function dsoSpectrum(o, L){
+  const comps=dsoComps(o.k);
+  if(o.k==='g'){
+    const t=DSO_GAL[o.id]||'Sb';
+    if(DSO_GAL_SP[t]) return DSO_GAL_SP[t];
+    const mix=DSO_GAL_MIX[t];
+    return DSO_GAL_SP[t]={S:spAdd(...comps.filter(c=>mix[c.k]).map(c=>[mix[c.k], c.S])), mix};
+  }
+  const Y=L[0]*0.2126+L[1]*0.7152+L[2]*0.0722;
+  return spMix(comps, Y>0?L.map(v=>v/Y):comps[0].rgb);
 }
 // The texture array for the VR sky (unit 6), made once the image is in: a layer per tile,
 // mipmapped, and after them any surface maps (surfaces.js buildSkyArray).

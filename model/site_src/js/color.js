@@ -76,10 +76,17 @@ const TOE_A=0.1674, TOE_B=0.002276, TOE_W=0.957, TOE_W2=0.012, TOE_CD=YREF*969.5
 // sky), where the curve alone, levelling off toward 43, would crush M42's 16-19 mag/arcsec² into
 // six levels. Rods and cones see contrast, not the light's absolute level, over so small a field.
 const DSO_STEP=20/255;
-// sRGB value of the sky (display linear light tBg) with a nebula or galaxy over it, its light
-// raising the luminance ratio from rBg to rNew, given the curve's own value tNew for rNew.
-function toneDso(tBg, rBg, rNew, tNew){
-  return rBg>0?Math.max(tNew, ginv(Math.min(1, g(tBg)+DSO_STEP*Math.log10(rNew/rBg)))):tNew;
+// The sky it is judged against is at least the light beyond the air, the zodiacal light and the
+// faint stars ((1 − AIRGLOW_SHARE) of NIGHT_NATURAL, day.js; cd/m²): with the air off the drawing
+// leaves that sky black, and against black every faint edge of a tile would count as many decades
+// of light, drawing the whole tile bright to its edge.
+const DSO_REF_CD=8.55e-5;
+// sRGB value of the sky (display linear light tBg, luminance ratio rBg) with a nebula or galaxy
+// over it, its light raising the ratio to rNew, given the curve's own value tNew for rNew; rMin is
+// DSO_REF_CD in the same units.
+function toneDso(tBg, rBg, rNew, tNew, rMin){
+  const ref=Math.max(rBg, rMin);
+  return ref>0?Math.max(tNew, ginv(Math.min(1, g(tBg)+DSO_STEP*Math.log10((ref+rNew-rBg)/ref)))):tNew;
 }
 // The same curve in GLSL, for shaders that declare uniform vec4 toneU (k, p, cap, TOE_CD), with
 // sRGB encoding and decoding.

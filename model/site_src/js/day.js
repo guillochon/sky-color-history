@@ -439,7 +439,7 @@ function renderDay(fast){
       const rNew=rBg+rAdd, tBg=toneAt(T, rBg);
       let tNew=toneAt(T, rNew);
       // A nebula or galaxy over the sky and the Milky Way (color.js toneDso).
-      if(rD>0){ const rb=rBg+rMw; tNew=toneDso(rMw>0?toneAt(T, rb):tBg, rb, rNew, tNew); }
+      if(rD>0){ const rb=rBg+rMw; tNew=toneDso(rMw>0?toneAt(T, rb):tBg, rb, rNew, tNew, DSO_REF_CD/scale); }
       const g=tNew/rNew;
       mwA[bi]=tBg>0?(tNew/tBg)*(rBg/rNew):0;
       for(let q=0;q<3;q++) mwB[bi*3+q]=g*(MW_LIN[q]*rMw+(rD>0?Ld[q]:0));
