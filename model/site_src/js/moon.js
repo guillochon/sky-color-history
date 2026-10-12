@@ -134,7 +134,12 @@ function sind(x){ return Math.sin(x*Math.PI/180); }
 function cosd(x){ return Math.cos(x*Math.PI/180); }
 // Dates in the proleptic Gregorian calendar for any year, negative ones too: Date takes years 0–99
 // as 1900–1999 unless they are set with setFullYear.
-function utcDay(Y, M, D){ const t=new Date(0); t.setUTCFullYear(Y, M-1, D); return t.getTime()/86400000; }
+// Date reaches only 271,821 years either side of 1970; further out, whole 400-year Gregorian
+// cycles of 146,097 days are counted off first.
+function utcDay(Y, M, D){
+  const k=Math.abs(Y-2000)>200000?Math.trunc((Y-2000)/400):0, t=new Date(0);
+  t.setUTCFullYear(Y-400*k, M-1, D); return t.getTime()/86400000+146097*k;
+}
 function localDate(Y, M0, D, h=0, mi=0, s=0, ms=0){ const t=new Date(2000, 0, 1, h, mi, s, ms); t.setFullYear(Y, M0, D); return t; }
 // Days from 2000 Jan 0.0 UT (Schlyter's day number), exact in every century.
 function dayNumber(y,m,D,ut){ return utcDay(y, m, 1)+D-1-10956+ut/24; }

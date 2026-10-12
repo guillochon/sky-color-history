@@ -56,12 +56,14 @@ STARS.forEach((s, i)=>{ const m=STAR_MOTION[i]; if(m){ s[4]=m[0]; s[5]=m[1]; s[9
 // Mean place in the year shown. Rows are J2000 places at the sky's year 0 (2000). A star with a
 // distance moves in a straight line through space, from its proper motion and radial velocity,
 // and dm is the change in its magnitude as its distance changes (no closer than 1 pc, as in
-// build_star_epochs.py). Without one it moves along a great circle at its proper motion. The
-// long-term precession (calendar.js) then carries the place to `year`.
-const KMS_PC_YR=1.0227122e-6, ARCSEC=Math.PI/180/3600;
+// build_star_epochs.py). Without one it moves along a great circle at its proper motion. Straight
+// lines hold for about 2 million years, when the Galaxy's pull has bent them by a few parsecs;
+// further from year 0 the stars stay where they were then. The long-term precession (calendar.js)
+// then carries the place to `year`.
+const KMS_PC_YR=1.0227122e-6, ARCSEC=Math.PI/180/3600, STAR_LINE_YEARS=2e6;
 function starMeanPlace(star, epochKey, year){
   void epochKey;
-  const dt=year-2000, a=star[0]*Math.PI/180, d=star[1]*Math.PI/180, sa=Math.sin(a), ca=Math.cos(a), sd=Math.sin(d), cd=Math.cos(d);
+  const dt=Math.max(-STAR_LINE_YEARS, Math.min(STAR_LINE_YEARS, year-2000)), a=star[0]*Math.PI/180, d=star[1]*Math.PI/180, sa=Math.sin(a), ca=Math.cos(a), sd=Math.sin(d), cd=Math.cos(d);
   const u=[cd*ca, cd*sa, sd], ea=[-sa, ca, 0], ed=[-sd*ca, -sd*sa, cd];
   const pa=star[4]||0, pd=star[5]||0, dist=star[9], rv=star[10]||0;
   let v=u, dm=0;

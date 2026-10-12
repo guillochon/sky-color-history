@@ -71,11 +71,12 @@ const WIKI={
   y2100:['Satellite constellation','https://en.wikipedia.org/wiki/Satellite_constellation']
 };
 // One epoch for the whole page: the globe follows the timeline continuously, and the dome and
-// VR follow it whenever it reaches another epoch.
-function showEpoch(pos){
+// VR follow it whenever it reaches another epoch. date, when given, makes the page date in the
+// new epoch (epoch_time.js); otherwise the new epoch keeps the season (calendar.js, epochDate).
+function showEpoch(pos, date){
   tPos=pos; drawGlobeAt(pos);
   const i=Math.round(pos);
-  if(i!==dIdx){ const yf=yearFraction(), prev=EP[dIdx].key; dIdx=i; document.getElementById('moonDate').value=epochDate(prev, yf); sel.value=String(i); renderDay(); warm(); }
+  if(i!==dIdx){ const yf=yearFraction(), prev=EP[dIdx].key; dIdx=i; document.getElementById('moonDate').value=date?date():epochDate(prev, yf); sel.value=String(i); renderDay(); warm(); }
   if(i===tIdx && document.getElementById('tname').textContent) return; tIdx=i;
   const ep=EP[i];
   document.getElementById('tname').textContent=ep.name;
@@ -102,7 +103,7 @@ document.getElementById('tmore').addEventListener('click', e=>{
 const track=document.getElementById('ttrack');
 EP.forEach((ep,i)=>{ const t=document.createElement('button'); t.type='button'; t.className='tick row'+(i%2); t.style.left=(100*i/(EP.length-1))+'%'; t.setAttribute('aria-label',ep.name); t.innerHTML='<i></i><span class="lb"></span><span class="name"></span>'; t.querySelector('.lb').textContent=ep.age; t.querySelector('.name').textContent=ep.name; t.addEventListener('click',()=>setEpoch(i)); track.appendChild(t); });
 const tslider=document.getElementById('tslider');
-function setEpoch(i){ i=Math.max(0, Math.min(EP.length-1, i)); tslider.value=String(i); showEpoch(i); }
+function setEpoch(i, date){ i=Math.max(0, Math.min(EP.length-1, i)); tslider.value=String(i); showEpoch(i, date); }
 tslider.addEventListener('input',()=>{ showEpoch(+tslider.value); });
 let tRAF=null; const tplay=document.getElementById('tplay');
 // The timeline's Play holds still while the epoch bar, the dome and the globe are all scrolled away.

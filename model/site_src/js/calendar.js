@@ -10,7 +10,9 @@
 // seasons (365.24219 days a year on average), going on from where the Gregorian years leave off.
 // The other epochs count twelve equal months of 30 to 124 days; year lengths alternate in the
 // same way, and year 2000 starts where the Gregorian 2000 does.
-const TROPICAL_YEAR=365.24219;
+// The tropical year (365.24219 days) exactly as the Sun's mean longitude runs in sunEquatorial, so
+// the seasons keep their dates over billions of years.
+const TROPICAL_YEAR=360/(0.9856002585+4.70935e-5);
 const MONTH_NAMES=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const MONTH_DAYS=[31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 const GREG_LO=-3000, GREG_HI=7000;
@@ -89,6 +91,10 @@ function dateAtFraction(Y, f){
 // polynomials in centuries since J2000 plus periodic terms (period in centuries, then the cosine
 // and sine amplitudes, arcseconds). Each sky's year 0 has today's axis, and the years either side
 // of it turn and tilt it as they have around today: the obliquity runs between about 22° and 25°.
+// Beyond ±200,000 years the series no longer holds, and the axis goes on from where it left off:
+// the equator's pole turning about the ecliptic's (held where the series leaves it) at today's
+// 50.29″ a year, and the tilt rocking between 22.1° and 24.5° every 41,040 years, joined to the
+// series' tilt and its trend there.
 const LTP_PQ=[[5851.607687, -0.1189000, -0.00028913, 0.000000101], [-1600.886300, 1.1689818, -0.00000020, -0.000000437]];
 const LTP_PQ_PER=[[708.15, -5486.751211, -684.661560, 667.666730, -5523.863691], [2309.00, -17.127623, 2446.283880, -2354.886252, -549.747450],
   [1620.00, -617.517403, 399.671049, -428.152441, -310.998056], [492.20, 413.442940, -356.652376, 376.202861, 421.535876],
@@ -108,19 +114,41 @@ function ltpPair(t, pol, per){
   for(let i=0, w=1; i<4; i++, w*=t){ u+=pol[0][i]*w; v+=pol[1][i]*w; }
   const arc=Math.PI/180/3600; return [u*arc, v*arc];
 }
+// The poles of the ecliptic and of the equator of year, in J2000 coordinates, from the series.
+function ltpPoles(year){
+  const t=(year-2000)/100, [p, q]=ltpPair(t, LTP_PQ, LTP_PQ_PER), [x, y]=ltpPair(t, LTP_XY, LTP_XY_PER);
+  const e0=84381.406*Math.PI/180/3600, wp=Math.sqrt(Math.max(0, 1-p*p-q*q));
+  return {ecl:[p, -q*Math.cos(e0)-wp*Math.sin(e0), -q*Math.sin(e0)+wp*Math.cos(e0)], equ:[x, y, Math.sqrt(Math.max(0, 1-x*x-y*y))]};
+}
+const vdot3=(a, b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2], vcross3=(a, b)=>[a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
+const LTP_SPAN=200000, OBL_MEAN=23.3, OBL_AMP=1.2, OBL_PERIOD=41040, PREC_RATE=50.29/3600*Math.PI/180;
+// Where the series ends (side ±1): its poles, the tilt's phase in the rocking that goes on from
+// there, and the two directions across the ecliptic's pole that the equator's turns in.
+const LTP_EDGE={};
+function ltpEdge(side){
+  if(LTP_EDGE[side]) return LTP_EDGE[side];
+  const b=2000+side*LTP_SPAN, {ecl, equ}=ltpPoles(b), tilt=y=>{ const P=ltpPoles(y); return Math.acos(vdot3(P.ecl, P.equ)); };
+  const eb=Math.acos(vdot3(ecl, equ))*180/Math.PI, rising=tilt(b+50)>tilt(b-50);
+  const ph=Math.acos(Math.max(-1, Math.min(1, (eb-OBL_MEAN)/OBL_AMP)))*(rising?-1:1);
+  const k=vdot3(equ, ecl), u=equ.map((c, i)=>c-k*ecl[i]), m=Math.hypot(...u), e1=u.map(c=>c/m);
+  return LTP_EDGE[side]={b, ecl, ph, e1, e2:vcross3(ecl, e1)};
+}
 // The rotation from J2000 to the mean equator and equinox of year: its rows are the equinox, the
 // point 90° east of it, and the pole, in J2000 coordinates; eps is the obliquity (degrees).
 const LTP_CACHE=new Map();
 function precessionMatrix(year){
   let R=LTP_CACHE.get(year);
   if(R) return R;
-  const t=(year-2000)/100, cross=(a, b)=>[a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
-  const [p, q]=ltpPair(t, LTP_PQ, LTP_PQ_PER), [x, y]=ltpPair(t, LTP_XY, LTP_XY_PER);
-  const e0=84381.406*Math.PI/180/3600, wp=Math.sqrt(Math.max(0, 1-p*p-q*q));
-  const ecl=[p, -q*Math.cos(e0)-wp*Math.sin(e0), -q*Math.sin(e0)+wp*Math.cos(e0)], equ=[x, y, Math.sqrt(Math.max(0, 1-x*x-y*y))];
-  const n=cross(equ, ecl), m=Math.hypot(...n), eqx=n.map(c=>c/m);
-  R=[eqx, cross(equ, eqx), equ];
-  R.eps=Math.acos(equ[0]*ecl[0]+equ[1]*ecl[1]+equ[2]*ecl[2])*180/Math.PI;
+  let ecl, equ;
+  if(Math.abs(year-2000)<=LTP_SPAN) ({ecl, equ}=ltpPoles(year));
+  else {
+    const E=ltpEdge(Math.sign(year-2000)), dt=year-E.b, th=-PREC_RATE*dt;
+    const eps=(OBL_MEAN+OBL_AMP*Math.cos(2*Math.PI*dt/OBL_PERIOD+E.ph))*Math.PI/180;
+    ecl=E.ecl; equ=ecl.map((c, i)=>Math.cos(eps)*c+Math.sin(eps)*(Math.cos(th)*E.e1[i]+Math.sin(th)*E.e2[i]));
+  }
+  const n=vcross3(equ, ecl), m=Math.hypot(...n), eqx=n.map(c=>c/m);
+  R=[eqx, vcross3(equ, eqx), equ];
+  R.eps=Math.acos(vdot3(equ, ecl))*180/Math.PI;
   if(LTP_CACHE.size>64) LTP_CACHE.clear();
   LTP_CACHE.set(year, R); return R;
 }
@@ -137,36 +165,49 @@ function sunEquatorial(d){
 // The clock is sundial time: the Sun crosses the meridian at 12:00. Local sidereal time follows
 // from the Sun's right ascension and its hour angle.
 function localSidereal(){ return rev(sunEquatorial(astroDay()).RA+(minutes/60-12)*15); }
-// The years. The modern-era skies count them as we do, and move to their own year when chosen
-// (today's for the clean and polluted skies, 1990 for the ozone hole, 1815, 2100). The others
-// count from a year 0 of their own, 2000 underneath (where their calendars start, with today's
-// Moon and eclipses for those with 24-hour days), and years before it are negative.
+// Each epoch's own years. The modern-era skies count them as we do, and move to their own year
+// when chosen (today's for the clean and polluted skies, 1990 for the ozone hole, 1815, 2100).
+// The others count from a year 0 of their own, 2000 underneath (where their calendars start, with
+// today's Moon and eclipses for those with 24-hour days), at the epoch's age on the timeline
+// (epoch_time.js), which is what the page shows.
 const EPOCH_YEAR={modern:'now', modernpoll:'now', ozonehole:1990, volcanic:1815, y2100:2100};
-const YEAR_SPAN=250000;   // years either side of the epoch's year 0, within the reach of Date
 function yearZero(key=EP[dIdx].key){ return key in EPOCH_YEAR?0:2000; }
 function epochYear(key){ const y=EPOCH_YEAR[key]; return y===undefined?2000:y==='now'?new Date().getFullYear():y; }
 function fmtYear(y){ const a=Math.abs(y); return (y<0?'−':'')+(a>=10000?a.toLocaleString('en-US'):String(a)); }
-function dateLabel(){ const [Y,M,D]=pageDate(), z=yearZero(); return `${MONTH_NAMES[M-1]} ${D}, ${z?'year ':''}${fmtYear(Y-z)}`; }
+function dateLabel(){ const [,M,D]=pageDate(); return `${MONTH_NAMES[M-1]} ${D}, ${fmtTime(pageTime())}`; }
 // A new epoch keeps the season, and takes its own year when that differs from the last one's.
 function epochDate(prevKey, yf){
   const Yp=epochYear(prevKey), Yn=epochYear(EP[dIdx].key);
   return dateAtFraction(Yn!==Yp?Yn:yf[0], yf[1]);
 }
-// The date picker: a button with the date, opening a dialog with the year (typed or stepped),
-// the twelve months and the month's days, as many as this epoch's calendar gives it; laid out in
+// The date picker: a button with the date, opening a dialog with the year on the timeline (typed
+// as a year or an age, or stepped by a year up to a billion), a bookmark for each epoch, the
+// twelve months and the month's days, as many as this epoch's calendar gives it; laid out in
 // weeks for the 24-hour days, in rows of ten for the others, which have no weeks.
 const dateBtn=document.getElementById('dateBtn'), datePop=document.getElementById('datePop'), dpYear=document.getElementById('dpYear'),
   dpMonths=document.getElementById('dpMonths'), dpDays=document.getElementById('dpDays'), dpNote=document.getElementById('dpNote'), dpBack=document.getElementById('dpBack'),
-  dpMonthSel=document.getElementById('dpMonthSel'), dpDaySel=document.getElementById('dpDaySel'), datePopHome=datePop.parentNode;
+  dpMonthSel=document.getElementById('dpMonthSel'), dpDaySel=document.getElementById('dpDaySel'), datePopHome=datePop.parentNode,
+  dpStep=document.getElementById('dpStep'), dpEpochs=document.getElementById('dpEpochs'), dpEpochSel=document.getElementById('dpEpochSel');
 MONTH_NAMES.forEach((n, i)=>{ const b=document.createElement('button'); b.type='button'; b.dataset.m=String(i+1); b.textContent=n; dpMonths.appendChild(b); dpMonthSel.add(new Option(n, String(i+1))); });
-dpYear.min=String(-YEAR_SPAN); dpYear.max=String(YEAR_SPAN);
+const DP_STEPS=[[1, '1 year'], [10, '10 years'], [100, '100 years'], [1e3, '1,000 years'], [1e4, '10,000 years'], [1e5, '100,000 years'],
+  [1e6, '1 million years'], [1e7, '10 million years'], [1e8, '100 million years'], [1e9, '1 billion years']];
+DP_STEPS.forEach(([n, label])=>dpStep.add(new Option(label, String(n))));
+function labelSteps(){ const t=dpStep.selectedOptions[0].text; document.getElementById('dpPrev').setAttribute('aria-label', `Back ${t}`); document.getElementById('dpNext').setAttribute('aria-label', `On ${t}`); }
+labelSteps(); dpStep.addEventListener('change', labelSteps);
+EP.forEach((ep, i)=>{
+  const b=document.createElement('button'); b.type='button'; b.dataset.e=String(i); b.title=ep.name;
+  b.innerHTML='<b></b><span></span>'; b.querySelector('b').textContent=ep.age; b.querySelector('span').textContent=ep.short;
+  dpEpochs.appendChild(b); dpEpochSel.add(new Option(`${ep.age} · ${ep.short}`, String(i)));
+});
 function setPageDate(Y, M, D){ document.getElementById('moonDate').value=fmtDate(Y, M, Math.max(1, Math.min(D, monthLen(Y, M)))); renderDay(); }
 let datePopDrawn='';
 function drawDatePop(){
   const [Y,M,D]=pageDate(), key=EP[dIdx].key, z=yearZero(), greg=gregorian(Y), weeks=dayHours()===24, id=[key, Y, M, D].join('|');
-  if(document.activeElement!==dpYear){ dpYear.value=String(Y-z); dpYear.removeAttribute('aria-invalid'); }
+  if(document.activeElement!==dpYear){ dpYear.value=fmtTime(pageTime()); dpYear.removeAttribute('aria-invalid'); }
   if(id===datePopDrawn) return;
   datePopDrawn=id;
+  dpEpochs.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed', String(+b.dataset.e===dIdx)));
+  dpEpochSel.value=String(dIdx);
   dpMonths.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed', String(+b.dataset.m===M)));
   let html='';
   if(weeks){
@@ -180,11 +221,12 @@ function drawDatePop(){
   dpDaySel.replaceChildren(...Array.from({length:monthLen(Y, M)}, (_, i)=>new Option(weeks?`${i+1} ${WD[weekday(Y, M, i+1)]}`:String(i+1), String(i+1))));
   dpDaySel.value=String(D);
   const lens=MONTH_NAMES.map((_, i)=>monthLen(Y, i+1)), lo=Math.min(...lens), hi=Math.max(...lens);
-  dpNote.textContent=greg?(z?'Today’s 24-hour days and calendar; years count from this sky’s year 0.':'The Gregorian calendar.')
-    :weeks?`Gregorian months, with leap days set to keep step with the seasons outside years ${fmtYear(GREG_LO-z)} to ${fmtYear(GREG_HI-z)}: ${yearLen(Y)} days this year.${z?' Years count from this sky’s year 0.':''}`
-    :`${dayHours()}-hour days: twelve months of ${lo===hi?lo:lo+'–'+hi} days, ${yearLen(Y)} this year. Years count from this sky’s year 0.`;
-  const back=epochYear(key);
-  dpBack.textContent=EPOCH_YEAR[key]==='now'?'Today':`Back to ${z?'year 0':fmtYear(back)}`;
+  const sh=epochShift(key), [from, to]=epochSpan(key), ep=EP[dIdx];
+  dpNote.textContent=(greg?(z?'Today’s 24-hour days and calendar.':'The Gregorian calendar.')
+    :weeks?`Gregorian months, with leap days set to keep step with the seasons outside ${fmtTime(GREG_LO+sh)} to ${fmtTime(GREG_HI+sh)}: ${yearLen(Y)} days this year.`
+    :`${dayHours()}-hour days: twelve months of ${lo===hi?lo:lo+'–'+hi} days, ${yearLen(Y)} this year.`)
+    +` This sky (${ep.short}, ${ep.age}) holds from ${fmtTime(from)} to ${fmtTime(to)}.`;
+  dpBack.textContent=EPOCH_YEAR[key]==='now'?'Today':`Back to ${ep.age}`;
 }
 function syncDateUI(){ dateBtn.textContent=dateLabel(); if(datePop.open) drawDatePop(); }
 // In VR the dialog goes inside the view, the full-screen element, and on a touch screen it is the
@@ -216,18 +258,14 @@ dpDaySel.addEventListener('change', ()=>{ const [Y,M]=pageDate(); setPageDate(Y,
 datePop.addEventListener('click', e=>{ if(e.target===datePop) datePop.close(); });
 dpMonths.addEventListener('click', e=>{ const b=e.target.closest('[data-m]'); if(!b) return; const [Y,,D]=pageDate(); setPageDate(Y, +b.dataset.m, D); });
 dpDays.addEventListener('click', e=>{ const b=e.target.closest('[data-d]'); if(!b) return; const [Y,M]=pageDate(); setPageDate(Y, M, +b.dataset.d); datePop.close(); });
-dpYear.addEventListener('input', ()=>{
-  const v=dpYear.value.trim(), ok=/^-?\d+$/.test(v) && Math.abs(+v)<=YEAR_SPAN;
-  if(!ok){ dpYear.setAttribute('aria-invalid', 'true'); return; }
-  dpYear.removeAttribute('aria-invalid');
-  const [,M,D]=pageDate(); setPageDate(+v+yearZero(), M, D);
-});
-for(const [id, dy] of [['dpPrev', -1], ['dpNext', 1]]) document.getElementById(id).addEventListener('click', ()=>{
-  const [Y,M,D]=pageDate(), y=Y-yearZero()+dy; if(Math.abs(y)>YEAR_SPAN) return; setPageDate(Y+dy, M, D);
-});
-dpBack.addEventListener('click', ()=>{
-  const key=EP[dIdx].key;
-  if(EPOCH_YEAR[key]==='now'){ document.getElementById('moonDate').value=localISODate(new Date()); renderDay(); }
-  else { const [,M,D]=pageDate(); setPageDate(epochYear(key), M, D); }
-});
+// The year is checked as it is typed and taken on Enter or on leaving the field.
+function typedTime(){ const A=parseTime(dpYear.value); return A!==null && A>=TIME_MIN && A<=TIME_MAX?A:null; }
+dpYear.addEventListener('input', ()=>{ if(typedTime()===null) dpYear.setAttribute('aria-invalid', 'true'); else dpYear.removeAttribute('aria-invalid'); });
+function takeTypedTime(){ const A=typedTime(); if(A!==null && A!==pageTime()) goToYear(A); }
+dpYear.addEventListener('change', takeTypedTime);
+dpYear.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); takeTypedTime(); dpYear.value=fmtTime(pageTime()); dpYear.removeAttribute('aria-invalid'); } });
+for(const [id, sign] of [['dpPrev', -1], ['dpNext', 1]]) document.getElementById(id).addEventListener('click', ()=>goToYear(pageTime()+sign*(+dpStep.value)));
+dpEpochs.addEventListener('click', e=>{ const b=e.target.closest('[data-e]'); if(b) goToEpoch(+b.dataset.e); });
+dpEpochSel.addEventListener('change', ()=>goToEpoch(+dpEpochSel.value));
+dpBack.addEventListener('click', ()=>goToEpoch(dIdx));
 document.getElementById('dpDone').addEventListener('click', ()=>datePop.close());
