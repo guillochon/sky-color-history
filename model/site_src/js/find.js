@@ -73,7 +73,7 @@ function findCatalog(){
 }
 // Where a found thing is now: its direction in the view's frame (apparent altitude), its true
 // azimuth and altitude, how wide the walk-around view draws it in degrees (0 for a point), and for
-// a body drawn enlarged, its true radius to the edge of its rings (disk); null when the epoch has none.
+// the Sun or Moon, drawn enlarged, its true radius (disk); null when the epoch has none.
 function findWhere(t){
   if(!skyNow) return null;
   const key=EP[dIdx].key, lat=LATDEG[dLat], year=STAR_YEAR[key]||pageDate()[0], LST=localSidereal();
@@ -83,7 +83,7 @@ function findWhere(t){
   if(t.k==='sun') return at(skyNow.sunAz, 90-skyNow.sza, 2*skyNow.moon.sunRadDeg*DISK_SCALE, skyNow.moon.sunRadDeg);
   if(t.k==='moon') return noMoon()?null:at(skyNow.moon.az, skyNow.moon.el, 2*skyNow.moon.radDeg*DISK_SCALE, skyNow.moon.radDeg);
   if(t.k==='sn'){ const sn=supernovaPlace(lat); return sn&&at(sn.az, sn.el, 0); }
-  if(t.k==='body'){ const b=BODY_WHERE.get(t.name); const k=b&&b.radDeg*(b.rings?2.3:1); return b?at(b.az, b.el, 2*k*DISK_SCALE, k):null; }
+  if(t.k==='body'){ const b=BODY_WHERE.get(t.name); const k=b&&b.radDeg*(b.rings?2.3:1); return b?at(b.az, b.el, 2*k):null; }
   if(t.k==='star'){
     const P=starPlaces(key, year), i=P.list.indexOf(t.star);
     if(i<0||i>=P.n) return null;
@@ -233,15 +233,15 @@ findBox.addEventListener('wheel', e=>e.stopPropagation());
 // On the page the dome flies the same way, its zoom (domeZoom) for the field and its centre for
 // the look: the sky at the canvas's middle goes from where it is to the found thing, along the
 // same path, in the fisheye's plane, where the dome's radius is 1. The dome zooms no further than
-// DOME_ZOOM_MAX (a field about 20° across), so smaller things, and points, end there. The Sun,
-// Moon and planets are drawn enlarged by bodyScale. Then it follows until the dome is zoomed,
+// DOME_ZOOM_MAX (a field about 20° across), so smaller things, and points, end there. The Sun and
+// Moon are drawn enlarged (DOME_DISK). Then it follows until the dome is zoomed,
 // dragged or reset, or the walk-around view opens. Near the horizon setDomeView keeps the sky
 // circle round the middle, and the thing ends off centre.
 let domeFind=null;
 // Where the dome puts a found thing, in units of its radius from the fisheye's centre.
 function domeFindAt(w){ const r=(90-w.el)/90, a=w.az*Math.PI/180; return [r*Math.sin(a), -r*Math.cos(a)]; }
 function domeFindZoom(w){
-  const W=dome.width, H=dome.height, deg=w.disk?2*w.disk*bodyScale(dome):w.diam;
+  const W=dome.width, H=dome.height, deg=w.disk?2*w.disk*DOME_DISK/(0.46*W)*90/SUN_RADIUS_DEG:w.diam;
   return deg>0?Math.max(1, Math.min(DOME_ZOOM_MAX, 0.5*Math.min(W, H)*90/(0.46*W*deg))):DOME_ZOOM_MAX;
 }
 function domeFindStart(t){

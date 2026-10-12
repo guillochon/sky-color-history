@@ -938,7 +938,7 @@ function drawBodies(gl){
   gl.enable(gl.SCISSOR_TEST); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
   // The planets first, then the moons, so a moon in front of its planet is drawn over it.
   list.map((b, i)=>i).sort((a, c)=>(list[a].kind===BODY_MOON)-(list[c].kind===BODY_MOON)).forEach(i=>{
-    const b=list[i], rPx=b.rad*DISK_SCALE/pxA, Sx=BODY_U.S[i*4], Sy=BODY_U.S[i*4+1];
+    const b=list[i], rPx=b.rad/pxA, Sx=BODY_U.S[i*4], Sy=BODY_U.S[i*4+1];
     if(rPx<1||Math.abs(Sx)>1e5) return;
     const cx=(Sx/fx*0.5+0.5)*W, cy=(Sy/fy*0.5+0.5)*H, r=rPx*(b.rings?2.35:b.uRings?2.06:1)*1.05+3;
     const x0=Math.max(0, Math.floor(cx-r)), y0=Math.max(0, Math.floor(cy-r)), x1=Math.min(W, Math.ceil(cx+r)), y1=Math.min(H, Math.ceil(cy+r));
@@ -956,7 +956,7 @@ function drawBodies(gl){
       gl.uniform4f(u.sunQ, sd[0], sd[1], sd[2], skyNow.sunOn?skyNow.moon.sunRadDeg*DISK_SCALE*Math.PI/180:0);
       gl.uniform4f(u.moonQ, md[0], md[1], md[2], skyNow.moon.on?skyNow.moon.rad*DISK_SCALE:0);
     }
-    gl.uniform4f(u.bP, b.dir[0], b.dir[1], b.dir[2], b.rad*DISK_SCALE);
+    gl.uniform4f(u.bP, b.dir[0], b.dir[1], b.dir[2], b.rad);
     gl.uniform4f(u.bC, b.rgb[0], b.rgb[1], b.rgb[2], b.px);
     gl.uniform4f(u.bL, b.light[0], b.light[1], b.light[2], b.mag);
     // Jupiter's Red Spot or Neptune's dark vortex, each its own.
@@ -981,8 +981,8 @@ function drawBodies(gl){
   gl.disable(gl.SCISSOR_TEST); gl.disable(gl.BLEND);
   gl.useProgram(vrGL.prog);
 }
-// The planets and moons (planets.js placePlanets) into the sky shader's bodies, at the Sun's and
-// Moon's enlargement, and the moons' shadows on them.
+// The planets and moons (planets.js placePlanets) into the sky shader's bodies, at their true
+// size, and the moons' shadows on them.
 const BODY_U={P:new Float32Array(BODY_MAX*4), C:new Float32Array(BODY_MAX*4), L:new Float32Array(BODY_MAX*4), N:new Float32Array(BODY_MAX*4), S:new Float32Array(BODY_MAX*4), Mr:new Float32Array(BODY_MAX*4), M:new Float32Array(SHADOW_MAX*4), K:new Float32Array(SHADOW_MAX*4)};
 // Only those whose disk, rings or glow can reach the screen: the rest would cost every sky pixel
 // a pass of the loop for nothing. The margin covers refraction (the shader places bodies by true
@@ -991,14 +991,14 @@ function uploadBodies(gl, u){
   const c=gl.canvas, fy=Math.tan(vrFov*Math.PI/360), fx=fy*c.width/Math.max(c.height, 1);
   const edge=Math.atan(Math.hypot(fx, fy)), yw=vrYaw*Math.PI/180, pt=vrPitch*Math.PI/180;
   const fwd=[Math.sin(yw)*Math.cos(pt), Math.cos(yw)*Math.cos(pt), Math.sin(pt)];
-  const onScreen=b=>b.dir[0]*fwd[0]+b.dir[1]*fwd[1]+b.dir[2]*fwd[2]>Math.cos(Math.min(edge+b.rad*DISK_SCALE*2.3+0.03, Math.PI));
+  const onScreen=b=>b.dir[0]*fwd[0]+b.dir[1]*fwd[1]+b.dir[2]*fwd[2]>Math.cos(Math.min(edge+b.rad*2.3+0.03, Math.PI));
   const list=(skyNow.bodies||[]).filter(onScreen).slice(0, BODY_MAX), {P, C, L, N, S, Mr}=BODY_U;
-  const radPx=b=>b.rad*DISK_SCALE/(2*fy/Math.max(c.height, 1));
+  const radPx=b=>b.rad/(2*fy/Math.max(c.height, 1));
   const cp=Math.cos(pt), sp=Math.sin(pt), cy=Math.cos(yw), sy=Math.sin(yw);
   vrGL.bodyList=list;
   list.forEach((b, i)=>{
     const o=i*4;
-    P.set(b.dir, o); P[o+3]=b.rad*DISK_SCALE;
+    P.set(b.dir, o); P[o+3]=b.rad;
     const zd=zoomedDisplay(b); C.set(zd.rgb, o); C[o+3]=zd.px;
     L.set(b.light, o); L[o+3]=b.mag;
     N.set(b.pole, o); N[o+3]=b.kind+(b.front?8:0)+(b.kind===4&&!b.rings?16:0);
@@ -1016,7 +1016,7 @@ function uploadBodies(gl, u){
   // body's map past a few (which fetches that body's map alone, surfaces.js). Only for a disk within
   // the view itself (by its place on the image plane, refracted), not the margin: a moon just outside
   // would never draw, and its note never go.
-  const inView=i=>{ const r=Math.tan(list[i].rad*DISK_SCALE); return Math.abs(S[i*4])<fx+r&&Math.abs(S[i*4+1])<fy+r; };
+  const inView=i=>{ const r=Math.tan(list[i].rad); return Math.abs(S[i*4])<fx+r&&Math.abs(S[i*4+1])<fy+r; };
   if(list.some((b, i)=>b.kind===3&&radPx(b)>20&&inView(i))) wantDetail(gl, 'jup');
   if(list.some((b, i)=>b.kind===4&&radPx(b)>20&&inView(i))) wantDetail(gl, 'sat');
   if(list.some((b, i)=>b.kind===6&&radPx(b)>20&&inView(i))) wantDetail(gl, 'nep');

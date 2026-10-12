@@ -143,7 +143,7 @@ def js_shot(s):
         }
       }
       if(best===null) return 'no Jupiter';
-      fixT=()=>{ setT(best); const b=J(), R=DISK_SCALE*b.rad, sp=spot(b);
+      fixT=()=>{ setT(best); const b=J(), R=b.rad, sp=spot(b);
         const o=vscale(vadd(sp.n, vscale(b.dir, -vdot(sp.n, b.dir)), [0, 0, 0]), R*S.jup.aim), d=vnorm(vadd(b.dir, o, [0, 0, 0]));
         const el=Math.asin(d[2])*180/Math.PI;
         vrYaw=(Math.atan2(d[0], d[1])*180/Math.PI+360)%%360; vrPitch=shaderApparent(el).a; vrFov=S.jup.span*R*180/Math.PI;

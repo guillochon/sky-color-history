@@ -504,11 +504,11 @@ function globeSpectrumTip(x, y, box){
 // disk, the one nearest dir.
 function starNear(dir, tolDeg, out){
   if(!skyNow||!skyNow.starMarks) return null;
-  const key=EP[dIdx].key, scale=bodyScale(!vrOn&&dome), cand=[];
+  const key=EP[dIdx].key, cand=[];
   // A star further off in altitude alone than its reach is further off in all.
   const el=Math.asin(Math.max(-1, Math.min(1, dir[2])))*180/Math.PI;
   for(const s of skyNow.starMarks){
-    const R=s.radDeg!=null?s.radDeg*scale:0, reach=Math.max(tolDeg, R*(s.rings?2.3:1));
+    const R=s.radDeg!=null?s.radDeg:0, reach=Math.max(tolDeg, R*(s.rings?2.3:1));
     if(s.comet||Math.abs(s.el-el)>reach||markHidden(s)) continue;
     const sep=Math.acos(Math.max(-1, Math.min(1, vdot(dir, horizDir(s.az, s.el)))))*180/Math.PI;
     if(sep>reach) continue;

@@ -165,7 +165,7 @@ function drawVRLabels(){
     return Math.abs(x)<3&&Math.abs(y)<3?[W/2+x*W/2, H/2-y*H/2]:null;
   };
   const at=(el, az)=>{ const p=projectBody(el, az, 0); return p.inView?[W/2+p.nx*W/2, H/2-p.ny*H/2]:null; };
-  drawSkyLabels(ctx, W, H, {proj, at, lim:3+8*Math.log10(60/vrFov), diskPx:s=>s.radDeg*DISK_SCALE*(s.rings?2.3:1)/(vrFov/H), cloudAt:vrGL&&vrGL.cloudAt, top:40, bottom:72});
+  drawSkyLabels(ctx, W, H, {proj, at, lim:3+8*Math.log10(60/vrFov), diskPx:s=>s.radDeg*(s.rings?2.3:1)/(vrFov/H), cloudAt:vrGL&&vrGL.cloudAt, top:40, bottom:72});
 }
 // The labels, for the walk-around view or the dome (drawDomeLabels), onto ctx W by H page pixels:
 // proj places a direction at true altitude for the constellations' lines (null behind), at a true
@@ -225,8 +225,8 @@ function drawSkyLabels(ctx, W, H, o){
   }
 }
 // The same labels over the dome, on the page (l there too): its fisheye placed by true altitude,
-// the faintest star labelled from V 2 unzoomed to every one at 10×, the bodies' disks as the dome
-// enlarges them (bodyScale; its moons are points). In page pixels on a canvas over the dome, so the text stays sharp.
+// the faintest star labelled from V 2 unzoomed to every one at 10×, the bodies' disks at their true
+// size. In page pixels on a canvas over the dome, so the text stays sharp.
 let domeLabelsDrawn=false;
 function drawDomeLabels(){
   const c=document.getElementById('domeLab'), b=dome.getBoundingClientRect(), dpr=Math.min(window.devicePixelRatio||1, 2), W=b.width, H=b.height;
@@ -243,7 +243,7 @@ function drawDomeLabels(){
   const xy=(el, az)=>{ const rr=R*(90-el)/90, a=az*Math.PI/180; return [(cx+rr*Math.sin(a))*k, (cy-rr*Math.cos(a))*k]; };
   const proj=d=>xy(Math.asin(Math.max(-1, Math.min(1, d[2])))*180/Math.PI, Math.atan2(d[0], d[1])*180/Math.PI);
   const at=(el, az)=>{ const p=xy(el, az); return p[0]>=0&&p[0]<=W&&p[1]>=0&&p[1]<=H?p:null; };
-  drawSkyLabels(ctx, W, H, {proj, at, lim:2+5*Math.log10(domeZoom.z), diskPx:s=>s.kind!=null?s.radDeg*bodyScale(dome)*(s.rings?2.3:1)*R/90*k:0, cloudAt:null, top:4, bottom:4});
+  drawSkyLabels(ctx, W, H, {proj, at, lim:2+5*Math.log10(domeZoom.z), diskPx:s=>s.kind!=null?s.radDeg*(s.rings?2.3:1)*R/90*k:0, cloudAt:null, top:4, bottom:4});
 }
 // The note in the middle of the VR view while something slow is being prepared.
 function showVRLoad(text){ const el=document.getElementById('vrload'); el.textContent=text; el.hidden=false; }

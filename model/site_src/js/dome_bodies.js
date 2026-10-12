@@ -64,7 +64,7 @@ function drawStarsOnDome(marks, rgrid, rCd, key, moon){
     const rr=R*(90-s.el)/90, a=s.az*Math.PI/180, x=cx+rr*Math.sin(a), y=cy-rr*Math.cos(a);
     if(mUp&&(x-mx)**2+(y-my)**2<mrad*mrad) continue;
     // A planet drawn more than a pixel or two across is its lit disk (after the points), not a point.
-    const rPx=s.body&&s.kind!=null?s.radDeg*(DOME_DISK*z/SUN_RADIUS_DEG):0, diskK=smooth01(1, 3, rPx);
+    const rPx=s.body&&s.kind!=null?s.radDeg*R/90:0, diskK=smooth01(1, 3, rPx);
     if(diskK>0) disks.push([s.body, x, y, rPx, night*diskK]);
     if(diskK>=1) continue;
     const zd=zoomedDisplay(s), col=zd.rgb.map(c=>Math.round(Math.min(255, c*night*(1-diskK)*255)));

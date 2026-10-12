@@ -5,7 +5,7 @@
 // where the planets were on a day millions of years ago cannot be known. Magnitudes follow
 // Meeus (Astronomical Algorithms), including Saturn's ring tilt; Uranus's and Neptune's follow
 // Mallama & Hilton (2018). Each is drawn as a disk of its
-// true angular size, enlarged as the Sun and Moon are, lit from the Sun's side, so the inner
+// true angular size (the Sun and Moon alone are enlarged), lit from the Sun's side, so the inner
 // planets' phases show once the view is zoomed in far enough; Jupiter's and Saturn's major moons
 // are placed about them.
 // Each row: name, elements (a AU, e, I, L, long. perihelion, long. node; degrees), their rates
@@ -179,16 +179,6 @@ function moonTided(m, ageMa){
   r[4]=m[4]*f; r[6]=m[6]*Math.pow(f, -1.5);
   return r;
 }
-// The planets are drawn DISK_SCALE times their size, which would swallow the closest moons' orbits:
-// Phobos's, 2.76 Mars radii, lies wholly within Mars's drawn disk, so it would cross its face and
-// vanish mid-disk going behind. A moon r host radii away is drawn r+(K−1)(1−(r−1)/2(K−1))² away
-// instead, out to 2K−1 radii: the true limb to the drawn one, Phobos's orbit to 4.3 drawn and Mimas's
-// to 4.4, Io's moved 2%, those beyond not at all. Only where moons show: their shadows, eclipses and
-// faces keep their true places.
-function moonDrawnOff(off, Rkm){
-  const K=DISK_SCALE, L=2*(K-1), r=Math.hypot(...off)/Rkm;
-  return r>=1+L||r<=0?off:vscale(off, 1+(K-1)*(1-(r-1)/L)**2/r);
-}
 // The degrees a moon's longitude has gained t days after J2000 from its tidal acceleration.
 function moonAccel(m, t){ const T=MOON_TIDE[m[0]], y=t/365.25; return T&&T.s?T.s*y*y:0; }
 function moonIn(m, key){ const f=MOON_EPOCHS[m[0]]; return !f||f(key); }
@@ -278,9 +268,6 @@ function hgPhase(G, i){
 }
 // The same display scale as the stars, in the planet's own tint.
 function planetDisplay(mag, tint){ const d=magDisplay(mag, 200); return {px:d.px, rgb:tint.map(c=>Math.min(2.4, c)*d.amp)}; }
-// How many times their size the planets and moons are drawn: the Sun's and Moon's enlargement in the
-// walk-around view, and on the dome its drawn Sun over the true one.
-function bodyScale(dome){ return dome?(DOME_DISK/(dome.width*0.46))*90/SUN_RADIUS_DEG:DISK_SCALE; }
 // Zooming in stands for looking through binoculars or a telescope: the planets and their moons
 // show as the view narrows, past the walk-around view's usual 60 degrees, or the dome's full view.
 // A telescope's magnification M spreads the sky's light over M² as much of the eye's field and
@@ -382,8 +369,8 @@ function nepSpotAt(Y){
   const lat=h[3]<0.7?-(15+h[4]*30):15+h[4]*20, L=12+h[5]*22;
   return {lon:(((h[6]*360+nepWindDeg(lat)*(Y-t0)*365.25)%360)+360)%360, L, W:0.47*L, lat, k:fade(t0, t1)};
 }
-// Whether a moon is hidden behind its host's drawn disk, in the view showing.
-function markHidden(s){ return !!s.host&&s.behind&&s.rho<(vrOn?DISK_SCALE:bodyScale(dome)); }
+// Whether a moon is hidden behind its host's disk.
+function markHidden(s){ return !!s.host&&s.behind&&s.rho<1; }
 // Where every planet and moon of the last render is, set or not, for find (find.js): true
 // altitude, azimuth and angular radius, by name.
 const BODY_WHERE=new Map();
@@ -456,8 +443,7 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
       if(m0[1]!==k||!moonIn(m0, epochKey)) return;
       // Its orbit as it was in the epoch (Mars's moons, MOON_TIDE), and on a dated sky its acceleration.
       const m=moonTided(m0, ageMa);
-      const pl=m[10]?moonPlane(name==='Saturn'&&satPhi?[...m.slice(0, 10), [...saturnPole(m[10][0], m[10][1]), ...m[10].slice(2)], ...m.slice(11)]:m, tM):ax, off=moonOffset(m, pl, tM, phases?phases.moons[mi]:moonAccel(m, tM));
-      const offD=moonDrawnOff(off, Rkm), along=vdot(offD, qn);
+      const pl=m[10]?moonPlane(name==='Saturn'&&satPhi?[...m.slice(0, 10), [...saturnPole(m[10][0], m[10][1]), ...m[10].slice(2)], ...m.slice(11)]:m, tM):ax, off=moonOffset(m, pl, tM, phases?phases.moons[mi]:moonAccel(m, tM)), along=vdot(off, qn);
       // On the Sun's side and near enough its line through the host: its shadow may fall on the
       // host. Kept in host radii in the horizon frame, with the moon's radius and the Sun's angular
       // radius there, by which the penumbra widens with distance.
@@ -467,7 +453,7 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
         body.shadows.push({m:vscale(horiz(off).dir, om/Rkm), rm:m[2]/Rkm, a:696000/(r*PL_AU_KM)});
       }
       // Found even while eclipsed or set.
-      { const at=q.map((v, n)=>v*PL_AU_KM+offD[n]), w=horiz(at), dw=Math.hypot(...at); BODY_WHERE.set(m[0], {az:w.az, el:w.alt, radDeg:Math.atan(m[2]/dw)*180/Math.PI, host:name, mag:m[3]+5*Math.log10(r*dw/PL_AU_KM)}); }
+      { const at=q.map((v, n)=>v*PL_AU_KM+off[n]), w=horiz(at), dw=Math.hypot(...at); BODY_WHERE.set(m[0], {az:w.az, el:w.alt, radDeg:Math.atan(m[2]/dw)*180/Math.PI, host:name, mag:m[3]+5*Math.log10(r*dw/PL_AU_KM)}); }
       // In the host's shadow (a cylinder of its radius away from the Sun): eclipsed.
       const sAlong=vdot(off, sunFrom), sPerp=vscale(vadd(off, vscale(sunFrom, -sAlong), [0, 0, 0]), 1/Rkm);
       if(sAlong<0&&Math.hypot(sPerp[0], sPerp[1], sPerp[2]/(1-flat))<1) return;
@@ -490,9 +476,9 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
         ringT=sum;
       }
       // Its offset across the sky in host radii, the polar one stretched by the flattening, so 1 is the limb.
-      const perp=vadd(offD, vscale(qn, -along), [0, 0, 0]), pp=vdot(perp, pole), eqP=vadd(perp, vscale(pole, -pp), [0, 0, 0]);
+      const perp=vadd(off, vscale(qn, -along), [0, 0, 0]), pp=vdot(perp, pole), eqP=vadd(perp, vscale(pole, -pp), [0, 0, 0]);
       const rho=Math.hypot(Math.hypot(...eqP), pp/(1-flat))/Rkm;
-      const pos=q.map((v, n)=>v*PL_AU_KM+offD[n]), dm=Math.hypot(...pos)/PL_AU_KM;
+      const pos=q.map((v, n)=>v*PL_AU_KM+off[n]), dm=Math.hypot(...pos)/PL_AU_KM;
       const mp=horiz(pos);
       if(!(mp.alt>0)) return;
       let mmag=m[3]+5*Math.log10(r*dm)+0.02*i+dimMag-2.5*Math.log10(Math.max(ringT, 1e-3));
@@ -506,7 +492,7 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
       // orbits turn the other way about it, the pole opposite their orbit's).
       mark.body={dir:mp.dir, meridian:horiz(vscale(off, -1)).dir, map:SURF_FILES[m[0]]?m[0]:null, rad:mark.radDeg*Math.PI/180, light:body.light, pole:m[10]?horiz(vdot(pl.k, ax.k)<0?vscale(pl.k, -1):pl.k).dir:body.pole, kind:BODY_MOON, flat:BODY_FLAT_OF[m[0]], px:ms.px, rgb:ms.rgb, mag:mmag, front:false, over:!mark.behind, tint:m[7], ring, mark};
       marks.push(mark);
-      if(!(mark.behind&&rho<DISK_SCALE)) bodies.push(mark.body);
+      if(!(mark.behind&&rho<1)) bodies.push(mark.body);
     });
   });
   // A body going round the Sun alone, placed as the planets are but without moons or rings: its

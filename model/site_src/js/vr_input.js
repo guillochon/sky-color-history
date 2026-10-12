@@ -159,8 +159,8 @@ function vrRayAt(cx, cy, yawDeg, pitchDeg){
 }
 // The narrowest field the view may zoom to: VR_FOV_MIN, or narrower while a planet, moon or asteroid
 // is on screen that would still be under a quarter of the view's narrower side there, as narrow as
-// makes the smallest of them a quarter (VR_FILL_MIN) of it: for Pallas some 7″ across, for Phobos
-// under 1″. extraDeg, a drawn diameter (degrees) to count too: a body find is flying to.
+// makes the smallest of them a quarter (VR_FILL_MIN) of it: for Pallas some 2″ across, for Phobos
+// a quarter of an arcsecond. extraDeg, a drawn diameter (degrees) to count too: a body find is flying to.
 function vrFovMin(extraDeg){
   const W=window.innerWidth, H=Math.max(window.innerHeight, 1), fy=Math.tan(vrFov*Math.PI/360), fx=fy*W/H;
   const yw=vrYaw*Math.PI/180, pt=vrPitch*Math.PI/180, cp=Math.cos(pt), sp=Math.sin(pt), cy=Math.cos(yw), sy=Math.sin(yw);
@@ -170,9 +170,9 @@ function vrFovMin(extraDeg){
     const t=b.dir, h=Math.asin(Math.max(-1, Math.min(1, t[2])))*180/Math.PI, ap=shaderApparent(h).a*Math.PI/180, rh=Math.hypot(t[0], t[1])||1;
     const v=[t[0]/rh*Math.cos(ap), t[1]/rh*Math.cos(ap), Math.sin(ap)], depth=v[0]*sy*cp+v[1]*cy*cp+v[2]*sp;
     if(depth<=0) continue;
-    const x=(v[0]*cy-v[1]*sy)/depth, y=(-v[0]*sy*sp-v[1]*cy*sp+v[2]*cp)/depth, r=Math.tan(b.rad*DISK_SCALE);
+    const x=(v[0]*cy-v[1]*sy)/depth, y=(-v[0]*sy*sp-v[1]*cy*sp+v[2]*cp)/depth, r=Math.tan(b.rad);
     if(Math.abs(x)>fx+r||Math.abs(y)>fy+r) continue;
-    d=Math.min(d, 2*b.rad*DISK_SCALE*180/Math.PI);
+    d=Math.min(d, 2*b.rad*180/Math.PI);
   }
   return d<Infinity?Math.min(VR_FOV_MIN, d/VR_FILL_MIN/Math.min(1, W/H)):VR_FOV_MIN;
 }
@@ -757,11 +757,11 @@ function vrPinPoint(p){ const q=vrPinDir(p); return q&&q.on?vrPointOf(q.d):null;
 function vrPinBody(p){
   if(!skyNow) return null;
   const mo=skyNow.moon;
-  const [d, rad]=p.kind==='sun'?[vrSunBasis().md, mo.sunRadDeg]:p.kind==='moon'?[horizDir(mo.az, shaderApparent(mo.el).a), mo.radDeg]
+  const [d, rad]=p.kind==='sun'?[vrSunBasis().md, mo.sunRadDeg*DISK_SCALE]:p.kind==='moon'?[horizDir(mo.az, shaderApparent(mo.el).a), mo.radDeg*DISK_SCALE]
     :p.kind==='mark'&&p.m&&p.m.radDeg!=null?[horizDir(p.m.az, shaderApparent(p.m.el).a), p.m.radDeg*(p.m.rings?2.3:1)]:[null, 0];
   const c=d&&vrPointOf(d);
   if(!c) return null;
-  const r=Math.tan(rad*DISK_SCALE*Math.PI/180)/Math.tan(vrFov*Math.PI/360)*window.innerHeight/2;
+  const r=Math.tan(rad*Math.PI/180)/Math.tan(vrFov*Math.PI/360)*window.innerHeight/2;
   return r<10?null:[c[0]-r, c[1]-r, c[0]+r, c[1]+r];
 }
 // Before each paint: drop the pins whose bodies have set, turn a view flying to or following
