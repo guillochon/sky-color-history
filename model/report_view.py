@@ -548,7 +548,7 @@ EPOCH_CAPTION = ("The nineteen epochs. The Sun's light is relative to today's an
                  "column lists what the sections that follow find in each sky besides its color.")
 EPOCH_NOTE = {
  'protoearth455': 'No Moon; Theia passing; the giant planets before the instability, with a fifth giant; a saturated young Sun',
- 'hadean45': 'The molten Moon at 8 R⊕; 10,000× today’s meteors; no stars through 30 bar of CO₂',
+ 'hadean45': 'The molten Moon at 8 R⊕; 10,000× today’s meteors; no stars through 30 bar of CO₂ and the debris’s glow',
  'hadean40': 'Bombardment; nitrogen aurorae to 37°; the Moon before the maria',
  'archean38': 'The maria flooding, lava fountains on the Moon; Mars’s lost moon Harmonia',
  'archean27thin': 'Thin organic haze; an 18-month year',

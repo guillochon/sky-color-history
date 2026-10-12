@@ -111,7 +111,7 @@ SECTIONS = [
 "yellow Ca XV in the hot young corona) and a brighter pink chromosphere. These scalings are estimates. The young "
 "Sun was also smaller (0.90 of today's radius at 4.5 Ga) while the Moon was closer, so early eclipses hide the inner "
 "corona: at 3.8 Ga the Moon looks 1.5 times the Sun's width, and from 2.2 Ga back every central eclipse is total. "
-"Through the 30-bar Hadean air, at 7.6 magnitudes of extinction per airmass, the corona does not show at all. The "
+"Through the 30-bar Hadean air, at 5.8 magnitudes of extinction per airmass, behind a Moon eight times the Sun's width, the corona hardly shows: only its outer part clears the Moon's limb, a faint glow lost in the molten Moon's own aureole. The "
 "proto-Earth of 4.55 Ga has no Moon, and so no eclipses; its Sun, 17 million years old, has the saturated corona "
 "of a star that young, at about 9 MK.",
 "The eclipse itself is drawn from the Moon's real profile: at second and third contact the last sunlight breaks "
@@ -196,8 +196,8 @@ SECTIONS = [
 "Starlight, the Milky Way and the airglow all come from above the air and are dimmed by it, at the rate given in "
 "{ref:method}: 0.25 magnitude per airmass in clean air, 0.8 under "
 "the thick haze or a polluted city, 0.85 under the proto-Earth's guessed air and dust, 2.3 through the "
-"impact-winter soot, and 7.6 under 30 bar of CO₂, which hides "
-"every star.",
+"impact-winter soot, and 5.8 under 30 bar of CO₂. That alone would leave the brightest stars at fourth magnitude "
+"overhead, but the bombardment's zodiacal glow, two thousand times today's, hides every one.",
 "In the modern epochs the observer stands in a mid-sized city: a zenith glow of 18.8 mag/arcsec² today (Falchi et "
 "al. 2016), with orange sodium light in 1980–2000, at the brightness of the first World Atlas (Cinzano, Falchi &amp; Elvidge 2001), 1.6 times today's in "
 "polluted air, held at today's level in 2100 (the recent 9.6% a year, Kyba et al. 2023, cannot be projected that "
@@ -215,8 +215,8 @@ SECTIONS = [
 "today's. With no free oxygen the aurora is nitrogen's: violet N₂⁺ bands and a pink border of N₂ first positive "
 "bands where faster electrons reach lowest, brighter without oxygen to quench them, with a weak green line from "
 "CO₂ split by the electrons, as Perseverance saw on Mars (Knutsen et al. 2025). The 30-bar Hadean air is mostly CO₂, "
-"so there the green line would be stronger and the nitrogen faint, but the air, at 7.6 magnitudes of extinction per "
-"airmass, hides the aurora altogether. Brightness is for a dark-adapted eye, which sees violet far better than the "
+"so there the green line would be stronger and the nitrogen faint, but the air, at 5.8 magnitudes of extinction per "
+"airmass, and the bombardment's zodiacal glow hide the aurora altogether. Brightness is for a dark-adapted eye, which sees violet far better than the "
 "deep red. The ancient line strengths are estimates.",
 "Each night has its own activity about the epoch's typical level, and the oval is drawn at it. Today that is Kp 3; "
 "the young Sun's typical night is far stormier, Kp 6 at 4.0 Ga, and its oval reaches correspondingly lower, to about "
@@ -321,7 +321,7 @@ for _k, (_rmp, _kp, *_r) in js_const('aurora.js', 'AURORA_EPOCH').items():
 PHENOMENA_HEAD = ['Epoch', 'Refraction', 'Airglow', 'Starlight extinction (mag/airmass)', 'Aurora', 'Meteors', 'Zodiacal light']
 PHENOMENA = [
 ['4.55 Ga proto-Earth', '5.7× (trapped)', 'violet CO₂ glow only', '0.85', AUR['protoearth455'], '30,000×', '10×'],
-['4.5 Ga Hadean', '47× (trapped)', 'violet CO₂ glow only', '7.6: no stars', 'hidden by the air', '10,000×', '2,000×'],
+['4.5 Ga Hadean', '47× (trapped)', 'violet CO₂ glow only', '5.8; no stars in the zodiacal glow', 'hidden by the air', '10,000×', '2,000×'],
 ['4.0 Ga Hadean', '1.8×', 'violet CO₂ glow only', '0.35', AUR['hadean40'], '500×', '300×'],
 ['3.8 Ga Archean', '0.97×', 'violet CO₂ glow only', '0.25', AUR['archean38'], '120×', '50×'],
 ['2.7 Ga Archean', '0.90×', 'violet CO₂ glow only', '0.25–1.8 with the haze', AUR['archean27'], '2×', '1.5×'],

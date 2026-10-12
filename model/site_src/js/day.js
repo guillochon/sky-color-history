@@ -183,13 +183,13 @@ function nightNatural(key){
 const SKYGLOW={modern:[3.09e-3, 0.44, 0.40], modernpoll:[4.94e-3, 0.45, 0.40], ozonehole:[1.03e-3, 0.50, 0.41], y2100:[3.09e-3, 0.38, 0.38], volcanic:[3e-7, 0.52, 0.41]};
 // Extinction of starlight, magnitudes per airmass in V: about 0.15 from the gas (Rayleigh and
 // ozone) plus 1.086 times each epoch's aerosol or haze optical depth at 550 nm. Clean air is
-// 0.25. The Early Hadean's 30 bar of CO2 scatters so much (Rayleigh optical depth about 5 at 550 nm) that no star
-// shows through it. Starlight, the Milky Way, and the airglow all come from above the air, so
+// 0.25. The Early Hadean's 30 bar of CO2 scatters so much (Rayleigh optical depth about 5 at 550 nm; 5.8 magnitudes
+// with its aerosol) that its brightest stars are fourth magnitude overhead, and its 2,000-fold zodiacal glow hides them. Starlight, the Milky Way, and the airglow all come from above the air, so
 // The proto-Earth's guessed 3 bar of CO2 over a bar of N2 has a Rayleigh depth near 0.6, and with
 // its dust 0.85 magnitudes. All three are dimmed at the zenith by the excess over clean air, and more toward the horizon.
 // The soot of the impact winter absorbs what it removes; elsewhere the haze mostly scatters it
 // back into the diffuse sky, so only the soot also darkens the airglow's diffuse glow.
-const EXT_K={hadean45:7.6, protoearth455:0.85, hadean40:0.35, archean27:0.8, archean27vthick:1.8, kpg66:2.3, volcanic:0.7, modernpoll:0.8};
+const EXT_K={hadean45:5.8, protoearth455:0.85, hadean40:0.35, archean27:0.8, archean27vthick:1.8, kpg66:2.3, volcanic:0.7, modernpoll:0.8};
 function extK(key){ return EXT_K[key]||0.25; }
 // Transmission at the zenith relative to clean air, and the part of it lost to absorption.
 function extZenith(key){ return Math.pow(10, -0.4*(extK(key)-0.25)); }
