@@ -49,8 +49,9 @@ const COMET_REAL_EPOCHS=new Set(['modern', 'modernpoll', 'ozonehole', 'volcanic'
 // Through time (comets within 2 AU of the Sun, relative to today):
 //   - Today sits in the tail of a comet shower: the star HD 7977 passed through the outer Oort
 //     cloud about 2.8 Myr ago (Bailer-Jones 2022), and if it passed within 6,000–10,000 AU the
-//     flux of new comets is still 2–2.5 times the long-term level (Kaib & Raymond 2026). So a
-//     quiet epoch has 0.6 of today's comets: 700, 466, 300 and 66 Ma (no shower shows in the K-Pg
+//     flux of new comets is still 2–2.5 times the long-term level (Kaib & Raymond 2026). A
+//     quiet epoch therefore has about half of today's comets, 0.45 at the middle of that range:
+//     700, 466, 300 and 66 Ma (no shower shows in the K-Pg
 //     ³He record). 1.78 Ma, 0.7–1 Myr after the passage, was near the shower's peak: 4 times
 //     today. 342 ka, in the same tail as today: 1.1.
 //   - The giant planets' instability, almost certainly within 100 Myr of the Solar System's
@@ -61,7 +62,7 @@ const COMET_REAL_EPOCHS=new Set(['modern', 'modernpoll', 'ozonehole', 'volcanic'
 //     epoch has it) 4.50 Ga, the ice giants were still eroding the disk: 30, about what the
 //     scattered disk gives just after it.
 const COMET_RATE={protoearth455:30, hadean45:30, hadean40:5, archean38:4, archean27thin:1.5, archean27:1.5, archean27vthick:1.5, proterozoic22:1.2,
-  snowball07:0.6, ordovician466:0.6, carbon30:0.6, kpg66:0.6, zetaoph:4, geminga:1.1};
+  snowball07:0.45, ordovician466:0.45, carbon30:0.45, kpg66:0.45, zetaoph:4, geminga:1.1};
 function cometRate(key){ return COMET_REAL_EPOCHS.has(key)?0:(COMET_RATE[key]??1); }
 // Comets a year today with H ≤ 10 and q ≤ 2 AU: 3.2 gives one a year peaking at m ≤ 6 (seen at
 // least 20° from the Sun) and 0.3 a year at m ≤ 3; Hughes's normalisation (0.5 a year per AU

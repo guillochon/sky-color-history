@@ -45,9 +45,10 @@ const MOON_RE={
 // Before the giant impact there is no Moon: the proto-Earth of 4.55 Ga.
 const MOONLESS={protoearth455:true};
 function noMoon(){ return !!MOONLESS[EP[dIdx].key]; }
-// Inside about 17 Earth radii the Moon's orbit precesses about the Earth's equator, not the
-// ecliptic (its Laplace plane is the equator; Tremaine, Touma & Namouni 2009): it is drawn in the
-// equator.
+// Inside the Laplace radius the Moon's orbit precesses about the Earth's equator, not the
+// ecliptic (Tremaine, Touma & Namouni 2009, eq. 24). For the present Earth that radius is 8.4
+// Earth radii. A fluid Earth on a 5.9-hour day has J2 larger by (24/5.9)^2, and the radius
+// larger by (24/5.9)^(2/5), about 15 Earth radii: the 4.5 Ga Moon, at 8, is drawn in the equator.
 const MOON_EQUATORIAL={hadean45:true};
 // The orbit's tilt to the ecliptic in degrees (lunar_inclination.py): today's 5.145° taken back
 // along the distances above with the tidal model of Ćuk, Hamilton, Lock & Stewart 2016 (Nature
@@ -67,8 +68,8 @@ const MOON_INC={
 // 2021, JGR Planets 126, e2021JE006875, Table 8), here in step with the distance, 0.0025 more
 // for each Earth radius closer; Zahnle et al. (2015, EPSL 427, 74) also expect it to have grown
 // while the Moon was 20–40 Earth radii out, by how much they cannot say. At 4.5 Ga the Moon has
-// been through the evection resonance, which can raise e to 0.5–0.7 for some 10⁵ years (Ćuk &
-// Stewart 2012, Science 338, 1047; Rufu & Canup 2020, JGR Planets 125), and ten million years on,
+// been through the evection resonance, which in the Ćuk & Stewart 2012 example (Science 338,
+// 1047, Fig. 3) holds e near 0.45 from about 9 to 68 kyr, and ten million years on,
 // tides raised in it at 8 Earth radii (damping e in 10³–10⁵ years) have made the orbit nearly
 // round again. The Moon keeps one face to the Earth, but turns at a steady rate while it goes
 // round faster at perigee: it rocks east and west by about 2e radians each month, ±6.3° today

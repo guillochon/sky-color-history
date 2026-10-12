@@ -1564,7 +1564,7 @@
   "key": "proterozoic22",
   "name": "Paleoproterozoic, ~2.2 Ga",
   "sub": "after the Great Oxidation Event: O2 ~1% PAL, ozone column 66 DU",
-  "note": "Cooke et al. 2021 global-mean column at 1% of present O2",
+  "note": "Cooke et al. 2022 global-mean column at 1% of present O2: 66 DU",
   "lat": {
    "Equator": {
     "zenith": {
@@ -1787,7 +1787,7 @@
   "key": "snowball07",
   "name": "Snowball Earth, ~700 Ma",
   "sub": "cold, dry, very clean air; ice/snow surface (albedo 0.75); ozone 169 DU",
-  "note": "Cooke et al. 2021 global-mean column at 10% of present O2, nearest this epoch",
+  "note": "Cooke et al. 2022 global-mean column at 10% of present O2: 169 DU, nearest this epoch",
   "lat": {
    "Equator": {
     "zenith": {
@@ -2010,7 +2010,7 @@
   "key": "ordovician466",
   "name": "Ordovician meteor storm, ~466 Ma",
   "sub": "after the L-chondrite parent body broke up: O2 ~17%, CO2 ~2,500 ppm, a little meteoric dust aloft",
-  "note": "O2 at about 80% of today (Krause et al. 2018); Cooke et al. 2021 columns near this level are within a few percent of today, so the modern latitude columns are scaled by 0.97",
+  "note": "O2 at about 80% of today (Krause et al. 2018); Cooke et al. 2022 columns near this level are within a few percent of today, so the modern latitude columns are scaled by 0.97",
   "lat": {
    "Equator": {
     "zenith": {
@@ -2233,7 +2233,7 @@
   "key": "carbon30",
   "name": "Carboniferous, ~300 Ma",
   "sub": "O2 ~30-35%; total pressure ~1.1 bar; wildfire smoke common",
-  "note": "Cooke et al. 2021 Fig. 6: 150% PAL mean column ~300 DU vs pre-industrial 279 DU, scaled onto the modern latitude columns",
+  "note": "Cooke et al. 2022 state a pre-industrial global mean of 279 DU. The 150% PAL mean is not given in the text; the columns here are the modern ones scaled by 300/279, for a mean near 300 DU",
   "lat": {
    "Equator": {
     "zenith": {

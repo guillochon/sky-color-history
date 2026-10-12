@@ -13,8 +13,8 @@
 // 0.1). The rings brighten toward opposition (the Seeliger effect), by a third in the last degree.
 // The light let through toward the viewer and the Sun is exp(−tau/mu): the opacity of the rings
 // over what is behind, and their shadow on the planet.
-// Younger rings (age, their age at the epoch over today's, drawn from Chrysalis's break-up 160 Myr
-// ago) were more massive and cleaner. Saturn draws ring material in (ring rain, hundreds to tens of
+// Younger rings (age, their age at the epoch over today's, drawn from Chrysalis's break-up in the
+// illustrated case, 160 Myr ago, within Wisdom et al.'s 100–200 Myr range) were more massive and cleaner. Saturn draws ring material in (ring rain, hundreds to tens of
 // thousands of kg/s by Cassini's Grand Finale; O'Donoghue et al. 2019, Waite et al. 2018) and a ring
 // spreading by its own friction loses mass as about 1/age (Salmon et al. 2010): between them the
 // depth is taken as age^−0.75 times today's, half again at 66 Ma. The darkening of the C ring and

@@ -7,11 +7,10 @@
 const SAT_SHELLS=[[7178,30,328],[7178,40,334],[7178,53,345],[2000,96.9,360],[1998,75,373],[4000,53,499],[144,148,604],[324,115.7,614],[2547,53,346],[2478,48,341],[2493,42,336],[1600,53,550],[1584,53.2,540],[720,70,570],[348,97.6,560],[172,97.6,560],[720,87.9,1200],[1764,87.9,1200],[2304,40,1200],[2304,55,1200],[480,85,590],[2000,50,600],[3600,55,508],[1728,30,1145],[1728,40,1145],[1728,50,1145],[1728,60,1145],[1156,51.9,630],[1296,42,610],[784,33,509]];
 const SAT_RE=6371, SAT_GM=398600.4418, SAT_AU=149597870.7, SAT_MSUN=-26.77;
 const SAT_PREF=(2/(3*Math.PI*Math.PI))*(0.8/((SAT_AU*1000)*(SAT_AU*1000)));
-// Boley, Lawler & Rein 2026, arXiv:2608.02757. Midway optimistic case: the middle
-// of the three filed designs (Sunrise, 51,600), the paper's conservative 800 m²
-// panels at albedo 0.2, and nodes relaxed ±10° of the terminator rather than a
-// single tight ring. Not the million-satellite SpaceX filing, and not panels of
-// several thousand square meters.
+// Boley, Lawler & Rein 2026, arXiv:2608.02757. Blue Origin's Sunrise (51,600),
+// the paper's conservative 800 m² panels at albedo 0.2, and the relaxed nodal
+// spread, ±10° of the terminator, rather than the tight ring. Not the
+// million-satellite SpaceX filing, and not panels of several thousand square meters.
 const ODC_PREF=SAT_PREF*(160/0.8);   // 800 m² at albedo 0.2: 160 m² of effective area
 function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15, 1|a); t=t+Math.imul(t^t>>>7, 61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
 function gauss01(rng){ let u=0, v=0; while(u===0) u=rng(); while(v===0) v=rng(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }

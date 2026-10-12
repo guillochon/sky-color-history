@@ -1,6 +1,7 @@
 // Steam off the hot Hadean sea (vr_paint.js ZONES 'sea'), shared by the sky shader and the cloud
-// composite (shader_present.js), which dims the clouds behind it. The sea is about 200 °C under
-// the 30-bar air: plumes rise from the water, thinning with height over some 50 m, leaning and
+// composite (shader_present.js), which dims the clouds behind it. The sea is hot, about 230 °C
+// while 100 to 200 bars of CO₂ remained (Zahnle et al. 2010); the air drawn here is the later
+// 30 bar. Plumes rise from the water, thinning with height over some 50 m, leaning and
 // drifting with the wind. Six samples along the ray's run through the layer, crowded toward the
 // eye where the wisps show; far off a sample spans many plumes and takes their mean. Lit from the
 // whole sky, it stands paler than the water, which mirrors only the horizon. Needs uniforms seaR,

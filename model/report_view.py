@@ -37,12 +37,15 @@ MOON_ORBIT = [
 "recedes, and tides raised in the Moon itself damp the tilt, most strongly near 33 Earth radii, where the "
 "Moon's own obliquity swings large. The orbit comes out a little steeper in the past, 5.5° at 2.7 Ga and "
 "5.8° at 4.0 Ga; Ćuk et al. argue these are lower bounds, and the 17° to 30° and more that such models give "
-"for the young Moon belong before 33 Earth radii, older than any epoch here but 4.5 Ga. Inside about 17 "
-"Earth radii the orbit precesses about the Earth's equator rather than the ecliptic (Tremaine, Touma &amp; "
-"Namouni 2009), so the 4.5 Ga Moon is drawn in the plane of the equator. The orbit was more eccentric too, "
+"for the young Moon belong before 33 Earth radii, older than any epoch here but 4.5 Ga. Inside the Laplace "
+"radius the orbit precesses about the Earth's equator rather than the ecliptic (Tremaine, Touma &amp; "
+"Namouni 2009, eq. 24): 8.4 Earth radii for the present Earth. A fluid Earth spinning in 5.9 hours carries a "
+"larger bulge, and the radius moves out by (24/5.9)<sup>2/5</sup>, to about 15 Earth radii, so the 4.5 Ga Moon "
+"is drawn in the plane of the equator. The orbit was more eccentric too, "
 "growing from today's 0.055 to about 0.1 at 4.0 Ga (Daher et al. 2021), after it had been through the "
-"evection resonance, which can raise it to 0.5 for a hundred thousand years (Ćuk &amp; Stewart 2012), and "
-"been damped nearly round again by 4.5 Ga. With the eccentricity the Moon rocks east and west each month "
+"evection resonance. In the Ćuk &amp; Stewart (2012) example that resonance holds the eccentricity near 0.45 "
+"from about 9,000 to 70,000 years, and by 4.5 Ga tides have damped the orbit nearly round again. "
+"With the eccentricity the Moon rocks east and west each month "
 "by about twice the eccentricity in radians, ±6.3° today and ±12° at 4.0 Ga, and north and south by its "
 "obliquity, 6.7° today and 21° to 23° at 3.8 and 4.0 Ga, as it nears the Cassini-state transition; the "
 "page draws the globe on these axes, so the Moon visibly librates.",
@@ -221,8 +224,9 @@ SATURN = [
 
 "The rings are young. How young is still argued, from tens to a few hundred million years (Iess et al. 2019; Kempf et al. "
 "2023), and we adopt the account of Wisdom et al. (2022): an icy moon the size of Iapetus, named "
-"Chrysalis, orbiting between Titan and Iapetus in a 3:1 resonance with Titan, was torn apart about 160 "
-"million years ago, freeing Saturn's tilt from Neptune's pull and making the rings of its debris. So the "
+"Chrysalis, orbiting between Titan and Iapetus in a 3:1 resonance with Titan, was torn apart roughly 100 to "
+"200 million years ago, about 160 million years ago in the case they illustrate, freeing Saturn's tilt from "
+"Neptune's pull and making the rings of its debris. We draw that illustrated case, so the "
 "rings appear in the 66 Ma sky and after, and before them Chrysalis is a moon of magnitude 13 to 14 beside "
 "a ringless Saturn. Younger rings are drawn more massive and cleaner: their depth grows with youth as "
 "age⁻⁰·⁷⁵, between ring-rain losses (O'Donoghue et al. 2019; Waite et al. 2018) and viscous spreading "
@@ -401,8 +405,8 @@ CONTRAILS = [
 
 SCENERY = [
 "The ground is scenery, like the clouds: a walkable landscape chosen for each era rather than computed, lit by the "
-"model's sky and Sun. The proto-Earth has magma pools; the 4.5 Ga Earth a hot ocean, about 200 °C under 30 bar of "
-"CO₂ (Zahnle et al. 2010), steaming round volcanic islands; the Archean, water and volcanic shields; Snowball "
+"model's sky and Sun. The proto-Earth has magma pools; the 4.5 Ga Earth a hot ocean, about 230 °C while 100 to "
+"200 bars of CO₂ remained (Zahnle et al. 2010), steaming round volcanic islands; the Archean, water and volcanic shields; Snowball "
 "Earth, ice plateaus with blue banded cliffs and frozen ponds; the Ordovician, shallow seas with no land plants "
 "beyond mosses and crusts; the Carboniferous, forest and swamps; the impact winter, dead woods; the Pleistocene, "
 "1815 and today, woods and snow-capped peaks; and the modern epochs, a town with lit windows. Water reflects the "
@@ -429,7 +433,7 @@ SATELLITES = [
 "its magnitude is on the stars' scale. At the equinox a mid-latitude sky has a few hundred of them above "
 "naked-eye brightness in the hour after sunset, and the Earth's shadow takes them by midnight. On top of that "
 "fleet are the orbital datacenters modeled by Boley, Lawler &amp; Rein (2026). Of their three filed designs we "
-"take the middle one and the more optimistic of their two node spreads: Blue Origin's Sunrise, 51,600 "
+"take Blue Origin's Sunrise and the relaxed one of their two node spreads: 51,600 "
 "Sun-synchronous satellites from 500 to 1,800 km in a dawn–dusk cross of rings whose nodes wander 10° to either "
 "side of the terminator. Each is a diffuse sphere of 800 m² at albedo 0.2, the size they call conservative next "
 "to panels several times larger: 160 m² of effective area, two hundred times a communications satellite's. An hour "
@@ -527,7 +531,7 @@ TEN_THINGS = [
 "The young Sun was smaller, redder and dimmer, and so heavily spotted that a spot could be seen on it every day.",
 "The Moon's face was not always today's: at 3.8 Ga the maria were still flooding, and at 4.0 Ga the near side was "
 "bright highland from limb to limb.",
-"Saturn had no rings before about 160 million years ago, and θ Columbae, now a faint fifth-magnitude star, shone "
+"Saturn had no rings before roughly 100 to 200 million years ago, and θ Columbae, now a faint fifth-magnitude star, shone "
 "as bright as Venus 4.7 million years ago.",
 "In 2100 thousands of orbital datacenters may outshine nearly every star at dusk, in a bright band along the terminator.",
 ]

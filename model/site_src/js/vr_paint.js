@@ -21,7 +21,7 @@ const WATER=[[30,350,'water',120],[95,600,'water',220],[320,500,'water',180],[60
 const ZONES={
   protoearth455:[[30,330,'magma',110],[95,520,'magma',170],[320,430,'magma',140],[255,1300,'magma',300],[40,1500,'magma',320],[160,800,'magma',200]],
   // Ten million years after the giant impact the magma ocean has frozen and the steam has rained
-  // out: a hot ocean (about 200 °C under 30 bar of CO₂; Zahnle et al. 2010) a few km deep over a
+  // out: a hot ocean (about 230 °C while 100 to 200 bars of CO₂ remained; Zahnle et al. 2010) a few km deep over a
   // thin basaltic crust, with no continents to raise high ground. The walker stands on a low
   // basalt knoll by the shore (sea: the land's radius, the sea all round it), with a small lava
   // pool at a vent below it.

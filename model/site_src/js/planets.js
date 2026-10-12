@@ -93,7 +93,7 @@ const PLANET_MOONS=[
   ['Triton', 6, 1352.6, -1.24, 354759, 58.5165, 61.25869940, [0.98, 0.93, 0.88], null, null, [299.3990, 43.3851, 156.9025, 177.7673, 0.00143857]],
   // Moons only some epochs have (MOON_EPOCHS). Chrysalis (Wisdom et al. 2022, Science 377, 1285):
   // an icy moon the size of Iapetus between Titan and Iapetus, in 3:1 resonance with Titan, whose
-  // break-up about 160 Myr ago would have made the rings and freed Saturn's tilt. Harmonia (named
+  // break-up roughly 100–200 Myr ago (about 160 Myr in the case they illustrate) would have made the rings and freed Saturn's tilt. Harmonia (named
   // here, after the daughter of Ares, sister of Phobos and Deimos): the moon some 20 times Phobos's
   // mass at 3.3 Mars radii that Cuk et al. (2020, ApJL 896, L28) find tilted Deimos's orbit, one
   // generation of Mars's cycle of rings and moons (Hesselbrock & Minton 2017); radius 30 km, H from
@@ -121,7 +121,7 @@ const MOON_EPOCHS={
 function moonIn(m, key){ const f=MOON_EPOCHS[m[0]]; return !f||f(key); }
 // Bodies that are hypothetical, or named here: the note their label's spectrum carries.
 const BODY_NOTES={
-  Chrysalis:'hypothetical: Wisdom et al. 2022 (Science) propose it, lost about 160 Myr ago to make the rings',
+  Chrysalis:'hypothetical: Wisdom et al. 2022 (Science) propose it, lost roughly 100–200 Myr ago (about 160 Myr in the case they illustrate) to make the rings',
   Harmonia:'hypothetical, named here: the moon Ćuk et al. 2020 find tilted Deimos’s orbit, one of the generations of Mars’s ring–moon cycle (Hesselbrock & Minton 2017)',
   Kymo:'hypothetical, named here: one of Neptune’s first moons, scattered and destroyed when it captured Triton (Rufu & Canup 2017)',
   Oceanus:'hypothetical, named here: the fifth giant planet of Nesvorný (2011) and Nesvorný & Morbidelli (2012), thrown out of the Solar System by Jupiter in the instability',
@@ -207,7 +207,8 @@ function zoomedDisplay(o){ return o.tint?planetDisplay(o.mag-moonGain(), o.tint)
 const PLANET_AGE_MA={protoearth455:4550, hadean45:4500, hadean40:4000, archean38:3800, archean27thin:2700, archean27:2700, archean27vthick:2700, proterozoic22:2200, snowball07:700, ordovician466:466, carbon30:300, kpg66:66, zetaoph:1.78, geminga:0.342};
 // Saturn's rings may be young: their mass and how little meteoroid dust darkens them put them at
 // tens to a few hundred Myr (Iess et al. 2019; Kempf et al. 2023), though whether they are is still argued.
-// They are drawn from Chrysalis's break-up, about 160 Myr ago, on, and left out before, where
+// They are drawn from Chrysalis's break-up, the illustrated case of about 160 Myr ago within a
+// 100–200 Myr range, on, and left out before, where
 // Chrysalis is drawn.
 const RINGS_MA=160, RINGS_DEBATED_MA=100;
 // Saturn's axis precesses backward about its orbit's pole, once in about 1.87 Myr, near Neptune's

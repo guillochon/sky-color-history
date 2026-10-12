@@ -152,7 +152,7 @@ SECTIONS = [
 "The shadow's geometry follows the distances and the young Sun's size. The umbra was 3.1 Moon widths across at "
 "4.0 Ga against 2.7 today, and with twice as many full Moons a year, total lunar eclipses came nearly three times as "
 "often, while totality itself lasted at most 105 to 109 minutes in every epoch from 4.0 Ga on ({ref:tab:lunar}). At 4.5 Ga "
-"the Moon, inside about 17 Earth radii, orbits in the plane of the Earth's equator, its shadow is 3.6 Moon widths "
+"the Moon, inside the Laplace radius of a fast-spinning Earth, orbits in the plane of the Earth's equator, its shadow is 3.6 Moon widths "
 "across and it races through it: around each equinox every full Moon is eclipsed, some 3,900 total eclipses a "
 "century, none longer than an hour. The rate also depends on "
 "the tilt of the Moon's orbit. It was a little steeper then: integrating today's 5.145° back along the distance "
@@ -239,8 +239,8 @@ SECTIONS = [
 "4.0 Ga and 120 at 3.8 Ga, of slow, yellow-orange fireballs from a main-belt-like population (Strom et al. 2015; "
 "Marchi et al. 2014), with impact flashes on the closer Moon's dark side; twice today's at 2.7 Ga; and a hundred "
 "times today's fireballs at 466 Ma, after the L-chondrite parent body broke up (Schmitz et al. 2019).",
-"Meteor showers come on their own dates. The modern-era skies have the 38 showers of the IMO's working list "
-"(Rendtel 2027), with their radiants and drift, speeds, population indices and peak rates, rising and falling "
+"Meteor showers come on their own dates. The modern-era skies have the 38 showers of the IMO's working list, "
+"apart from its Antihelion source (Rendtel 2027, Table 5), with their radiants and drift, speeds, population indices and peak rates, rising and falling "
 "about the maximum as Jenniskens (1994) measured them, and their outbursts and storms at the hour they were seen: "
 "the Leonids of 1799 to 2002, the Andromedids of 1872 and 1885, the Draconids of 1933 and 1946 and others "
 "(Jenniskens 1995 and the IMO's analyses), with the Leonid peaks predicted for 2034. Showers last thousands of "
@@ -262,8 +262,9 @@ SECTIONS = [
 "source of slow, grazing fireballs from the west.",
 "Comets in the modern-era skies are the real ones on their real dates, from JPL's orbits; elsewhere they are drawn "
 "at the rate of their time, about one naked-eye comet a year today, 30 times that at 4.5 Ga while the giant planets "
-"eroded and then scattered the comet disk, falling to today's level by about 2 Ga, and 0.6 of today's in the quiet Phanerozoic "
-"epochs, since today's sky may still hold the comet shower from the star HD 7977 (Kaib &amp; Raymond 2026). Their "
+"eroded and then scattered the comet disk, falling to today's level by about 2 Ga, and about half of today's in the quiet Phanerozoic "
+"epochs, because the present flux of new long-period comets is still about two to two and a half times the tide-only rate "
+"(Kaib &amp; Raymond 2026). Their "
 "heads and tails are dimmed by each epoch's air like the stars."]],
 
 ['Clouds', [
