@@ -157,13 +157,32 @@ function vrRayAt(cx, cy, yawDeg, pitchDeg){
   const yaw=yawDeg*Math.PI/180, pitch=pitchDeg*Math.PI/180, cp=Math.cos(pitch), sp=Math.sin(pitch), cyw=Math.cos(yaw), syw=Math.sin(yaw);
   return vnorm([syw*cp+u*cyw-v*syw*sp, cyw*cp-u*syw-v*cyw*sp, sp+v*cp]);
 }
-// Zoom between a 0.004° and a 90° field of view about page point (cx, cy): the sky under that
+// The narrowest field the view may zoom to: VR_FOV_MIN, or narrower while a planet, moon or asteroid
+// is on screen that would still be under a quarter of the view's narrower side there, as narrow as
+// makes the smallest of them a quarter (VR_FILL_MIN) of it: for Pallas some 7″ across, for Phobos
+// under 1″. extraDeg, a drawn diameter (degrees) to count too: a body find is flying to.
+function vrFovMin(extraDeg){
+  const W=window.innerWidth, H=Math.max(window.innerHeight, 1), fy=Math.tan(vrFov*Math.PI/360), fx=fy*W/H;
+  const yw=vrYaw*Math.PI/180, pt=vrPitch*Math.PI/180, cp=Math.cos(pt), sp=Math.sin(pt), cy=Math.cos(yw), sy=Math.sin(yw);
+  let d=extraDeg>0?extraDeg:Infinity;
+  for(const b of (skyNow&&skyNow.bodies)||[]){
+    // Where it is drawn, at its apparent altitude (vr_paint.js uploadBodies).
+    const t=b.dir, h=Math.asin(Math.max(-1, Math.min(1, t[2])))*180/Math.PI, ap=shaderApparent(h).a*Math.PI/180, rh=Math.hypot(t[0], t[1])||1;
+    const v=[t[0]/rh*Math.cos(ap), t[1]/rh*Math.cos(ap), Math.sin(ap)], depth=v[0]*sy*cp+v[1]*cy*cp+v[2]*sp;
+    if(depth<=0) continue;
+    const x=(v[0]*cy-v[1]*sy)/depth, y=(-v[0]*sy*sp-v[1]*cy*sp+v[2]*cp)/depth, r=Math.tan(b.rad*DISK_SCALE);
+    if(Math.abs(x)>fx+r||Math.abs(y)>fy+r) continue;
+    d=Math.min(d, 2*b.rad*DISK_SCALE*180/Math.PI);
+  }
+  return d<Infinity?Math.min(VR_FOV_MIN, d/VR_FILL_MIN/Math.min(1, W/H)):VR_FOV_MIN;
+}
+// Zoom between vrFovMin's field and a 90° one about page point (cx, cy): the sky under that
 // point stays under it. The wheel uses the same factor per notch. A pinch uses the fingers'
 // spread. With the look locked the wheel's point is the middle of the view.
 function zoomVRAbout(factor, cx, cy){
   if(!(factor>0)||factor===1) return;
   const want=vrRayAt(cx, cy, vrYaw, vrPitch), azEl=d=>[Math.atan2(d[0], d[1])*180/Math.PI, Math.asin(Math.max(-1, Math.min(1, d[2])))*180/Math.PI];
-  vrFov=Math.max(VR_FOV_MIN, Math.min(VR_FOV_MAX, vrFov*factor));
+  vrFov=Math.max(Math.min(vrFov, vrFovMin()), Math.min(VR_FOV_MAX, vrFov*factor));
   const [wAz, wEl]=azEl(want);
   for(let i=0;i<6;i++){
     const [az, el]=azEl(vrRayAt(cx, cy, vrYaw, vrPitch));

@@ -3,7 +3,9 @@ const SUN_RADIUS_DEG=0.2666; // mean solar angular radius: IAU radius over one a
 let vrFov=60; // VR vertical field of view in degrees: twice the angle a desktop monitor fills; the scroll wheel or a pinch zooms it
 // Down to 0.004° (14 arcseconds), where Titan's drawn disk is about a fifth of the view and the
 // Galilean moons' a third to a half; past 0.4° the drawn Sun is already finer than its spot map.
-const VR_FOV_MIN=0.004, VR_FOV_MAX=90;
+// Deeper while a smaller body is on screen (vr_input.js vrFovMin), till it spans VR_FILL_MIN of the
+// view's narrower side.
+const VR_FOV_MIN=0.004, VR_FOV_MAX=90, VR_FILL_MIN=0.25;
 const DISK_SCALE=4; // Sun and Moon are drawn at four times their angular size
 const DOME_DISK=11; // fisheye solar radius in pixels, half the previous enlargement
 // Limb darkening: toward its edge the Sun is seen through higher, cooler photosphere, so the edge is

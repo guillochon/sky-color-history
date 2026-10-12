@@ -365,7 +365,7 @@ function nightLight(rgb, rel, el, night){ const f=0.6*Math.sqrt(Math.max(rel, 0)
 // Text in the VR heads-up display, written only when it changes.
 function setText(el, text){ if(el.textContent!==text) el.textContent=text; }
 // A field of view for the HUD: whole degrees down to 10°, then tenths, then arcminutes and arcseconds.
-function fovLabel(f){ return f>=9.95?Math.round(f)+'°':f>=0.995?f.toFixed(1)+'°':f*60>=0.995?(f*60<9.95?(f*60).toFixed(1):Math.round(f*60))+'′':Math.round(f*3600)+'″'; }
+function fovLabel(f){ return f>=9.95?Math.round(f)+'°':f>=0.995?f.toFixed(1)+'°':f*60>=0.995?(f*60<9.95?(f*60).toFixed(1):Math.round(f*60))+'′':(f*3600<9.95?(f*3600).toFixed(f*3600<0.995?2:1):Math.round(f*3600))+'″'; }
 // The glare's centre: the Sun's, or with the Moon over part of it the middle of the part that
 // still shows (on the drawn disks, as day.js sunCovered measures it), so the glare comes off the
 // crescent and not from behind the Moon.

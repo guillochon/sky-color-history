@@ -111,7 +111,7 @@ function findWhere(t){
 function findFov(diam){
   if(!(diam>0)) return FIND_POINT_FOV;
   const W=window.innerWidth, H=Math.max(window.innerHeight, 1), fy=2*Math.tan(Math.min(diam, 170)*Math.PI/360)/Math.min(1, W/H);
-  return Math.max(VR_FOV_MIN, Math.min(VR_FOV_MAX, 2*Math.atan(fy)*180/Math.PI));
+  return Math.max(vrFovMin(diam), Math.min(VR_FOV_MAX, 2*Math.atan(fy)*180/Math.PI));
 }
 // van Wijk & Nuij's (2003) optimal pan and zoom, as d3.interpolateZoom, from field w0 to w1 across
 // u1 (all radians): at t in [0, 1], the share of the turn made and the field.
@@ -147,7 +147,7 @@ function findStep(){
     if(!f.t0) f.t0=performance.now();
     const t=Math.min(1, (performance.now()-f.t0)/FIND_MS), e=t<0.5?4*t*t*t:1-Math.pow(2-2*t, 3)/2, [u, fov]=f.path(e);
     d=findSlerp(f.d0, w.d, Math.max(0, Math.min(1, u)));
-    vrFov=Math.max(VR_FOV_MIN, Math.min(VR_FOV_MAX, fov*180/Math.PI));
+    vrFov=Math.max(vrFovMin(w.diam), Math.min(VR_FOV_MAX, fov*180/Math.PI));
     if(t<1) requestVR();
     else { f.flying=false; vrFov=findFov(w.diam); d=w.d; }
   }
