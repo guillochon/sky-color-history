@@ -555,7 +555,7 @@ vec4 uranusRing(vec3 xr, float w, float muV, float mu0, bool lit){
   return acc;
 }
 void main(){
-  float fy=tan(fov*0.5);
+  float fy=(fov<2e-3?0.5*fov:tan(fov*0.5));
   vec3 rd=viewRay(gl_FragCoord.xy, res, fov, yaw, pitch);
   float elevDeg=asin(clamp(rd.z, -1.0, 1.0))*57.2957795, hw=max(fwidth(elevDeg), 0.04);
   // Not below the horizon, behind the scenery, or behind the Moon.

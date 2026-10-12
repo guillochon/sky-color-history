@@ -485,7 +485,7 @@ ${VIEW_RAY_GLSL}
 out vec4 fragColor;
 void main(){
   vec3 rd=viewRay(gl_FragCoord.xy, res, fov, yaw, pitch);
-  fragColor=auroraLight(rd, 2.0*tan(fov*0.5)/res.y)*1000.0;
+  fragColor=auroraLight(rd, 2.0*(fov<2e-3?0.5*fov:tan(fov*0.5))/res.y)*1000.0;
 }`;
 // The aurora's light (auroraLight) added to a sky of luminance ratio rBg shown as sRGB skyC,
 // under the display curve, as the Milky Way is added in the sky shader. Its colour is the

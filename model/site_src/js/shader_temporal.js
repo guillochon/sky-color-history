@@ -40,7 +40,7 @@ void main(){
     aLo=min(aLo, s.a); aHi=max(aHi, s.a);
     if(s.a>0.01){ vec3 c=s.rgb/s.a; cLo=min(cLo, c); cHi=max(cHi, c); }
   }
-  float fy=tan(fov*0.5), fx=fy*(res.x/max(res.y,1.0));
+  float fy=(fov<2e-3?0.5*fov:tan(fov*0.5)), fx=fy*(res.x/max(res.y,1.0));
   vec3 rd=viewRay(gl_FragCoord.xy, res, fov, yaw, pitch);
   // Where this frame found no cloud, reproject as if at the cloud base.
   if(tMean<1.0) tMean=1600.0/max(rd.z, 0.03);

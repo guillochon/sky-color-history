@@ -465,7 +465,7 @@ void main(){
   float a0=1.0-T;
   if(a0>1.0e-4) col=mix(col/a0, skyC, (1.0-exp(-tAcc/max(wAcc, 1.0e-5)/38000.0))*0.85)*a0;
   // The contrails, above the clouds and the cirrus.
-  if(ctN>0.5 && T>0.02) contrailsAt(ro, rd, tHit, ign, 2.0*tan(fov*0.5)/res.y, sd, sunBase, shadowAlt, mix(ambBot, ambTop, 0.75)+bounce, skyC, ph0, ph1, ph2, col, T, tAcc, wAcc);
+  if(ctN>0.5 && T>0.02) contrailsAt(ro, rd, tHit, ign, 2.0*(fov<2e-3?0.5*fov:tan(fov*0.5))/res.y, sd, sunBase, shadowAlt, mix(ambBot, ambTop, 0.75)+bounce, skyC, ph0, ph1, ph2, col, T, tAcc, wAcc);
   float alpha=1.0-T;
   if(alpha<0.004) return;
   float tMean=tAcc/max(wAcc, 1.0e-5);

@@ -137,9 +137,12 @@ const hex = a => '#'+a.map(v=>v.toString(16).padStart(2,'0')).join('');
 // Where x falls in the ascending samples xs: [i, t] with x at xs[i]+t·(xs[i+1]-xs[i]), held to the ends.
 function bracket(xs,x){ if(x<=xs[0]) return [0,0]; for(let i=0;i<xs.length-1;i++) if(x<xs[i+1]) return [i,(x-xs[i])/(xs[i+1]-xs[i])]; return [xs.length-2,1]; }
 // The VR passes' view ray through pixel frag, for a camera at yaw and pitch with vertical field fov.
+// Below a field of 2 milliradians the shaders take the half-field's tangent as the angle itself: exact
+// there to a part in a million, where the GPU's tan, losing its last digits for tiny angles, drew a
+// small moon deep in the zoom several percent too large for the box it is drawn in.
 const VIEW_RAY_GLSL=`
 vec3 viewRay(vec2 frag, vec2 res, float fov, float yaw, float pitch){
-  float fy=tan(fov*0.5), fx=fy*(res.x/max(res.y,1.0));
+  float fy=(fov<2e-3?0.5*fov:tan(fov*0.5)), fx=fy*(res.x/max(res.y,1.0));
   float u=((frag.x/res.x)*2.0-1.0)*fx, v=((frag.y/res.y)*2.0-1.0)*fy;
   float cp=cos(pitch), sp=sin(pitch), cy=cos(yaw), sy=sin(yaw);
   return normalize(vec3(sy*cp, cy*cp, sp)+u*vec3(cy,-sy,0.0)+v*vec3(-sy*sp,-cy*sp,cp));

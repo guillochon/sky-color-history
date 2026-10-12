@@ -338,13 +338,13 @@ vec4 sunDiskAt(float comp, float app, vec3 sd, float rd, out vec3 off, out float
   for(int i=0;i<4;i++){
     vec4 L=sunLay[i];
     if(L.y<=0.0) continue;
-    float w=max(L.y, tan(fov*0.5)/res.y*57.2957795); // at least a pixel thick
+    float w=max(L.y, (fov<2e-3?0.5*fov:tan(fov*0.5))/res.y*57.2957795); // at least a pixel thick
     // The jump bends the rays below the layer only: those above never graze it, so a Sun well up
     // sits where the Moon and the rest of the sky put it.
     bend+=L.z*(smoothstep(L.x-w, L.x+w, ap)-1.0);
     extra+=L.w*exp(-pow((app-L.x)/w, 2.0));
   }
-  float dispX=${DISK_SCALE.toFixed(1)}*(1.0+5.0*exp(-max(ap, 0.0)/0.6)), px=2.0*tan(fov*0.5)/res.y;
+  float dispX=${DISK_SCALE.toFixed(1)}*(1.0+5.0*exp(-max(ap, 0.0)/0.6)), px=2.0*(fov<2e-3?0.5*fov:tan(fov*0.5))/res.y;
   float a=clamp(app, 0.0, 30.0), f; int i=0;
   for(int k=1;k<9;k++) if(a>SUN_APPS[k]) i=k;
   f=(a-SUN_APPS[i])/(SUN_APPS[i+1]-SUN_APPS[i]);
@@ -590,7 +590,7 @@ vec3 skyLook(vec3 d){
   return texture(sky, vec2((fract(c/6.28318530718)*na+0.5)/(na+1.0), ((90.0-max(el, 0.0))/90.0*nr+0.5)/(nr+1.0))).rgb;
 }
 void main(){
-  float fy=tan(fov*0.5);
+  float fy=(fov<2e-3?0.5*fov:tan(fov*0.5));
   vec3 rd=viewRay(gl_FragCoord.xy, res, fov, yaw, pitch);
   vec3 ro=eye;
   float comp=atan(rd.x, rd.y); if(comp<0.0) comp+=6.28318530718;
@@ -946,7 +946,7 @@ void main(){
         nS=dot(nS, nS)<1e-8?vec3(1.0, 0.0, 0.0):normalize(nS);
         vec2 q=vec2(dot(sunOffV, normalize(cross(nS, sd))), dot(sunOffV, nS))/sin(sunRad);
         float ql=length(q); if(ql>0.998) q*=0.998/ql;
-        dsk=clamp(dsk*sunSurface(q, 2.0*tan(fov*0.5)/res.y/sunRad), 0.0, 1.0);
+        dsk=clamp(dsk*sunSurface(q, 2.0*(fov<2e-3?0.5*fov:tan(fov*0.5))/res.y/sunRad), 0.0, 1.0);
       }
       // Seen whole, the Sun is far too bright to look at: its disk a white-hot blank tinted the
       // epoch's colour, no limb or spots. Zoomed in, as through a filter, it dims to the disk above.
