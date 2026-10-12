@@ -8,7 +8,10 @@
 // cloud, is set to 8.5e-4 cd/m² (about 20.2 mag/arcsec² on its own, 20.0 with the natural sky,
 // at the bright end of what is measured), and the band elsewhere runs from about 40% of that in Cygnus to a tenth toward the
 // anticentre, in line with the integrated starlight of Leinert et al. 1998 (A&AS 127, 1).
-// Its colour is its starlight's, worked out from the spectrum the probe gives it (spectrum.js
+// In older epochs the Galaxy is the one mw_evolution.py describes (MW_EPOCH, buildMilkyWay):
+// seen from nearer its centre, its discs smaller and thinner, its light younger and its dust
+// thicker, and, more than 30 Myr back, with other dark clouds, star clouds and young stars than
+// today's. Its colour is its starlight's, worked out from the spectrum the probe gives it (spectrum.js
 // spMWAt), so the two agree: old stars and young ones in the share mwSurface gives each place,
 // reddened by the dust in front of them. Young stars (B, A and F) keep to a layer a few degrees
 // thick, strongest along the spiral arms seen end on and the nearby OB associations, and patchy
@@ -22,17 +25,36 @@ const MW_W=1024, MW_H=288, MW_BMAX=50, MW_PEAK=8.5e-4, MW_XY=[0.353, 0.357];
 // mwAge: the young stars' share of the light and the dust's tau (two per pixel).
 let mwMap=null, mwRGB=null, mwAge=null;
 // The map's terms that depend only on longitude, or only on latitude, are worked out once per
-// column or row. Spots (galactic longitude and latitude, and their widths in each, in degrees):
-// the bulge; the Sagittarius and Scutum star clouds; the Coalsack and the Ophiuchus and Taurus
-// dust.
+// column or row, for a layout of the sky's particular features (mwLayout). Spots (galactic
+// longitude and latitude, and their widths in each, in degrees): the bulge; the Sagittarius and
+// Scutum star clouds; the Coalsack and the Ophiuchus and Taurus dust.
 const MW_SPOT=[[0, -1, 10, 8], [2, -4.5, 3, 2.5], [27, -2.5, 2.5, 2], [301, -1, 2.0, 2.0], [354, 16, 6, 5], [172, -15, 6, 5]];
+// The bright star fields along the plane beyond the bulge (longitude, width, weight): Scutum,
+// Cygnus, Cassiopeia, Carina, Crux and Centaurus, Norma and Scorpius.
+const MW_FIELD=[[27, 7, 0.6], [76, 13, 1.6], [130, 30, 0.3], [287, 13, 0.9], [310, 15, 0.8], [338, 11, 0.6]];
 // The young stars' brightest stretches (galactic longitude, width, weight, in degrees): Cygnus,
 // Carina, Crux and Centaurus, Norma, Scutum, Cassiopeia and Perseus, Monoceros and Orion, Vela.
 const MW_YOUNG=[[80, 12, 1.0], [287, 8, 1.0], [305, 10, 0.8], [330, 10, 0.6], [28, 8, 0.6], [120, 20, 0.5], [205, 20, 0.4], [263, 6, 0.6]];
 // Fractal value noise: the cell size (degrees) and seed of each of mwSurface's six, three octaves
 // each, on cells periodic in longitude.
 const MW_FBM=[[2.4, 1], [1.6, 2], [1.2, 3], [1.5, 4], [1.5, 5], [1.0, 6]];
-const MW_OCT=MW_FBM.flatMap(([cell, seed])=>[[cell, seed], [cell/2.5, seed+7], [cell/6, seed+13]]);
+const mwOctaves=add=>MW_FBM.flatMap(([cell, seed])=>[[cell, seed+add], [cell/2.5, seed+add+7], [cell/6, seed+add+13]]);
+// Today's layout: the spots, star fields and young stretches above, the noise's seeds, and the
+// Great Rift (how far it lies from the plane, in degrees, the longitude it centres on, and its
+// half-length). More than 30 Myr back (mw_evolution.py, seed) none of them existed: dark clouds
+// last tens of Myr and spiral arms come and go, so the sky gets others like them, at random but
+// the same each time, as the nebulae do: star clouds near the centre, dark clouds anywhere within
+// 18° of the plane, star fields and young stretches within 110° of the centre either way.
+const MW_TODAY={spot:MW_SPOT, field:MW_FIELD, young:MW_YOUNG, oct:mwOctaves(0), rift:[1.2, 38, 42]};
+function mwLayout(seed){
+  if(!seed) return MW_TODAY;
+  let s=seed|0;
+  const rnd=()=>{ s=(s+0x6D2B79F5)|0; let t=Math.imul(s^(s>>>15), 1|s); t=(t+Math.imul(t^(t>>>7), 61|t))^t; return ((t^(t>>>14))>>>0)/4294967296; };
+  const u=(a, b)=>a+(b-a)*rnd();
+  return {spot:MW_SPOT.map(([l, b, wl, wb], k)=>k===0?[l, b, wl, wb]:k<3?[u(-25, 25), u(-6, 3), wl, wb]:[u(0, 360), u(-18, 18), wl, wb]),
+    field:MW_FIELD.map(([, w, k])=>[u(-110, 110), w, k]), young:MW_YOUNG.map(([, w, k])=>[u(-110, 110), w, k]),
+    oct:mwOctaves(16*(1+seed%997)), rift:[u(-1.5, 1.5), u(0, 360), 42]};
+}
 function mwGs(x, w){ return Math.exp(-0.5*(x/w)*(x/w)); }
 // A cell corner's hash, from the XOR of its column's and its row's (and seed's) parts.
 function mwHash(h){
@@ -42,27 +64,26 @@ function mwHash(h){
 // Longitude l: the band's brightness along the plane, its scale height, the rift's latitude and the
 // dust's strength, the young stars' share in the plane, each spot's longitude factor, and each
 // noise octave's two columns of cells (hashed) and the weight across them.
-function mwColumn(l){
-  const dl=c=>((l-c+540)%360)-180, hx=new Int32Array(MW_OCT.length*2), ux=new Float64Array(MW_OCT.length);
-  MW_OCT.forEach(([cell], k)=>{
+function mwColumn(l, Y){
+  const dl=c=>((l-c+540)%360)-180, hx=new Int32Array(Y.oct.length*2), ux=new Float64Array(Y.oct.length);
+  Y.oct.forEach(([cell], k)=>{
     const P=Math.round(360/cell), x=(l+180)/cell, ix=Math.floor(x), fx=x-ix, w=i=>((i%P)+P)%P;
     hx[2*k]=Math.imul(w(ix), 374761393); hx[2*k+1]=Math.imul(w(ix+1), 374761393); ux[k]=fx*fx*(3-2*fx);
   });
-  const A=0.15+1.0*mwGs(dl(0), 24)+0.6*mwGs(dl(27), 7)+1.6*mwGs(dl(76), 13)+0.3*mwGs(dl(130), 30)
-    +0.9*mwGs(dl(287), 13)+0.8*mwGs(dl(310), 15)+0.6*mwGs(dl(338), 11);
-  const young=0.12+0.45*MW_YOUNG.reduce((s, [lc, w, k])=>s+k*mwGs(dl(lc), w), 0);
-  return {A, young, h:5.0+4.0*mwGs(dl(0), 35), rift:1.2*Math.exp(-Math.pow(dl(38)/42, 4)), dust:0.2+0.8*mwGs(dl(35), 50),
-    spot:MW_SPOT.map(([lc, , wl])=>mwGs(dl(lc), wl)), hx, ux};
+  const A=0.15+1.0*mwGs(dl(0), 24)+Y.field.reduce((s, [lc, w, k])=>s+k*mwGs(dl(lc), w), 0);
+  const young=0.12+0.45*Y.young.reduce((s, [lc, w, k])=>s+k*mwGs(dl(lc), w), 0);
+  return {A, young, h:5.0+4.0*mwGs(dl(0), 35), rift:Y.rift[0]*Math.exp(-Math.pow(dl(Y.rift[1])/Y.rift[2], 4)), dust:0.2+0.8*mwGs(dl(35), 50),
+    spot:Y.spot.map(([lc, , wl])=>mwGs(dl(lc), wl)), hx, ux};
 }
 // Latitude b: each spot's latitude factor, and each noise octave's two rows of cells (hashed with
 // the seed) and the weight across them.
-function mwRow(b){
-  const hy=new Int32Array(MW_OCT.length*2), vy=new Float64Array(MW_OCT.length);
-  MW_OCT.forEach(([cell, seed], k)=>{
+function mwRow(b, Y){
+  const hy=new Int32Array(Y.oct.length*2), vy=new Float64Array(Y.oct.length);
+  Y.oct.forEach(([cell, seed], k)=>{
     const y=(b+90)/cell, iy=Math.floor(y), fy=y-iy, hs=Math.imul(seed, 1442695041);
     hy[2*k]=Math.imul(iy, 668265263)^hs; hy[2*k+1]=Math.imul(iy+1, 668265263)^hs; vy[k]=fy*fy*(3-2*fy);
   });
-  return {b, spot:MW_SPOT.map(([, bc, , wb])=>mwGs(b-bc, wb)), hy, vy};
+  return {b, spot:Y.spot.map(([, bc, , wb])=>mwGs(b-bc, wb)), hy, vy};
 }
 function mwNoise(C, R, k){
   const x0=C.hx[2*k], x1=C.hx[2*k+1], y0=R.hy[2*k], y1=R.hy[2*k+1], u=C.ux[k], v=R.vy[k];
@@ -71,7 +92,8 @@ function mwNoise(C, R, k){
 }
 function mwFbm(C, R, f){ return 0.55*mwNoise(C, R, 3*f)+0.3*mwNoise(C, R, 3*f+1)+0.15*mwNoise(C, R, 3*f+2); }
 function mwSpot(C, R, k){ return C.spot[k]*R.spot[k]; }
-// The light there (relative), with the young stars' share of it and the dust's tau left in MW_PX.
+// The starlight there (relative, before the dust), with the young stars' share of it and the
+// dust's tau left in MW_PX.
 const MW_PX={young:0, tau:0};
 function mwSurface(C, R){
   const b=R.b, bulge=mwSpot(C, R, 0);
@@ -82,7 +104,45 @@ function mwSurface(C, R){
   tau+=1.3*mwSpot(C, R, 3)+0.9*mwSpot(C, R, 4)*mwFbm(C, R, 3)*2+0.5*mwSpot(C, R, 5)*mwFbm(C, R, 4)*2;
   MW_PX.young=Math.min(0.85, 0.05+C.young*Math.exp(-Math.abs(b)/2.5)*(0.3+1.4*mwFbm(C, R, 5))*(1-0.9*Math.min(1, bulge)));
   MW_PX.tau=tau;
-  return I*Math.exp(-tau);
+  return I;
+}
+// The Galaxy as it was (mw_evolution.py): for each epoch more than 1e5 years back and for now
+// ('now'), how long ago (T, Gyr), the Sun's distance from the centre (R), the scale lengths and
+// heights (kpc) and V light (relative) of the thin disc's old (o) and young (y) stars and of the
+// thick disc (k), the bulge's light (Lb), the dust (D, relative to today's), and the seed of the
+// sky's particular features (0: today's).
+const MW_EPOCH=__MW_EPOCH__;
+// A smooth model of that Galaxy seen from the Sun, 20.8 pc above the plane: exponential discs, a
+// bulge (exponential sphere, 0.6 kpc, a quarter of today's disc light) and dust in a layer 0.12 kpc
+// thick with a 3.5 kpc scale length, 0.74 e-folds of V light per kpc where the Sun is today (0.8
+// mag/kpc), which puts some 26 magnitudes between us and the centre. Its light toward each node
+// of a grid (longitude every MW_DL degrees, latitude at MW_MB), old (thin and thick discs and
+// bulge) and young apart, summed along the line of sight through the dust out to 40 kpc, and all
+// of it as it would be without the dust (n).
+const MW_DL=5, MW_MB=[-50, -40, -30, -25, -20, -16, -13, -10, -8, -6, -5, -4, -3, -2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10, 13, 16, 20, 25, 30, 40, 50];
+const mwModels={};
+function mwModel(p){
+  if(mwModels[p.T]) return mwModels[p.T];
+  const NL=360/MW_DL, NB=MW_MB.length, o=new Float32Array(NL*NB), y=new Float32Array(NL*NB), nd=new Float32Array(NL*NB), now=MW_EPOCH.now;
+  const disc=(L, rd, h)=>L/(4*Math.PI*rd*rd*h), cO=disc(p.Lo, p.rdo, p.ho), cY=disc(p.Ly, p.rdy, p.hy), cK=disc(p.Lk, p.rdk, p.hk);
+  const rb=0.6, cB=0.25*(now.Lo+now.Ly+now.Lk)*p.Lb/now.Lb/(8*Math.PI*rb*rb*rb), z0=0.0208, kap=0.74*p.D*Math.exp(8.2/3.5);
+  const NS=200, s0=0.005, s1=40, q=Math.pow(s1/s0, 1/NS);
+  for(let j=0;j<NB;j++){
+    const b=MW_MB[j]*Math.PI/180, cb=Math.cos(b), sb=Math.sin(b);
+    for(let i=0;i<NL;i++){
+      const l=(-180+i*MW_DL)*Math.PI/180, dx=cb*Math.cos(l), dy=cb*Math.sin(l);
+      let tau=0, Io=0, Iy=0, In=0, s=s0;
+      for(let n=0;n<NS;n++){
+        const ds=s*(q-1), sm=s+0.5*ds, x=-p.R+sm*dx, yy=sm*dy, z=z0+sm*sb, R=Math.hypot(x, yy), az=Math.abs(z);
+        const k=kap*Math.exp(-R/3.5-az/0.12), att=Math.exp(-tau-0.5*k*ds);
+        const jo=cO*Math.exp(-R/p.rdo-az/p.ho)+cK*Math.exp(-R/p.rdk-az/p.hk)+cB*Math.exp(-Math.hypot(R, z)/rb), jy=cY*Math.exp(-R/p.rdy-az/p.hy);
+        Io+=jo*att*ds; Iy+=jy*att*ds; In+=(jo+jy)*ds;
+        tau+=k*ds; s*=q;
+      }
+      o[j*NL+i]=Io; y[j*NL+i]=Iy; nd[j*NL+i]=In;
+    }
+  }
+  return mwModels[p.T]={o, y, nd};
 }
 // Linear sRGB of unit luminance for starlight with young share y under dust tau (spMWAt), on a
 // grid of MW_CY by MW_CT up to tau MW_TMAX, made once.
@@ -101,20 +161,42 @@ function mwColour(y, tau, out){
   }
   return out;
 }
+// The map for the epoch shown, made again when the epoch changes to one whose Galaxy differs.
+// The layout's light is set so its brightest field, under today's dust, is MW_PEAK, as today's is;
+// then each place's old and young light is scaled by the model's then over now. The model's dust
+// does the dimming; what more of it there is than today, in e-folds (the model's light without the
+// dust over with it, then over now), adds to the map's own for the reddening.
+let mwFor=null;
 function buildMilkyWay(){
-  if(mwMap) return mwMap;
+  const p=MW_EPOCH[EP[dIdx].key], id=p?p.T:0;
+  if(mwMap&&mwFor===id) return mwMap;
+  const Y=mwLayout(p?p.seed:0), M=p&&p.T>0?mwModel(p):null, M0=M?mwModel(MW_EPOCH.now):null;
   const n=MW_W*MW_H, m=new Float32Array(n), age=new Float32Array(n*2), rgb=new Float32Array(n*3), c=[0, 0, 0];
-  const cols=Array.from({length:MW_W}, (_, i)=>mwColumn(-180+(i+0.5)/MW_W*360));
+  const cols=Array.from({length:MW_W}, (_, i)=>mwColumn(-180+(i+0.5)/MW_W*360, Y)), NL=360/MW_DL;
   let peak=0;
   for(let j=0;j<MW_H;j++){
-    const R=mwRow(-MW_BMAX+(j+0.5)/MW_H*2*MW_BMAX);
-    for(let i=0;i<MW_W;i++){ const k=j*MW_W+i, v=mwSurface(cols[i], R); m[k]=v; age[2*k]=MW_PX.young; age[2*k+1]=MW_PX.tau; if(v>peak) peak=v; }
+    const b=-MW_BMAX+(j+0.5)/MW_H*2*MW_BMAX, R=mwRow(b, Y);
+    let jb=0; while(jb<MW_MB.length-2&&MW_MB[jb+1]<=b) jb++;
+    const fb=(b-MW_MB[jb])/(MW_MB[jb+1]-MW_MB[jb]);
+    for(let i=0;i<MW_W;i++){
+      const k=j*MW_W+i, I=mwSurface(cols[i], R), tau=MW_PX.tau;
+      let y=MW_PX.young, v=I*Math.exp(-tau), red=tau;
+      if(v>peak) peak=v;
+      if(M){
+        const x=(i+0.5)/MW_W*NL, i0=Math.floor(x)%NL, i1=(i0+1)%NL, fx=x-Math.floor(x);
+        const at=(G, ii, jj)=>G[jj*NL+ii], bil=G=>(at(G, i0, jb)*(1-fx)+at(G, i1, jb)*fx)*(1-fb)+(at(G, i0, jb+1)*(1-fx)+at(G, i1, jb+1)*fx)*fb;
+        const Fo=bil(M.o)/bil(M0.o), Fy=bil(M.y)/bil(M0.y), F=(1-y)*Fo+y*Fy;
+        v*=F; y=y*Fy/F;
+        red+=Math.max(0, Math.log(bil(M.nd)/(bil(M.o)+bil(M.y))*(bil(M0.o)+bil(M0.y))/bil(M0.nd)));
+      }
+      m[k]=v; age[2*k]=y; age[2*k+1]=red;
+    }
   }
   for(let k=0;k<n;k++){
     m[k]*=MW_PEAK/peak; mwColour(age[2*k], age[2*k+1], c);
     rgb[3*k]=m[k]*c[0]; rgb[3*k+1]=m[k]*c[1]; rgb[3*k+2]=m[k]*c[2];
   }
-  mwAge=age; mwRGB=rgb;
+  mwAge=age; mwRGB=rgb; mwFor=id;
   return mwMap=m;
 }
 // The map at galactic longitude l and latitude b (degrees), bilinear: its V surface brightness, and

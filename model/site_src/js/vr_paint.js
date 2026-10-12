@@ -491,14 +491,15 @@ function paintVR(){
   // The night sky: the display curve, the Milky Way (uploaded once it is built), and limits.
   gl.uniform4f(u.toneU, skyNow.toneK, skyNow.toneP, 0.95, TOE_CD);
   gl.uniform1f(u.rCd, skyNow.rCd); gl.uniform1f(u.mwK, skyNow.extK);
-  if(mwMap && !vrGL.mwTex){
-    // Its light in linear sRGB (milkyway.js mwRGB), in units of 1e-4 cd/m².
-    const t=gl.createTexture(), half=new Float32Array(mwRGB.length);
+  if(mwMap && vrGL.mwTexOf!==mwRGB){
+    // Its light in linear sRGB (milkyway.js mwRGB), in units of 1e-4 cd/m², uploaded again when
+    // the epoch's map is made.
+    const t=vrGL.mwTex||gl.createTexture(), half=new Float32Array(mwRGB.length);
     for(let i=0;i<half.length;i++) half[i]=mwRGB[i]*1e4;
     gl.activeTexture(gl.TEXTURE13); gl.bindTexture(gl.TEXTURE_2D, t);
     texParams(gl, gl.LINEAR, gl.LINEAR, gl.REPEAT, gl.CLAMP_TO_EDGE);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB16F, MW_W, MW_H, 0, gl.RGB, gl.FLOAT, half);
-    gl.activeTexture(gl.TEXTURE0); vrGL.mwTex=t;
+    gl.activeTexture(gl.TEXTURE0); vrGL.mwTex=t; vrGL.mwTexOf=mwRGB;
   }
   gl.uniform1f(u.mwOn, vrGL.mwTex&&skyNow.gal?1:0);
   if(vrGL.mwTex&&skyNow.gal){

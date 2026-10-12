@@ -404,6 +404,8 @@ function renderDay(fast){
   const colgrid=new Uint8Array(NG*3), rgrid=new Float64Array(NG);
   for(let c=0;c<NG;c++){ toneTo(grid, c*3, Yref, k, p, 0.95, colgrid); rgrid[c]=Math.max(grid[c*3+1], 1e-30)/Yref; }
   // The Milky Way on the dome, per pixel, once the sky is dark enough for it to matter.
+  // The Milky Way of the epoch shown (milkyway.js), made again when the epoch changes.
+  if(mwMap) buildMilkyWay();
   const cdu=cdPerUnit(), mwOn=!!mwMap && rgrid[0]<2e-6, galB=mwOn?galacticBasis(LATDEG[dLat]):null, ek=extK(ep.key);
   // The nebulae and galaxies (dso.js): their bright cores can show through a moonlit sky.
   const dsoList=rgrid[0]<2e-4?dsoPlace(LATDEG[dLat]):[];

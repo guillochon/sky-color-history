@@ -273,8 +273,8 @@ CAVEATS = [
 "are found and timed with the enlarged disks), the sunset's dispersion up to 24 times, and the limb darkening at a "
 "fifth of its strength. Some things cannot be known and are drawn at random: where the planets stood on a given day "
 "before history, and every star before 66 Ma, which are stand-ins with today's statistics. The Earth's axis keeps "
-"today's tilt and direction in every epoch. The Milky Way keeps today's structure, turned only to where its center "
-"lay. The scenery and the clouds are drawn, not modeled, and the invented faces of Theia and the molten Moon are "
+"today's tilt and direction in every epoch. The Milky Way's dark clouds, star clouds and young-star fields before "
+"30 Ma are likewise stand-ins, and its evolution is a smooth model fitted to the Galaxy's history. The scenery and the clouds are drawn, not modeled, and the invented faces of Theia and the molten Moon are "
 "illustrations of what such worlds would be like.",
 ]
 

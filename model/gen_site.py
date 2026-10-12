@@ -160,6 +160,8 @@ DSO = json.loads((HERE / 'dso.json').read_text(encoding='utf-8'))
 DSO_IMG = f"dso.webp?v={hashlib.sha1((SITE / 'dso.webp').read_bytes()).hexdigest()[:10]}"
 # Each one's full-size tile (dso/<id>.webp), fetched when the walk-around view zooms in on it.
 DSO_HI = {o['id']: f"dso/{o['id'].replace(' ', '')}.webp?v={hashlib.sha1((SITE / 'dso' / (o['id'].replace(' ', '') + '.webp')).read_bytes()).hexdigest()[:10]}" for o in DSO['objects'] if (SITE / 'dso' / (o['id'].replace(' ', '') + '.webp')).exists()}
+# The Milky Way in each epoch (mw_evolution.py), for milkyway.js.
+MW_EPOCH = json.loads((HERE / 'mw_epochs.json').read_text(encoding='utf-8'))
 # The rocky bodies' surface maps (surfaces.py), one file each, fetched when the walk-around view zooms in on one.
 SURF_FILES = {p.stem.capitalize(): f"surf/{p.name}?v={hashlib.sha1(p.read_bytes()).hexdigest()[:10]}" for p in sorted((SITE / 'surf').glob('*.webp'))}
 # The Moon's whole globe for each epoch (moon_maps.py): site/moon/<face>.webp, fetched for the epoch shown.
@@ -241,7 +243,7 @@ html = html.replace('__FAVICON__', 'data:image/svg+xml,' + urllib.parse.quote(fa
 PDF_V = hashlib.sha1((HERE.parent / 'latex' / 'main.pdf').read_bytes()).hexdigest()[:10]
 html = html.replace('href="main.pdf"', f'href="main.pdf?v={PDF_V}"')
 html = html.replace('__EP__', json.dumps(EP, separators=(',',':'))).replace('__DAY__', json.dumps(DAY_META, separators=(',',':'))).replace('__SHAFT__', json.dumps(SHAFT))
-html = html.replace('__SURF_FILES__', json.dumps(SURF_FILES)).replace('__MOON_MAPS__', json.dumps(MOON_MAPS)).replace('__RELIEF_FILES__', json.dumps(RELIEF_FILES)).replace('__DSO_IMG__', DSO_IMG).replace('__DSO_HI__', json.dumps(DSO_HI)).replace('__DSO__', json.dumps(DSO, separators=(',', ':'), ensure_ascii=False))
+html = html.replace('__SURF_FILES__', json.dumps(SURF_FILES)).replace('__MOON_MAPS__', json.dumps(MOON_MAPS)).replace('__RELIEF_FILES__', json.dumps(RELIEF_FILES)).replace('__DSO_IMG__', DSO_IMG).replace('__DSO_HI__', json.dumps(DSO_HI)).replace('__DSO__', json.dumps(DSO, separators=(',', ':'), ensure_ascii=False)).replace('__MW_EPOCH__', json.dumps(MW_EPOCH, separators=(',', ':')))
 
 
 def minify(html):

@@ -380,8 +380,16 @@ MILKY_WAY = [
 "Cygnus is greyer and the edges of the Great Rift and the Coalsack browner. In the older skies its brightest part lies where the Galactic center "
 "then lay as seen from the Sun, from the Sun's orbit traced back through the same model Galaxy, and the "
 "band shifts by a few degrees with the Sun's height above the plane: at 66 Ma the Sun was 100 pc north of "
-"it. Beyond about a billion years the Sun's place on its orbit is only nominal. The Galaxy's own "
-"structure is today's in every epoch.",
+"it. Beyond about a billion years the Sun's place on its orbit is only nominal. The Galaxy itself "
+"changes too. The Sun was born about 5 kpc from the center and has since migrated out to 8.2 kpc "
+"(Frankel et al. 2018; Lu et al. 2024); the disc grew from the inside out, its half-mass radius by 43% over "
+"7 Gyr (Frankel et al. 2019); its stars were younger, so the disc was thinner and bluer and its bulge less "
+"faded, following the star formation history measured from Gaia (Snaith et al. 2014; Mor et al. 2019; "
+"Gallart et al. 2024); and there was more gas, so more dust (Genzel et al. 2015). Seen from the inner disc "
+"4.5 Ga, the band was little brighter along the plane, where the extra dust hid the extra stars, but it "
+"was broader, its glow a magnitude brighter 20° from the plane, and browner, the bulge behind more dust. "
+"Dark clouds last only tens of millions of years and spiral arms come and go, so before 30 Ma the band's "
+"rifts, star clouds and young-star fields are stand-ins of the same kind, not today's.",
 
 "The 34 nebulae and galaxies that binoculars show under a dark sky are drawn from survey photographs, "
 "their stars taken out, each scaled to its catalogue magnitude and surface brightness, and turning into "
