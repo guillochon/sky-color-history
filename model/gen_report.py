@@ -461,6 +461,13 @@ def blocks():
     B.append(fig(view('aurora'), "An aurora over the young Earth at 3.8 Ga, from mid-latitudes, on an active night, drawn as a dark-adapted eye sees it: with no free oxygen, nitrogen's violet bands and pink lower border rather than today's green and red. The aurora is brightened for print, 100 times its luminance on the site, where a true night is too dim to reproduce on paper.", 'fig:aurora'))
     B.append(S('Meteors and meteor showers')); B += ps(*RS['Meteors'])
     B.append(S('Fireballs and impacts')); B += ps(*rv.IMPACTS)
+    B.append(fig(view('proto_meteors'), "The proto-Earth's bombardment, at 4.55 Ga, from mid-latitudes, on a moonless world. Left: the "
+                 "whole sky at one instant of a midnight on the site's fisheye dome (zenith in the middle, horizon at the rim, north up), "
+                 "with about 18 meteors in the air at once, at 30,000 times today's rate, most of them slow asteroidal fireballs. Right: "
+                 "a ground strike in the first-person view, 6.8 seconds into an 8.5-second fall at 13.5 km/s: a stony body about 120 m across, "
+                 "magnitude −26.4, about as bright as the Sun, coming down 110 km away with 70 megatons, its dust trail "
+                 "behind it, and its light filling the night sky with the Sun 22° below the horizon. The weather's clouds are "
+                 "taken away for this view; the dust trail is drawn by the same cloud pass.", 'fig:protometeors'))
     B.append(S('Dust, comets and the Ordovician ring')); B += ps(*RS['Dust, comets and the Ordovician ring'])
     B.append(fig(view('ordovician'), "The night at 466 Ma, after the L-chondrite parent body's break-up: a hundred times today's fireballs, a bright zodiacal band, and the speculative ring of Tomkins, Martin &amp; Cawood (2024) as a faint arch.", 'fig:ordovician'))
     B.append(tab(rs.PHENOMENA_HEAD, rs.PHENOMENA, rs.PHENOMENA_CAPTION, 'tab:phenomena', spec='lp{2.1cm}YrYrr'))

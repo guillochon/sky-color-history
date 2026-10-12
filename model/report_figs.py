@@ -38,6 +38,13 @@ SHOTS = {
     # Telescope views, framed by the find tool and zoomed past it.
     'jupiter':      dict(epoch='modern', date='2026-10-11', t=240, look={'find': 'Jupiter'}, zoom=0.55, clouds=False, wait=8000),
     'saturn':       dict(epoch='modern', date='2017-06-15', t=1410, look={'find': 'Saturn'}, zoom=0.29, clouds=False, wait=10000),
+    # The proto-Earth's meteors: the whole sky at midnight on the page's fisheye dome (dome: the dome
+    # alone, at twice the pixels), and the first ground strike after the date of magnitude −26 or
+    # brighter with the Sun 18° down, at 80% of its fall (impact: the share of the fall), looked at
+    # where it is halfway down. The weather's clouds are taken away (gain cloud 0), not the cloud
+    # pass, which draws the bolide's dust trail.
+    'proto_dome':   dict(epoch='protoearth455', date='2026-10-11', t=0, dome=True, wait=5000),
+    'proto_impact': dict(epoch='protoearth455', date='2026-10-11', t=0, impact=0.8, minM=-26, fov=40, gain={'cloud': 0}, wait=12000),
 }
 
 # The total solar eclipse figure: in each of these epochs the first total eclipse after
@@ -61,9 +68,17 @@ def js_shot(s):
     """The page script that sets up one shot and resolves when it has painted."""
     return """(async()=>{
   const sl=ms=>new Promise(r=>setTimeout(r,ms)), S=%s;
-  let eclT=null;
+  let fixT=null;
   // A look is [azimuth, elevation], or {find: name} (an array's own .find must not be mistaken for it).
   for(let i=0;i<80&&typeof openMoment!=='function';i++) await sl(250);
+  if(S.dome){
+    setEpoch(EP.findIndex(e=>e.key===S.epoch)); dLat=S.lat||'Mid-latitude';
+    document.getElementById('moonDate').value=S.date; minutes=S.t; hslider.value=String(minutes); renderDay();
+    if(dayPlaying) document.getElementById('hplay').click();
+    const d=document.getElementById('domeMet'); d.scrollIntoView({block:'center'}); await sl(S.wait);
+    const r=d.getBoundingClientRect();
+    return {epoch:EP[dIdx].key, meteors:MET.list.length, clip:{x:r.x+scrollX, y:r.y+scrollY, width:r.width, height:r.height, scale:1}};
+  }
   if(S.moment){
     const m=MOMENTS.find(x=>x.title===S.moment); if(!m) return 'no moment '+S.moment;
     openMoment(m);
@@ -87,9 +102,17 @@ def js_shot(s):
         for(let i=0;i<40;i++){ const m=(lo+hi)/2; if(w(m)>0) lo=m; else hi=m; }
         t=lo;
       }
-      eclT=()=>{ const at=pageAt(dayOfMs(t)); document.getElementById('moonDate').value=at.date; minutes=at.min; hslider.value=String(minutes); renderDay();
+      fixT=()=>{ const at=pageAt(dayOfMs(t)); document.getElementById('moonDate').value=at.date; minutes=at.min; hslider.value=String(minutes); renderDay();
         const g=sunGeom(LATDEG[dLat], minutes), el=90-g.sza; vrYaw=g.az; vrPitch=S.ecl==='wide'?Math.min(el, S.fov/2-6):el; };
-      eclT();
+      fixT();
+    }
+    if(S.impact){
+      // The ground strikes listed about the date, the first bright enough by night.
+      const I=metImpacts(astroDay()*86400), m=I.next.find(q=>q.M<=S.minM&&90-sunGeom(LATDEG[dLat], pageAt(q.t0/86400).min).sza<-18);
+      if(!m) return 'no impact';
+      fixT=()=>{ const at=pageAt((m.t0+S.impact*m.T)/86400); document.getElementById('moonDate').value=at.date; minutes=at.min; hslider.value=String(minutes); renderDay();
+        const a=metApparent(m, 0.5, extK(S.epoch)); vrYaw=(Math.atan2(a.dir[0], a.dir[1])*180/Math.PI+360)%%360; vrPitch=a.el; };
+      fixT();
     }
     vrEntryLook=()=>{ if(Array.isArray(S.look)){ vrYaw=S.look[0]; vrPitch=S.look[1]; } };
     enterVR(false); paintVR();
@@ -104,9 +127,9 @@ def js_shot(s):
   if(S.gain) Object.assign(vrFigGain, S.gain);
   if(S.fov) vrFov=S.fov; else if(S.zoom) vrFov*=S.zoom;
   if(Array.isArray(S.look)&&!S.moment){ vrYaw=S.look[0]; vrPitch=S.look[1]; }
-  if(eclT) eclT();
+  if(fixT) fixT();
   requestVR(); await sl(S.wait||5000);
-  if(dayPlaying){ document.getElementById('hplay').click(); if(eclT) eclT(); requestVR(); await sl(1500); }
+  if(dayPlaying){ document.getElementById('hplay').click(); if(fixT) fixT(); requestVR(); await sl(1500); }
   return {epoch:EP[dIdx].key, fov:vrFov, yaw:vrYaw, pitch:vrPitch, playing:dayPlaying, date:document.getElementById('moonDate').value, t:minutes, eclipse:skyNow.eclipse};
 })()""" % (json.dumps(s), "{k:S.look.find==='Sun'?'sun':S.look.find==='Moon'?'moon':'body',name:S.look.find}")
 
@@ -142,6 +165,19 @@ def eclipse_montage():
     sheet.save(OUT / 'view_eclipses.jpg', quality=90)
     print(OUT / 'view_eclipses.jpg', sheet.size)
 
+def proto_montage():
+    """The proto-Earth's meteors as one figure: the dome on the left, the impact on the right,
+    cropped to 4:3 about its middle, at the dome's height."""
+    from PIL import Image
+    a, b = Image.open(OUT / 'view_proto_dome.jpg'), Image.open(OUT / 'view_proto_impact.jpg')
+    b = b.crop(((b.width - b.height * 4 // 3) // 2, 0, (b.width + b.height * 4 // 3) // 2, b.height))
+    b = b.resize((a.height * 4 // 3, a.height), Image.LANCZOS)
+    gap = 12
+    sheet = Image.new('RGB', (a.width + gap + b.width, a.height), (255, 255, 255))
+    sheet.paste(a, (0, 0)); sheet.paste(b, (a.width + gap, 0))
+    sheet.save(OUT / 'view_proto_meteors.jpg', quality=90)
+    print(OUT / 'view_proto_meteors.jpg', sheet.size)
+
 async def run(base, names):
     prof = tempfile.mkdtemp(prefix='viewfigs')
     port = 9341
@@ -163,20 +199,26 @@ async def run(base, names):
             await call('Page.enable')
             await call('Emulation.setDeviceMetricsOverride', width=W, height=H, deviceScaleFactor=1, mobile=False)
             for name in names:
+                # The dome alone is shot, its canvases drawn at twice the pixels.
+                await call('Emulation.setDeviceMetricsOverride', width=W, height=H, deviceScaleFactor=2 if SHOTS[name].get('dome') else 1, mobile=False)
                 await call('Page.navigate', url=f'{base}/?cb={time.time()}')
                 await asyncio.sleep(3)
                 await call('Runtime.evaluate', expression=JS_HIDE, returnByValue=True)
                 r = await call('Runtime.evaluate', expression=js_shot(SHOTS[name]), awaitPromise=True, returnByValue=True, timeout=120000)
                 print(name, r.get('result', {}).get('result', {}).get('value', r))
                 await call('Runtime.evaluate', expression=JS_HIDE, returnByValue=True)
-                shot = await call('Page.captureScreenshot', format='jpeg', quality=90)
+                v = r.get('result', {}).get('result', {}).get('value')
+                clip = v.get('clip') if isinstance(v, dict) else None
+                shot = await call('Page.captureScreenshot', format='jpeg', quality=90, **({'clip': clip} if clip else {}))
                 (OUT / f'view_{name}.jpg').write_bytes(base64.b64decode(shot['result']['data']))
     finally:
         p.kill()
 
 if __name__ == '__main__':
     base = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1].startswith('http') else 'http://localhost:8767'
-    # 'eclipses' alone rebuilds the eclipse figure from the shots already taken.
+    # 'eclipses' or 'proto' alone rebuilds that figure from the shots already taken.
     names = [a for a in sys.argv[1:] if not a.startswith('http')] or list(SHOTS)
-    if names != ['eclipses']: asyncio.run(run(base.rstrip('/'), [n for n in names if n != 'eclipses']))
+    shots = [n for n in names if n in SHOTS]
+    if shots: asyncio.run(run(base.rstrip('/'), shots))
     if 'eclipses' in names or any(n.startswith('ecl_') for n in names): eclipse_montage()
+    if 'proto' in names or any(n.startswith('proto_') for n in names): proto_montage()

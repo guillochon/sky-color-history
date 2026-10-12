@@ -21,3 +21,5 @@ model/data/
 model/horizons_cache/
 .env
 latex/figures/view_ecl_*.jpg
+latex/figures/view_proto_dome.jpg
+latex/figures/view_proto_impact.jpg

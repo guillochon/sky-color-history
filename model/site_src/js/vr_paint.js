@@ -125,8 +125,10 @@ function landHeight(x, y){
 // the GPU does (bilinear, repeating).
 let weatherBytes=null;
 // Brightness of the Milky Way and the aurora, raised only for the report's figures (report_figs.py),
-// where a true night is too dark to print. The page leaves both at 1.
-let vrFigGain={mw:1, aur:1};
+// where a true night is too dark to print, and the share of the weather's cloud kept (cloud), which
+// a figure sets to 0 to clear the sky while the cloud pass still draws a bolide's dust trail. The
+// page leaves all three at 1.
+let vrFigGain={mw:1, aur:1, cloud:1};
 function weatherData(){ return weatherBytes||(weatherBytes=makeWeather(256)); }
 function wtex(u, v, c){
   const W=weatherData(), n=256, x=u*n-0.5, y=v*n-0.5, x0=Math.floor(x), y0=Math.floor(y), fx=x-x0, fy=y-y0;
@@ -593,6 +595,7 @@ function paintVR(){
     if(cloudMinPrev==null) cloudMinPrev=minutes;
     else { let dm=minutes-cloudMinPrev; if(dm<-DAYMIN/2) dm+=DAYMIN; cloudMinPrev=minutes; cloudScroll+=dm*88; vrGL.cloudTime=(vrGL.cloudTime||0)+dm*35; }
     vrGL.field=cloudField(EP[dIdx].key);
+    if(vrFigGain.cloud<1){ const f=vrGL.field, g=vrFigGain.cloud; f.cov=Math.max(1e-4, f.cov*g); f.deck*=g; f.cirrus*=g; }
     gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, vrGL.weather);
     gl.uniform1f(u.cloudCov, vrGL.field.cov); gl.uniform1f(u.cloudScale, vrGL.field.scale); gl.uniform1f(u.cloudDrift, cloudScroll); gl.uniform1f(u.cloudOn, vrClouds?1:0);
     gl.activeTexture(gl.TEXTURE0);
