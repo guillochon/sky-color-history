@@ -172,7 +172,7 @@ from epochs import BY_KEY
 FIGS = ROOT.parent / 'latex' / 'figures'
 def view(name): return FIGS / f'view_{name}.jpg'
 
-TITLE = "The view from Earth, 4.5 billion years to today"
+TITLE = "A Complete History of the Earth's Sky"
 LEDE = ("What could be seen from the ground at nineteen moments in Earth's history: the color of the sky, "
         "straight up and at the horizon, at the equator and the poles, at noon and at dusk, reconstructed with a spectral "
         "radiative-transfer model; and the Sun, Moon, planets, stars and everything else above it, from the molten "
@@ -602,11 +602,11 @@ def render_html(B, nums):
     toc_html = '<nav class="toc">' + ''.join(f'<a href="#{i}">{t}</a>' for i, t in toc) + '<a href="#references">References</a><a href="#appendix">Appendix</a></nav>'
     return f'''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>The View from Earth Through Time</title>
+<title>A Complete History of the Earth's Sky</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,300;1,6..72,400&display=swap" rel="stylesheet">
 <style>{CSS}</style></head><body><main>
-<h1>The view from Earth, <em>4.5 billion years to today</em></h1>
+<h1>A Complete History of the Earth's Sky</h1>
 <p class="lede">{LEDE}</p>
 <p class="byline">James Guillochon · <a href="mailto:guillochon@gmail.com">guillochon@gmail.com</a> · October 2026</p>
 <p class="byline">Interactive experience at <a href="https://earthsky.astrocrash.net">earthsky.astrocrash.net</a></p>
@@ -659,7 +659,7 @@ def render_tex(B):
     head = (r"""\twocolumn[
 \begin{@twocolumnfalse}
 \vspace*{-6mm}
-{\color{sky}\fontsize{28}{30}\selectfont\bfseries The view from Earth,\\ 4.5 billion years to today\par}
+{\color{sky}\fontsize{28}{30}\selectfont\bfseries A Complete History of the Earth's Sky\par}
 \vspace{6pt}
 {\large\color{ink} """ + D.tex(LEDE) + r"""\par}
 \vspace{4pt}
