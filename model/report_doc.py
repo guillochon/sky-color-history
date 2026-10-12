@@ -140,7 +140,9 @@ def render_tex(blocks, bib):
         elif k == 'fig':
             env = 'figure*' if b['wide'] else 'figure'
             width = '\\textwidth' if b['wide'] else '\\linewidth'
-            out.append(f'\\begin{{{env}}}[t]\\centering\\includegraphics[width={width}]{{figures/{b["path"].name}}}\n'
+            # No more than two thirds of the page high, so a tall figure still fits at the top of a page
+            # with its caption: a float that cannot be placed holds back every one after it to the end.
+            out.append(f'\\begin{{{env}}}[tp]\\centering\\includegraphics[width={width},height=0.66\\textheight,keepaspectratio]{{figures/{b["path"].name}}}\n'
                        f'\\caption{{{tex_text(b["caption"], bib)}}}\\label{{{b["label"]}}}\\end{{{env}}}\n')
         elif k == 'table':
             env = 'table*' if b['wide'] else 'table'
@@ -148,7 +150,7 @@ def render_tex(blocks, bib):
             spec = b['spec'] or ('l' + 'Y' * (len(b['head']) - 1))
             body = '\n'.join(' & '.join(tex_text(str(c), bib) for c in r) + r' \\' for r in b['rows'])
             size = '\\scriptsize' if b['small'] else '\\footnotesize'
-            out.append(f'\\begin{{{env}}}[t]\\centering{size}\n\\caption{{{tex_text(b["caption"], bib)}}}\\label{{{b["label"]}}}\n'
+            out.append(f'\\begin{{{env}}}[tp]\\centering{size}\n\\caption{{{tex_text(b["caption"], bib)}}}\\label{{{b["label"]}}}\n'
                        f'\\rowcolors{{2}}{{rowa}}{{white}}\n\\begin{{tabularx}}{{{width}}}{{@{{}}{spec}@{{}}}}\\toprule\n'
                        + ' & '.join(tex(h) for h in b['head']) + ' \\\\ \\midrule\n' + body + '\n\\bottomrule\\end{tabularx}\n'
                        f'\\end{{{env}}}\n')

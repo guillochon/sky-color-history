@@ -339,7 +339,7 @@ def globes_block():
     cap = ("Volumetric renderings of the atmosphere at eight epochs. Equinox geometry with the Sun behind the viewer; the shell is the limb "
            "color along tangent rays, drawn 30 times too thick (100 km spans half an Earth radius); the disk is the planet's reflected color "
            "over ocean (ice for Snowball Earth). Limb brightness is compressed so faint upper layers remain visible.")
-    t = '\\begin{figure*}[t]\\centering\n' + grid + '\\caption{' + D.tex(cap) + '}\\label{fig:globes}\n\\end{figure*}\n'
+    t = '\\begin{figure*}[tp]\\centering\n' + grid + '\\caption{' + D.tex(cap) + '}\\label{fig:globes}\n\\end{figure*}\n'
     t += '{\\footnotesize\n' + ''.join(f"\\textbf{{{D.tex(byk[k]['name'])}.}} {D.tex(LIMB_CAP[k])}\n\n" for k in GL) + '}\n'
     h = limb_html.replace('</div>\n<script>', f'</div><p class="tcap"><b>{{ref:fig:globes}}.</b> {cap}</p>\n<script>', 1)
     b = D.raw(h.replace('<div class="globes">', '<div class="globes" id="fig:globes">', 1), t); b['figures'] = ['fig:globes']
@@ -646,6 +646,7 @@ PREAMBLE = r"""\PassOptionsToPackage{table}{xcolor}
 \raggedbottom
 \newcolumntype{Y}{>{\raggedright\arraybackslash}X}
 \renewcommand{\arraystretch}{1.15}
+\renewcommand{\dbltopfraction}{0.9}\renewcommand{\dblfloatpagefraction}{0.6}\renewcommand{\textfraction}{0.07}
 \setlength{\tabcolsep}{4pt}
 \begin{document}
 """
