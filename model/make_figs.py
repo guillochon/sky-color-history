@@ -82,11 +82,15 @@ def globe(k, W=1000):
         img[..., q][m2] = img[..., q][m2]*(1-fade[m2]) + v*fade[m2]
     fig, ax = plt.subplots(figsize=(5, 5), dpi=200); fig.patch.set_facecolor('#05060a')
     ax.imshow(np.clip(img, 0, 1), extent=[0, W, W, 0]); ax.axis('off')
-    for hh in [0, 20, 50, 100]:
+    # White labels on translucent dark chips, readable on a bright limb, as the site draws them;
+    # the heights staggered so they do not overlap.
+    chip = dict(boxstyle='round,pad=0.25,rounding_size=0.3', fc=(8/255, 10/255, 16/255, .62), ec='none')
+    def tag(x, y, s, **kw): ax.text(x, y, s, color=(1, 1, 1, .92), fontsize=6, bbox=chip, **kw)
+    for n, (hh, lab) in enumerate([(0, '0'), (20, '20'), (50, '50'), (100, '100 km')]):
         rr = R*(1+EX*hh/hmax); ax.plot([cx+rr, cx+rr], [cy, cy+14], color='white', alpha=.6, lw=.8)
-        ax.text(cx+rr-20, cy+42, f'{hh} km', color='white', alpha=.8, fontsize=6)
-    ax.text(cx-R*0.98+8, cy-10, 'equator', color='white', alpha=.8, fontsize=6)
-    ax.text(cx-28, cy-R-14, 'pole', color='white', alpha=.8, fontsize=6)
+        tag(cx+rr-8, cy+40+(28 if n % 2 else 0), lab)
+    tag(cx-R*0.98+8, cy-10, 'equator')
+    tag(cx-20, cy-R-14, 'pole')
     fig.savefig(f'{OUT}/globe_{k}.png', facecolor='#05060a', bbox_inches='tight', pad_inches=0.05); plt.close()
 for k in gr.LIMB_ORDER: globe(k)
 

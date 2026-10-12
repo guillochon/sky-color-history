@@ -55,6 +55,11 @@ SHOTS = {
     # pass, which draws the bolide's dust trail.
     'proto_dome':   dict(epoch='protoearth455', date='2026-10-11', t=0, dome=True, wait=5000),
     'proto_impact': dict(epoch='protoearth455', date='2026-10-11', t=0, impact=0.8, minM=-26, fov=40, gain={'cloud': 0}, wait=12000),
+    # Snowball Earth's diamond dust at mid-latitude, the morning Sun 22° up (sunEl: the first minute
+    # of the date it reaches that height, the view turned to its azimuth): the 22° and 46° halos, the
+    # sun dogs, the tangent arcs, the circumzenithal arc and the parhelic circle in one frame (wh: the
+    # viewport's width and height).
+    'halos':        dict(epoch='snowball07', date='2026-03-20', sunEl=22, look=[0, 37], fov=90, wh=(1600, 1280), clouds=False, wait=8000),
 }
 
 # The total solar eclipse figure: in each of these epochs the first total eclipse after
@@ -114,6 +119,11 @@ def js_shot(s):
       }
       fixT=()=>{ const at=pageAt(dayOfMs(t)); document.getElementById('moonDate').value=at.date; minutes=at.min; hslider.value=String(minutes); renderDay();
         const g=sunGeom(LATDEG[dLat], minutes), el=90-g.sza; vrYaw=g.az; vrPitch=S.ecl==='wide'?Math.min(el, S.fov/2-6):el; };
+      fixT();
+    }
+    if(S.sunEl){
+      let m=0; while(m<720&&90-sunGeom(LATDEG[dLat], m).sza<S.sunEl) m++;
+      fixT=()=>{ minutes=m; hslider.value=String(minutes); renderDay(); vrYaw=sunGeom(LATDEG[dLat], m).az; vrPitch=S.look[1]; };
       fixT();
     }
     if(S.impact){
@@ -278,8 +288,8 @@ async def run(base, names):
             await call('Emulation.setDeviceMetricsOverride', width=W, height=H, deviceScaleFactor=1, mobile=False)
             for name in names:
                 # The dome alone is shot, its canvases drawn at twice the pixels.
-                sz = SHOTS[name].get('size')
-                await call('Emulation.setDeviceMetricsOverride', width=sz or W, height=sz or H, deviceScaleFactor=2 if SHOTS[name].get('dome') else 1, mobile=False)
+                sz = SHOTS[name].get('size'); w, h = SHOTS[name].get('wh') or (sz or W, sz or H)
+                await call('Emulation.setDeviceMetricsOverride', width=w, height=h, deviceScaleFactor=2 if SHOTS[name].get('dome') else 1, mobile=False)
                 await call('Page.navigate', url=f'{base}/?cb={time.time()}')
                 await asyncio.sleep(3)
                 await call('Runtime.evaluate', expression=JS_HIDE, returnByValue=True)

@@ -169,7 +169,7 @@ SECTIONS = [
 
 ['Ice halos', [
 "In clear, very cold air the sky fills with diamond dust, tiny hexagonal plates and columns of ice drifting near "
-"the ground. Snowball Earth's air would have been full of them at every latitude. Today they are common on the "
+"the ground. Snowball Earth's air would have been full of them at every latitude ({ref:fig:halos}). Today they are common on the "
 "Antarctic plateau and in Arctic winter, so they are drawn at 75° in the modern epochs and in the other cold "
 "epochs (2.2 Ga at the end of the Huronian glaciations, the Late Ordovician and Late Paleozoic ice ages, and the "
 "Pleistocene), and faintly at 45° at 342 ka, a glacial maximum.",

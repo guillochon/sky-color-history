@@ -397,11 +397,15 @@ def blocks():
     B.append(S('The atmosphere from space', 'from-space'))
     B.append(p(LIMB_TEXT))
     B.append(globes_block())
-    B.append(fig(view('kpg'), "Noon months after the Chicxulub impact, at 66 Ma: soot and sulfate turn the sky a dim, uniform amber-beige with no blue at all, about a fifth as bright as a clear sky, with almost no cloud.", 'fig:kpg'))
+    B.append(fig(view('kpg'), "Noon months after the Chicxulub impact, at 66 Ma: soot and sulfate turn the sky a dim, uniform amber-beige with no blue at all, about a fifth as bright as a clear sky, with almost no cloud.", 'fig:kpg', wide=False))
     B.append(S('Clouds')); B += ps(*RS['Clouds'])
-    B.append(fig(view('archean'), "An afternoon at 2.7 Ga under the thick organic haze, as the site's first-person view draws it: a pale orange dome with almost no difference between zenith and horizon, the Sun a soft disk, and sparse cumulus.", 'fig:archean'))
+    B.append(fig(view('archean'), "An afternoon at 2.7 Ga under the thick organic haze, as the site's first-person view draws it: a pale orange dome with almost no difference between zenith and horizon, the Sun a soft disk, and sparse cumulus.", 'fig:archean', wide=False))
     B.append(S('Crepuscular rays')); B += ps(*rv.SHAFTS)
     B.append(S('Ice halos')); B += ps(*RS['Ice halos'])
+    B.append(fig(view('halos'), "A morning on Snowball Earth at 700 Ma, from mid-latitudes, the Sun 22° up through clear air full of "
+                 "diamond dust: the 22° halo with its tangent arcs hugging its top and bottom, the sun dogs just outside it, the faint "
+                 "46° halo, the circumzenithal arc high overhead, and the parhelic circle running level through the Sun. Each arc "
+                 "is red on its side toward the Sun.", 'fig:halos', wide=False))
 
     B.append(P('The Sun', 'sun'))
     B.append(S('The young Sun')); B += ps(*rv.SUN_YOUNG)
@@ -458,12 +462,12 @@ def blocks():
     B.append(p(ENC_PROSE[1]))
     B.append(S('The Milky Way, nebulae and galaxies')); B += ps(*rv.MILKY_WAY)
     B.append(S('Supernovae')); B += ps(*rv.SUPERNOVAE)
-    B.append(fig(view('geminga'), "The Geminga supernova 342,000 years ago, near magnitude −11 in Orion, a fifth of the full Moon's light from a single point, among the stars moved back along their measured motions.", 'fig:geminga'))
+    B.append(fig(view('geminga'), "The Geminga supernova 342,000 years ago, near magnitude −11 in Orion, a fifth of the full Moon's light from a single point, among the stars moved back along their measured motions.", 'fig:geminga', wide=False))
 
     B.append(P('The night and what crosses it', 'night'))
     B.append(S('Twilight and the night sky')); B += ps(*RS['Twilight and the night sky'][:-1])
     B.append(S('Aurorae')); B += ps(*RS['Aurorae'])
-    B.append(fig(view('aurora'), "An aurora over the young Earth at 3.8 Ga, from mid-latitudes, on an active night, drawn as a dark-adapted eye sees it: with no free oxygen, nitrogen's violet bands and pink lower border rather than today's green and red. The aurora is brightened for print, 100 times its luminance on the site, where a true night is too dim to reproduce on paper.", 'fig:aurora'))
+    B.append(fig(view('aurora'), "An aurora over the young Earth at 3.8 Ga, from mid-latitudes, on an active night, drawn as a dark-adapted eye sees it: with no free oxygen, nitrogen's violet bands and pink lower border rather than today's green and red. The aurora is brightened for print, 100 times its luminance on the site, where a true night is too dim to reproduce on paper.", 'fig:aurora', wide=False))
     B.append(S('Meteors and meteor showers')); B += ps(*RS['Meteors'])
     B.append(S('Fireballs and impacts')); B += ps(*rv.IMPACTS)
     B.append(fig(view('proto_meteors'), "The proto-Earth's bombardment, at 4.55 Ga, from mid-latitudes, on a moonless world. Left: the "
@@ -474,7 +478,7 @@ def blocks():
                  "behind it, and its light filling the night sky with the Sun 22° below the horizon. The weather's clouds are "
                  "taken away for this view; the dust trail is drawn by the same cloud pass.", 'fig:protometeors'))
     B.append(S('Dust, comets and the Ordovician ring')); B += ps(*RS['Dust, comets and the Ordovician ring'])
-    B.append(fig(view('ordovician'), "The night at 466 Ma, after the L-chondrite parent body's break-up: a hundred times today's fireballs, a bright zodiacal band, and the speculative ring of Tomkins, Martin &amp; Cawood (2024) as a faint arch.", 'fig:ordovician'))
+    B.append(fig(view('ordovician'), "The night at 466 Ma, after the L-chondrite parent body's break-up: a hundred times today's fireballs, a bright zodiacal band, and the speculative ring of Tomkins, Martin &amp; Cawood (2024) as a faint arch.", 'fig:ordovician', wide=False))
     B.append(tab(rs.PHENOMENA_HEAD, rs.PHENOMENA, rs.PHENOMENA_CAPTION, 'tab:phenomena', spec='lp{2.1cm}YrYrr'))
 
     B.append(P('The sky people made', 'people'))
@@ -485,7 +489,7 @@ def blocks():
     B.append(fig(view('town1815'), "A town night in 1815: oil lamps light the streets but barely touch the sky, and the Milky Way shows over the hills.", 'fig:town1815', wide=False))
     B.append(S('Aircraft')); B += ps(*rv.CONTRAILS)
     B.append(S('Satellites')); B += ps(*rv.SATELLITES)
-    B.append(fig(view('sats2100'), "Dusk in 2100: the filed megaconstellations and the Sunrise orbital datacenters, still in sunlight above the darkening sky.", 'fig:sats2100'))
+    B.append(fig(view('sats2100'), "Dusk in 2100: the filed megaconstellations and the Sunrise orbital datacenters, still in sunlight above the darkening sky.", 'fig:sats2100', wide=False))
 
     B.append(P('Epoch by epoch', 'epochs'))
     B.append(p("The panels that follow are laid out identically so they can be compared at a glance. Each begins with the epoch's "
