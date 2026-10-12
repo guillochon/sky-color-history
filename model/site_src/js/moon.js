@@ -156,7 +156,7 @@ function instantUT(){
 // With eqPlane the orbit lies in the equator instead: tilted by the obliquity, its ascending node on
 // the ecliptic held at the autumnal equinox.
 function moonEquatorial(d, rate=1, inc=MOON_INC_NOW, eqPlane=false, e=MOON_ECC_NOW){
-  const ecl=23.4393-3.563e-7*d;
+  const ecl=obliquity(d);
   const ws=282.9404+4.70935e-5*d, Ms=rev(356.0470+0.9856002585*d);
   const dm=DN_NEW0+(d-DN_NEW0)*rate, dp=DN_NEW0+(d-DN_NEW0)/rate, kp=1/rate;
   if(eqPlane) inc=ecl;

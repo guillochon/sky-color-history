@@ -146,14 +146,15 @@ function dayOfSolarLon(lam, d0){
   return d;
 }
 const wrap180=x=>x-360*Math.round(x/360);
-// Ecliptic (longitude, latitude) to equatorial (right ascension, declination), and back, degrees.
-function eclToEq(l, b){
-  const e=OBLIQUITY*Math.PI/180, L=l*Math.PI/180, B=b*Math.PI/180;
+// Ecliptic (longitude, latitude) to equatorial (right ascension, declination), and back, degrees,
+// with obliquity eps (that of the instant shown unless given).
+function eclToEq(l, b, eps=obliquity()){
+  const e=eps*Math.PI/180, L=l*Math.PI/180, B=b*Math.PI/180;
   const dec=Math.asin(Math.sin(B)*Math.cos(e)+Math.cos(B)*Math.sin(e)*Math.sin(L));
   return [rev(Math.atan2(Math.sin(L)*Math.cos(e)-Math.tan(B)*Math.sin(e), Math.cos(L))*180/Math.PI), dec*180/Math.PI];
 }
-function eqToEcl(ra, dec){
-  const e=OBLIQUITY*Math.PI/180, A=ra*Math.PI/180, D=dec*Math.PI/180;
+function eqToEcl(ra, dec, eps=obliquity()){
+  const e=eps*Math.PI/180, A=ra*Math.PI/180, D=dec*Math.PI/180;
   const b=Math.asin(Math.sin(D)*Math.cos(e)-Math.cos(D)*Math.sin(e)*Math.sin(A));
   return [rev(Math.atan2(Math.sin(A)*Math.cos(e)+Math.tan(D)*Math.sin(e), Math.cos(A))*180/Math.PI), b*180/Math.PI];
 }
@@ -166,7 +167,7 @@ function eqToEcl(ra, dec){
 // peak's share f of the ZHR at maximum and the background's B before and after.
 function showerFromRow(row){
   const [code, name, member, lmax, ra, dec, dra, ddec, v, r, Z, Bm, Bp, a0, a1, parent, rho, f, Bbm, Bbp]=row;
-  const [el, beta]=eqToEcl(ra, dec);
+  const [el, beta]=eqToEcl(ra, dec, 23.4393);
   return {code, name, member, parent, lmax, ra, dec, dra, ddec, v, r, Z, Bm, Bp, f:f||1, Bbm:Bbm||0, Bbp:Bbp||0, a0, a1, rho:rho||1.0, dl:wrap180(el-lmax), beta};
 }
 let SHOWER_LIST=null;

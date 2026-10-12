@@ -96,7 +96,7 @@ function cometHelio(c, jd, tp){
 function earthHelio(d){ const s=sunEquatorial(d), l=s.lam*Math.PI/180; return [-s.au*Math.cos(l), -s.au*Math.sin(l), 0]; }
 // A heliocentric point to a direction in the horizon frame, at latitude lat, with Earth at E.
 function helioToHoriz(P, E, lat, lst){
-  const x=P[0]-E[0], y=P[1]-E[1], z=P[2]-E[2], D=Math.hypot(x, y, z), eps=OBLIQUITY*Math.PI/180;
+  const x=P[0]-E[0], y=P[1]-E[1], z=P[2]-E[2], D=Math.hypot(x, y, z), eps=obliquity()*Math.PI/180;
   const X=x, Yq=y*Math.cos(eps)-z*Math.sin(eps), Zq=y*Math.sin(eps)+z*Math.cos(eps);
   const ra=Math.atan2(Yq, X)*180/Math.PI, dec=Math.asin(Zq/D)*180/Math.PI, p=altaz(lat, dec, rev(lst-ra));
   return {dir:horizDir(p.az, p.alt), el:p.alt, az:p.az, D};

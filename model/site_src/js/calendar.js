@@ -66,13 +66,55 @@ function dateAtFraction(Y, f){
   if(gregorian()){ const a=dayNumber(Y,1,1,0), n=dayNumber(Y+1,1,1,0)-a; return localISODate(localDate(Y, 0, 1+Math.min(n-1, Math.round(f*n)))); }
   return fmtDate(...epochDateOf(yearStart(Y)+Math.min(yearLen(Y)-1, Math.round(f*yearLen(Y)))));
 }
+// Earth's axis: long-term precession (Vondrák, Capitaine & Wallace 2011, A&A 534, A22; as in
+// ERFA's eraLtp), good to a few arcseconds over a thousand years and to a degree or so over
+// ±200,000 years. The poles of the ecliptic (P_A, Q_A) and of the equator (X_A, Y_A) are
+// polynomials in centuries since J2000 plus periodic terms (period in centuries, then the cosine
+// and sine amplitudes, arcseconds). Each sky's year 0 has today's axis, and the years either side
+// of it turn and tilt it as they have around today: the obliquity runs between about 22° and 25°.
+const LTP_PQ=[[5851.607687, -0.1189000, -0.00028913, 0.000000101], [-1600.886300, 1.1689818, -0.00000020, -0.000000437]];
+const LTP_PQ_PER=[[708.15, -5486.751211, -684.661560, 667.666730, -5523.863691], [2309.00, -17.127623, 2446.283880, -2354.886252, -549.747450],
+  [1620.00, -617.517403, 399.671049, -428.152441, -310.998056], [492.20, 413.442940, -356.652376, 376.202861, 421.535876],
+  [1183.00, 78.614193, -186.387003, 184.778874, -36.776172], [622.00, -180.732815, -316.800070, 335.321713, -145.278396],
+  [882.00, -87.676083, 198.296701, -185.138669, -34.744450], [547.00, 46.140315, 101.135679, -120.972830, 22.885731]];
+const LTP_XY=[[5453.282155, 0.4252841, -0.00037173, -0.000000152], [-73750.930350, -0.7675452, -0.00018725, 0.000000231]];
+const LTP_XY_PER=[[256.75, -819.940624, 75004.344875, 81491.287984, 1558.515853], [708.15, -8444.676815, 624.033993, 787.163481, 7774.939698],
+  [274.20, 2600.009459, 1251.136893, 1251.296102, -2219.534038], [241.45, 2755.175630, -1102.212834, -1257.950837, -2523.969396],
+  [2309.00, -167.659835, -2660.664980, -2966.799730, 247.850422], [492.20, 871.855056, 699.291817, 639.744522, -846.485643],
+  [396.10, 44.769698, 153.167220, 131.600209, -1393.124055], [288.90, -512.313065, -950.865637, -445.040117, 368.526116],
+  [231.10, -819.415595, 499.754645, 584.522874, 749.045012], [1610.00, -538.071099, -145.188210, -89.756563, 444.704518],
+  [620.00, -189.793622, 558.116553, 524.429630, 235.934465], [157.87, -402.922932, -23.923029, -13.549067, 374.049623],
+  [220.30, 179.516345, -165.405086, -210.157124, -171.330180], [1200.00, -9.814756, 9.344131, -44.919798, -22.899655]];
+function ltpPair(t, pol, per){
+  let u=0, v=0;
+  for(const [P, cu, cv, su, sv] of per){ const a=2*Math.PI*t/P, c=Math.cos(a), s=Math.sin(a); u+=c*cu+s*su; v+=c*cv+s*sv; }
+  for(let i=0, w=1; i<4; i++, w*=t){ u+=pol[0][i]*w; v+=pol[1][i]*w; }
+  const arc=Math.PI/180/3600; return [u*arc, v*arc];
+}
+// The rotation from J2000 to the mean equator and equinox of year: its rows are the equinox, the
+// point 90° east of it, and the pole, in J2000 coordinates; eps is the obliquity (degrees).
+const LTP_CACHE=new Map();
+function precessionMatrix(year){
+  let R=LTP_CACHE.get(year);
+  if(R) return R;
+  const t=(year-2000)/100, cross=(a, b)=>[a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
+  const [p, q]=ltpPair(t, LTP_PQ, LTP_PQ_PER), [x, y]=ltpPair(t, LTP_XY, LTP_XY_PER);
+  const e0=84381.406*Math.PI/180/3600, wp=Math.sqrt(Math.max(0, 1-p*p-q*q));
+  const ecl=[p, -q*Math.cos(e0)-wp*Math.sin(e0), -q*Math.sin(e0)+wp*Math.cos(e0)], equ=[x, y, Math.sqrt(Math.max(0, 1-x*x-y*y))];
+  const n=cross(equ, ecl), m=Math.hypot(...n), eqx=n.map(c=>c/m);
+  R=[eqx, cross(equ, eqx), equ];
+  R.eps=Math.acos(equ[0]*ecl[0]+equ[1]*ecl[1]+equ[2]*ecl[2])*180/Math.PI;
+  if(LTP_CACHE.size>64) LTP_CACHE.clear();
+  LTP_CACHE.set(year, R); return R;
+}
+// The obliquity at day number d (default: the instant shown), to the nearest year.
+function obliquity(d=astroDay()){ return precessionMatrix(Math.round(2000+(d-DN_2000)/TROPICAL_YEAR)).eps; }
 // The Sun for day number d (Schlyter's elements, with the equation of centre): right ascension,
-// declination, ecliptic longitude, mean anomaly, and distance in AU. The axis keeps today's tilt
-// in every epoch; the Moon has held it between about 22° and 24.5°.
-const OBLIQUITY=23.44;
+// declination, ecliptic longitude, mean anomaly, and distance in AU, in the equator and ecliptic
+// of date (below).
 function sunEquatorial(d){
-  const Ms=rev(356.0470+0.9856002585*d), lam=rev(282.9404+4.70935e-5*d+Ms+1.9148*sind(Ms)+0.0200*sind(2*Ms));
-  return {RA:rev(Math.atan2(cosd(OBLIQUITY)*sind(lam), cosd(lam))*180/Math.PI), Dec:Math.asin(sind(OBLIQUITY)*sind(lam))*180/Math.PI,
+  const Ms=rev(356.0470+0.9856002585*d), lam=rev(282.9404+4.70935e-5*d+Ms+1.9148*sind(Ms)+0.0200*sind(2*Ms)), eps=obliquity(d);
+  return {RA:rev(Math.atan2(cosd(eps)*sind(lam), cosd(lam))*180/Math.PI), Dec:Math.asin(sind(eps)*sind(lam))*180/Math.PI,
     lam, Ms, au:1.00014-0.01671*cosd(Ms)-0.00014*cosd(2*Ms)};
 }
 // The clock is sundial time: the Sun crosses the meridian at 12:00. Local sidereal time follows

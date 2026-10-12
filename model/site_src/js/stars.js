@@ -51,22 +51,17 @@ function starTint(kelvin){
   return [r/y,g/y,b/y];
 }
 // Present-day mean place. epochKey is the geological scene; every scene uses this
-// catalog for now. Proper motion is applied in the J2000 frame, then equatorial
-// precession (Lieske, as given by Meeus) carries the place to `year`. Those series
-// only hold for centuries, so a historical sky replaces this function and keeps the call.
+// catalog for now. Proper motion is applied in the J2000 frame, then the long-term
+// precession (calendar.js) carries the place to `year`, counted from each sky's year 0 (2000).
 function starMeanPlace(star, epochKey, year){
   void epochKey;
   const dt=year-2000, cosDec=Math.cos(star[1]*Math.PI/180);
   const ra0=star[0]+(star[4]/3600)*dt/(Math.abs(cosDec)<1e-4?(cosDec<0?-1e-4:1e-4):cosDec);
   const dec0=star[1]+(star[5]/3600)*dt;
-  const T=dt/100, T2=T*T, T3=T2*T, arc=Math.PI/180/3600;
-  const zeta=(2306.2181*T+0.30188*T2+0.017998*T3)*arc;
-  const zed=(2306.2181*T+1.09468*T2+0.018203*T3)*arc;
-  const theta=(2004.3109*T-0.42665*T2-0.041833*T3)*arc;
-  const a=ra0*Math.PI/180+zeta, sd=Math.sin(dec0*Math.PI/180), cd=Math.cos(dec0*Math.PI/180);
-  const A=cd*Math.sin(a), B=Math.cos(theta)*cd*Math.cos(a)-Math.sin(theta)*sd, C=Math.sin(theta)*cd*Math.cos(a)+Math.cos(theta)*sd;
-  let ra=(Math.atan2(A,B)+zed)*180/Math.PI; ra=((ra%360)+360)%360;
-  return {ra, dec:Math.asin(Math.max(-1,Math.min(1,C)))*180/Math.PI};
+  const a=ra0*Math.PI/180, d=dec0*Math.PI/180, v=[Math.cos(d)*Math.cos(a), Math.cos(d)*Math.sin(a), Math.sin(d)];
+  const [X, Y, Z]=precessionMatrix(year).map(r=>r[0]*v[0]+r[1]*v[1]+r[2]*v[2]);
+  let ra=Math.atan2(Y, X)*180/Math.PI; ra=((ra%360)+360)%360;
+  return {ra, dec:Math.asin(Math.max(-1,Math.min(1,Z)))*180/Math.PI};
 }
 // Daylight exposure hides the stars. Flux is relative to the old faint limit.
 // At that magnitude and brighter, size and brightness stay as they were, the size growing as

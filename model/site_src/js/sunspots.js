@@ -495,7 +495,7 @@ function pumpSunJobs(){
 // longitudes turn with the equator's synodic rate.
 function sunOrientation(key, d){
   const s=sunEquatorial(d), JD=d+2451543.5, K=73.6667+1.3958333*(JD-2396758)/36525, lam=s.lam;
-  const x=Math.atan(-cosd(lam)*Math.tan(OBLIQUITY*Math.PI/180)), y=Math.atan(-cosd(lam-K)*Math.tan(7.25*Math.PI/180));
+  const x=Math.atan(-cosd(lam)*Math.tan(obliquity(d)*Math.PI/180)), y=Math.atan(-cosd(lam-K)*Math.tan(7.25*Math.PI/180));
   const B0=Math.asin(sind(lam-K)*Math.sin(7.25*Math.PI/180)), a=SS.sunAct(key), syn=360/a.prot-0.9856;
   const turns=d*syn/360;
   return {P:x+y, B0, phase:turns-Math.floor(turns)};

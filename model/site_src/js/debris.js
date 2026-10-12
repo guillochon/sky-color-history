@@ -41,7 +41,7 @@ function zodiS10(v, F, band=0){
 function eclipticFrame(lat){
   const lst=localSidereal(), sun=sunEquatorial(astroDay());
   const at=(ra, dec)=>{ const p=altaz(lat, dec, rev(lst-ra)); return horizDir(p.az, p.alt); };
-  const N=at(270, 90-OBLIQUITY), s=at(sun.RA, sun.Dec);
+  const N=at(270, 90-obliquity()), s=at(sun.RA, sun.Dec);
   // The Sun's direction in the ecliptic (it is on it, up to rounding).
   const se=vnorm(vadd(s, vscale(N, -vdot(s, N)), [0, 0, 0]));
   return {N, s, se, apex:vnorm(vcross(se, N)), pole:[0, Math.cos(lat*Math.PI/180), Math.sin(lat*Math.PI/180)], lst, lat};
@@ -63,7 +63,7 @@ function zodiExtra(key, v, F){
 // 1.5e-4 at most (about 1e14 kg of centimetre grains), makes the sunlit ring about as bright as
 // the Moon's light in total: plain at night, lost in a blue day sky. Its grains are L-chondrite
 // rubble, albedo 0.25, scattering as Lambert spheres. Earth's shadow takes a bite out of it
-// around midnight. Taken in today's equatorial plane, as Earth's axis keeps today's tilt here.
+// around midnight. Taken in the equatorial plane of the year shown.
 const RING={ordovician466:{rIn:1.55, rOut:2.75, tau:1.5e-4, H:2, alb:0.25, sunL:0.962}};
 const RE_KM=6371;
 function ringOf(key){ return RING[key]||null; }
