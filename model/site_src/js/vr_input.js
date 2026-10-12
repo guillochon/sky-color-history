@@ -631,7 +631,7 @@ function vrProbe(cx, cy, throughCloud, px, view){
     const a=px?px.accum:vrReadPixel(vrGL.accumFbo, Math.floor(x*vrGL.cw/c.width), Math.floor(y*vrGL.ch/c.height), !!vrGL.cloudHDR), s=vrGL.cloudHDR?1:1/255;
     if(a){ P.cloudPx={a:a[3]*s, rgb:[a[0]*s, a[1]*s, a[2]*s]}; P.cloud=P.cloudPx.a>0.35; }
   }
-  const sep=(bAz, bEl)=>Math.acos(Math.max(-1, Math.min(1, vdot(d, horizDir(bAz, apparentEl(bEl))))))*180/Math.PI, mo=skyNow.moon;
+  const sep=(bAz, bEl)=>Math.acos(Math.max(-1, Math.min(1, vdot(d, horizDir(bAz, shaderApparent(bEl).a)))))*180/Math.PI, mo=skyNow.moon;
   P.lit=!P.cloud&&mo.on?moonLitAt(horizDir(az, el), mo.radDeg*DISK_SCALE):null;
   P.moonXY=P.lit!=null?moonDiskXY(horizDir(az, el), mo.radDeg*DISK_SCALE):null;
   P.cr=sep(skyNow.sunAz, 90-skyNow.sza)/(mo.sunRadDeg*DISK_SCALE);
@@ -702,7 +702,7 @@ function syncVRLockBtns(){
     const t=on?'Unlock the view':'Lock the view to this'; b.title=t; b.setAttribute('aria-label', t);
   }
 }
-function vrSunBasis(){ return moonBasis({az:skyNow.sunAz, el:apparentEl(90-skyNow.sza)}); }
+function vrSunBasis(){ return moonBasis({az:skyNow.sunAz, el:shaderApparent(90-skyNow.sza).a}); }
 // Page point of a view-frame direction (as vrRayAt's), or null off the view.
 function vrPointOf(d){
   const W=window.innerWidth, H=Math.max(window.innerHeight, 1), fy=Math.tan(vrFov*Math.PI/360), fx=fy*W/H;
@@ -714,7 +714,7 @@ function vrPointOf(d){
   return cx>=0&&cx<W&&cy>=0&&cy<H?[cx, cy]:null;
 }
 // The same for a direction given by azimuth and true altitude.
-function vrPointAt(az, el){ return vrPointOf(horizDir(az, apparentEl(el))); }
+function vrPointAt(az, el){ return vrPointOf(horizDir(az, shaderApparent(el).a)); }
 // Where a pinned thing is: its direction in the view's frame (as vrRayAt's), its true altitude,
 // and whether it shows, or null when it is gone. A star or planet below the horizon is no longer
 // among the marks, so it is placed from its right ascension and declination.
@@ -724,9 +724,9 @@ function vrPinDir(p){
     const d=vnorm(vadd(b.md, vscale(b.east, p.ox), vscale(b.north, p.oy)));
     if(!trueFrame) return d;
     const el=Math.asin(Math.max(-1, Math.min(1, d[2])))*180/Math.PI;
-    return horizDir(Math.atan2(d[0], d[1])*180/Math.PI, apparentEl(el));
+    return horizDir(Math.atan2(d[0], d[1])*180/Math.PI, shaderApparent(el).a);
   };
-  const at=(az, el, on)=>({d:horizDir(az, apparentEl(el)), el, on});
+  const at=(az, el, on)=>({d:horizDir(az, shaderApparent(el).a), el, on});
   if(p.kind==='sky') return {d:p.d, el:90, on:true};
   if(p.kind==='sun') return {d:fromDisk(vrSunBasis(), false), el:90-skyNow.sza, on:skyNow.sunOn};
   if(p.kind==='moon') return {d:fromDisk(moonBasis(skyNow.moon), true), el:skyNow.moon.el, on:skyNow.moon.on};
@@ -757,8 +757,8 @@ function vrPinPoint(p){ const q=vrPinDir(p); return q&&q.on?vrPointOf(q.d):null;
 function vrPinBody(p){
   if(!skyNow) return null;
   const mo=skyNow.moon;
-  const [d, rad]=p.kind==='sun'?[vrSunBasis().md, mo.sunRadDeg]:p.kind==='moon'?[horizDir(mo.az, apparentEl(mo.el)), mo.radDeg]
-    :p.kind==='mark'&&p.m&&p.m.radDeg!=null?[horizDir(p.m.az, apparentEl(p.m.el)), p.m.radDeg*(p.m.rings?2.3:1)]:[null, 0];
+  const [d, rad]=p.kind==='sun'?[vrSunBasis().md, mo.sunRadDeg]:p.kind==='moon'?[horizDir(mo.az, shaderApparent(mo.el).a), mo.radDeg]
+    :p.kind==='mark'&&p.m&&p.m.radDeg!=null?[horizDir(p.m.az, shaderApparent(p.m.el).a), p.m.radDeg*(p.m.rings?2.3:1)]:[null, 0];
   const c=d&&vrPointOf(d);
   if(!c) return null;
   const r=Math.tan(rad*DISK_SCALE*Math.PI/180)/Math.tan(vrFov*Math.PI/360)*window.innerHeight/2;
