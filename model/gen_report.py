@@ -411,6 +411,17 @@ def blocks():
     B.append(fig(ROOT.parent / 'latex' / 'figures' / 'sun_closeup.jpg', rv.SUN_CAPTION, 'fig:sun'))
     B.append(S('The setting Sun')); B += ps(*RS['The setting Sun'])
     B.append(S('Solar eclipses')); B += ps(*RS['Solar eclipses'])
+    B.append(fig(view('eclipses'), "A total solar eclipse in five epochs, as the site's first-person view draws it: in each, the "
+                 "first total eclipse after October 2026 on the page's calendar with the Sun at least 25° up (today's is the eclipse of "
+                 "30 March 2033), cloud cleared. Left to right: the partial phase, 70 percent of the way from first to second contact; "
+                 "the diamond ring, with a sliver of photosphere half a percent of the Sun's width left; mid-totality; and mid-totality "
+                 "in a 75° view with the horizon. The close-ups share one scale (14° high), with the Sun and Moon at four times "
+                 "their size as on the site, so the growing Moon shows, from about the Sun's width today to 1.15 times it at 2.2 Ga and 1.55 "
+                 "times at 4.0 Ga, where it hides the inner corona; each frame is exposed as the site's view adapts to its light. "
+                 "Totality's sky is the epoch's twilight: slate blue-grey with a sunset rim on the horizon today, at 300 Ma and at "
+                 "2.2 Ga, amber over an orange horizon under the 2.7 Ga haze, which also dims the corona, and the hot young Sun's corona at 4.0 Ga is far larger and brighter. The young "
+                 "Sun's spots show on the crescents at 2.7 and 4.0 Ga. At 4.5 Ga the Moon is eight times the Sun's width and the corona "
+                 "hardly clears it.", 'fig:solar'))
 
     B.append(P('The Moon', 'moon'))
     B.append(S("The Moon's orbit through time")); B += ps(*rv.MOON_ORBIT)

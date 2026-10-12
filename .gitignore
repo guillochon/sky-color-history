@@ -20,3 +20,4 @@ site/main.pdf
 model/data/
 model/horizons_cache/
 .env
+latex/figures/view_ecl_*.jpg

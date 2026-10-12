@@ -40,12 +40,28 @@ SHOTS = {
     'saturn':       dict(epoch='modern', date='2017-06-15', t=1410, look={'find': 'Saturn'}, zoom=0.29, clouds=False, wait=10000),
 }
 
+# The total solar eclipse figure: in each of these epochs the first total eclipse after
+# ECL_FROM with the Sun at least 25° up at mid-eclipse (found as the site's t key finds them), shot
+# at four moments: the partial phase 70 percent of the way to totality, the diamond ring just
+# before second contact, mid-totality, and mid-totality wide with the horizon in view. The
+# close-ups share one scale, so the Moon's size shows; they leave the scenery out, which a low Sun
+# would sit behind. eclipse_montage() puts them together as view_eclipses.jpg.
+ECL_EPOCHS = [('modern', 'Today'), ('carbon30', '300 Ma'), ('proterozoic22', '2.2 Ga'),
+              ('archean27', '2.7 Ga, thick haze'), ('hadean40', '4.0 Ga')]
+ECL_PHASES = [('partial', 'Partial phase'), ('ring', 'Diamond ring'), ('total', 'Totality'), ('wide', 'Totality, wide')]
+ECL_FROM, ECL_FOV, ECL_WIDE = '2026-10-11', 14, 75
+for _k, _ in ECL_EPOCHS:
+    for _ph, _ in ECL_PHASES:
+        SHOTS[f'ecl_{_k}_{_ph}'] = dict(epoch=_k, date=ECL_FROM, t=0, ecl=_ph, minEl=25, clouds=False, scenery=_ph == 'wide',
+                                        fov=ECL_WIDE if _ph == 'wide' else ECL_FOV, wait=6000)
+
 JS_HIDE = """(()=>{const s=document.createElement('style');s.textContent='.vrui,.vrhud,.vrtop,.vrbot,.vrkeys,.vrpad,.vrnote,.vrmini,.vrwalk,.vrstick,#vrtip,#vrload,#vrprep,#sunmark,#moonmark,#snmark{display:none!important}';document.head.appendChild(s);return 1})()"""
 
 def js_shot(s):
     """The page script that sets up one shot and resolves when it has painted."""
     return """(async()=>{
   const sl=ms=>new Promise(r=>setTimeout(r,ms)), S=%s;
+  let eclT=null;
   // A look is [azimuth, elevation], or {find: name} (an array's own .find must not be mistaken for it).
   for(let i=0;i<80&&typeof openMoment!=='function';i++) await sl(250);
   if(S.moment){
@@ -56,6 +72,25 @@ def js_shot(s):
     document.getElementById('moonDate').value=S.date; minutes=S.t; hslider.value=String(minutes); renderDay();
     if(S.clouds!==undefined) vrClouds=S.clouds;
     if(S.scenery!==undefined) vrScenery=S.scenery;
+    if(S.ecl){
+      // The next total eclipse, its partial phase, and the moment this shot shows.
+      let after=pageMs(), ev=null;
+      for(let n=0;n<40;n++){ ev=findNextEclipse(after, true); if(!ev||ev.type==='total'&&eclipseAt((ev.start+ev.end)/2).el>=S.minEl) break; after=ev.start+1000; }
+      if(!ev) return 'no total eclipse';
+      const p=findNextEclipse(ev.start-0.4*86400000, false), mid=(ev.start+ev.end)/2;
+      let t=mid;
+      if(S.ecl==='partial') t=p.start+0.7*(ev.start-p.start);
+      if(S.ecl==='ring'){
+        // The sliver left (the disks as drawn) at half a percent of the Sun's width: beads and the ring.
+        const w=ms=>eclipseGap(ms, true)-0.005*2*DISK_SCALE*eclipseAt(ms).rS;
+        let lo=ev.start-3600000, hi=ev.start;
+        for(let i=0;i<40;i++){ const m=(lo+hi)/2; if(w(m)>0) lo=m; else hi=m; }
+        t=lo;
+      }
+      eclT=()=>{ const at=pageAt(dayOfMs(t)); document.getElementById('moonDate').value=at.date; minutes=at.min; hslider.value=String(minutes); renderDay();
+        const g=sunGeom(LATDEG[dLat], minutes), el=90-g.sza; vrYaw=g.az; vrPitch=S.ecl==='wide'?Math.min(el, S.fov/2-6):el; };
+      eclT();
+    }
     vrEntryLook=()=>{ if(Array.isArray(S.look)){ vrYaw=S.look[0]; vrPitch=S.look[1]; } };
     enterVR(false); paintVR();
   }
@@ -69,10 +104,43 @@ def js_shot(s):
   if(S.gain) Object.assign(vrFigGain, S.gain);
   if(S.fov) vrFov=S.fov; else if(S.zoom) vrFov*=S.zoom;
   if(Array.isArray(S.look)&&!S.moment){ vrYaw=S.look[0]; vrPitch=S.look[1]; }
+  if(eclT) eclT();
   requestVR(); await sl(S.wait||5000);
-  if(dayPlaying){ document.getElementById('hplay').click(); requestVR(); await sl(1500); }
-  return {epoch:EP[dIdx].key, fov:vrFov, yaw:vrYaw, pitch:vrPitch, playing:dayPlaying};
+  if(dayPlaying){ document.getElementById('hplay').click(); if(eclT) eclT(); requestVR(); await sl(1500); }
+  return {epoch:EP[dIdx].key, fov:vrFov, yaw:vrYaw, pitch:vrPitch, playing:dayPlaying, date:document.getElementById('moonDate').value, t:minutes, eclipse:skyNow.eclipse};
 })()""" % (json.dumps(s), "{k:S.look.find==='Sun'?'sun':S.look.find==='Moon'?'moon':'body',name:S.look.find}")
+
+def eclipse_montage():
+    """The eclipse shots as one figure: an epoch a row, the three close-ups cropped square and the
+    wide view at its own 16:9, with the phases over the columns and the epochs down the left."""
+    from PIL import Image, ImageDraw, ImageFont
+    def font(px):
+        for f in ('C:/Windows/Fonts/arial.ttf', '/System/Library/Fonts/Helvetica.ttc', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'):
+            try: return ImageFont.truetype(f, px)
+            except OSError: pass
+        return ImageFont.load_default()
+    S, WW, gap, top, left = 400, 711, 6, 44, 44
+    cols = [(S if ph != 'wide' else WW) for ph, _ in ECL_PHASES]
+    W = left + sum(cols) + gap * (len(cols) - 1)
+    H = top + len(ECL_EPOCHS) * S + gap * (len(ECL_EPOCHS) - 1)
+    sheet = Image.new('RGB', (W, H), (255, 255, 255)); d = ImageDraw.Draw(sheet); f = font(26)
+    x = left
+    for (ph, lab), cw in zip(ECL_PHASES, cols):
+        d.text((x + (cw - d.textlength(lab, font=f)) / 2, 8), lab, fill=(30, 30, 30), font=f); x += cw + gap
+    for r, (k, lab) in enumerate(ECL_EPOCHS):
+        y, x = top + r * (S + gap), left
+        for (ph, _), cw in zip(ECL_PHASES, cols):
+            im = Image.open(OUT / f'view_ecl_{k}_{ph}.jpg')
+            if ph != 'wide':
+                # The close-ups: the middle 720 pixels square, with the Sun at the centre.
+                cx, cy = im.width // 2, im.height // 2
+                im = im.crop((cx - 360, cy - 360, cx + 360, cy + 360))
+            sheet.paste(im.resize((cw, S), Image.LANCZOS), (x, y)); x += cw + gap
+        t = Image.new('RGB', (S, left), (255, 255, 255)); td = ImageDraw.Draw(t)
+        td.text(((S - td.textlength(lab, font=f)) / 2, 6), lab, fill=(30, 30, 30), font=f)
+        sheet.paste(t.rotate(90, expand=True), (0, y))
+    sheet.save(OUT / 'view_eclipses.jpg', quality=90)
+    print(OUT / 'view_eclipses.jpg', sheet.size)
 
 async def run(base, names):
     prof = tempfile.mkdtemp(prefix='viewfigs')
@@ -108,5 +176,7 @@ async def run(base, names):
 
 if __name__ == '__main__':
     base = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1].startswith('http') else 'http://localhost:8767'
+    # 'eclipses' alone rebuilds the eclipse figure from the shots already taken.
     names = [a for a in sys.argv[1:] if not a.startswith('http')] or list(SHOTS)
-    asyncio.run(run(base.rstrip('/'), names))
+    if names != ['eclipses']: asyncio.run(run(base.rstrip('/'), [n for n in names if n != 'eclipses']))
+    if 'eclipses' in names or any(n.startswith('ecl_') for n in names): eclipse_montage()

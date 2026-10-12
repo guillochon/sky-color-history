@@ -49,7 +49,8 @@ moons, the stars and the Galaxy, meteors, comets, aurorae, airglow, halos, cloud
   Tables of the site's own numbers are read from its JavaScript (`site_consts.py`).
   `eclipse_report.py` draws the eclipsed-Moon figure and table from `eclipse_grid.json`
 - `report_figs.py` - the report's views from the ground, screenshots of the site's first-person view
-  (its Moments and telescope views) taken in headless Chrome -> `latex/figures/view_*.jpg`; needs the
+  (its Moments and telescope views, and a total solar eclipse's phases in five epochs, put together as
+  `view_eclipses.jpg`) taken in headless Chrome -> `latex/figures/view_*.jpg`; needs the
   site served locally (`python -m http.server 8767 -d site`)
 - `gen_site.py`, `make_figs.py` - build the interactive site and the PNG figures from the JSON data
 
