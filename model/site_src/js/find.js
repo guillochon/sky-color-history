@@ -57,7 +57,7 @@ function findCatalog(){
   const key=EP[dIdx].key, year=STAR_YEAR[key]||pageDate()[0], out=[];
   out.push({name:'Sun', kind:'star', prio:10, t:{k:'sun'}});
   if(!noMoon()) out.push({name:'Moon', kind:'the Earth’s moon', prio:10, t:{k:'moon'}});
-  for(const [name, b] of BODY_WHERE) out.push({name, kind:b.host?`moon of ${b.host}`:'planet', prio:b.host?4:9, t:{k:'body', name}});
+  for(const [name, b] of BODY_WHERE) out.push({name, kind:b.host?`moon of ${b.host}`:b.what?b.what.replace(/^an? /, ''):'planet', prio:b.host?4:9, t:{k:'body', name}});
   const sn=SUPERNOVA[key];
   if(sn) out.push({name:sn.name||'Supernova', also:['supernova'], kind:'supernova', prio:9, t:{k:'sn'}});
   const P=starPlaces(key, year);

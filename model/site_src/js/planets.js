@@ -107,6 +107,13 @@ const PLANET_MOONS=[
   ['Galene', 6, 618.0, 1.64, 257546, 0, 99.031405, [0.86, 0.85, 0.84]],
   ['Thetis', 6, 833.9, 0.66, 422721, 0, 47.094769, [0.94, 0.92, 0.89]],
   ['Amphitrite', 6, 804.8, 0.87, 565362, 0, 30.448372, [0.93, 0.9, 0.86]],
+  // Mars's two (fit_moons.py, to JPL Horizons over 1980-2060, to 0.02 and 0.03 degrees): Phobos's
+  // plane turning about Mars's pole once in 2.3 years, Deimos's about its Laplace plane's (0.9 degrees
+  // from the pole toward Mars's orbit's) once in 54. Phobos's longitude was fit with its tidal
+  // acceleration taken out; MOON_TIDE puts it back. Radii are the mean (Phobos 13.0 x 11.4 x 9.1 km,
+  // drawn as the spheroid that fits its shape best, SURF_SHAPE; Deimos a sphere).
+  ['Phobos', 2, 11.08, 11.89, 9375, 45.9964, 1129.28055009, [0.72, 0.66, 0.6], [0.015125, 216.27, 0.8708393], null, [317.6810, 52.8870, 1.0748, 169.1855, -0.43579375]],
+  ['Deimos', 2, 6.2, 12.94, 23458, 204.8669, 285.17999286, [0.76, 0.7, 0.63], null, [-0.0414, 0.2682, 250.75, 0.01810676], [316.6582, 53.5290, 1.7936, 54.5365, -0.01810573]],
 ];
 // Which epochs have a moon, for those not in every one: Triton only after its capture, in the giant
 // planets' instability; Neptune's first moons before it; Chrysalis from 300 Ma back; Harmonia in
@@ -117,7 +124,33 @@ const LOST_NEPTUNIAN=key=>!!PRE_INSTABILITY[key];
 const MOON_EPOCHS={
   Triton:key=>!PRE_INSTABILITY[key], Kymo:LOST_NEPTUNIAN, Galene:LOST_NEPTUNIAN, Thetis:LOST_NEPTUNIAN, Amphitrite:LOST_NEPTUNIAN,
   Chrysalis:key=>(PLANET_AGE_MA[key]||0)>=300, Harmonia:key=>key==='hadean40'||key==='archean38',
+  Phobos:key=>(PLANET_AGE_MA[key]||0)<PHOBOS_MA, Deimos:key=>(PLANET_AGE_MA[key]||0)<MARS_MOONS_MA,
 };
+// Phobos falls toward Mars: the tide it raises, lagging, slows it. Half the rate its mean motion
+// grows is 1.258e-3 degrees a year squared (Brozović, Jacobson & Park 2025, AJ), so its orbit shrinks
+// 3.8 cm a year. Deimos, beyond the synchronous orbit, is pushed outward, far more slowly. With
+// Mars's tidal lag held fixed the rate goes as the moon's mass over a^(11/2), so ageMa Myr ago
+// a=a₀(1+k·ageMa)^(2/13): k is 13/3 of Phobos's fractional ndot (6.1e-9 a year), and for Deimos that
+// times their masses' ratio (0.139) and (a/a_Phobos)^(-13/2), the other way; the mean motion goes as
+// a^(-3/2). That puts Phobos at 3.2 Mars radii 66 Myr ago, against 2.76 now, near the Roche limit, and
+// Deimos 130 km nearer Mars 3.8 Gyr ago. Where Phobos came from is open (Ćuk, Anand & Minton 2025:
+// both fit its orbit): formed early just inside the synchronous orbit and falling ever since, or
+// formed about 100 Myr ago at the Roche limit, the latest moon of Mars's cycle of rings and moons
+// (Hesselbrock & Minton 2017). The second, which the epochs with Harmonia already follow, is drawn:
+// Phobos only in the skies of the last 100 Myr. Deimos, its surface 3.5-4 Gyr old (Ćuk et al. 2020),
+// from Mars's moons' first generation on.
+const PHOBOS_MA=100, MARS_MOONS_MA=4300;
+const MOON_TIDE={Phobos:{s:1.258e-3, k:0.026443}, Deimos:{k:-9.43e-6}};
+// A moon's row as it was ageMa Myr ago: its orbit's radius and mean motion.
+function moonTided(m, ageMa){
+  const T=MOON_TIDE[m[0]];
+  if(!T||!ageMa) return m;
+  const f=Math.pow(1+T.k*ageMa, 2/13), r=m.slice();
+  r[4]=m[4]*f; r[6]=m[6]*Math.pow(f, -1.5);
+  return r;
+}
+// The degrees a moon's longitude has gained t days after J2000 from its tidal acceleration.
+function moonAccel(m, t){ const T=MOON_TIDE[m[0]], y=t/365.25; return T&&T.s?T.s*y*y:0; }
 function moonIn(m, key){ const f=MOON_EPOCHS[m[0]]; return !f||f(key); }
 // Bodies that are hypothetical, or named here: the note their label's spectrum carries.
 const BODY_NOTES={
@@ -180,6 +213,29 @@ const LOST_PLANETS=[
   ['Oceanus', [9.62, 0.01, 1.0, 0, 30, 60], [0, 0, 0, 36000/Math.pow(9.62, 1.5), 0, 0], [0.62, 0.82, 1.0], [25000, 0.017, 45, 62], -7.0, 6, PRE_INSTABILITY],
   ['Theia', [0.95, 0.07, 1.5, 0, 200, 140], [0, 0, 0, 36000/Math.pow(0.95, 1.5), 0, 0], [0.80, 0.72, 0.62], [3400, 0, 300, 70], -1.25, 7, {protoearth455:true}, [120, 432]],
 ];
+// The three largest asteroids, which reach the naked eye or binoculars: Vesta magnitude 5.2 at its
+// best, Ceres 6.7, Pallas 6.4. Each row: name, elements and rates as PLANETS and periodic terms in the
+// mean longitude for Jupiter's pull (sine and cosine amplitudes, degrees, and rate, degrees a century;
+// fit_asteroids.py, to JPL Horizons over 1800-2200: Ceres to 0.10 degrees as seen from the Sun, Vesta
+// 0.09, Pallas, whose largest term is 0.9 degrees over 83 years, 0.18), tint, body (equatorial radius km, flattening, pole J2000 RA and Dec), prime
+// meridian at J2000 and its turning (degrees, degrees a day; IAU WGCCRE 2015: Ceres's Kait system,
+// Vesta's Claudia Double Prime), absolute magnitude H and slope G (JPL SBDB), and what it is. Ceres
+// and Vesta are the spheroids that fit Dawn's shapes best (small_bodies.py: 482 x 446 km, 281 x 226),
+// their relief over them in their maps (Vesta's south polar basins and their central peak). Pallas,
+// with no map, is the spheroid of Marsset et al. 2020's shape (568 x 532 x 448 km), in its tint.
+const ASTEROIDS=[
+  ['Ceres', [2.76732290, 0.07781249, 10.59405477, 160.73922310, 153.10538775, 80.55736137], [0.00001309, -0.00041435, -0.01678770, 7819.47608569, 1.70822037, -1.49226409], [[-0.0478, -0.1387, 1751.266], [-0.0386, -0.1276, 9569.685], [0.0937, 0.0600, 6536.396], [0.0818, -0.0637, 467.363]], [0.92, 0.9, 0.86], [482.10, 0.07507, 291.418, 66.764], [170.65, 952.1532], 3.34, 0.12, 'a dwarf planet'],
+  ['Pallas', [2.77119183, 0.23238107, 34.84050511, 116.36070496, 123.42401072, 173.21943940], [0.00003242, -0.00545608, 0.13780690, 7803.33186772, -0.16464297, -1.02370133], [[-0.9252, 0.1160, 433.239], [-0.2759, 0.0144, 1736.384]], [0.88, 0.9, 0.92], [275, 0.1855, 33, -3], [38, 1105.8036], 4.12, 0.11, 'an asteroid'],
+  ['Vesta', [2.36163409, 0.08935770, 7.13688481, 234.41979578, 254.30234812, 103.96141613], [0.00002135, 0.00027319, 0.00557798, 9918.87767422, 1.20113757, -0.89480073], [[0.0717, 0.1212, 816.115]], [1.0, 0.92, 0.82], [280.98, 0.19425, 309.031, 42.235], [285.39, 1617.3329428], 3.25, 0.32, 'an asteroid'],
+];
+// A body's flattening when not its kind's (BODY_FLAT): the asteroids', and Phobos's best spheroid.
+const BODY_FLAT_OF={Phobos:0.24611};
+for(const a of ASTEROIDS) BODY_FLAT_OF[a[0]]=a[5][1];
+// The H, G magnitude system's phase law (Bowell et al. 1989), at phase angle i degrees.
+function hgPhase(G, i){
+  const t=Math.tan(i*Math.PI/360);
+  return -2.5*Math.log10((1-G)*Math.exp(-3.33*Math.pow(t, 0.63))+G*Math.exp(-1.87*Math.pow(t, 1.22)));
+}
 // The same display scale as the stars, in the planet's own tint.
 function planetDisplay(mag, tint){ const d=magDisplay(mag, 200); return {px:d.px, rgb:tint.map(c=>Math.min(2.4, c)*d.amp)}; }
 // How many times their size the planets and moons are drawn: the Sun's and Moon's enlargement in the
@@ -219,6 +275,9 @@ const RINGS_MA=160, RINGS_DEBATED_MA=100;
 // came near today's 26.7 degrees with Chrysalis's loss (Wisdom et al. 2022), before any epoch with
 // rings. The moons' orbit planes turn with it.
 const SATURN_PREC_MYR=1.87, SATURN_PREC_KNOWN_MA=10;
+// Moons added after the rest, whose phases are drawn after all the others', so the others' stay as
+// they were.
+const MOON_LATE=new Set(['Phobos', 'Deimos']);
 function planetPhases(key){
   const P=planetPhases.cache||(planetPhases.cache={});
   if(P[key]!==undefined) return P[key];
@@ -226,8 +285,10 @@ function planetPhases(key){
   let h=2166136261; for(const c of key) h=Math.imul(h^c.charCodeAt(0), 16777619);
   // Drawn in this order so each table's later rows leave the earlier ones' phases as they were.
   const rand=mulberry32(h>>>0), planets=PLANETS.map(()=>rand()*360), jup=rand()*360;
-  const moons=PLANET_MOONS.map(m=>m[1]===3?jup:rand()*360), lost=LOST_PLANETS.map(()=>rand()*360);
-  return P[key]={planets, moons, lost, saturnPole:rand()*360};
+  const moons=PLANET_MOONS.map(m=>m[1]===3?jup:MOON_LATE.has(m[0])?0:rand()*360), lost=LOST_PLANETS.map(()=>rand()*360);
+  const saturnPole=rand()*360;
+  PLANET_MOONS.forEach((m, i)=>{ if(MOON_LATE.has(m[0])) moons[i]=rand()*360; });
+  return P[key]={planets, moons, lost, saturnPole, asteroids:ASTEROIDS.map(()=>rand()*360)};
 }
 // Jupiter's Great Red Spot, from its first sure sighting in 1831 (Schwabe; Cassini's "permanent
 // spot" of 1665-1713 may have been another storm) on. Its System II longitude (degrees, unwrapped)
@@ -316,9 +377,11 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
     }
     // Its moons, where the light now arriving left them, and the Sun's way from the host.
     const ax=equatorAxes(pra, pdec), sunFrom=vnorm(eq(h.map(v=>-v))), tM=tD-d*LIGHT_DAY_AU;
-    PLANET_MOONS.forEach((m, mi)=>{
-      if(m[1]!==k||!moonIn(m, epochKey)) return;
-      const pl=m[10]?moonPlane(name==='Saturn'&&satPhi?[...m.slice(0, 10), [...saturnPole(m[10][0], m[10][1]), ...m[10].slice(2)], ...m.slice(11)]:m, tM):ax, off=moonOffset(m, pl, tM, phases?phases.moons[mi]:0), along=vdot(off, qn);
+    PLANET_MOONS.forEach((m0, mi)=>{
+      if(m0[1]!==k||!moonIn(m0, epochKey)) return;
+      // Its orbit as it was in the epoch (Mars's moons, MOON_TIDE), and on a dated sky its acceleration.
+      const m=moonTided(m0, ageMa);
+      const pl=m[10]?moonPlane(name==='Saturn'&&satPhi?[...m.slice(0, 10), [...saturnPole(m[10][0], m[10][1]), ...m[10].slice(2)], ...m.slice(11)]:m, tM):ax, off=moonOffset(m, pl, tM, phases?phases.moons[mi]:moonAccel(m, tM)), along=vdot(off, qn);
       // On the Sun's side and near enough its line through the host: its shadow may fall on the
       // host. Kept in host radii in the horizon frame, with the moon's radius and the Sun's angular
       // radius there, by which the penumbra widens with distance.
@@ -363,29 +426,41 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
       const ms=planetDisplay(mmag, m[7]);
       const mark={az:mp.az, el:mp.alt, px:ms.px, rgb:ms.rgb, planet:m[0], host:name, mag:mmag, ra:mp.ra, dec:mp.dec, radDeg:Math.atan(m[2]/(dm*PL_AU_KM))*180/Math.PI, dist:dm, lit:(1+Math.cos(i*Math.PI/180))/2, behind:along>0, rho, tint:m[7], unknown:!!phases, ageMa};
       // The moons turn synchronously: longitude 0 faces the host, about their orbit's pole.
-      mark.body={dir:mp.dir, meridian:horiz(vscale(off, -1)).dir, map:SURF_FILES[m[0]]?m[0]:null, rad:mark.radDeg*Math.PI/180, light:body.light, pole:m[10]?horiz(pl.k).dir:body.pole, kind:BODY_MOON, px:ms.px, rgb:ms.rgb, mag:mmag, front:false, over:!mark.behind, tint:m[7], ring, mark};
+      mark.body={dir:mp.dir, meridian:horiz(vscale(off, -1)).dir, map:SURF_FILES[m[0]]?m[0]:null, rad:mark.radDeg*Math.PI/180, light:body.light, pole:m[10]?horiz(pl.k).dir:body.pole, kind:BODY_MOON, flat:BODY_FLAT_OF[m[0]], px:ms.px, rgb:ms.rgb, mag:mmag, front:false, over:!mark.behind, tint:m[7], ring, mark};
       marks.push(mark);
       if(!(mark.behind&&rho<DISK_SCALE)) bodies.push(mark.body);
     });
   });
-  // The planets only the earliest epochs have, as the planets are placed but without moons or rings.
-  LOST_PLANETS.forEach(([name, el, rate, tint, [Rkm, , pra, pdec], H, kind, eps, spin], li)=>{
-    if(!eps[epochKey]) return;
-    const h=planetHelio(phases?el.map((v, n)=>n===3?v+phases.lost[li]:v):el, rate, T), g=[h[0]-earth[0], h[1]-earth[1], h[2]-earth[2]];
+  // A body going round the Sun alone, placed as the planets are but without moons or rings: its
+  // elements and rates, tint, equatorial radius and flattening (undefined for its kind's), pole, the
+  // kind it is drawn as, its prime meridian at J2000 and turning (or none), the phase drawn for the
+  // epoch (null on a dated sky), its magnitude from its distances from the Sun and us (AU) and phase
+  // angle (degrees), and what it is (find.js, the spectrum's note).
+  const placeAlone=(name, el, rate, tint, Rkm, flat, pra, pdec, kind, spin, ph, magOf, what)=>{
+    const h=planetHelio(ph!=null?el.map((v, n)=>n===3?v+ph:v):el, rate, T), g=[h[0]-earth[0], h[1]-earth[1], h[2]-earth[2]];
     const r=Math.hypot(...h), d=Math.hypot(...g), q=eq(g), pole=eqVec(pra, pdec);
     const i=Math.acos(Math.max(-1, Math.min(1, (r*r+d*d-R*R)/(2*r*d))))*180/Math.PI;
-    // A giant's phase law (Neptune's: none), or a rocky body's (Mars's).
-    const mag=H+5*Math.log10(r*d)+(kind===BODY_MOON?0.016*i:0)+dimMag, p=horiz(q);
+    const mag=magOf(r, d, i)+dimMag, p=horiz(q);
     const radDeg=Math.atan(Rkm/(d*PL_AU_KM))*180/Math.PI, show=planetDisplay(mag, tint);
-    BODY_WHERE.set(name, {az:p.az, el:p.alt, radDeg, mag});
+    BODY_WHERE.set(name, {az:p.az, el:p.alt, radDeg, mag, what});
     // Its prime meridian, where the light now arriving left it, as the planets'.
     let meridian=null;
     if(spin){ const ax=equatorAxes(pra, pdec), Wr=(spin[0]+spin[1]*(tD-d*LIGHT_DAY_AU))*Math.PI/180; meridian=horiz(vadd(vscale(ax.i, Math.cos(Wr)), vscale(ax.j, Math.sin(Wr)), [0, 0, 0])).dir; }
-    const body={grs:null, meridian, map:SURF_FILES[name]?name:null, dir:p.dir, rad:radDeg*Math.PI/180, light:vnorm(horiz(eq(h.map(v=>-v))).dir), pole:horiz(pole).dir, kind, px:show.px, rgb:show.rgb, mag, front:d<R, shadows:[], rings:false, tint};
+    const body={grs:null, meridian, map:SURF_FILES[name]?name:null, dir:p.dir, rad:radDeg*Math.PI/180, light:vnorm(horiz(eq(h.map(v=>-v))).dir), pole:horiz(pole).dir, kind, flat, px:show.px, rgb:show.rgb, mag, front:d<R, shadows:[], rings:false, tint};
     if(p.alt>0){
-      marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb, planet:name, mag, ra:p.ra, dec:p.dec, radDeg, dist:d, lit:(1+Math.cos(i*Math.PI/180))/2, body, kind, rings:false, unknown:!!phases, ageMa, tint});
+      marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb, planet:name, mag, ra:p.ra, dec:p.dec, radDeg, dist:d, lit:(1+Math.cos(i*Math.PI/180))/2, body, kind, rings:false, unknown:!!phases, ageMa, tint, what});
       bodies.push(body);
     }
+  };
+  // The planets only the earliest epochs have: a giant's phase law (Neptune's: none), or a rocky
+  // body's (Mars's).
+  LOST_PLANETS.forEach(([name, el, rate, tint, [Rkm, , pra, pdec], H, kind, eps, spin], li)=>{
+    if(eps[epochKey]) placeAlone(name, el, rate, tint, Rkm, undefined, pra, pdec, kind, spin, phases?phases.lost[li]:null, (r, d, i)=>H+5*Math.log10(r*d)+(kind===BODY_MOON?0.016*i:0), name==='Theia'?'a planet-sized body':'a lost ice giant');
+  });
+  // The largest asteroids, in every epoch, by the H, G law.
+  ASTEROIDS.forEach(([name, el, rate, terms, tint, [Rkm, flat, pra, pdec], spin, H, G, what], ai)=>{
+    const dL=terms.reduce((s, [A, B, w])=>s+A*Math.sin(w*T*Math.PI/180)+B*Math.cos(w*T*Math.PI/180), 0);
+    placeAlone(name, el.map((v, n)=>n===3?v+dL:v), rate, tint, Rkm, flat, pra, pdec, BODY_MOON, spin, phases?phases.asteroids[ai]:null, (r, d, i)=>H+5*Math.log10(r*d)+hgPhase(G, i), what);
   });
   // The walk-around view draws at most BODY_MAX bodies, the brightest on screen first.
   bodies.sort((a, b)=>a.mag-b.mag);
@@ -438,7 +513,7 @@ function moonShadow(x, s, L, rPx){
   return 1-0.97*(1-smooth01(Math.max(s.rm-spread, 0)-pw, s.rm+spread+pw, perp));
 }
 function bodyPixel(b, src, rad, rPx){
-  const v=b.dir, n=b.pole, L=b.light, f=BODY_FLAT[b.kind], k=1/(1-f)-1, sr=Math.sin(rad);
+  const v=b.dir, n=b.pole, L=b.light, f=b.flat!=null?b.flat:BODY_FLAT[b.kind], k=1/(1-f)-1, sr=Math.sin(rad);
   const cs=vdot(src, v), o=[(src[0]-v[0]*cs)/sr, (src[1]-v[1]*cs)/sr, (src[2]-v[2]*cs)/sr];
   const on=vdot(o, n), vnK=vdot(v, n), op=o.map((c, i)=>c+k*on*n[i]), vp=v.map((c, i)=>c+k*vnK*n[i]);
   const a=vdot(vp, vp), bh=vdot(op, vp)/a, rho2=Math.max(vdot(op, op)-bh*bh*a, 0);

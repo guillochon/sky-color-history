@@ -4,7 +4,9 @@ Each globe is the site's own map (site/moon, site/surf), seen whole and lit from
 phase angle of about 55 degrees so the terminator crosses the disk. The four bodies with heights
 (the Moon, Mercury, Mars and Theia: site/moon/relief.webp, site/relief/<name>.webp) are drawn large
 and shaded by their slopes at true scale, as the shader shades them; the rest are drawn small with
-their maps alone. The Moon's older faces share its heights; the molten Moon glows by its own light.
+their maps alone, but for Ceres, Vesta and Phobos, shaded by their heights too (small_bodies.py) and
+drawn as the spheroids the site draws them as, pole up. The Moon's older faces share its heights; the
+molten Moon glows by its own light.
 Each body is scaled to its own exposure, so the panels do not compare in albedo; the Moon's
 faces share the present Moon's.
 
@@ -19,10 +21,10 @@ ROOT = Path(__file__).resolve().parent.parent
 SITE, OUT = ROOT / 'site', ROOT / 'latex' / 'figures' / 'surfaces.jpg'
 U = 300                       # one small panel, px
 BIG, SMALL = 2 * U, U         # panel sizes
-COLS = 8
+COLS = 9
 
 # name, label, map, left-edge longitude of the map, relief (file, lo km, hi km, radius km) or None,
-# centre longitude and latitude shown, self-luminous
+# centre longitude and latitude shown, self-luminous, and flattening (none for a sphere)
 MOON_REL = ('moon/relief.webp', -9.2, 10.9, 1737.4)
 LARGE = [
     ('Moon', 'moon/now.webp', -180, MOON_REL, 0, 0, False),
@@ -46,6 +48,9 @@ SMALLS = [
     ('Rhea', 'surf/rhea.webp', 0, None, 0, 0, False),
     ('Iapetus', 'surf/iapetus.webp', 0, None, 230, 0, False),
     ('Triton', 'surf/triton.webp', 0, None, 0, -25, False),
+    ('Ceres', 'surf/ceres.webp', 0, ('relief/ceres.webp', -7.3, 9.4, 482.1), 240, 0, False, 0.07507),
+    ('Vesta', 'surf/vesta.webp', 0, ('relief/vesta.webp', -19.7, 23.1, 280.98), 60, 0, False, 0.19425),
+    ('Phobos', 'surf/phobos.webp', 0, ('relief/phobos.webp', -1.6, 2.0, 12.12), 0, 0, False, 0.24611),
 ]
 SUN = np.array([-0.72, 0.28, 0.63]); SUN /= np.linalg.norm(SUN)   # view frame: x right, y up, z out
 
@@ -76,20 +81,24 @@ EXPO = {}   # the present Moon's exposure, kept for its older faces so they comp
 
 
 def globe(spec, size):
-    name, mp, lon0, relief, clon, clat, glow = spec
+    name, mp, lon0, relief, clon, clat, glow = spec[:7]
+    f = spec[7] if len(spec) > 7 else 0.0
     ss = 2; n = size * ss; r = 0.94
     yy, xx = np.mgrid[0:n, 0:n]
     x = (xx + 0.5) / n * 2 - 1; y = 1 - (yy + 0.5) / n * 2
-    x, y = x / r, y / r
+    # A spheroid, pole up, seen from its equator (clat 0): the unit sphere squashed in y by 1 - f.
+    x, y = x / r, y / r / (1 - f)
     inside = x * x + y * y < 1
     z = np.sqrt(np.clip(1 - x * x - y * y, 0, 1))
     # View frame to body frame: tilt by the centre latitude, then turn by the centre longitude.
     p, l = np.radians(clat), np.radians(clon)
     bx = x; by = y * np.cos(p) + z * np.sin(p); bz = -y * np.sin(p) + z * np.cos(p)
-    lat = np.degrees(np.arcsin(np.clip(by, -1, 1)))
+    # The maps are planetocentric: on a spheroid the point (x, (1 - f) y, z).
+    lat = np.degrees(np.arctan2((1 - f) * by, np.hypot(bx, bz)))
     lon = np.degrees(np.arctan2(bx, bz)) + clon
     col = lin(sample(load(mp, 4 * n), lon, lat, lon0))
-    nrm = np.stack([x, y, z], -1)
+    nrm = np.stack([x, y / (1 - f), z], -1)
+    if f: nrm /= np.linalg.norm(nrm, axis=-1, keepdims=True)
     if relief:
         f, lo, hi, R = relief
         hm = load(f, 4 * n)[..., 0] * (hi - lo) + lo
@@ -134,7 +143,7 @@ def font(px):
 
 def main():
     lab = 34
-    rows_small = [SMALLS[:COLS], SMALLS[COLS:]]
+    rows_small = [SMALLS[i:i + COLS] for i in range(0, len(SMALLS), COLS)]
     W = COLS * U
     H = (BIG + lab) + len(rows_small) * (SMALL + lab)
     sheet = Image.new('RGB', (W, H), (0, 0, 0)); d = ImageDraw.Draw(sheet)
@@ -144,7 +153,7 @@ def main():
         tw = d.textlength(spec[0], font=f)
         d.text((x + (size - tw) / 2, y + size + 2), spec[0], fill=(225, 225, 225), font=f)
         print(spec[0])
-    for i, s in enumerate(LARGE): put(s, BIG, i * BIG, 0, fb)
+    for i, s in enumerate(LARGE): put(s, BIG, (W - len(LARGE) * BIG) // 2 + i * BIG, 0, fb)
     y = BIG + lab
     for row in rows_small:
         x0 = (W - len(row) * U) // 2

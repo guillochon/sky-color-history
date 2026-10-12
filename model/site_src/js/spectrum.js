@@ -555,6 +555,11 @@ const REFL={
   Iapetus:{n:[[380, 0.45], [450, 0.6], [550, 0.8], [650, 0.92], [780, 1]], note:'sunlight off bright ice on its trailing side and reddish-black dust on its leading one'},
   Triton:{n:[[380, 0.8], [450, 0.9], [550, 0.97], [780, 1]], note:'sunlight off nitrogen and methane frosts, faintly pink'},
   Harmonia:{n:[[380, 0.75], [500, 0.85], [600, 0.94], [780, 1]], note:'sunlight off dark rubble like Phobos’s'},
+  Phobos:{n:[[380, 0.62], [500, 0.75], [600, 0.88], [780, 1]], note:'sunlight off dark, reddish rubble, like the D-type asteroids’'},
+  Deimos:{n:[[380, 0.6], [500, 0.74], [600, 0.88], [780, 1]], note:'sunlight off dark, reddish rubble, like the D-type asteroids’'},
+  Ceres:{n:[[380, 0.8], [450, 0.92], [550, 0.98], [780, 1]], note:'sunlight off dark ground of clays and carbonates, nearly grey (a C-type surface), with Occator’s bright salts'},
+  Pallas:{n:[[380, 1], [500, 1], [650, 0.98], [780, 0.96]], note:'sunlight off dark carbonaceous rock, faintly blue (a B-type surface)'},
+  Vesta:{n:[[380, 0.42], [450, 0.6], [550, 0.84], [650, 0.98], [720, 1], [780, 0.86]], note:'sunlight off basalt (a V-type surface), red, then falling into pyroxene’s band at 0.9 µm', band:[740, 780, 'pyroxene']},
   Theia:{n:[[380, 0.6], [450, 0.68], [550, 0.82], [650, 0.94], [780, 1]], note:'sunlight off dark, iron-rich basalt, as the lunar maria'},
   icy:{n:[[380, 0.85], [500, 0.95], [780, 1]], note:'sunlight off nearly pure water ice'},
   sat:{n:[[380, 0.85], [780, 1]], note:'sunlight off its metal, panels and paint'},
@@ -574,7 +579,7 @@ function reflectedSpectrum(s){
   spThroughAir(S, marks, key, X);
   const m=starThroughAir(s.mag, s.el, key);
   // A planet's or moon's size and how much of it is lit, as seen.
-  const size=s.radDeg!=null?` · ${(s.radDeg*7200).toFixed(s.radDeg*7200<10?1:0)}″ across, ${Math.round(s.lit*100)}% lit`:'';
+  const size=s.radDeg!=null?` · ${(s.radDeg*7200).toFixed(s.radDeg*7200<1?2:s.radDeg*7200<10?1:0)}″ across, ${Math.round(s.lit*100)}% lit`:'';
   // In an epoch before history, where it was on its orbit that day is unknown; Saturn's rings may
   // be younger than the epoch.
   const ring=s.planet==='Saturn'&&s.ageMa>=RINGS_DEBATED_MA?(s.rings?' · its rings may be younger than this (100–400 Myr by Cassini’s measures, still argued); drawn as young rings would be, more massive and cleaner':' · drawn without rings, which are thought to be at most a few hundred Myr old: here they come from Chrysalis’s break-up, about 160 Myr ago in the illustrated case, within a 100–200 Myr range'):'';
@@ -582,8 +587,11 @@ function reflectedSpectrum(s){
   const where=s.unknown?' · its place on its orbit this day cannot be known: drawn at one picked at random for the epoch':'';
   // A hypothetical body, or one named here; Saturn's mid-sized moons may themselves be young.
   const what=BODY_NOTES[s.planet]?' · '+BODY_NOTES[s.planet]:s.host==='Saturn'&&s.ageMa>=RINGS_DEBATED_MA&&['Mimas', 'Enceladus', 'Tethys', 'Dione', 'Rhea'].includes(s.planet)?' · it may be younger than this: Saturn’s mid-sized moons may have formed again in the last few hundred Myr (Ćuk et al. 2016)':'';
-  const kin=s.planet==='Oceanus'?'a lost ice giant':s.planet==='Theia'?'a planet-sized body':'';
-  const note=`${s.planet?s.planet+(s.host?`, a moon of ${s.host}`:kin?`, ${kin}`:''):'A satellite'}${size} · ${s.planet==='Saturn'&&!s.rings?'sunlight off its yellower haze, with methane bands':r.note}${what}${ring}${spot}${where} · V ${s.mag.toFixed(1)} above the air, ${m.toFixed(1)} through ${X.toFixed(1)} airmass${X>=1.05?'es':''}`;
+  const kin=s.what||'';
+  // Mars's moons in an epoch before history, where the tides had their orbits (planets.js MOON_TIDE).
+  const mt=MOON_TIDE[s.planet]&&s.ageMa?PLANET_MOONS.find(m=>m[0]===s.planet):null;
+  const tide=mt?` · its orbit as Mars’s tides had it then: ${(moonTided(mt, s.ageMa)[4]/3389.5).toFixed(2)} Mars radii out, against ${(mt[4]/3389.5).toFixed(2)} now`:'';
+  const note=`${s.planet?s.planet+(s.host?`, a moon of ${s.host}`:kin?`, ${kin}`:''):'A satellite'}${size} · ${s.planet==='Saturn'&&!s.rings?'sunlight off its yellower haze, with methane bands':r.note}${what}${tide}${ring}${spot}${where} · V ${s.mag.toFixed(1)} above the air, ${m.toFixed(1)} through ${X.toFixed(1)} airmass${X>=1.05?'es':''}`;
   return {S, Y:1, parts:[], marks, note};
 }
 // The supernova, if it is up within tolDeg of dir.

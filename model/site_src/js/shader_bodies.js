@@ -391,7 +391,7 @@ const float BODY_FLAT[8]=float[8](${BODY_FLAT.map(v=>v.toFixed(5)).join(', ')});
 // How bright each kind's disk is drawn, after its albedo, and its Minnaert k (planets.js BODY_GAIN, BODY_MINN).
 const float BODY_GAIN[8]=float[8](${BODY_GAIN.map(v=>v.toFixed(2)).join(', ')}), BODY_MINN[8]=float[8](${BODY_MINN.map(v=>v.toFixed(2)).join(', ')});
 #if DETAIL_MAP
-// Mercury's, Mars's and Theia's relief (surfaces.js SURF_RELIEF, their heights in their maps' alpha), as the
+// The relief of the bodies with heights (surfaces.js SURF_RELIEF, in their maps' alpha), as the
 // Moon's (shader_sky.js reliefLight): at surface point nrm (longitude lon, latitude lat; pole n,
 // prime meridian mp), lit from L and seen from V, the slope over two texels or the pixel (pxS
 // degrees) lit by Minnaert's law (k km, terminator width w), and the Sun, its disk sunA radians in
@@ -400,14 +400,17 @@ const float BODY_GAIN[8]=float[8](${BODY_GAIN.map(v=>v.toFixed(2)).join(', ')}),
 // sphere's horizon) everything is dark. Ground the viewer cannot see, a slope turned away or ground
 // behind a rim toward the viewer near the limb, keeps the smooth sphere's light litS, so shadows
 // hidden behind the rims that cast them, near full phase, are not drawn.
-float surfReliefLit(float c, vec3 nrm, vec3 n, vec3 mp, vec3 L, vec3 V, float lon, float lat, float pxS, float km, float w, float litS){
-  // Mercury's and Mars's maps are 4096 texels round (surfTex's level 3 past a 512-texel map's),
-  // Theia's 1024 (level 1); the Sun's disk from each, at 0.39, 1.52 and 1 AU.
-  float kind=mod(c, 4.0), big=kind<2.5?1.0:0.0, lv=big>0.5?3.0:1.0;
-  vec3 hr=surfHR(c);
-  float R=hr.z, span=hr.y, sunA=kind<1.5?0.012:kind<2.5?0.0031:0.0047;
+// On a flattened body (Ceres, Vesta, Phobos) the maps' latitudes are planetocentric: pc is the
+// surface point's direction from the middle, nrm the spheroid's normal there; the heights tilt nrm,
+// and the walks toward the Sun and the viewer go over the sphere through pc.
+float surfReliefLit(float c, vec3 nrm, vec3 pc, vec3 n, vec3 mp, vec3 L, vec3 V, float lon, float lat, float pxS, float km, float w, float litS){
+  // Mercury's and Mars's maps are 4096 texels round (surfTex's level 3 past a 512-texel map's), the
+  // rest 1024 (level 1).
+  float kind=mod(c, 8.0), big=kind>0.5&&kind<2.5?1.0:0.0, lv=big>0.5?3.0:1.0;
+  vec4 hrs=SURF_HRS[int(kind+0.5)];
+  float R=hrs.z, span=hrs.y, sunA=hrs.w;
   float tD=360.0/(big>0.5?4096.0:1024.0), st=max(pxS/tD, 2.0), l5=log2(st)-1.0-lv, d=st*tD, dr=d*0.01745329252;
-  vec3 tE=cross(n, nrm); float cl=length(tE); tE=cl>1e-4?tE/cl:mp; vec3 tN=cross(nrm, tE), cE=cross(n, mp);
+  vec3 tE=cross(n, pc); float cl=length(tE); tE=cl>1e-4?tE/cl:mp; vec3 tN=cross(pc, tE), cE=cross(n, mp);
   float dE=(surfH(c, lon+d, lat, l5)-surfH(c, lon-d, lat, l5))/(2.0*dr*R*max(cl, 0.05));
   float dN=(surfH(c, lon, lat+d, l5)-surfH(c, lon, lat-d, l5))/(2.0*dr*R);
   vec3 nR=normalize(nrm-dE*tE-dN*tN);
@@ -415,12 +418,13 @@ float surfReliefLit(float c, vec3 nrm, vec3 n, vec3 mp, vec3 L, vec3 V, float lo
   float sh=m0s>-cut?1.0:0.0, hid=smoothstep(0.08, 0.0, mu);
   bool toS=m0s>-cut&&m0s<0.4, toV=mus<0.35;
   if(toS||toV){
-    vec3 dS=toS?normalize(L-nrm*m0s):nrm, dV=toV?normalize(V-nrm*mus):nrm;
+    float p0s=dot(pc, L), pvs=dot(pc, V);
+    vec3 dS=toS?normalize(L-pc*p0s):pc, dV=toV?normalize(V-pc*pvs):pc;
     float eS=asin(clamp(m0s, -1.0, 1.0)), eV=asin(clamp(mus, -1.0, 1.0)), h0=surfH(c, lon, lat, l5), oS=-1.0, oV=-1.0, s=1.5*dr;
     for(int k=0;k<14;k++){
       float lk=max(l5, log2(s/(tD*0.01745329252)/3.0)-lv);
-      if(toS){ vec3 q=nrm*cos(s)+dS*sin(s); float hk=surfH(c, atan(dot(q, cE), dot(q, mp))*57.2957795, asin(clamp(dot(q, n), -1.0, 1.0))*57.2957795, lk); oS=max(oS, atan(hk-((R+h0)*cos(eS)/max(cos(eS+s), 1e-3)-R), R*s)); }
-      if(toV){ vec3 q=nrm*cos(s)+dV*sin(s); float hk=surfH(c, atan(dot(q, cE), dot(q, mp))*57.2957795, asin(clamp(dot(q, n), -1.0, 1.0))*57.2957795, lk); oV=max(oV, atan(hk-((R+h0)*cos(eV)/max(cos(eV+s), 1e-3)-R), R*s)); }
+      if(toS){ vec3 q=pc*cos(s)+dS*sin(s); float hk=surfH(c, atan(dot(q, cE), dot(q, mp))*57.2957795, asin(clamp(dot(q, n), -1.0, 1.0))*57.2957795, lk); oS=max(oS, atan(hk-((R+h0)*cos(eS)/max(cos(eS+s), 1e-3)-R), R*s)); }
+      if(toV){ vec3 q=pc*cos(s)+dV*sin(s); float hk=surfH(c, atan(dot(q, cE), dot(q, mp))*57.2957795, asin(clamp(dot(q, n), -1.0, 1.0))*57.2957795, lk); oV=max(oV, atan(hk-((R+h0)*cos(eV)/max(cos(eV+s), 1e-3)-R), R*s)); }
       s*=1.38;
     }
     if(toS) sh=smoothstep(sunA, -sunA, oS);
@@ -432,22 +436,37 @@ float surfReliefLit(float c, vec3 nrm, vec3 n, vec3 mp, vec3 L, vec3 V, float lo
 #endif
 // A body's disk where the view ray is o (the offset across the sky, in drawn radii) and the line of
 // sight v: its lit colour (rgb) and coverage (a), the surface point x and how far along v it lies
-// (t, toward the observer negative). The disk is the flattened spheroid about pole n, lit from L,
-// darkening toward the terminator and, by its Minnaert k, the limb; rPx is its radius in pixels.
+// (t, toward the observer negative). The disk is the flattened spheroid about pole n (its kind's, or
+// the body's own, bS.w less 1, when that is past 0.5), lit from L, darkening toward the terminator
+// and, by its Minnaert k, the limb; rPx is its radius in pixels. A body with heights in its map has
+// them shape its outline too: the ray is taken to graze the ground where it passes closest to the
+// spheroid, raised or sunk by the height there (Vesta's south flattened by its basins, their central
+// peak standing out; Phobos's long axes).
 vec4 bodyDisk(vec3 o, vec3 v, vec3 n, vec3 L, int kind, float rPx, vec3 tint, vec4 M, out vec3 x, out float t){
-  float f=BODY_FLAT[kind], k=1.0/(1.0-f)-1.0;
+  float f=bS.w>0.5?bS.w-1.0:BODY_FLAT[kind], k=1.0/(1.0-f)-1.0;
   vec3 op=o+k*dot(o, n)*n, vp=v+k*dot(v, n)*n;
   float a=dot(vp, vp), bh=dot(op, vp)/a, rho2=max(dot(op, op)-bh*bh*a, 0.0);
-  float cov=clamp(0.5+(1.0-sqrt(rho2))*rPx, 0.0, 1.0);
+  // East longitude (degrees) from the prime meridian.
+  vec3 mp=M.xyz-n*dot(M.xyz, n); mp=dot(mp, mp)>1e-8?normalize(mp):normalize(cross(n, abs(n.x)<0.9?vec3(1.0, 0.0, 0.0):vec3(0.0, 1.0, 0.0)));
+  float edge=1.0;
+#if DETAIL_MAP
+  if(M.w>-0.5 && mod(M.w, 8.0)>0.5 && rPx>2.0){
+    // The closest point, back from the stretched sphere to the spheroid, and the height there.
+    vec3 sp=op-bh*vp; sp/=max(length(sp), 1e-6);
+    vec3 pl=normalize(sp-(k/(1.0+k))*dot(sp, n)*n);
+    vec4 hrs=SURF_HRS[int(mod(M.w, 8.0)+0.5)];
+    float hl=surfH(M.w, atan(dot(pl, cross(n, mp)), dot(pl, mp))*57.2957795, asin(clamp(dot(pl, n), -1.0, 1.0))*57.2957795, log2(max(160.0/rPx, 1e-6)));
+    edge=1.0+hl/hrs.z;
+  }
+#endif
+  float cov=clamp(0.5+(edge-sqrt(rho2))*rPx, 0.0, 1.0);
   t=1e9; x=o;
   if(cov<=0.0) return vec4(0.0);
   t=-bh-sqrt(max(1.0-rho2, 0.0)/a); x=o+t*v;
-  vec3 nrm=normalize(x+(1.0/((1.0-f)*(1.0-f))-1.0)*dot(x, n)*n);
+  vec3 nrm=normalize(x+(1.0/((1.0-f)*(1.0-f))-1.0)*dot(x, n)*n), pc=normalize(x);
   float mu0=dot(nrm, L), mu=max(dot(nrm, -v), 0.05), w=1.5/max(rPx, 1.0);
   float km=BODY_MINN[kind], lit=smoothstep(-w, w, mu0)*min(pow(max(mu0, 0.0)+0.01, km)*pow(mu, km-1.0), 1.3);
   float lat=asin(clamp(dot(nrm, n), -1.0, 1.0))*57.2957795;
-  // East longitude (degrees) from the prime meridian.
-  vec3 mp=M.xyz-n*dot(M.xyz, n); mp=dot(mp, mp)>1e-8?normalize(mp):normalize(cross(n, abs(n.x)<0.9?vec3(1.0, 0.0, 0.0):vec3(0.0, 1.0, 0.0)));
   float lon=atan(dot(nrm, cross(n, mp)), dot(nrm, mp))*57.2957795;
   // The surface's degrees to a pixel there, foreshortened toward the limb.
   float pxS=57.2957795/max(rPx, 1.0)/max(mu, 0.08);
@@ -459,10 +478,12 @@ vec4 bodyDisk(vec3 o, vec3 v, vec3 n, vec3 L, int kind, float rPx, vec3 tint, ve
 #endif
   if(kind==4) alb=satSeason(alb, lat, dot(n, L));
 #if DETAIL_MAP
-  // A body with a spacecraft map (M.w its code, surfaces.js) shows it, mipmapped to the pixel.
-  if(M.w>-0.5) alb=surfAt(M.w, lon, lat, log2(max(512.0/360.0*pxS, 1e-6)));
-  // Mercury's, Mars's and Theia's relief, once the disk is a few pixels across.
-  if(M.w>-0.5 && mod(M.w, 4.0)>0.5 && rPx>8.0) lit=surfReliefLit(M.w, nrm, n, mp, L, -v, lon, lat, pxS, km, w, lit);
+  // A body with a spacecraft map (M.w its code, surfaces.js) shows it, mipmapped to the pixel, at the
+  // planetocentric latitude the maps are drawn in.
+  float latC=asin(clamp(dot(pc, n), -1.0, 1.0))*57.2957795;
+  if(M.w>-0.5) alb=surfAt(M.w, lon, latC, log2(max(512.0/360.0*pxS, 1e-6)));
+  // The relief of those with heights, once the disk is a few pixels across.
+  if(M.w>-0.5 && mod(M.w, 8.0)>0.5 && rPx>8.0) lit=surfReliefLit(M.w, nrm, pc, n, mp, L, -v, lon, latC, pxS, km, w, lit);
 #endif
 #if !DETAIL_JUP
   if(kind==3 && grsAB.x>0.0) alb=grsPaint(alb, nrm, n, lat);

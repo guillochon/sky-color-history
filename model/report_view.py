@@ -143,6 +143,12 @@ PLANETS_WHERE = [
 "since, lighting the night. Its face is invented too: an airless, cratered, iron-rich basaltic crust "
 "(Meier, Reufer &amp; Wieler 2014), its steam atmosphere lost to the young Sun within a few tens of "
 "millions of years (Odert et al. 2018), with eight great basins and a few young rayed craters.",
+
+"The three largest asteroids are placed the same way, in every epoch: Vesta, which reaches magnitude 5.2 "
+"and the naked eye, Ceres and Pallas. Their elements are fit here to JPL Horizons over 1800–2200, with "
+"periodic terms in the mean longitude for Jupiter's pull (for Pallas, 0.9 degrees over 83 years), to a "
+"tenth or two of a degree as seen from the Sun, and their brightness follows the H, G system of Bowell et "
+"al. (1989) with JPL's values.",
 ]
 
 PLANETS_CLOSE = [
@@ -156,7 +162,13 @@ PLANETS_CLOSE = [
 "terminator and a half-lit Mercury a ragged, cratered one. Venus is cloud, cream and featureless, "
 "bright in the crescent. The moons of Jupiter and Saturn, and Triton, have their own maps (Galileo, "
 "Voyager and Cassini mosaics), and cast their shadows on their planets, go dark in the planets' "
-"shadows, and pass behind and in front of them. {ref:fig:surfaces} shows every rocky surface the site draws.",
+"shadows, and pass behind and in front of them. Ceres and Vesta wear Dawn's Framing Camera mosaics and "
+"stand on its shapes: each is drawn as the spheroid that fits its shape best (Ceres 482 by 446 km, matching "
+"Park et al. 2016; Vesta 281 by 226 km), with what is left of the shape, up to 23 km on Vesta, as relief "
+"that lights the slopes and also bends the outline of the disk, so Vesta's south, cut by its great basins, "
+"shows flattened and lumpy. Phobos has the Mars Express map and shape the same way, though it is never more "
+"than a few pixels. Pallas, which no spacecraft has visited, is the spheroid of the shape from Marsset "
+"et al. (2020), in its own faintly blue tint. {ref:fig:surfaces} shows every rocky surface the site draws.",
 ]
 
 SURFACES_CAPTION = ("The rocky surfaces the site draws, each its own map on a globe lit from the left (surface_montage.py). "
@@ -168,7 +180,10 @@ SURFACES_CAPTION = ("The rocky surfaces the site draws, each its own map on a gl
 "the maria part- or un-flooded (Hiesinger et al. 2011), on the same heights; the molten Moon is a model of its "
 "magma ocean, glowing by its own light. Io, Europa, Ganymede and Callisto are the USGS Voyager and Galileo SSI "
 "mosaics; Mimas, Enceladus, Tethys, Dione, Rhea and Iapetus are Cassini color maps (NASA/JPL-Caltech/SSI/LPI, "
-"Schenk); Triton is Schenk's Voyager 2 map, its north, dark in 1989, filled in. All are toned toward true color, "
+"Schenk); Triton is Schenk's Voyager 2 map, its north, dark in 1989, filled in. Ceres and Vesta are Dawn's "
+"Framing Camera mosaics and Phobos the Mars Express SRC mosaic (DLR, USGS), each on the spheroid the site "
+"draws it as and shaded by its shape's heights over it (Vesta's north and Ceres's far south, dark when Dawn "
+"mapped them, filled in). All are toned toward true color, "
 "and each body is shown at its own exposure, so the panels do not compare in albedo.")
 
 JUPITER = [
@@ -239,7 +254,7 @@ SATURN = [
 MOONS = [
 "The moons with fitted orbits, fitted here to JPL Horizons over 1980–2060, are Io, Europa, Ganymede and "
 "Callisto; Mimas, Enceladus, Tethys, Dione, Rhea, Titan and Iapetus; Miranda, Ariel, Umbriel, Titania and "
-"Oberon; and Triton. Most hold to a tenth of a degree. Iapetus's two faces show: its trailing side is "
+"Oberon; Triton; and Mars's Phobos and Deimos. Most hold to a tenth of a degree. Iapetus's two faces show: its trailing side is "
 "ten times brighter than its leading side, so it is magnitude 10.2 at western elongation and 11.9 at "
 "eastern. The planets' moons also change with the epoch. Triton, retrograde, was captured in the "
 "giant-planet instability, so the two oldest skies lack it, and Neptune has instead a family of regular "
@@ -247,8 +262,16 @@ MOONS = [
 "distances: Rufu &amp; Canup (2017) find that a system no heavier than Uranus's fits best, and that "
 "capturing Triton scattered and destroyed it. Mars, at 4.0 and 3.8 Ga, has Harmonia (named here), the moon "
 "of some twenty times Phobos's mass at 3.3 Mars radii that Ćuk et al. (2020) find tilted Deimos's orbit, "
-"one generation of Mars's cycle of rings and moons (Hesselbrock &amp; Minton 2017). Phobos and Deimos "
-"themselves, too faint to matter, are not drawn.",
+"one generation of Mars's cycle of rings and moons (Hesselbrock &amp; Minton 2017). Phobos is falling "
+"toward Mars: its tidal acceleration, half the rate its mean motion grows, is 1.258 × 10⁻³ degrees per year "
+"squared (Brozović, Jacobson &amp; Park 2025), which is put back into its fitted longitude, so its place stays "
+"right to a few hundredths of a degree across centuries rather than drifting by degrees. Back in time, with "
+"Mars's tidal lag held fixed, its orbit grows as the 2/13 power of 1 + t/38 Myr, to 3.2 Mars radii at 66 Ma against 2.77 "
+"now; Deimos, beyond the synchronous orbit, was only some 130 km nearer at 3.8 Ga. Both of Phobos's histories "
+"fit its orbit (Ćuk, Anand &amp; Minton 2025): formed early just inside the synchronous orbit, or about 100 "
+"million years ago at the Roche limit as the latest moon of the ring cycle. The site follows the second, as "
+"its Harmonia does, so Phobos appears only in the skies of the last 100 million years, and Deimos from "
+"4.3 Ga on.",
 ]
 
 # ---------------------------------------------------------------------------------------------------

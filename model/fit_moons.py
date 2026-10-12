@@ -1,5 +1,5 @@
-"""Orbits for the round moons of Saturn, Uranus and Neptune not yet in planets.js PLANET_MOONS, fit to
-JPL Horizons -> rows to paste into PLANET_MOONS.
+"""Orbits for the round moons of Saturn, Uranus and Neptune and for Mars's two, not yet in planets.js
+PLANET_MOONS, fit to JPL Horizons -> rows to paste into PLANET_MOONS.
 
 Each moon's geometric position about its planet's centre (ICRF, km) is fetched from the Horizons API
 (and kept in horizons_cache/) twice: two years densely, which fixes the mean motion, and 1980-2060
@@ -12,7 +12,7 @@ from the plane's ascending node on that axis's equator. Along the orbit: a circl
 whose periapsis turns if that fits much better, and if still off by more than 0.1 degree the
 largest periodic term left (Mimas's 71-year libration in its resonance with Tethys).
 
-Usage: uv run fit_moons.py   (prints the rows, and each fit's rms error in degrees)
+Usage: uv run fit_moons.py [name ...]   (prints the rows, and each fit's rms error in degrees)
 """
 import hashlib
 import json
@@ -27,9 +27,9 @@ API = 'https://ssd.jpl.nasa.gov/api/horizons.api'
 CACHE = Path(__file__).resolve().parent / 'horizons_cache'
 J2000_JD = 2451545.0
 # Host index in planets.js PLANETS, Horizons centre, and the pole (J2000 RA, Dec) planets.js uses.
-HOSTS = {4: ('500@699', (40.589, 83.537)), 5: ('500@799', (257.311, -15.175)), 6: ('500@899', (299.36, 43.46))}
+HOSTS = {2: ('500@499', (317.681, 52.887)), 4: ('500@699', (40.589, 83.537)), 5: ('500@799', (257.311, -15.175)), 6: ('500@899', (299.36, 43.46))}
 # The hosts' orbits (planets.js PLANETS): inclination and node on the J2000 ecliptic, and mean distance.
-HOST_ORBIT = {4: (2.48599187, 113.66242448, 9.537), 5: (0.77263783, 74.01692503, 19.19), 6: (1.77004347, 131.78422574, 30.07)}
+HOST_ORBIT = {2: (1.84969142, 49.55953891, 1.5237), 4: (2.48599187, 113.66242448, 9.537), 5: (0.77263783, 74.01692503, 19.19), 6: (1.77004347, 131.78422574, 30.07)}
 # Horizons id, name, host, radius (km), V0 at mean opposition (JPL SSD satellite physical
 # parameters), tint. H = V0 - 5 log10(r (r-1)) at the planet's mean distance r (AU), as for the
 # moons already in planets.js.
@@ -43,8 +43,15 @@ MOONS = [
     ('703', 'Titania', 5, 788.9, 13.49, [0.94, 0.92, 0.89]),
     ('704', 'Oberon', 5, 761.4, 13.70, [0.93, 0.90, 0.86]),
     ('801', 'Triton', 6, 1352.6, 13.47, [0.98, 0.93, 0.88]),
+    ('401', 'Phobos', 2, 11.08, 11.4, [0.72, 0.66, 0.6]),
+    ('402', 'Deimos', 2, 6.2, 12.45, [0.76, 0.7, 0.63]),
 ]
-FREE_AXIS = {'Iapetus', 'Triton'}
+FREE_AXIS = {'Iapetus', 'Triton', 'Deimos'}
+# Phobos's tidal acceleration, half dn/dt: 1.258e-3 degrees a year squared (Brozovic, Jacobson & Park
+# 2025, AJ 170, 32), in degrees a day squared; taken out of its longitudes before the fit, and put back
+# by planets.js MOON_TIDE.
+ACCEL = {'Phobos': 1.258e-3 / 365.25 ** 2}
+DENSE = {'Mimas': '2 h', 'Enceladus': '2 h', 'Miranda': '2 h', 'Phobos': '20 m', 'Deimos': '2 h'}
 D = np.pi / 180
 
 
@@ -111,7 +118,7 @@ def cone(p, t):
 def fit(cmd, name, host):
     center, pole = HOSTS[host]
     ts, rs, vs = vectors(cmd, center, '1980-01-01', '2060-01-01', '5341 m')
-    td, rd, _ = vectors(cmd, center, '2019-01-01', '2021-01-01', '2 h' if name in ('Mimas', 'Enceladus', 'Miranda') else '6 h')
+    td, rd, _ = vectors(cmd, center, '2019-01-01', '2021-01-01', DENSE.get(name, '6 h'))
     P = eqvec(*pole)
     h = np.cross(rs, vs); h /= np.linalg.norm(h, axis=1)[:, None]
     tilt = np.degrees(np.arccos(np.clip(h @ P, -1, 1)))
@@ -145,9 +152,11 @@ def fit(cmd, name, host):
         N, k = cone(np.array(plane), t)
         return N, np.cross(k, N)
 
+    acc = ACCEL.get(name, 0.0)
+
     def lon(t, r):
         i, j = frame(t)
-        return np.degrees(np.arctan2((r * j).sum(1), (r * i).sum(1)))
+        return np.degrees(np.arctan2((r * j).sum(1), (r * i).sum(1))) - acc * t ** 2
 
     n = np.polyfit(td, np.degrees(np.unwrap(lon(td, rd) * D)), 1)[0]
     us = lon(ts, rs)
@@ -216,8 +225,12 @@ def fit(cmd, name, host):
     return a, q, ecc, per, plane
 
 
+import sys
+ONLY = set(sys.argv[1:])
 rows = []
 for cmd, name, host, R, V0, tint in MOONS:
+    if ONLY and name not in ONLY:
+        continue
     a, q, ecc, per, plane = fit(cmd, name, host)
     r = HOST_ORBIT[host][2]; H = V0 - 5 * np.log10(r * (r - 1))
     if ecc and q[2] < 0:

@@ -960,7 +960,7 @@ function drawBodies(gl){
     gl.uniform4f(u.bC, b.rgb[0], b.rgb[1], b.rgb[2], b.px);
     gl.uniform4f(u.bL, b.light[0], b.light[1], b.light[2], b.mag);
     gl.uniform4f(u.bN, b.pole[0], b.pole[1], b.pole[2], b.kind+(b.front?8:0)+(b.kind===4&&!b.rings?16:0)+(b.over?32:0));
-    gl.uniform4f(u.bS, Sx, Sy, BODY_U.S[i*4+2], 0);
+    gl.uniform4f(u.bS, Sx, Sy, BODY_U.S[i*4+2], b.flat!=null?b.flat+1:0);
     const m=b.meridian||[0, 0, 0]; gl.uniform4f(u.bM, m[0], m[1], m[2], code);
     const rs=b.ring; gl.uniform4f(u.bR, rs?rs.c[0]:0, rs?rs.c[1]:0, rs?rs.c[2]:0, rs?rs.rm:0); gl.uniform4f(u.bRN, rs?rs.n[0]:0, rs?rs.n[1]:0, rs?rs.n[2]:1, rs?rs.a:0);
     const sh=(b.shadows||[]).slice(0, SHADOW_MAX);
