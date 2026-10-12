@@ -19,3 +19,4 @@ site/day/*.gz
 site/main.pdf
 model/data/
 model/horizons_cache/
+.env
