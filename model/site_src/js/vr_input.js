@@ -591,22 +591,33 @@ function vrReadPixel(fb, x, y, float){
 // What lies under page point (cx, cy): the view ray, the pixel, and the Sun, Moon, supernova,
 // star or planet there, or the bare sky, cloud or ground. With throughCloud, a body behind a
 // cloud still counts.
+// The day's low air along the view ray at azimuth comp (radians) and apparent altitude app
+// (degrees), as the sky shader's lowAir finds it: how far it lifts the ray's apparent altitude
+// (dAp) and the refraction at the lifted altitude (bend), both in degrees. A ray's true altitude
+// is app+dAp-bend, for the Sun's band at 550 nm and everything else.
+function lowAirAt(comp, app){
+  const rd=skyNow.moon.sunRadDeg*DISK_SCALE, {lay, mir}=sunsetLayers(rd);
+  const H=vrGL.gl.canvas.height, fov=vrFov*Math.PI/180, wT=(performance.now()/1000)%1000;
+  const wob=mir[3]*(0.6*Math.sin(comp*1432.4+wT*2.1)+0.4*Math.sin(comp*3610-wT*3.3))*Math.exp(-Math.max(app, 0)/rd);
+  let ap=app+wob, dAp=wob;
+  if(mir[0]>0&&ap<mir[0]){ dAp=(mir[0]-ap)*(1+mir[1])+wob; ap=mir[0]+(mir[0]-ap)*mir[1]; }
+  let bend=refK()*(ap>80?0:1/Math.tan((ap+7.31/(ap+4.4))*Math.PI/180)/60);
+  for(let i=0;i<4;i++){
+    if(lay[i*4+1]<=0) continue;
+    const w=Math.max(lay[i*4+1], Math.tan(fov/2)/H*180/Math.PI);
+    bend+=lay[i*4+2]*(smooth01(lay[i*4]-w, lay[i*4]+w, ap)-1);
+  }
+  return {dAp, bend};
+}
 // The Sun's image under the view ray at azimuth comp (radians) and apparent altitude app (degrees),
 // found as the sky shader's sunDiskAt finds it, from the same bands, refraction, inversion layers
 // and mirage: the fraction of the disk's radius in the nearest band image that reaches the ray (r,
 // 2 off the disk) and the ray's offset from the Sun's centre in that image (off), so a low,
 // squeezed Sun is read where it is drawn.
 function sunImageAt(comp, app){
-  const sb=EP[dIdx].sun, rd=skyNow.moon.sunRadDeg*DISK_SCALE, sunRad=rd*Math.PI/180, {lay, mir}=sunsetLayers(rd);
-  const H=vrGL.gl.canvas.height, fov=vrFov*Math.PI/180, px=2*Math.tan(fov/2)/H, wT=(performance.now()/1000)%1000;
-  let ap=app+mir[3]*(0.6*Math.sin(comp*1432.4+wT*2.1)+0.4*Math.sin(comp*3610-wT*3.3))*Math.exp(-Math.max(app, 0)/rd);
-  if(mir[0]>0&&ap<mir[0]) ap=mir[0]+(mir[0]-ap)*mir[1];
-  let bend=sb.k*(ap>80?0:1/Math.tan((ap+7.31/(ap+4.4))*Math.PI/180)/60);
-  for(let i=0;i<4;i++){
-    if(lay[i*4+1]<=0) continue;
-    const w=Math.max(lay[i*4+1], Math.tan(fov/2)/H*180/Math.PI);
-    bend+=lay[i*4+2]*(smooth01(lay[i*4]-w, lay[i*4]+w, ap)-1);
-  }
+  const rd=skyNow.moon.sunRadDeg*DISK_SCALE, sunRad=rd*Math.PI/180;
+  const H=vrGL.gl.canvas.height, fov=vrFov*Math.PI/180, px=2*Math.tan(fov/2)/H;
+  const {dAp, bend}=lowAirAt(comp, app), ap=app+dAp;
   const dispX=DISK_SCALE*(1+5*Math.exp(-Math.max(ap, 0)/0.6)), sd=horizDir(skyNow.sunAz, 90-skyNow.sza);
   let r=2, off=[0, 0, 0];
   for(let b=0;b<SUN_DISP.length;b++){
@@ -622,7 +633,8 @@ function sunImageAt(comp, app){
 function vrProbe(cx, cy, throughCloud, px, view){
   const gl=vrGL.gl, c=gl.canvas, W=window.innerWidth, H=Math.max(window.innerHeight, 1), {x, y}=vrCanvasPx(cx, cy);
   const d=view?vrRayAt(cx, cy, view[0], view[1]):vrRayAt(cx, cy, vrYaw, vrPitch);
-  const app=Math.asin(Math.max(-1, Math.min(1, d[2])))*180/Math.PI, el=trueAltDeg(app);
+  // The true altitude through the day's low air, as the sky shader draws the Moon and stars.
+  const app=Math.asin(Math.max(-1, Math.min(1, d[2])))*180/Math.PI, air=lowAirAt(Math.atan2(d[0], d[1]), app), el=app+air.dAp-air.bend;
   let az=Math.atan2(d[0], d[1])*180/Math.PI; if(az<0) az+=360;
   const P={x, y, d, app, el, az};
   const hit=px?px.hit:vrScenery&&vrGL.hitInfo&&vrGL.hitMRT?vrReadPixel(vrGL.hitFbo, Math.floor(x*vrGL.hitW/c.width), Math.floor(y*vrGL.hitH/c.height), true):null;

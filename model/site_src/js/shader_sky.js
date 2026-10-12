@@ -300,12 +300,36 @@ float bennett(float app){ // Bennett 1982: today's refraction (deg) at apparent 
   return app>80.0?0.0:(1.0/tan((app+7.31/(app+4.4))*0.01745329252))/60.0;
 }
 float trueAlt(float app){ return app-refK*bennett(app); } // apparent altitude (deg) to true
+// The day's low air (sunset.js sunsetLayers) along the ray at azimuth comp (radians) and apparent
+// altitude app (degrees). It bends whatever lies behind it alike: the Sun, and the Moon, stars and
+// the rest of the sky after it, so a Moon in front of a mirrored Sun is mirrored with it. The
+// edges shimmer, and below an inferior mirage's mirror line (sunMir) the rays come up off the
+// warm surface layer, so what shows there is an inverted, squeezed image of what is above. The
+// day's inversion layers (sunLay) step the true altitude a ray reaches and darken the rays trapped
+// along them. Returns how far that lifts the ray's apparent altitude (degrees: small, so kept to a
+// float's precision for fineEU), with bend the refraction at the lifted altitude (the epoch's
+// curve plus the layers' steps) and extra the added optical depth, as a share of the path's. rd is
+// the Sun's drawn radius (degrees), in which the layers are sized.
+float lowAir(float comp, float app, float rd, out float bend, out float extra){
+  float wob=sunMir.w*(0.6*sin(comp*1432.4+waterT*2.1)+0.4*sin(comp*3610.0-waterT*3.3))*exp(-max(app, 0.0)/max(rd, 1e-4)), ap=app+wob, dAp=wob;
+  extra=0.0;
+  if(sunMir.x>0.0 && ap<sunMir.x){ dAp=(sunMir.x-ap)*(1.0+sunMir.y)+wob; ap=sunMir.x+(sunMir.x-ap)*sunMir.y; extra=sunMir.z; }
+  bend=refK*bennett(ap);
+  for(int i=0;i<4;i++){
+    vec4 L=sunLay[i];
+    if(L.y<=0.0) continue;
+    float w=max(L.y, (fov<2e-3?0.5*fov:tan(fov*0.5))/res.y*57.2957795); // at least a pixel thick
+    // The jump bends the rays below the layer only: those above never graze it, so a body well up
+    // sits where plain refraction puts it.
+    bend+=L.z*(smoothstep(L.x-w, L.x+w, ap)-1.0);
+    extra+=L.w*exp(-pow((app-L.x)/w, 2.0));
+  }
+  return dAp;
+}
 // The setting Sun (sunset.js): twenty images, one per 20 nm band, each bent by its own amount
 // (SUN_DISP, enlarged by dispX) and dimmed by its own optical depth along the ray (sunTau, twenty
-// bands at each of the apparent altitudes SUN_APPS, less sunOff, four to a vec4). The day's inversion layers (sunLay) step
-// the true altitude a ray reaches and darken the rays trapped along them; below an inferior
-// mirage's mirror line (sunMir) the rays come up off the warm surface layer, so the disk there
-// is an inverted, squeezed image of the rays above. sunG takes band light to linear sRGB, so the
+// bands at each of the apparent altitudes SUN_APPS, less sunOff, four to a vec4), through the
+// day's low air (lowAir). sunG takes band light to linear sRGB, so the
 // disk's middle is sunCol. xyz is the band light reaching this ray, w its
 // fraction of the disk's radius in the nearest image, and off the ray's offset from the Sun's
 // centre in the 545 nm image.
@@ -330,20 +354,8 @@ vec3 altAxis(float az, float h){ float a=az*0.01745329252, hr=h*0.01745329252; r
 // With fn, the ray's offsets from the Sun come from fineEU: dAz in azimuth (radians), dApp its
 // apparent altitude less the view's (degrees), dH the view's altitude less the Sun's.
 vec4 sunDiskAt(float comp, float app, vec3 sd, float rd, out vec3 off, out float covM, bool fn, float dAz, float dApp, float dH){
-  float wob=sunMir.w*(0.6*sin(comp*1432.4+waterT*2.1)+0.4*sin(comp*3610.0-waterT*3.3))*exp(-max(app, 0.0)/rd), ap=app+wob;
-  float extra=0.0, apH=dH+dApp+wob; // apH: ap less the Sun's true altitude
-  if(sunMir.x>0.0 && ap<sunMir.x){ apH=sunMir.x-sunEl+(sunMir.x-ap)*sunMir.y; ap=sunMir.x+(sunMir.x-ap)*sunMir.y; extra=sunMir.z; }
+  float bend, extra, dAp=lowAir(comp, app, rd, bend, extra), ap=app+dAp, apH=dH+dApp+dAp; // apH: ap less the Sun's true altitude
   vec3 eS=azAxis(sunAz), uS=altAxis(sunAz, sunEl);
-  float bend=refK*bennett(ap);
-  for(int i=0;i<4;i++){
-    vec4 L=sunLay[i];
-    if(L.y<=0.0) continue;
-    float w=max(L.y, (fov<2e-3?0.5*fov:tan(fov*0.5))/res.y*57.2957795); // at least a pixel thick
-    // The jump bends the rays below the layer only: those above never graze it, so a Sun well up
-    // sits where the Moon and the rest of the sky put it.
-    bend+=L.z*(smoothstep(L.x-w, L.x+w, ap)-1.0);
-    extra+=L.w*exp(-pow((app-L.x)/w, 2.0));
-  }
   float dispX=${DISK_SCALE.toFixed(1)}*(1.0+5.0*exp(-max(ap, 0.0)/0.6)), px=2.0*(fov<2e-3?0.5*fov:tan(fov*0.5))/res.y;
   float a=clamp(app, 0.0, 30.0), f; int i=0;
   for(int k=1;k<9;k++) if(a>SUN_APPS[k]) i=k;
@@ -917,6 +929,11 @@ void main(){
       vec4 sk=sunDiskAt(comp, appF, sd, sunRad*57.2957795, sunOffV, sunCov, fine, fineRel.x+dAzPx, dAppPx, fineRel.y);
       inSun=sk.x+sk.y+sk.z!=0.0; sunR=min(sk.w, 1.0); sunP=max(sk.rgb, vec3(0.0));
     }
+    // All the rest is seen through the Sun's low air (lowAir): the Moon, stars and everything
+    // behind the air shift, double and darken as the Sun does. refF becomes all that the air
+    // takes off the ray's apparent altitude, and airX the optical depth the low air adds.
+    float airX; { float bendA, dApA=lowAir(comp, appF, sunRad*57.2957795, bendA, airX); refF=bendA-dApA; }
+    te=appF-refF; teR=te*0.01745329252; cth=cos(teR); src=vec3(sin(comp)*cth, cos(comp)*cth, sin(teR));
     bool onBody=inSun, onMoon=false;
     vec3 skyBase=skyC;
     if(inSun){
@@ -992,7 +1009,7 @@ void main(){
         // The air in front of the Moon extincts it (blue first) and the sky
         // already drawn is that same air, so a bright sky veils the disk.
         float mu=max(sin(max(te,0.0)*0.01745329252), 0.04);
-        vec3 T=exp(-vec3(0.12, 0.22, 0.48)/mu);
+        vec3 T=exp(-vec3(0.12, 0.22, 0.48)*(1.0+airX)/mu);
         vec3 moonC=alb*(0.06+0.94*lit*shade)*T;
         if(eclU.w>0.5){
           float t=length(vec2(x, y)-eclU.xy)*eclU.z;
@@ -1009,7 +1026,7 @@ void main(){
         float d=am/moonRad-1.0;
         if(d<6.0){
           float mu=max(sin(max(te,0.0)*0.01745329252), 0.04), skyY=dot(skyC, vec3(0.2126, 0.7152, 0.0722));
-          skyC+=moonGlow*vec3(0.95, 0.30, 0.07)*exp(-vec3(0.12, 0.22, 0.48)/mu)*(0.30*exp(-d*4.0)+0.07*exp(-d*0.9))*(1.0-smoothstep(0.0, 1.15, skyY));
+          skyC+=moonGlow*vec3(0.95, 0.30, 0.07)*exp(-vec3(0.12, 0.22, 0.48)*(1.0+airX)/mu)*(0.30*exp(-d*4.0)+0.07*exp(-d*0.9))*(1.0-smoothstep(0.0, 1.15, skyY));
         }
       }
     }
@@ -1080,7 +1097,7 @@ void main(){
       float prom=smoothstep(0.62, 0.86, vN(ring*7.0+vec2(29.0, 2.0)));
       float rim=1.0-smoothstep(1.0, 1.03+0.07*prom, a);
       float mu=max(sin(max(te, 0.0)*0.01745329252), 0.04);
-      vec3 T=exp(-vec3(0.12, 0.22, 0.48)/mu);
+      vec3 T=exp(-vec3(0.12, 0.22, 0.48)*(1.0+airX)/mu);
       skyC+=corona*T*(I*vec3(1.0, 0.97, 0.92)+rim*vec3(1.0, 0.3, 0.42)*1.5*coronaRim);
     }
     if(glareK>0.0 && te>-1.0 && (!onMoon || glareMoon>0.0)){
