@@ -312,7 +312,11 @@ SUPERNOVAE = [
 "at 107 pc in the Scorpius–Centaurus association (Neuhäuser et al. 2020), unbound its companion, now the "
 "runaway star ζ Oph, and peaked near −11.6, twice as bright. Its spectrum readout is a Type II-P near "
 "peak, with P Cygni profiles from fast ejecta (Filippenko 1997). At these distances neither touches the "
-"sky's colors (Thomas et al. 2016).",
+"sky's colors (Thomas et al. 2016). Betelgeuse is the same event still to come, in the same patch of "
+"sky: 1.4° from Geminga's star in the sky of 342 ka, a red supergiant of 16.5 to 19 solar masses burning "
+"helium in its core, some 100,000 years from collapse, at 168 pc (Joyce et al. 2020), or 222 pc by radio "
+"astrometry (Harper et al. 2017). A red supergiant ends as a Type II-P, so it should peak at −10 to −10.6, "
+"close to Geminga's −11, and the Geminga sky is a fair picture of Orion's own to come.",
 ]
 
 # ---------------------------------------------------------------------------------------------------
