@@ -41,7 +41,7 @@ function markSlow(job, prog, label){ if(prog && job.cold) vrSlow.set(prog, label
 // (shader_bodies.js bodyFS) drawing Jupiter, Saturn or the mapped bodies, beside the plain one. The
 // compile can hold up the screen, so a note naming the piece goes up first and stays until the
 // program's first draw (paintVR).
-const VR_DETAIL_NAMES={sun:"the Sun's surface", jup:"Jupiter's clouds", sat:"Saturn's clouds", map:'the surface maps'};
+const VR_DETAIL_NAMES={sun:"the Sun's surface", jup:"Jupiter's clouds", sat:"Saturn's clouds", nep:"Neptune's clouds", map:'the surface maps'};
 function wantDetail(gl, f){
   if(!vrGL) return;
   const w=vrGL.detailWant||(vrGL.detailWant=new Set());

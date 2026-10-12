@@ -444,6 +444,7 @@ def blocks():
                  "up, a vortex in the same flow as the belts and zones around it, which eddies marble and Kelvin–Helmholtz "
                  "billows roll along their edges.", 'fig:jupiter'))
     B.append(S('Saturn and its rings')); B += ps(*rv.SATURN)
+    B.append(S("Neptune's clouds")); B += ps(*rv.NEPTUNE)
     B.append(fig(view('saturn'), "Saturn close up in the modern sky on 15 June 2017, at opposition, its rings filling the site's telescope view. The north pole is tilted 27° toward us, showing the hexagon around it, golden inside in the northern summer, with the polar vortex at its center. The belts are stirred by the flow drawn for Jupiter under Cassini's winds, calmer and muted by the haze. The rings are drawn from the Cassini occultation profile with single-scattering photometry; at opposition the globe's shadow on them lies hidden behind it.", 'fig:saturn'))
     B.append(S("The planets' moons")); B += ps(*rv.MOONS)
 

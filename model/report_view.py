@@ -260,6 +260,23 @@ SATURN = [
 "at each epoch: by a known angle at the Pleistocene supernovae, at random beyond ten million years.",
 ]
 
+NEPTUNE = [
+"Neptune close up is drawn the same way, a tracer in its own flow. The winds are Voyager 2's cloud-tracked "
+"profile (Sromovsky et al. 1993): retrograde at 400 m/s at the equator, prograde at 250 m/s near 70°, in "
+"System III, the 16.11-hour radio period that also turns the planet. Its deck is smooth, so the eddies "
+"stir it only lightly and no billows roll up between bands. Its color is the true one, a pale greenish "
+"blue only a little bluer than Uranus's (Irwin et al. 2024), not the deep blue of Voyager's "
+"contrast-stretched images. On it are bright clouds of methane ice, in streaks drawn out by the shear of "
+"the winds that carry them, at southern mid-latitudes, near 30°N and near 70°S, each lasting some days; "
+"and the dark wave circling near 60°S, wandering a few degrees in latitude and drifting 4.87° a day in "
+"System III, with a bright band just north of it (Karkoschka 2011; Chavez et al. 2023). Dark vortices come "
+"and go, a new one every four to six years, each lasting about two (Hsu et al. 2019): deep-blue ovals "
+"with bright methane clouds along their poleward edges, turning as anticyclones and drifting with the "
+"wind at their latitude. The Great Dark Spot that Voyager 2 found is drawn as it was, at 22°S, 13,000 by "
+"6,600 km, from late 1988 until it was gone in 1994 (Smith et al. 1989). At other times a vortex is drawn "
+"at random as their rates and sizes have it, since where one was on any given day is not known.",
+]
+
 MOONS = [
 "The moons with fitted orbits, fitted here to JPL Horizons over 1980–2060, are Io, Europa, Ganymede and "
 "Callisto; Mimas, Enceladus, Tethys, Dione, Rhea, Titan and Iapetus; Miranda, Ariel, Umbriel, Titania and "

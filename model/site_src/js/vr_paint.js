@@ -943,7 +943,7 @@ function drawBodies(gl){
     const cx=(Sx/fx*0.5+0.5)*W, cy=(Sy/fy*0.5+0.5)*H, r=rPx*(b.rings?2.35:b.uRings?2.06:1)*1.05+3;
     const x0=Math.max(0, Math.floor(cx-r)), y0=Math.max(0, Math.floor(cy-r)), x1=Math.min(W, Math.ceil(cx+r)), y1=Math.min(H, Math.ceil(cy+r));
     if(x1<=x0||y1<=y0) return;
-    const code=surfCode(b.map), pr=(b.kind===3&&bp.jup)||(b.kind===4&&bp.sat)||(code>-0.5&&bp.map)||bp.base, u=pr.u;
+    const code=surfCode(b.map), pr=(b.kind===3&&bp.jup)||(b.kind===4&&bp.sat)||(b.kind===6&&bp.nep)||(code>-0.5&&bp.map)||bp.base, u=pr.u;
     if(pr!==used){
       used=pr; gl.useProgram(pr.p);
       gl.uniform2f(u.res, W, H); gl.uniform2f(u.hitScale, vrGL.hitInfo?vrGL.hitW/W:0, vrGL.hitInfo?vrGL.hitH/H:0);
@@ -959,6 +959,8 @@ function drawBodies(gl){
     gl.uniform4f(u.bP, b.dir[0], b.dir[1], b.dir[2], b.rad*DISK_SCALE);
     gl.uniform4f(u.bC, b.rgb[0], b.rgb[1], b.rgb[2], b.px);
     gl.uniform4f(u.bL, b.light[0], b.light[1], b.light[2], b.mag);
+    // Jupiter's Red Spot or Neptune's dark vortex, each its own.
+    if(b.kind===3||b.kind===6){ const g=b.kind===3?b.grs:b.nds; gl.uniform3fv(u.grsDir, g?g.dir:[1, 0, 0]); gl.uniform4f(u.grsAB, g?g.L:0, g?g.W:0, g?(g.lat??GRS_LAT):GRS_LAT, g?g.k:0); }
     gl.uniform4f(u.bN, b.pole[0], b.pole[1], b.pole[2], b.kind+(b.front?8:0)+((b.kind===4&&!b.rings)||(b.kind===5&&!b.uRings)?16:0)+(b.over?32:0));
     if(b.uRings){ gl.uniform4fv(u.uRingEl, b.uRings.el); gl.uniform3fv(u.uRingAx, b.uRings.ax); }
     gl.uniform4f(u.bS, Sx, Sy, BODY_U.S[i*4+2], b.flat!=null?b.flat+1:0);
@@ -1017,6 +1019,7 @@ function uploadBodies(gl, u){
   const inView=i=>{ const r=Math.tan(list[i].rad*DISK_SCALE); return Math.abs(S[i*4])<fx+r&&Math.abs(S[i*4+1])<fy+r; };
   if(list.some((b, i)=>b.kind===3&&radPx(b)>20&&inView(i))) wantDetail(gl, 'jup');
   if(list.some((b, i)=>b.kind===4&&radPx(b)>20&&inView(i))) wantDetail(gl, 'sat');
+  if(list.some((b, i)=>b.kind===6&&radPx(b)>20&&inView(i))) wantDetail(gl, 'nep');
   list.forEach((b, i)=>{ if(b.map&&radPx(b)>5&&inView(i)){ wantSurface(b.map); wantDetail(gl, 'map'); } });
   gl.uniform4fv(u.bodyP, P); gl.uniform4fv(u.bodyC, C); gl.uniform4fv(u.bodyL, L); gl.uniform4fv(u.bodyN, N); gl.uniform4fv(u.bodyS, S); gl.uniform4fv(u.bodyM, Mr);
   gl.uniform1f(u.bodyCnt, list.length); gl.uniform1f(u.moonGain, moonGain());

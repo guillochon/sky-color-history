@@ -8,8 +8,8 @@
 const BODY_GLSL=`
 // A planet's cloud tops or ground at planetographic latitude lat (degrees): Mercury's grey rock,
 // Venus's clouds, Mars's ochre with its darker south and polar caps, Jupiter's belts and zones,
-// Saturn's fainter bands, Uranus's pale cyan (paler toward the poles), Neptune's blue with a
-// darker southern band; a moon in its own tint.
+// Saturn's fainter bands, Uranus's pale cyan (paler toward the poles), Neptune's paler blue with a
+// darker equator and its dark band near 60°S; a moon in its own tint.
 float bandOf(float lat, float a, float b, float w){ return smoothstep(a-w, a+w, lat)-smoothstep(b-w, b+w, lat); }
 vec3 bodyAlbedo(int kind, float lat, vec3 tint){
   if(kind==0) return vec3(0.66, 0.62, 0.57);
@@ -20,7 +20,7 @@ vec3 bodyAlbedo(int kind, float lat, vec3 tint){
     return mix(mix(vec3(0.95, 0.91, 0.82), vec3(0.70, 0.53, 0.40), clamp(belt, 0.0, 1.0)), vec3(0.62, 0.60, 0.58), smoothstep(45.0, 70.0, abs(lat)));
   }
   if(kind==5) return mix(vec3(0.58, 0.84, 0.92), vec3(0.70, 0.88, 0.92), smoothstep(50.0, 80.0, abs(lat)));
-  if(kind==6) return mix(vec3(0.50, 0.66, 0.95), vec3(0.40, 0.55, 0.90), bandOf(lat, -30.0, -15.0, 4.0));
+  if(kind==6) return mix(mix(vec3(0.56, 0.74, 0.95), vec3(0.45, 0.60, 0.88), 0.3*bandOf(lat, -10.0, 10.0, 4.0)+0.5*bandOf(lat, -64.0, -57.0, 2.0)), vec3(0.62, 0.80, 0.96), 0.5*smoothstep(65.0, 85.0, abs(lat)));
   if(kind==4) return mix(mix(vec3(0.93, 0.85, 0.64), vec3(0.78, 0.68, 0.50), 0.5*(bandOf(lat, 18.0, 32.0, 3.0)+bandOf(lat, -32.0, -18.0, 3.0))), vec3(0.70, 0.70, 0.64), smoothstep(55.0, 75.0, abs(lat)));
   return tint/max(max(tint.r, tint.g), max(tint.b, 1e-4))*0.85;
 }
@@ -40,7 +40,7 @@ vec3 satSeason(vec3 c, float lat, float sl){
   float w=clamp(-sl*sign(lat)/0.45, 0.0, 1.0)*smoothstep(20.0, 45.0, abs(lat));
   return mix(c, vec3(0.62, 0.74, 0.86), 0.5*w);
 }
-#if DETAIL_JUP || DETAIL_SAT
+#if DETAIL_JUP || DETAIL_SAT || DETAIL_NEP
 // Jupiter close up (bodyDisk, once its disk is a few dozen pixels across), after Voyager, Cassini,
 // Juno and Hubble images: the clouds a tracer stirred by eddies and drawn out by the jets, so the
 // belts and zones and the finer banding within them are marbled into curls and filaments, rougher
@@ -76,8 +76,35 @@ vec3 clColor(float lat, float belt){
 // the billows turn.
 const float CL_B[12]=float[12](7.0, 18.0, 24.0, 31.0, 36.0, 42.0, -8.0, -21.0, -26.0, -33.0, -38.0, -44.0);
 const float CL_STIR=1.0, CL_KH=1.0;
-// Whether the Red Spot is drawn.
+// Whether the Red Spot is drawn, and how it turns.
 #define CL_SPOT (grsAB.x>0.0)
+#define CL_SPIN 1.0
+#elif DETAIL_NEP
+// Neptune's: Voyager 2's cloud-tracked winds, u = -398 + 0.188 lat² - 1.2e-5 lat⁴ m/s (Sromovsky et
+// al. 1993), retrograde at 400 m/s at the equator and prograde at 250 near 70°, in System III (the
+// radio period, 16.11 hours); smoothed over s degrees in closed form, each power of the latitude
+// averaged over a Gaussian of that width. Held beyond 80°.
+float clWindS(float lat, float s){
+  float p=clamp(lat, -80.0, 80.0), p2=p*p, s2=s*s;
+  return -398.0+0.188*(p2+s2)-1.2e-5*(p2*p2+6.0*p2*s2+3.0*s2*s2);
+}
+const float CL_MS=0.19989;
+// Bands: the equator a little darker, and the dark circumpolar wave near 60°S (drawn with its wander
+// below); in true colour Neptune is a pale greenish blue only a little bluer than Uranus (Irwin et
+// al. 2024), not the deep blue of the contrast-stretched Voyager images.
+float clBelt(float lat, float w){
+  return 0.3*bandOf(lat, -10.0, 10.0, w*2.0)+0.5*bandOf(lat, -64.0, -57.0, w);
+}
+vec3 clColor(float lat, float belt){
+  return mix(mix(vec3(0.56, 0.74, 0.95), vec3(0.45, 0.60, 0.88), clamp(belt, 0.0, 1.0)), vec3(0.62, 0.80, 0.96), 0.5*smoothstep(65.0, 85.0, abs(lat)));
+}
+const float CL_B[12]=float[12](10.0, 20.0, 30.0, 45.0, 56.0, 68.0, -10.0, -20.0, -30.0, -45.0, -56.0, -68.0);
+// Its deck is smooth: little stirring, and no billows rolled up between bands.
+const float CL_STIR=0.3, CL_KH=0.0;
+// The dark vortex, when there is one (planets.js nepSpotAt, in grsAB); it turns as an anticyclone,
+// one way in the south and the other in the north.
+#define CL_SPOT (grsAB.x>0.0)
+#define CL_SPIN (grsAB.z<0.0?1.0:-1.0)
 #else
 // Saturn's: Cassini's cloud-top winds of 2004-2009 in the continuum (García-Melendo et al. 2011,
 // Icarus 215, 62; their PDS table), fit by 20 Gaussians to 6 m/s rms, in System III. North of 84°N,
@@ -104,6 +131,7 @@ const float CL_B[12]=float[12](18.0, 32.0, 40.0, 49.0, 55.0, 62.0, -18.0, -32.0,
 // Saturn's clouds are seen through more haze, and its eddies show less.
 const float CL_STIR=0.45, CL_KH=0.7;
 #define CL_SPOT false
+#define CL_SPIN 1.0
 #endif
 float clWind(float lat){ return clWindS(lat, 0.0); }
 float clWindDeg(float lat){ return clWind(lat)*CL_MS/max(cos(lat*0.01745329252), 0.1); }
@@ -198,6 +226,8 @@ vec3 cloudAlbedo(float lat, float lon, float pxD, float aux){
   float w=clamp(pxD*2.0, 0.25, 1.5);
 #if DETAIL_JUP
   if(pxD>2.5) return mix(clColor(lat, clBelt(lat, 1.5)), vec3(0.80, 0.42, 0.30), grsAB.w*(1.0-smoothstep(0.8, 1.0, e0)));
+#elif DETAIL_NEP
+  if(pxD>2.5) return mix(clColor(lat, clBelt(lat, 1.5)), vec3(0.24, 0.34, 0.66), 0.6*grsAB.w*(1.0-smoothstep(0.8, 1.0, e0)));
 #else
   if(pxD>2.5) return bodyAlbedo(4, lat, vec3(1.0));
 #endif
@@ -252,7 +282,7 @@ vec3 cloudAlbedo(float lat, float lon, float pxD, float aux){
     // the flow also runs a little inward, so the collar is drawn in as arms spiralling onto the
     // rim rather than circling it in rings (followed back, outward).
     if(e<2.0){
-      float a=-0.375*(0.7+0.3*smoothstep(0.3, 0.85, e))*exp(-x*x/0.08);
+      float a=-0.375*CL_SPIN*(0.7+0.3*smoothstep(0.3, 0.85, e))*exp(-x*x/0.08);
       E=vec2(mod(q.x-gC.x+64.0, 128.0)-64.0, q.y-gC.y)/gA;
       E=mat2(cos(a), sin(a), -sin(a), cos(a))*E*(1.0+0.02*smoothstep(0.93, 1.05, e)*exp(-(e-1.15)*(e-1.15)/0.09));
       q=gC+E*gA;
@@ -263,7 +293,7 @@ vec3 cloudAlbedo(float lat, float lon, float pxD, float aux){
   float gT=1.0;
   if(grs){
     vec2 E=vec2(mod(q.x-gC.x+64.0, 128.0)-64.0, q.y-gC.y)/gA;
-    float eT=length(E), a=-1.047*T*(1.0-smoothstep(0.86, 0.93, eT));
+    float eT=length(E), a=-1.047*CL_SPIN*T*(1.0-smoothstep(0.86, 0.93, eT));
     gT=1.0-smoothstep(0.84, 0.88, eT)*(1.0-smoothstep(0.92, 0.95, eT));
     E=mat2(cos(a), sin(a), -sin(a), cos(a))*E; q=gC+E*gA;
   }
@@ -295,6 +325,9 @@ vec3 cloudAlbedo(float lat, float lon, float pxD, float aux){
   c=mix(c, vec3(0.94, 0.92, 0.86), belt*smoothstep(0.08, 0.3, dye)*0.75*(1.0-0.7*pol));
   c=mix(c, vec3(0.74, 0.77, 0.82), (1.0-belt)*smoothstep(0.08, 0.3, -dye)*0.45*(1.0-pol));
   c*=1.0+(0.12+0.4*pol)*mix(1.0-belt, 1.0, pol)*dye;
+#elif DETAIL_NEP
+  // Neptune's deck barely varies: faint shading along the bands, a little bluer or greener.
+  c*=1.0+0.25*(hv.x*vec3(-0.04, 0.0, 0.05)+hv.y*vec3(0.02, 0.03, -0.02)+0.04*hv.z)+0.04*dye;
 #else
   // Saturn's the same, a half to a third as strong through its haze: the belts browner and the
   // zones paler along some stretches; toward the poles, many fine bands of differing shades.
@@ -309,6 +342,14 @@ vec3 cloudAlbedo(float lat, float lon, float pxD, float aux){
   // clouds wound into it, with a darker rim; round it the pale Red Spot Hollow, which the belt
   // north of it bends away from.
   if(grs){
+#if DETAIL_NEP
+    // A dark vortex: a deeper blue oval, streaked by the clouds wound into it, and bright methane
+    // clouds along its poleward edge, where the flow over it lifts them (Voyager's companions).
+    vec2 Ed=vec2(mod(q.x-gC.x+64.0, 128.0)-64.0, q.y-gC.y)/gA;
+    float e=length(Ed), ins=1.0-smoothstep(0.85, 1.0, e), pole=smoothstep(0.1, 0.6, sign(grsAB.z)*Ed.y/max(e, 1e-3));
+    c=mix(c, vec3(0.24, 0.34, 0.66)*(1.0+0.25*dye*gT), 0.7*grsAB.w*ins*(0.75+0.25*smoothstep(0.0, 0.8, e)));
+    c=mix(c, vec3(0.95, 0.97, 1.0), 0.85*grsAB.w*pole*exp(-(e-1.2)*(e-1.2)/0.025));
+#else
     float e=length(vec2(mod(q.x-gC.x+64.0, 128.0)-64.0, q.y-gC.y)/gA), ins=1.0-smoothstep(0.93, 1.0, e);
     c=mix(c, vec3(0.94, 0.92, 0.87), 0.75*(1.0-smoothstep(1.1, 1.45, e+0.25*dye))*(1.0-ins));
     vec3 red=mix(vec3(0.88, 0.55, 0.38), vec3(0.80, 0.38, 0.25), smoothstep(0.2, 0.8, e));
@@ -316,6 +357,7 @@ vec3 cloudAlbedo(float lat, float lon, float pxD, float aux){
     red=mix(red, vec3(0.92, 0.70, 0.55), smoothstep(0.12, 0.35, dye)*0.45*(1.0-smoothstep(0.6, 0.85, e)));
     // A paler spot (grsAB.w under 1) fades toward pale salmon, not the clouds wound up beneath it.
     c=mix(c, mix(vec3(0.93, 0.86, 0.78)*(1.0+0.15*dye*gT), red, grsAB.w), ins);
+#endif
   }
 #if DETAIL_JUP
   // The North Equatorial Belt's southern edge, about 7°N: dark blue-grey hot spots, gaps in the
@@ -346,6 +388,32 @@ vec3 cloudAlbedo(float lat, float lon, float pxD, float aux){
     float xb=lon-clWindDeg(15.5)*T, k=floor(xb/40.0+0.5), hb=h12(vec2(mod(k, 9.0), 9.1));
     vec2 d=vec2((xb-k*40.0-(hb-0.5)*20.0)*cl/2.6, (lat-15.5)/1.0);
     c=mix(c, vec3(0.50, 0.30, 0.24), 0.7*(1.0-smoothstep(0.6, 1.0, length(d)))*step(0.55, hb));
+  }
+#elif DETAIL_NEP
+  // Bright clouds of methane ice high above the deck, in streaks some tens of degrees long and a
+  // degree or two wide: at southern mid-latitudes (20-50°S), near 30°N, and small ones near 70°S
+  // (Voyager; Keck and HST since). Each lives some days, drawn out by the shear of the winds that
+  // carry it: two generations of noise, each carried by the wind at its latitude from its own start
+  // eight days apart, the one fading in as the other fades out, so the shear never builds past that.
+  {
+    float env=0.9*bandOf(la, -50.0, -21.0, 3.0)+0.7*bandOf(la, 22.0, 40.0, 3.0)+0.7*bandOf(la, -73.0, -66.0, 1.5);
+    if(env>0.01){
+      float ph=T/8.0, i0=floor(ph), fr=fract(ph), cw=0.0, ud=clWindDeg(la);
+      for(int k=0;k<2;k++){
+        float sl=i0+float(k), xq=(lon-ud*(T-8.0*sl))*0.355556+sl*31.7;
+        float n=vNg(vec2(xq*0.35, q.y*2.2+sl*7.3), 128.0*0.35).x*0.7+vNg(vec2(xq*1.1, q.y*6.0+sl*3.1), 128.0*1.1).x*0.3;
+        cw+=(k==0?1.0-smoothstep(0.0, 1.0, fr):smoothstep(0.0, 1.0, fr))*smoothstep(0.66, 0.82, n);
+      }
+      c=mix(c, vec3(0.95, 0.97, 1.0), 0.8*env*cw*smoothstep(4.0, 1.5, pxD));
+    }
+  }
+  // The dark circumpolar wave near 60°S (the South Polar Wave), wandering a few degrees in latitude
+  // round the planet and drifting 4.866° a day in System III (Karkoschka 2011; Chavez et al. 2023),
+  // with the bright band just north of it.
+  if(la<-48.0 && la>-72.0){
+    float lw=-60.5+2.5*sin((lon-4.866*T)*0.01745329252)+0.4*dye;
+    c=mix(c, vec3(0.38, 0.52, 0.84), 0.45*exp(-(la-lw)*(la-lw)/6.0));
+    c*=1.0+0.10*exp(-(la-lw-5.5)*(la-lw-5.5)/4.0);
   }
 #else
   // The hexagon: the jet at 78°N meanders in a standing wave of six (Godfrey 1988), fixed in
@@ -475,6 +543,8 @@ vec4 bodyDisk(vec3 o, vec3 v, vec3 n, vec3 L, int kind, float rPx, vec3 tint, ve
   if(kind==3) alb=cloudAlbedo(lat, lon, pxS, atan(dot(grsDir, cross(n, mp)), dot(grsDir, mp))*57.2957795);
 #elif DETAIL_SAT
   if(kind==4) alb=cloudAlbedo(lat, lon, pxS, dot(n, L));
+#elif DETAIL_NEP
+  if(kind==6) alb=cloudAlbedo(lat, lon, pxS, atan(dot(grsDir, cross(n, mp)), dot(grsDir, mp))*57.2957795);
 #endif
   if(kind==4) alb=satSeason(alb, lat, dot(n, L));
 #if DETAIL_MAP
@@ -497,6 +567,7 @@ const BODYFS_SRC=`#version 300 es
 precision highp float;
 #define DETAIL_JUP 1
 #define DETAIL_SAT 1
+#define DETAIL_NEP 1
 #define DETAIL_MAP 1
 uniform sampler2D sky; uniform sampler2D noiseTex; uniform sampler2D hitInfo; uniform highp sampler2DArray dsoTex;
 uniform vec2 res, hitScale; uniform float yaw, pitch, fov, showScn, refK, rCd, mwK, moonGain, starPx, nr, na;
@@ -670,7 +741,7 @@ void main(){
 // and Saturn's clouds share their functions' names, so a set holds at most one of the two.
 function bodyFS(f){
   const def=(k, on)=>s=>s.replace('#define DETAIL_'+k+' 1', '#define DETAIL_'+k+' '+(on?1:0));
-  return keepLoops([def('JUP', f.has('jup')), def('SAT', f.has('sat')&&!f.has('jup')), def('MAP', f.has('map'))].reduce((s, g)=>g(s), BODYFS_SRC));
+  return keepLoops([def('JUP', f.has('jup')), def('SAT', f.has('sat')&&!f.has('jup')), def('NEP', f.has('nep')&&!f.has('jup')&&!f.has('sat')), def('MAP', f.has('map'))].reduce((s, g)=>g(s), BODYFS_SRC));
 }
 const BODY_UNIFORMS=['res','hitScale','yaw','pitch','fov','showScn','refK','rCd','mwK','moonGain','starPx','nr','na','fineT','grsDir','grsAB',
   'bP','bC','bL','bN','bS','bM','bR','bRN','shadowM[0]','shadowK[0]','shadowCnt','sunQ','moonQ','uRingEl[0]','uRingAx'];

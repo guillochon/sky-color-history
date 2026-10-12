@@ -57,7 +57,7 @@ const PL_AU_KM=149597870.7, LIGHT_DAY_AU=1/173.1446;
 // Each planet's prime meridian, W at J2000 and its rate (degrees, degrees a day; IAU WGCCRE 2015),
 // for those drawn with longitudes: Mercury's, Mars's, Jupiter's System II (the clouds' and the Red
 // Spot's), not the IAU's System III, and Saturn's System III (its winds' and the hexagon's).
-const PLANET_W=[[329.5988, 6.1385108], null, [176.630, 350.89198226], [43.3, 870.270], [38.90, 810.7939024], null, null];
+const PLANET_W=[[329.5988, 6.1385108], null, [176.630, 350.89198226], [43.3, 870.270], [38.90, 810.7939024], null, [249.978, 541.1397757]];
 // Uranus's ten narrow rings, from 34 stellar and radio occultations of 1977-2006 (French et al. 2024,
 // Icarus 411, 115957, tables 5 and 14): name, semimajor axis and a·e (km), longitude of periapse at
 // 1986 Jan 19.5 TDB and its precession (degrees, degrees a day; counted about the rings' angular
@@ -346,6 +346,32 @@ function grsAt(Y){
   const k=0.7+0.3*Math.max(smooth01(1876, 1879, Y)*(1-smooth01(1882, 1886, Y)), smooth01(2012, 2017, Y));
   return {lon:((lon%360)+360)%360, L, W, k, held:Y>2045.3};
 }
+// Neptune's dark vortices: anticyclones that come and go, a new one every 4-6 years, each lasting
+// about two (Hsu et al. 2019, 25 years of HST images), mostly at southern mid-latitudes, dark in blue
+// light with bright methane clouds along their poleward edge. The Great Dark Spot that Voyager 2 saw
+// in 1989 (Smith et al. 1989) is drawn as it was: at 22°S, 13,000 by 6,600 km, from late 1988 until
+// HST found it gone in 1994. At other times one is drawn at random as their rates and sizes have it,
+// in five-year slots, each its own: where any was on a given day cannot be known. Each drifts with
+// the wind at its latitude (Sromovsky et al. 1993's profile, as the shader's). The year Y the light
+// left; returns its east longitude (degrees, System III), size in degrees of longitude and latitude,
+// latitude and darkness, or null.
+const NEP_GDS={t0:1988.9, t1:1994.3, lat:-22, L:32.4, W:15.3, lon0:0, rate:nepWindDeg(-22)};
+function nepWindDeg(lat){ const p=Math.max(-80, Math.min(80, lat)); return (-398+0.188*p*p-1.2e-5*p*p*p*p)*0.19989/Math.max(Math.cos(lat*Math.PI/180), 0.1); }
+function nepSpotAt(Y){
+  const fade=(t0, t1)=>Math.min(1, (Y-t0)/0.3, (t1-Y)/0.3);
+  if(Y>=NEP_GDS.t0&&Y<NEP_GDS.t1){
+    const s=NEP_GDS;
+    return {lon:(((s.lon0+s.rate*(Y-s.t0)*365.25)%360)+360)%360, L:s.L, W:s.W, lat:s.lat, k:fade(s.t0, s.t1)};
+  }
+  // HST and the large telescopes watched from 1994 on; the spots they found are not drawn one by
+  // one, so the random ones fill those years too.
+  const slot=Math.floor((Y-1900)/5), r=mulberry32((slot*2654435761)>>>0), h=[r(), r(), r(), r(), r(), r(), r()];
+  if(h[0]>0.85) return null;
+  const t0=1900+slot*5+h[1]*3, t1=t0+1.3+h[2]*3.2;
+  if(Y<t0||Y>=t1) return null;
+  const lat=h[3]<0.7?-(15+h[4]*30):15+h[4]*20, L=12+h[5]*22;
+  return {lon:(((h[6]*360+nepWindDeg(lat)*(Y-t0)*365.25)%360)+360)%360, L, W:0.47*L, lat, k:fade(t0, t1)};
+}
 // Whether a moon is hidden behind its host's drawn disk, in the view showing.
 function markHidden(s){ return !!s.host&&s.behind&&s.rho<(vrOn?DISK_SCALE:bodyScale(dome)); }
 // Where every planet and moon of the last render is, set or not, for find (find.js): true
@@ -400,7 +426,13 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
     }
     const Wk=PLANET_W[k], axk=equatorAxes(pra, pdec), Wr=Wk?(Wk[0]+Wk[1]*(tD-d*LIGHT_DAY_AU))*Math.PI/180:0;
     const meridian=horiz(vadd(vscale(axk.i, Math.cos(Wr)), vscale(axk.j, Math.sin(Wr)), [0, 0, 0])).dir;
-    const body={grs, meridian, map:SURF_FILES[name]?name:null, dir:p.dir, rad:radDeg*Math.PI/180, light:vnorm(horiz(eq(h.map(v=>-v))).dir), pole:horiz(pole).dir, kind:k, px:show.px, rgb:show.rgb, mag, front:d<R, shadows:[], rings:ringed, ringAge:(RINGS_MA-ageMa)/RINGS_MA, tint};
+    // Neptune's dark vortex, if one is drawn: its direction at east longitude lon from the meridian.
+    let nds=null;
+    if(name==='Neptune'){
+      const s=nepSpotAt(2000+(tD-d*LIGHT_DAY_AU)/365.25);
+      if(s){ const w=Wr+s.lon*Math.PI/180; nds={...s, dir:horiz(vadd(vscale(axk.i, Math.cos(w)), vscale(axk.j, Math.sin(w)), [0, 0, 0])).dir}; }
+    }
+    const body={grs, meridian, map:SURF_FILES[name]?name:null, dir:p.dir, rad:radDeg*Math.PI/180, light:vnorm(horiz(eq(h.map(v=>-v))).dir), pole:horiz(pole).dir, kind:k, px:show.px, rgb:show.rgb, mag, front:d<R, shadows:[], rings:ringed, ringAge:(RINGS_MA-ageMa)/RINGS_MA, tint, nds};
     // Uranus's rings, where the light now arriving left them: their state, and the node their
     // longitudes count from (the IAU pole's, the equator's ascending node on the J2000 equator).
     if(name==='Uranus') body.uRings={el:uraRingEl(tD-d*LIGHT_DAY_AU), ax:horiz(axk.i).dir};
@@ -522,7 +554,7 @@ function bodyAlbedo(kind, lat, tint){
     return mix3(mix3([0.95, 0.91, 0.82], [0.70, 0.53, 0.40], Math.min(1, Math.max(0, belt))), [0.62, 0.60, 0.58], smooth01(45, 70, Math.abs(lat)));
   }
   if(kind===5) return mix3([0.58, 0.84, 0.92], [0.70, 0.88, 0.92], smooth01(50, 80, Math.abs(lat)));
-  if(kind===6) return mix3([0.50, 0.66, 0.95], [0.40, 0.55, 0.90], bandOf(lat, -30, -15, 4));
+  if(kind===6) return mix3(mix3([0.56, 0.74, 0.95], [0.45, 0.60, 0.88], 0.3*bandOf(lat, -10, 10, 4)+0.5*bandOf(lat, -64, -57, 2)), [0.62, 0.80, 0.96], 0.5*smooth01(65, 85, Math.abs(lat)));
   if(kind===4) return mix3(mix3([0.93, 0.85, 0.64], [0.78, 0.68, 0.50], 0.5*(bandOf(lat, 18, 32, 3)+bandOf(lat, -32, -18, 3))), [0.70, 0.70, 0.64], smooth01(55, 75, Math.abs(lat)));
   const m=Math.max(...tint, 1e-4); return tint.map(c=>c/m*0.85);
 }
