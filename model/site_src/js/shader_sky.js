@@ -1056,7 +1056,7 @@ void main(){
       float rC=dot(Lc, vec3(0.2126, 0.7152, 0.0722));
       if(rC>rBg*0.003) skyC=overSky(skyC, rBg, rC, Lc);
     }
-    if(aurOn>0.5 && !onBody && te>-0.5) skyC=auroraMix(skyC, rBg, texture(aurTex, gl_FragCoord.xy/res)*0.001);
+    if(aurOn>0.5 && !onBody && te>-0.5) skyC=auroraMix(skyC, rBg, texture(aurTex, gl_FragCoord.xy/res)*(0.001*aurOn));
     if(corona>0.001 && !onBody && te>-1.0){
       // The corona around the hidden Sun: a bright inner glow falling off steeply, and fainter
       // streamers, strongest toward the solar equator, out to about six solar radii. A thin pink

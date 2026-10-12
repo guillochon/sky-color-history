@@ -21,17 +21,20 @@ CHROME = os.environ.get('CHROME', r'C:/Program Files/Google/Chrome/Application/c
 W, H = 1600, 900
 
 # name: a Moment by title, or a view. look: [azimuth, elevation] or {'find': name} (framed by
-# the find tool; fov scales its field), fov in degrees.
+# the find tool; fov scales its field), fov in degrees. gain raises the Milky Way's (mw) or the
+# aurora's (aur) brightness over the page's for print (vrFigGain); its caption must say so.
 SHOTS = {
     'hadean':       dict(moment='A Hadean evening, 4.5 Ga'),
-    'aurora':       dict(moment='Aurora over the young Earth, 3.8 Ga'),
+    'aurora':       dict(moment='Aurora over the young Earth, 3.8 Ga', gain={'aur': 100}, wait=8000),
     'archean':      dict(moment='Archean afternoon, 2.7 Ga'),
     'ordovician':   dict(moment='Meteor storm and ring, 466 Ma'),
-    'milkyway300':  dict(moment='The Milky Way, 300 Ma'),
+    'milkyway300':  dict(moment='The Milky Way, 300 Ma', gain={'mw': 80}, fov=80, wait=9000),
     'kpg':          dict(moment='Noon after the asteroid'),
     'geminga':      dict(moment='The Geminga supernova'),
     'town1815':     dict(moment='A town night in 1815'),
-    'city':         dict(moment='A city night, today'),
+    # The Moment looks too high to show a town; this faces the city 2.8 km to the north-east, its
+    # towers along the bottom of the frame.
+    'city':         dict(epoch='modern', date='2026-07-08', t=1380, look=[35, 10], fov=30, wait=8000),
     'sats2100':     dict(moment='Satellites at dusk, 2100'),
     # Telescope views, framed by the find tool and zoomed past it.
     'jupiter':      dict(epoch='modern', date='2026-10-11', t=240, look={'find': 'Jupiter'}, zoom=0.55, clouds=False, wait=8000),
@@ -44,6 +47,7 @@ def js_shot(s):
     """The page script that sets up one shot and resolves when it has painted."""
     return """(async()=>{
   const sl=ms=>new Promise(r=>setTimeout(r,ms)), S=%s;
+  // A look is [azimuth, elevation], or {find: name} (an array's own .find must not be mistaken for it).
   for(let i=0;i<80&&typeof openMoment!=='function';i++) await sl(250);
   if(S.moment){
     const m=MOMENTS.find(x=>x.title===S.moment); if(!m) return 'no moment '+S.moment;
@@ -53,7 +57,7 @@ def js_shot(s):
     document.getElementById('moonDate').value=S.date; minutes=S.t; hslider.value=String(minutes); renderDay();
     if(S.clouds!==undefined) vrClouds=S.clouds;
     if(S.scenery!==undefined) vrScenery=S.scenery;
-    vrEntryLook=()=>{ if(S.look&&!S.look.find){ vrYaw=S.look[0]; vrPitch=S.look[1]; } };
+    vrEntryLook=()=>{ if(Array.isArray(S.look)){ vrYaw=S.look[0]; vrPitch=S.look[1]; } };
     enterVR(false); paintVR();
   }
   for(let i=0;i<120&&!vrOn;i++) await sl(250);
@@ -62,9 +66,10 @@ def js_shot(s):
   for(let i=0;i<40&&!dayPlaying;i++) await sl(250);
   if(dayPlaying) document.getElementById('hplay').click();
   // The flight may not have ended; the view is then centered on the found thing itself.
-  if(S.look&&S.look.find){ const T=%s; findStart(T); await sl(9000); vrFind=null; const w=findWhere(T); if(w){ vrYaw=w.az; vrPitch=Math.asin(w.d[2])*180/Math.PI; } }
+  if(S.look&&!Array.isArray(S.look)){ const T=%s; findStart(T); await sl(9000); vrFind=null; const w=findWhere(T); if(w){ vrYaw=w.az; vrPitch=Math.asin(w.d[2])*180/Math.PI; } }
+  if(S.gain) Object.assign(vrFigGain, S.gain);
   if(S.fov) vrFov=S.fov; else if(S.zoom) vrFov*=S.zoom;
-  if(S.look&&!S.look.find&&!S.moment){ vrYaw=S.look[0]; vrPitch=S.look[1]; }
+  if(Array.isArray(S.look)&&!S.moment){ vrYaw=S.look[0]; vrPitch=S.look[1]; }
   requestVR(); await sl(S.wait||5000);
   if(dayPlaying){ document.getElementById('hplay').click(); requestVR(); await sl(1500); }
   return {epoch:EP[dIdx].key, fov:vrFov, yaw:vrYaw, pitch:vrPitch, playing:dayPlaying};

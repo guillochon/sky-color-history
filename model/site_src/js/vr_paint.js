@@ -124,6 +124,9 @@ function landHeight(x, y){
 // The terrain functions of shader_terrain.js in JS, on a copy of the weather texture sampled as
 // the GPU does (bilinear, repeating).
 let weatherBytes=null;
+// Brightness of the Milky Way and the aurora, raised only for the report's figures (report_figs.py),
+// where a true night is too dark to print. The page leaves both at 1.
+let vrFigGain={mw:1, aur:1};
 function weatherData(){ return weatherBytes||(weatherBytes=makeWeather(256)); }
 function wtex(u, v, c){
   const W=weatherData(), n=256, x=u*n-0.5, y=v*n-0.5, x0=Math.floor(x), y0=Math.floor(y), fx=x-x0, fy=y-y0;
@@ -496,7 +499,7 @@ function paintVR(){
   }
   gl.uniform1f(u.mwOn, vrGL.mwTex&&skyNow.gal?1:0);
   if(vrGL.mwTex&&skyNow.gal){
-    gl.uniform1f(u.mwScale, 1e-4*extZenith(EP[dIdx].key)/skyNow.rCd); gl.uniform1f(u.mwDB, skyNow.gal.db||0);
+    gl.uniform1f(u.mwScale, 1e-4*vrFigGain.mw*extZenith(EP[dIdx].key)/skyNow.rCd); gl.uniform1f(u.mwDB, skyNow.gal.db||0);
     gl.uniform3fv(u.galX, skyNow.gal[0]); gl.uniform3fv(u.galY, skyNow.gal[1]); gl.uniform3fv(u.galZ, skyNow.gal[2]);
   }
   gl.uniform4fv(u.beads, skyNow.beads||new Float32Array(24));
@@ -681,7 +684,7 @@ function paintVR(){
   const aurSt=skyNow.aur, aurOn=!!(aurSt&&aurSt.on&&vrGL.aurProg&&vrPitch+vrFov*0.5>-2);
   if(aurOn){ perfPass('aurora'); drawAuroraVR(gl, aurSt, c); perfPassEnd('aurora', vrGL.aurFbo); }
   perfPass('sky');
-  gl.uniform1f(u.aurOn, aurOn?1:0);
+  gl.uniform1f(u.aurOn, aurOn?vrFigGain.aur:0);
   const hl=skyNow.halo;
   gl.uniform2fv(u.haloK, hl?hl.k:new Float32Array(2));
   if(hl){ gl.uniform3fv(u.haloSunLin, hl.sun); gl.uniform3fv(u.haloMoonLin, hl.moon); }

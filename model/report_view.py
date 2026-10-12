@@ -60,7 +60,7 @@ MOON_FACE = [
 "match a full-Moon photograph, and the Laser Altimeter's heights (NASA's CGI Moon Kit). The heights light "
 "the slopes, cast shadows toward the terminator, and shape the limb, so a zoomed crescent shows a ragged "
 "terminator and crater shadows, and the edge of the Moon in an eclipse breaks the last sunlight into "
-"Baily's beads. Five globes cover the Moon's history. Tycho, 108 million years old (Arvidson et al. "
+"Baily's beads. Five globes cover the Moon's history ({ref:fig:surfaces}). Tycho, 108 million years old (Arvidson et al. "
 "1976), is taken away with its rays for the epochs older than 108 Ma. Before about 3.9 Ga the maria had "
 "not been flooded: basalts filled the great basins from about 3.9 Ga and most of them by 3.3 Ga "
 "(Hiesinger et al. 2011), so each mare darkens over 150 million years from an onset just before its oldest "
@@ -153,8 +153,20 @@ PLANETS_CLOSE = [
 "terminator and a half-lit Mercury a ragged, cratered one. Venus is cloud, cream and featureless, "
 "bright in the crescent. The moons of Jupiter and Saturn, and Triton, have their own maps (Galileo, "
 "Voyager and Cassini mosaics), and cast their shadows on their planets, go dark in the planets' "
-"shadows, and pass behind and in front of them.",
+"shadows, and pass behind and in front of them. {ref:fig:surfaces} shows every rocky surface the site draws.",
 ]
+
+SURFACES_CAPTION = ("The rocky surfaces the site draws, each its own map on a globe lit from the left (surface_montage.py). "
+"The large panels are the four bodies drawn with heights as well, shaded by their slopes at true scale: the Moon, "
+"the Lunar Reconnaissance Orbiter's Wide Angle Camera color mosaic and Laser Altimeter heights (NASA's CGI Moon Kit); "
+"Mercury, the USGS MESSENGER MDIS color mosaic and MESSENGER heights (Becker et al. 2016); Mars, the USGS Viking "
+"color mosaic and the Mars Orbiter Laser Altimeter's gridded heights; and Theia, invented from what it was likely "
+"made of (Meier, Reufer &amp; Wieler 2014). The Moon's older faces are today's with Tycho and its rays removed and "
+"the maria part- or un-flooded (Hiesinger et al. 2011), on the same heights; the molten Moon is a model of its "
+"magma ocean, glowing by its own light. Io, Europa, Ganymede and Callisto are the USGS Voyager and Galileo SSI "
+"mosaics; Mimas, Enceladus, Tethys, Dione, Rhea and Iapetus are Cassini color maps (NASA/JPL-Caltech/SSI/LPI, "
+"Schenk); Triton is Schenk's Voyager 2 map, its north, dark in 1989, filled in. All are toned toward true color, "
+"and each body is shown at its own exposure, so the panels do not compare in albedo.")
 
 JUPITER = [
 "Jupiter close up is drawn, not mapped: its clouds change too fast for any one map to stand for an "
