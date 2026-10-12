@@ -586,7 +586,7 @@ def render_html(B, nums):
 <style>{CSS}</style></head><body><main>
 <h1>The view from Earth, <em>4.5 billion years to today</em></h1>
 <p class="lede">{LEDE}</p>
-<p class="byline">Prepared with Claude (Anthropic) · October 2026</p>
+<p class="byline">James Guillochon · <a href="mailto:guillochon@gmail.com">guillochon@gmail.com</a> · October 2026</p>
 <div class="hero">{hero}</div>
 <p class="hero-caption"><b>Figure 1.</b> Mid-latitude noon sky at the nineteen epochs, zenith (top) to horizon (bottom), oldest at left. Brightness is shown relative to today's clean sky. Tap a column to jump to that epoch.</p>
 {toc_html}
@@ -639,7 +639,7 @@ def render_tex(B):
 \vspace{6pt}
 {\large\color{ink} """ + D.tex(LEDE) + r"""\par}
 \vspace{4pt}
-{\small\color{gray} Prepared with Claude (Anthropic) $\cdot$ October 2026\par}
+{\small\color{gray} James Guillochon $\cdot$ \href{mailto:guillochon@gmail.com}{guillochon@gmail.com} $\cdot$ October 2026\par}
 \vspace{8pt}
 {\includegraphics[width=\linewidth]{figures/fig01_timeline.png}}
 {\footnotesize\sffamily\textbf{\color{sky}Figure 1.} Mid-latitude noon sky at the epochs, zenith (top) to horizon (bottom), oldest at left. Brightness shown relative to today's clean sky.\par}
