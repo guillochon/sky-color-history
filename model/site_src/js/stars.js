@@ -50,18 +50,33 @@ function starTint(kelvin){
   const y=0.2126*r+0.7152*g+0.0722*b||1;
   return [r/y,g/y,b/y];
 }
-// Present-day mean place. epochKey is the geological scene; every scene uses this
-// catalog for now. Proper motion is applied in the J2000 frame, then the long-term
-// precession (calendar.js) carries the place to `year`, counted from each sky's year 0 (2000).
+// Each star of STARS gets its motion (stars_epochs.js, STAR_MOTION): proper motion (arcsec/yr),
+// then distance (pc) and radial velocity (km/s) as row[9] and row[10].
+STARS.forEach((s, i)=>{ const m=STAR_MOTION[i]; if(m){ s[4]=m[0]; s[5]=m[1]; s[9]=m[2]; s[10]=m[3]; } });
+// Mean place in the year shown. Rows are J2000 places at the sky's year 0 (2000). A star with a
+// distance moves in a straight line through space, from its proper motion and radial velocity,
+// and dm is the change in its magnitude as its distance changes (no closer than 1 pc, as in
+// build_star_epochs.py). Without one it moves along a great circle at its proper motion. The
+// long-term precession (calendar.js) then carries the place to `year`.
+const KMS_PC_YR=1.0227122e-6, ARCSEC=Math.PI/180/3600;
 function starMeanPlace(star, epochKey, year){
   void epochKey;
-  const dt=year-2000, cosDec=Math.cos(star[1]*Math.PI/180);
-  const ra0=star[0]+(star[4]/3600)*dt/(Math.abs(cosDec)<1e-4?(cosDec<0?-1e-4:1e-4):cosDec);
-  const dec0=star[1]+(star[5]/3600)*dt;
-  const a=ra0*Math.PI/180, d=dec0*Math.PI/180, v=[Math.cos(d)*Math.cos(a), Math.cos(d)*Math.sin(a), Math.sin(d)];
+  const dt=year-2000, a=star[0]*Math.PI/180, d=star[1]*Math.PI/180, sa=Math.sin(a), ca=Math.cos(a), sd=Math.sin(d), cd=Math.cos(d);
+  const u=[cd*ca, cd*sa, sd], ea=[-sa, ca, 0], ed=[-sd*ca, -sd*sa, cd];
+  const pa=star[4]||0, pd=star[5]||0, dist=star[9], rv=star[10]||0;
+  let v=u, dm=0;
+  if(dt && dist>0){
+    // Position in pc at dt: today's, plus the velocity (pc/yr) times dt.
+    const p=[0, 1, 2].map(i=>dist*u[i]+dt*(rv*KMS_PC_YR*u[i]+dist*ARCSEC*(pa*ea[i]+pd*ed[i])));
+    const r=Math.hypot(...p);
+    v=p.map(c=>c/r); dm=5*Math.log10(Math.max(r, 1)/Math.max(dist, 1));
+  }else if(dt && (pa || pd)){
+    const w=Math.hypot(pa, pd), th=w*ARCSEC*dt, c=Math.cos(th), s=Math.sin(th);
+    v=[0, 1, 2].map(i=>u[i]*c+(pa*ea[i]+pd*ed[i])/w*s);
+  }
   const [X, Y, Z]=precessionMatrix(year).map(r=>r[0]*v[0]+r[1]*v[1]+r[2]*v[2]);
   let ra=Math.atan2(Y, X)*180/Math.PI; ra=((ra%360)+360)%360;
-  return {ra, dec:Math.asin(Math.max(-1,Math.min(1,Z)))*180/Math.PI};
+  return {ra, dec:Math.asin(Math.max(-1,Math.min(1,Z)))*180/Math.PI, dm};
 }
 // Daylight exposure hides the stars. Flux is relative to the old faint limit.
 // At that magnitude and brighter, size and brightness stay as they were, the size growing as
@@ -74,8 +89,8 @@ function magDisplay(mag, cap, grow=0.22){
     : STAR_PX_ANCHOR*Math.pow(Math.max(flux, 1e-6), STAR_FAINT_EXP);
   return {flux, px, amp:Math.min(1, 0.62*Math.pow(Math.max(flux, 0), 0.5))};
 }
-function starDisplay(star){
-  const d=magDisplay(star[2], 42), tint=starTint(star[6]||10000);
+function starDisplay(star, mag=star[2]){
+  const d=magDisplay(mag, 42), tint=starTint(star[6]||10000);
   return {px:d.px, rgb:tint.map(c=>Math.min(2.4, c)*d.amp)};
 }
 // Same scale as the stars. The catalog's brightest star sits on the flux cap of 42,
@@ -90,7 +105,7 @@ function pointDisplay(mag){ const d=magDisplay(mag, 200); return {px:d.px, rgb:P
 const STAR_LISTS={};
 function starsFor(key){
   if(STAR_LISTS[key]) return STAR_LISTS[key];
-  const full=r=>[r[0], r[1], r[2], r[3], 0, 0, r[4], r[5]];
+  const full=r=>[r[0], r[1], r[2], r[3], r[6]||0, r[7]||0, r[4], r[5], undefined, r[8], r[9]];
   if(STARS_EPOCH[key]) return STAR_LISTS[key]=STARS_EPOCH[key].map(full);
   const seed=STAR_STANDIN_SEED[key];
   if(seed==null) return STARS;

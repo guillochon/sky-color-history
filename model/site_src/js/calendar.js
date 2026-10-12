@@ -3,22 +3,41 @@
 // mass, and the planets do not drift. (The Sun has lost well under 1% of its mass to its wind
 // since the Archean, which would make the year then at most 2% shorter; that is left out.) A
 // year of shorter days holds more of them: 368 at 66 Ma, 562 at 2.7 Ga, 1,486 in the Early Hadean.
-// Epochs with 24-hour days keep the Gregorian calendar, so their dates and eclipses are real.
-// The others count twelve equal months of 30 to 124 days; year lengths alternate so the calendar
-// keeps step with the seasons, and year 2000 starts where the Gregorian 2000 does.
+// Epochs with 24-hour days keep the Gregorian calendar from year −3000 to 7000, so their dates and
+// eclipses are real; there its solstices stay within a few days of today's dates. Beyond, the
+// Gregorian year (365.2425 days) would drift from the seasons by a day every 3,200 years,
+// so the months keep their Gregorian lengths but the leap days fall where they keep step with the
+// seasons (365.24219 days a year on average), going on from where the Gregorian years leave off.
+// The other epochs count twelve equal months of 30 to 124 days; year lengths alternate in the
+// same way, and year 2000 starts where the Gregorian 2000 does.
 const TROPICAL_YEAR=365.24219;
 const MONTH_NAMES=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-function gregorian(){ return dayHours()===24; }
+const MONTH_DAYS=[31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+const GREG_LO=-3000, GREG_HI=7000;
+function pageYear(){ const m=/^(-?\d+)-/.exec(document.getElementById('moonDate').value||''); return m?+m[1]:new Date().getFullYear(); }
+function gregorian(Y=pageYear()){ return dayHours()===24 && Y>=GREG_LO && Y<=GREG_HI; }
 function yearDays(){ return TROPICAL_YEAR*24/dayHours(); }
 // Day index (days of the epoch since 2000 Jan 1) where year Y starts, and its length.
-function yearStart(Y){ return Math.floor((Y-2000)*yearDays()); }
+function gregDays(Y){ return Math.round(utcDay(Y, 1, 1)-utcDay(2000, 1, 1)); }
+function yearStart(Y){
+  if(dayHours()!==24) return Math.floor((Y-2000)*yearDays());
+  if(Y>=GREG_LO && Y<=GREG_HI+1) return gregDays(Y);
+  const b=Y>GREG_HI?GREG_HI+1:GREG_LO;
+  return gregDays(b)+Math.floor((Y-b)*TROPICAL_YEAR+0.5);
+}
 function yearLen(Y){ return yearStart(Y+1)-yearStart(Y); }
 // Day within the year where month m (1–12) starts, and its length.
-function monthStart(Y, m){ return Math.round((m-1)*yearLen(Y)/12); }
+function monthStart(Y, m){
+  if(dayHours()!==24) return Math.round((m-1)*yearLen(Y)/12);
+  let s=0; for(let i=1;i<m;i++) s+=monthLen(Y, i);
+  return s;
+}
 function monthLen(Y, m){
-  if(gregorian()) return localDate(Y, m, 0).getDate();
+  if(dayHours()===24) return MONTH_DAYS[m-1]+(m===2?yearLen(Y)-365:0);
   return (m===12?yearLen(Y):monthStart(Y, m+1))-monthStart(Y, m);
 }
+// Day of the week (0 Sunday) in the 24-hour calendars: 2000 Jan 1 was a Saturday.
+function weekday(Y, M, D){ return ((epochDayIndex(Y, M, D)+6)%7+7)%7; }
 function fmtDate(Y, M, D){ const p=n=>String(n).padStart(2,'0'); return (Y<0?'-':'')+String(Math.abs(Y)).padStart(4,'0')+'-'+p(M)+'-'+p(D); }
 // The page date as [Y, M, D], with the month and day held to this epoch's calendar.
 function parseDate(raw){
@@ -39,7 +58,7 @@ function epochDateOf(k){
 }
 function shiftMoonDate(days){
   const el=document.getElementById('moonDate'), [Y,M,D]=pageDate();
-  el.value=gregorian() ? localISODate(localDate(Y, M-1, D+days)) : fmtDate(...epochDateOf(epochDayIndex(Y, M, D)+days));
+  el.value=fmtDate(...epochDateOf(epochDayIndex(Y, M, D)+days));
 }
 // The instant shown, as a day number of today's 24-hour days for the ephemerides. In the other
 // calendars time runs from local midnight starting 2000 Jan 1, on standard time.
@@ -51,7 +70,7 @@ function astroDay(){
 }
 // The page date and clock at day number d.
 function pageAt(d){
-  if(gregorian()){ const t=new Date((d-DN_UNIX)*86400000); return {date:localISODate(t), min:t.getHours()*60+t.getMinutes()+t.getSeconds()/60+t.getMilliseconds()/60000}; }
+  if(gregorian(2000+Math.floor((d-DN_2000)/365.2425))){ const t=new Date((d-DN_UNIX)*86400000); return {date:localISODate(t), min:t.getHours()*60+t.getMinutes()+t.getSeconds()/60+t.getMilliseconds()/60000}; }
   const E=(d-DN_2000+TZ_STD/24)*24/dayHours(), k=Math.floor(E);
   return {date:fmtDate(...epochDateOf(k)), min:(E-k)*DAYMIN};
 }
@@ -59,11 +78,9 @@ function pageMs(){ return (astroDay()-DN_UNIX)*86400000; }
 // Moving between calendars keeps the season: the same year and fraction of it.
 function yearFraction(){
   const [Y,M,D]=pageDate();
-  if(gregorian()){ const a=dayNumber(Y,1,1,0); return [Y, (dayNumber(Y,M,D,0)-a)/(dayNumber(Y+1,1,1,0)-a)]; }
   return [Y, (monthStart(Y, M)+D-1)/yearLen(Y)];
 }
 function dateAtFraction(Y, f){
-  if(gregorian()){ const a=dayNumber(Y,1,1,0), n=dayNumber(Y+1,1,1,0)-a; return localISODate(localDate(Y, 0, 1+Math.min(n-1, Math.round(f*n)))); }
   return fmtDate(...epochDateOf(yearStart(Y)+Math.min(yearLen(Y)-1, Math.round(f*yearLen(Y)))));
 }
 // Earth's axis: long-term precession (Vondrák, Capitaine & Wallace 2011, A&A 534, A22; as in
@@ -137,7 +154,7 @@ function epochDate(prevKey, yf){
 }
 // The date picker: a button with the date, opening a dialog with the year (typed or stepped),
 // the twelve months and the month's days, as many as this epoch's calendar gives it; laid out in
-// weeks for the Gregorian calendar, in rows of ten for the others, which have no weeks.
+// weeks for the 24-hour days, in rows of ten for the others, which have no weeks.
 const dateBtn=document.getElementById('dateBtn'), datePop=document.getElementById('datePop'), dpYear=document.getElementById('dpYear'),
   dpMonths=document.getElementById('dpMonths'), dpDays=document.getElementById('dpDays'), dpNote=document.getElementById('dpNote'), dpBack=document.getElementById('dpBack'),
   dpMonthSel=document.getElementById('dpMonthSel'), dpDaySel=document.getElementById('dpDaySel'), datePopHome=datePop.parentNode;
@@ -146,24 +163,25 @@ dpYear.min=String(-YEAR_SPAN); dpYear.max=String(YEAR_SPAN);
 function setPageDate(Y, M, D){ document.getElementById('moonDate').value=fmtDate(Y, M, Math.max(1, Math.min(D, monthLen(Y, M)))); renderDay(); }
 let datePopDrawn='';
 function drawDatePop(){
-  const [Y,M,D]=pageDate(), key=EP[dIdx].key, z=yearZero(), greg=gregorian(), id=[key, Y, M, D].join('|');
+  const [Y,M,D]=pageDate(), key=EP[dIdx].key, z=yearZero(), greg=gregorian(Y), weeks=dayHours()===24, id=[key, Y, M, D].join('|');
   if(document.activeElement!==dpYear){ dpYear.value=String(Y-z); dpYear.removeAttribute('aria-invalid'); }
   if(id===datePopDrawn) return;
   datePopDrawn=id;
   dpMonths.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed', String(+b.dataset.m===M)));
   let html='';
-  if(greg){
+  if(weeks){
     for(const w of ['Su','Mo','Tu','We','Th','Fr','Sa']) html+=`<span class="dp-wd" aria-hidden="true">${w}</span>`;
-    for(let i=localDate(Y, M-1, 1).getDay(); i>0; i--) html+='<span></span>';
+    for(let i=weekday(Y, M, 1); i>0; i--) html+='<span></span>';
   }
   for(let d=1, n=monthLen(Y, M); d<=n; d++) html+=`<button type="button" data-d="${d}" aria-pressed="${d===D}">${d}</button>`;
-  dpDays.className='dp-days '+(greg?'dp-week':'dp-ten'); dpDays.innerHTML=html;
+  dpDays.className='dp-days '+(weeks?'dp-week':'dp-ten'); dpDays.innerHTML=html;
   dpMonthSel.value=String(M);
   const WD=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  dpDaySel.replaceChildren(...Array.from({length:monthLen(Y, M)}, (_, i)=>new Option(greg?`${i+1} ${WD[localDate(Y, M-1, i+1).getDay()]}`:String(i+1), String(i+1))));
+  dpDaySel.replaceChildren(...Array.from({length:monthLen(Y, M)}, (_, i)=>new Option(weeks?`${i+1} ${WD[weekday(Y, M, i+1)]}`:String(i+1), String(i+1))));
   dpDaySel.value=String(D);
   const lens=MONTH_NAMES.map((_, i)=>monthLen(Y, i+1)), lo=Math.min(...lens), hi=Math.max(...lens);
   dpNote.textContent=greg?(z?'Today’s 24-hour days and calendar; years count from this sky’s year 0.':'The Gregorian calendar.')
+    :weeks?`Gregorian months, with leap days set to keep step with the seasons outside years ${fmtYear(GREG_LO-z)} to ${fmtYear(GREG_HI-z)}: ${yearLen(Y)} days this year.${z?' Years count from this sky’s year 0.':''}`
     :`${dayHours()}-hour days: twelve months of ${lo===hi?lo:lo+'–'+hi} days, ${yearLen(Y)} this year. Years count from this sky’s year 0.`;
   const back=epochYear(key);
   dpBack.textContent=EPOCH_YEAR[key]==='now'?'Today':`Back to ${z?'year 0':fmtYear(back)}`;

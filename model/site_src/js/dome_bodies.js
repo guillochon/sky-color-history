@@ -1,14 +1,15 @@
 // Star places use this year for proper motion and precession, instead of the date picker's.
 const STAR_YEAR={volcanic:1815};
-// Each epoch's star places for the year last shown, and how each star is drawn: these change
-// only with the epoch and the year, so a render redoes only the hour angle.
+// Each epoch's star places for the year last shown, their magnitudes then (the catalog's, changed
+// with the star's distance), and how each star is drawn: these change only with the epoch and the
+// year, so a render redoes only the hour angle.
 const STAR_PLACES={};
 function starPlaces(epochKey, year){
   const list=starsFor(epochKey), P=STAR_PLACES[epochKey];
   if(P && P.year===year && P.list===list) return P;
-  const n=Math.min(list.length, STAR_N), ra=new Float64Array(n), dec=new Float64Array(n), show=[];
-  for(let i=0;i<n;i++){ const place=starMeanPlace(list[i], epochKey, year); ra[i]=place.ra; dec[i]=place.dec; show.push(starDisplay(list[i])); }
-  return STAR_PLACES[epochKey]={year, list, n, ra, dec, show};
+  const n=Math.min(list.length, STAR_N), ra=new Float64Array(n), dec=new Float64Array(n), mag=new Float64Array(n), show=[];
+  for(let i=0;i<n;i++){ const place=starMeanPlace(list[i], epochKey, year); ra[i]=place.ra; dec[i]=place.dec; mag[i]=list[i][2]+place.dm; show.push(starDisplay(list[i], mag[i])); }
+  return STAR_PLACES[epochKey]={year, list, n, ra, dec, mag, show};
 }
 function placeStars(lat){
   const epochKey=EP[dIdx].key;
@@ -21,8 +22,8 @@ function placeStars(lat){
     if(!(p.alt>0)) continue;
     const dir=horizDir(p.az, p.alt);
     tex[o]=dir[0]; tex[o+1]=dir[1]; tex[o+2]=dir[2]; tex[o+3]=show.px;
-    const c=STAR_MAP_W*4+o; tex[c]=show.rgb[0]; tex[c+1]=show.rgb[1]; tex[c+2]=show.rgb[2]; tex[c+3]=star[2];
-    marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb, mag:star[2], star, ra:P.ra[i], dec:P.dec[i]});
+    const c=STAR_MAP_W*4+o; tex[c]=show.rgb[0]; tex[c+1]=show.rgb[1]; tex[c+2]=show.rgb[2]; tex[c+3]=P.mag[i];
+    marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb, mag:P.mag[i], star, ra:P.ra[i], dec:P.dec[i]});
     up.push({i, x:dir[0], y:dir[1], z:dir[2]});
   }
   placePlanets(lat, marks, bodies, epochKey, year, LST);

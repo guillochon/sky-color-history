@@ -105,7 +105,7 @@ function conPlaces(key, year){
   const k=key+'|'+year;
   if(CON_PLACES[k]!==undefined) return CON_PLACES[k];
   const moved=CON_EPOCHS[key], src=moved||(starsFor(key)===STARS?CON_VERT:null);
-  return CON_PLACES[k]=src&&src.map(v=>starMeanPlace([v[0], v[1], 0, 0, moved?0:v[2], moved?0:v[3]], key, year));
+  return CON_PLACES[k]=src&&src.map(v=>starMeanPlace([v[0], v[1], 0, 0, v[2], v[3], 0, '', undefined, v[4], v[5]], key, year));
 }
 // The constellation lines, as great circles between their stars, cut at the horizon; returns
 // the names to label, at the middle of the stars of each figure's lines that are drawn.

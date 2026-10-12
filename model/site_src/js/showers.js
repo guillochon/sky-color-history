@@ -137,8 +137,14 @@ const SHOWER_STORMS=[
 // Meteors of magnitude 1 or brighter an hour over the disc per unit of ZHR, for population index r
 // (the Monte Carlo above: 6.8 at r = 2.0, 5.9 at 2.5, 5.2 at 3.0).
 function showerQ(r){ return Math.max(4, 6.75-1.6*(r-2)); }
-// Solar longitude (J2000) at day number d: the Sun's longitude of date less the precession since.
-function solarLonJ2000(d){ return rev(sunEquatorial(d).lam-1.39697*d/36525); }
+// Solar longitude (J2000) at day number d: the Sun's direction in the equator of date taken back
+// to J2000 by the long-term precession (calendar.js), on the J2000 ecliptic.
+function solarLonJ2000(d){
+  const s=sunEquatorial(d), R=precessionMatrix(Math.round(2000+(d-DN_2000)/TROPICAL_YEAR));
+  const a=s.RA*Math.PI/180, b=s.Dec*Math.PI/180, v=[Math.cos(b)*Math.cos(a), Math.cos(b)*Math.sin(a), Math.sin(b)];
+  const [x, y, z]=[0, 1, 2].map(j=>R[0][j]*v[0]+R[1][j]*v[1]+R[2][j]*v[2]), e0=84381.406/3600*Math.PI/180;
+  return rev(Math.atan2(y*Math.cos(e0)+z*Math.sin(e0), x)*180/Math.PI);
+}
 // The day number nearest d0 at which the solar longitude (J2000) is lam.
 function dayOfSolarLon(lam, d0){
   let d=d0;

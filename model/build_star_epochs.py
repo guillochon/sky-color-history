@@ -102,17 +102,21 @@ def velocity(s):
 
 
 def at_epoch(s, years):
+    """Place, magnitude and distance `years` back, then the proper motion (arcsec/yr) and radial
+    velocity (km/s) seen from there, so the page carries the star on along the same line."""
     u, vel = velocity(s)
     p = [s['dist'] * u[i] - vel[i] * KMS_YR_TO_PC * years for i in range(3)]
     d = max(math.sqrt(sum(x * x for x in p)), 1.0)
     ra = math.degrees(math.atan2(p[1], p[0])) % 360
     dec = math.degrees(math.asin(max(-1.0, min(1.0, p[2] / d))))
-    return ra, dec, s['v'] + 5 * math.log10(d / s['dist']), d
+    u1, ea, ed = unit(ra, dec)
+    along = lambda a: sum(a[i] * vel[i] for i in range(3))
+    return ra, dec, s['v'] + 5 * math.log10(d / s['dist']), d, along(ea) / (4.74047 * d), along(ed) / (4.74047 * d), along(u1)
 
 
 lists = {}
 for key, years in EPOCHS.items():
-    moved = [(lambda r: (r[2], r[0], r[1], s, r[3]))(at_epoch(s, years)) for s in stars]
+    moved = [(lambda r: (r[2], r[0], r[1], s, r[3], r[4:]))(at_epoch(s, years)) for s in stars]
     moved.sort(key=lambda m: m[0])
     close = [f"{m[3]['name']} {m[4]:.1f} pc" for m in moved if m[4] < 5]
     if close:
@@ -120,7 +124,7 @@ for key, years in EPOCHS.items():
     top = moved[:1000]
     print(f"{key}: brightest " + ", ".join(f"{m[3]['name']} {m[0]:.2f} ({m[4]:.1f} pc)" for m in top[:8])
           + f"; faintest kept {top[-1][0]:.2f}")
-    lists[key] = [(v, ra, dec, s['bv'], s['k'], s['name']) for v, ra, dec, s, d in top]
+    lists[key] = [(v, ra, dec, s['bv'], s['k'], s['name'], (pma, pmd, d, rv)) for v, ra, dec, s, d, (pma, pmd, rv) in top]
 
 
 # ---- The impact-winter epoch, 66 Ma: orbits in the Galaxy, not straight lines. ----
@@ -219,15 +223,22 @@ for key, years in ORBIT_EPOCHS.items():
     seeds[key] = int(years / 1e6)
 
 
+def motion_js(pma, pmd, dist, rv):
+    return f'{pma:.4f},{pmd:.4f},{dist:.4g},{rv:.1f}'
+
+
 def rows_js(rows):
-    return "\n".join(f'[{ra:.4f},{dec:.4f},{v:.2f},{bv:.2f},{k},{json.dumps(name, ensure_ascii=False)}],'
-                     for v, ra, dec, bv, k, name in rows)
+    return "\n".join(f'[{ra:.4f},{dec:.4f},{v:.2f},{bv:.2f},{k},{json.dumps(name, ensure_ascii=False)}'
+                     + (f',{motion_js(*m[0])}' if m else '') + '],'
+                     for v, ra, dec, bv, k, name, *m in rows)
 
 
 out = ["// The Bright Star Catalogue moved to the supernova epochs (straight-line motion relative to",
        "// the Sun) and to 66 Ma (orbits in the Galaxy) by build_star_epochs.py, from XHIP (Hipparcos)",
        "// astrometry. Rows are right ascension, declination, V, B-V, colour temperature and name;",
-       "// stars.js adds the zero proper motions, as the positions are already moved.",
+       "// the moved epochs' rows go on with the proper motion there (arcsec/yr, mu alpha cos delta",
+       "// and mu delta), distance (pc) and radial velocity (km/s), so their stars keep moving along",
+       "// the same lines through the years either side of the epoch.",
        "const STARS_EPOCH={"]
 for key, rows in lists.items():
     out += [f"{key}:[", rows_js(rows), "],"]
@@ -244,6 +255,17 @@ out.append("const STAR_STANDIN_SEED=" + json.dumps({**seeds, **{k: seeds[src] fo
 for key, src in alias.items():
     if traced_lists.get(src):
         out.append(f"STAR_TRACED.{key}=STAR_TRACED.{src};")
+# Today's thousand (stars_catalog.js, in its order) get the same motion, matched by place and V.
+src = (Path(__file__).with_name('site_src') / 'js' / 'stars_catalog.js').read_text(encoding='utf-8')
+cat = [tuple(map(float, m.groups())) for m in re.finditer(r'^\[([-\d.]+),([-\d.]+),([-\d.]+),', src, re.M)]
+motion = []
+for ra, dec, v in cat:
+    best = min(stars, key=lambda b: (b['ra'] - ra) ** 2 + (b['dec'] - dec) ** 2 + (b['v'] - v) ** 2)
+    assert abs(best['ra'] - ra) < 1e-3 and abs(best['dec'] - dec) < 1e-3, (ra, dec)
+    motion.append(f"[{motion_js(best['pma'], best['pmd'], best['dist'], best['rv'])}]")
+out.append("// For each star of STARS, in its order: proper motion (arcsec/yr; XHIP's where it has the star),")
+out.append("// distance (pc) and radial velocity (km/s), for its straight-line motion (stars.js).")
+out.append("const STAR_MOTION=[" + ",".join(motion) + "];")
 out.append("// For each traced epoch: the galactic longitude (in today's coordinates) of the Galactic centre")
 out.append("// as seen from the Sun then, where the Milky Way was brightest, and the Sun's height above the plane (pc).")
 out.append("const STAR_EPOCH_GAL=" + json.dumps(epoch_meta) + ";")
@@ -296,15 +318,15 @@ def line_change(pos0, pos1):
 now = [(s['ra'], s['dec']) for s in verts]
 con_pos = {}
 for key, years in EPOCHS.items():
-    con_pos[key] = [at_epoch(s, years)[:2] for s in verts]
-    print(f"{key}: median line length change {line_change(now, con_pos[key]):.2f}")
+    con_pos[key] = [at_epoch(s, years) for s in verts]
+    print(f"{key}: median line length change {line_change(now, [p[:2] for p in con_pos[key]]):.2f}")
 con_out = ["// Constellation figures from Stellarium's modern sky culture, by build_star_epochs.py. CON_FIG rows",
            "// are abbreviation, name and chains of vertex indices. CON_VERT rows are J2000 right ascension,",
-           "// declination and proper motion (arcsec/yr), as in STARS. CON_EPOCHS holds the vertices moved",
-           "// to the supernova epochs.",
+           "// declination, proper motion (arcsec/yr), distance (pc) and radial velocity (km/s), as in",
+           "// STAR_MOTION. CON_EPOCHS holds the vertices moved to the supernova epochs, with their motion there.",
            "const CON_FIG=" + json.dumps(figures, ensure_ascii=False, separators=(',', ':')) + ";",
-           "const CON_VERT=[" + ",".join(f"[{s['ra']:.4f},{s['dec']:.4f},{s['pma']:.3f},{s['pmd']:.3f}]" for s in verts) + "];",
-           "const CON_EPOCHS={" + ",".join(f"{k}:[" + ",".join(f"[{ra:.4f},{dec:.4f}]" for ra, dec in pos) + "]"
+           "const CON_VERT=[" + ",".join(f"[{s['ra']:.4f},{s['dec']:.4f},{motion_js(s['pma'], s['pmd'], s['dist'], s['rv'])}]" for s in verts) + "];",
+           "const CON_EPOCHS={" + ",".join(f"{k}:[" + ",".join(f"[{ra:.4f},{dec:.4f},{motion_js(pma, pmd, d, rv)}]" for ra, dec, _, d, pma, pmd, rv in pos) + "]"
                                           for k, pos in con_pos.items()) + "};"]
 cpath = path.with_name('constellations.js')
 cpath.write_text("\n".join(con_out) + "\n", encoding="utf-8")

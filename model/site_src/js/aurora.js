@@ -89,7 +89,7 @@ function aurCirc(a, b){ return ((a-b)%24+36)%24-12; }
 // number off, and flipped between two nights, and their substorms, as the clock moved.
 function aurDayIndex(){
   const [Y,M,D]=pageDate();
-  if(gregorian()) return dayNumber(Y, M, D, 0);
+  if(gregorian(Y)) return dayNumber(Y, M, D, 0);
   return Math.round((DN_2000-TZ_STD/24)*24/dayHours())+epochDayIndex(Y, M, D);
 }
 // Substorms: two a night, one in the evening (21:36–23:24) and one after midnight (1:00–3:00),
