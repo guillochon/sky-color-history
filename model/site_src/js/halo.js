@@ -12,7 +12,13 @@ const HALO_STRENGTH={
   zetaoph:{Polar:0.7}, geminga:{Polar:0.8, 'Mid-latitude':0.25}, // Pleistocene; 342 ka is a glacial maximum
   volcanic:{Polar:0.7}, y1900:{Polar:0.6}, ozonehole:{Polar:1}, modern:{Polar:0.6}, modernpoll:{Polar:0.3}, y2100:{Polar:0.4},
 };
-function haloStrength(key, lat){ const s=HALO_STRENGTH[key]; return (s&&s[lat])||0; }
+// By latitude, followed through the year as the clouds are (air_time.js tableNow): the Snowball's
+// halos come and go with its ice.
+const HALO_BY_LAT={};
+function haloStrength(key, lat){
+  const T=HALO_BY_LAT[lat]||(HALO_BY_LAT[lat]=Object.fromEntries(EP.map(e=>[e.key, (HALO_STRENGTH[e.key]||{})[lat]||0])));
+  return tableNow(T, key, 0);
+}
 // Refractive index of ice at 650, 550 and 450 nm (Warren & Brandt 2008), one per display channel,
 // so each arc carries its own dispersion: red on the side toward the Sun.
 const HALO_N=[1.3078, 1.3110, 1.3150];

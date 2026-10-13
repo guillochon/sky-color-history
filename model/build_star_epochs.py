@@ -1,4 +1,5 @@
-"""Move the Bright Star Catalogue to the two supernova epochs and keep the thousand brightest.
+"""The Bright Star Catalogue's motion: today's thousand brightest and the stars that were among the
+thousand brightest at some time from 2.2 Myr ago to 250,000 years ahead, for the page to move.
 
 Each star moves in a straight line relative to the Sun, from its present position, distance,
 proper motion, and radial velocity. That ignores the Galaxy's pull, which over two million
@@ -8,9 +9,9 @@ radial velocities), matched by HD number. A parallax at least three times its er
 distance directly. A poorer one only bounds it, so the star goes no closer than the parallax
 plus two errors allows, or than its spectral type and luminosity class suggest. Stars with no
 XHIP match keep BSC5 proper motions and radial velocities and a spectral-type distance. The
-magnitude at the epoch follows from the change in distance. Every catalogue star is moved,
-not just today's thousand brightest, because a star that was closer then may have been
-brighter. Writes site_src/js/stars_epochs.js in the same row format as stars_catalog.js.
+magnitude at a time follows from the change in distance. Every catalogue star is moved, not
+just today's thousand brightest, because a star that was closer then may have been brighter.
+Writes site_src/js/stars_epochs.js and constellations.js.
 
 Inputs are downloads in model/data/ (fetch_catalogs.py): bsc5.json and xhip.tsv, from
 https://vizier.cds.unistra.fr/viz-bin/asu-tsv?-source=V/137D/XHIP&-out=HIP,HD,Plx,e_Plx,pmRA,pmDE,RV&-out.max=unlimited
@@ -25,7 +26,6 @@ import numpy as np
 from bsc import DATA, catalogue, num, star_name, parse_ra, parse_dec
 from galaxy import PC_MYR, R0, Z0, SUN_UVW, GAL, accel
 
-EPOCHS = {'zetaoph': 1.78e6, 'geminga': 3.42e5}   # years before J2000
 KMS_YR_TO_PC = PC_MYR / 1e6                        # pc travelled per year at 1 km/s
 xhip, hip_hd = {}, {}
 for line in (DATA / 'xhip.tsv').read_text(encoding="utf-8").splitlines():
@@ -114,122 +114,46 @@ def at_epoch(s, years):
     return ra, dec, s['v'] + 5 * math.log10(d / s['dist']), d, along(ea) / (4.74047 * d), along(ed) / (4.74047 * d), along(u1)
 
 
-lists = {}
-for key, years in EPOCHS.items():
-    moved = [(lambda r: (r[2], r[0], r[1], s, r[3], r[4:]))(at_epoch(s, years)) for s in stars]
-    moved.sort(key=lambda m: m[0])
-    close = [f"{m[3]['name']} {m[4]:.1f} pc" for m in moved if m[4] < 5]
-    if close:
-        print(f"{key}: within 5 pc at the epoch: " + ", ".join(close))
-    top = moved[:1000]
-    print(f"{key}: brightest " + ", ".join(f"{m[3]['name']} {m[0]:.2f} ({m[4]:.1f} pc)" for m in top[:8])
-          + f"; faintest kept {top[-1][0]:.2f}")
-    lists[key] = [(v, ra, dec, s['bv'], s['k'], s['name'], (pma, pmd, d, rv)) for v, ra, dec, s, d, (pma, pmd, rv) in top]
-
-
-# ---- The impact-winter epoch, 66 Ma: orbits in the Galaxy, not straight lines. ----
-# Over 66 Myr stars travel hundreds of parsecs along curved orbits, so the Sun and every star
-# are traced back through a simple Galaxy: a flat rotation curve (233 km/s) in the plane and the
-# disk's vertical pull as a harmonic well (0.1 solar masses per cubic parsec, an 84 Myr
-# oscillation), from the Sun at R0 = 8.2 kpc, 20.8 pc above the plane, moving at (U, V, W) =
-# (11.1, 12.24, 7.25) km/s relative to the local standard of rest (Schönrich, Binney & Dehnen
-# 2010). Only stars long-lived enough to have been shining then are kept: no supergiants or
-# bright giants, and no star whose main-sequence lifetime from its spectral type is under twice
-# 66 Myr (about B4 and earlier), since its age is unknown. Most stars near the Sun then are too
-# far away now to be in the catalogue, so the traced stars are few. Each quarter magnitude is
-# filled up to today's count with stand-ins: today's stars of that magnitude, keeping their
-# galactic latitude and colour but at a random longitude. The sky's real stars then cannot be
-# known.
-# Before the impact winter no catalogue star can be traced near the Sun, so those skies are all
-# stand-ins (see below). The three 2.7 Ga epochs share one sky.
-ORBIT_EPOCHS = {'kpg66': 66e6, 'carbon30': 300e6, 'ordovician466': 466e6, 'snowball07': 700e6, 'proterozoic22': 2.2e9,
-                'archean27thin': 2.7e9, 'archean27': 2.7e9, 'archean27vthick': 2.7e9,
-                'archean38': 3.8e9, 'hadean40': 4.0e9, 'hadean45': 4.5e9, 'protoearth455': 4.55e9}
-TRACE_MAX = 1e8                       # trace catalogue stars only this far back
-# Main-sequence mass at subclass 0 and at the end of each class (solar masses).
-MASS = {'O': (40, 20), 'B': (17, 3.0), 'A': (2.6, 1.7), 'F': (1.6, 1.1), 'G': (1.1, 0.85), 'K': (0.85, 0.6), 'M': (0.5, 0.2)}
-
-
-def ms_lifetime_myr(spec):
-    """Main-sequence lifetime from the spectral type: mass interpolated within the class,
-    10 Gyr × M^-2.5."""
-    if not spec or spec[0] not in MASS:
-        return 1e9
-    lo, hi = MASS[spec[0]]
-    m = re.match(r'[A-Z](\d(\.\d)?)', spec)
-    sub = float(m.group(1)) if m else 5.0
-    mass = lo * (hi / lo) ** (sub / 10)
-    return 1e4 * mass ** -2.5
-
-
-def shining_then(s, years):
-    lum = s['lum']
-    if lum.startswith('I') and not lum.startswith('III') and not lum.startswith('IV'):
-        return False            # supergiants (I, Ia, Iab, Ib) and bright giants (II)
-    return ms_lifetime_myr(s['spec']) > 2 * years / 1e6
-
-
-def trace_back(years):
-    """Galactocentric positions of the Sun (row 0) and every star, `years` ago (leapfrog). Past
-    TRACE_MAX only the Sun is traced. Beyond a Gyr or so the Sun's place on its orbit is only
-    nominal: small errors in the Galaxy's rotation, and the Sun's own radial migration, add up."""
-    pos, vel = [np.array([-R0, 0.0, Z0])], [np.array(SUN_UVW) * PC_MYR]
-    for s in (stars if years <= TRACE_MAX else []):
-        u, v_eq = velocity(s)
-        pos.append(pos[0] + GAL @ (s['dist'] * np.array(u)))
-        vel.append(vel[0] + GAL @ np.array(v_eq) * PC_MYR)
-    p, v = np.array(pos), np.array(vel)
-    dt, n = -0.05, int(round(years / 1e6 / 0.05))
-    v += 0.5 * dt * accel(p)
-    for i in range(n):
-        p += dt * v
-        v += (dt if i < n - 1 else 0.5 * dt) * accel(p)
-    return p
-
-
-epoch_meta, alias, done, traced_lists, seeds = {}, {}, {}, {}, {}
-limit = sorted(stars, key=lambda s: s['v'])[999]['v']     # today's thousandth brightest
-for key, years in ORBIT_EPOCHS.items():
-    if years in done:
-        alias[key] = done[years]
-        epoch_meta[key] = epoch_meta[done[years]]
-        continue
-    done[years] = key
-    p = trace_back(years)
-    sun, rel = p[0], p[1:] - p[0]
-    # The direction of the Galactic centre from the Sun then, as a galactic longitude now: where
-    # the brightest part of the Milky Way lay. The plane itself stays put.
-    lc = math.degrees(math.atan2(-sun[1], -sun[0]))
-    epoch_meta[key] = dict(mwL=round(lc, 2), sunZ=round(float(sun[2]), 1))
-    print(f"{key}: Sun at R = {math.hypot(sun[0], sun[1]):.0f} pc, z = {sun[2]:.0f} pc; Galactic centre then at l = {lc:.1f}°")
-    eq = rel @ GAL                      # galactic → J2000 equatorial
-    d = np.maximum(np.linalg.norm(eq, axis=1), 1.0)
-    traced = []
-    for s, e, dd in zip(stars if years <= TRACE_MAX else [], eq, d):
-        if not shining_then(s, years):
-            continue
-        ra = math.degrees(math.atan2(e[1], e[0])) % 360
-        dec = math.degrees(math.asin(max(-1.0, min(1.0, e[2] / dd))))
-        traced.append((s['v'] + 5 * math.log10(dd / s['dist']), ra, dec, s['bv'], s['k'], s['name'], dd))
-    traced.sort(key=lambda m: m[0])
-    if traced: print(f"{key}: {len(traced)} of {len(stars)} were shining then; brightest " +
-          ", ".join(f"{m[5]} {m[0]:.2f} ({m[6]:.0f} pc)" for m in traced[:6]))
-    # The page fills each quarter magnitude up to today's count with stand-ins (stars.js,
-    # starsFor): today's stars of that magnitude at a random galactic longitude. Only the traced
-    # stars as bright as today's thousandth are kept here.
-    kept = [m[:6] for m in traced if m[0] <= limit]
-    print(f"{key}: {len(kept)} traced down to V = {limit:.2f}")
-    traced_lists[key] = kept
-    seeds[key] = int(years / 1e6)
+# ---- The stars the page can show from today's catalogue: within STAR_LINE_YEARS, today's
+# thousand brightest and every star that was among the thousand brightest at some time from
+# 2.2 Myr ago to 250,000 years ahead (stars.js moves them along their lines and shows the thousand
+# brightest of the year). Past that the Galaxy's pull has bent the lines, and the page's stars are
+# stand-ins on flyby paths.
+SAMPLE_YEARS = np.arange(-2.2e6, 2.5e5 + 1, 2.5e4)
 
 
 def motion_js(pma, pmd, dist, rv):
     return f'{pma:.4f},{pmd:.4f},{dist:.4g},{rv:.1f}'
 
 
-# The Sun's own track back to the Solar System's birth, every TRACK_MYR, by the same steps as
-# trace_back (so it passes through the traced epochs' values exactly): the Galactic centre's
-# longitude in today's coordinates, unwrapped so it runs on smoothly, and the Sun's height (pc).
+U = np.array([velocity(s)[0] for s in stars]); VEL = np.array([velocity(s)[1] for s in stars])
+D0 = np.array([s['dist'] for s in stars]); V0 = np.array([s['v'] for s in stars])
+ever = np.zeros(len(stars), bool)
+for t in SAMPLE_YEARS:
+    p = D0[:, None]*U + VEL*KMS_YR_TO_PC*t
+    v = V0 + 5*np.log10(np.maximum(np.linalg.norm(p, axis=1), 1.0)/D0)
+    ever |= v <= np.sort(v)[999]
+# Today's thousand (stars_catalog.js, in its order) get their motion, matched by place and V.
+src = (Path(__file__).with_name('site_src') / 'js' / 'stars_catalog.js').read_text(encoding='utf-8')
+cat = [tuple(map(float, m.groups())) for m in re.finditer(r'^\[([-\d.]+),([-\d.]+),([-\d.]+),', src, re.M)]
+motion, today = [], set()
+for ra, dec, v in cat:
+    j = min(range(len(stars)), key=lambda k: (stars[k]['ra'] - ra) ** 2 + (stars[k]['dec'] - dec) ** 2 + (stars[k]['v'] - v) ** 2)
+    best = stars[j]
+    assert abs(best['ra'] - ra) < 1e-3 and abs(best['dec'] - dec) < 1e-3, (ra, dec)
+    today.add(j)
+    motion.append(f"[{motion_js(best['pma'], best['pmd'], best['dist'], best['rv'])}]")
+extra = [k for k in np.flatnonzero(ever) if k not in today]
+print(f"{len(extra)} stars besides today's thousand were among the thousand brightest between "
+      f"{-SAMPLE_YEARS[0]/1e6:.1f} Myr ago and {SAMPLE_YEARS[-1]/1e3:.0f} kyr ahead")
+for key, years in {'zetaoph': 1.78e6, 'geminga': 3.42e5}.items():
+    moved = sorted((at_epoch(s, years)[2], s['name']) for s in stars)
+    print(f"{key}: brightest " + ", ".join(f"{n} {m:.2f}" for m, n in moved[:6]))
+
+
+# The Sun's own track back to the Solar System's birth, every TRACK_MYR, through galaxy.py's Galaxy
+# (a leapfrog from today's place and velocity): the Galactic centre's longitude in today's
+# coordinates, unwrapped so it runs on smoothly, and the Sun's height (pc).
 TRACK_MYR = 2
 
 
@@ -251,48 +175,24 @@ track_l, track_z = sun_track()
 print(f"Sun's track: {len(track_l)} points; l = {track_l[33]:.2f}°, z = {track_z[33]:.1f} pc at 66 Ma")
 
 
-def rows_js(rows):
-    return "\n".join(f'[{ra:.4f},{dec:.4f},{v:.2f},{bv:.2f},{k},{json.dumps(name, ensure_ascii=False)}'
-                     + (f',{motion_js(*m[0])}' if m else '') + '],'
-                     for v, ra, dec, bv, k, name, *m in rows)
+
+def type_of(s):
+    return (s['spec'] + (' ' + s['lum'] if s['lum'] else '')).strip()
 
 
-out = ["// The Bright Star Catalogue moved to the supernova epochs (straight-line motion relative to",
-       "// the Sun) and to 66 Ma (orbits in the Galaxy) by build_star_epochs.py, from XHIP (Hipparcos)",
-       "// astrometry. Rows are right ascension, declination, V, B-V, colour temperature and name;",
-       "// the moved epochs' rows go on with the proper motion there (arcsec/yr, mu alpha cos delta",
-       "// and mu delta), distance (pc) and radial velocity (km/s), so their stars keep moving along",
-       "// the same lines through the years either side of the epoch.",
-       "const STARS_EPOCH={"]
-for key, rows in lists.items():
-    out += [f"{key}:[", rows_js(rows), "],"]
-out.append("};")
-out.append("// The epochs traced through the Galaxy: the catalogue stars that can be traced, and the seed")
-out.append("// for the stand-ins that fill the rest of the sky (stars.js, starsFor). Before the impact")
-out.append("// winter no catalogue star can be traced near the Sun, so those skies are all stand-ins.")
-out.append("const STAR_TRACED={")
-for key, rows in traced_lists.items():
-    if rows:
-        out += [f"{key}:[", rows_js(rows), "],"]
-out.append("};")
-out.append("const STAR_STANDIN_SEED=" + json.dumps({**seeds, **{k: seeds[src] for k, src in alias.items()}}) + ";")
-for key, src in alias.items():
-    if traced_lists.get(src):
-        out.append(f"STAR_TRACED.{key}=STAR_TRACED.{src};")
-# Today's thousand (stars_catalog.js, in its order) get the same motion, matched by place and V.
-src = (Path(__file__).with_name('site_src') / 'js' / 'stars_catalog.js').read_text(encoding='utf-8')
-cat = [tuple(map(float, m.groups())) for m in re.finditer(r'^\[([-\d.]+),([-\d.]+),([-\d.]+),', src, re.M)]
-motion = []
-for ra, dec, v in cat:
-    best = min(stars, key=lambda b: (b['ra'] - ra) ** 2 + (b['dec'] - dec) ** 2 + (b['v'] - v) ** 2)
-    assert abs(best['ra'] - ra) < 1e-3 and abs(best['dec'] - dec) < 1e-3, (ra, dec)
-    motion.append(f"[{motion_js(best['pma'], best['pmd'], best['dist'], best['rv'])}]")
-out.append("// For each star of STARS, in its order: proper motion (arcsec/yr; XHIP's where it has the star),")
-out.append("// distance (pc) and radial velocity (km/s), for its straight-line motion (stars.js).")
-out.append("const STAR_MOTION=[" + ",".join(motion) + "];")
-out.append("// For each traced epoch: the galactic longitude (in today's coordinates) of the Galactic centre")
-out.append("// as seen from the Sun then, where the Milky Way was brightest, and the Sun's height above the plane (pc).")
-out.append("const STAR_EPOCH_GAL=" + json.dumps(epoch_meta) + ";")
+out = ["// Star motion (build_star_epochs.py), from XHIP (Hipparcos) astrometry and the Yale Bright Star",
+       "// Catalogue. STAR_MOTION: for each star of STARS, in its order, proper motion (arcsec/yr, mu alpha",
+       "// cos delta and mu delta), distance (pc) and radial velocity (km/s). STAR_EXTRA: the stars not among",
+       "// today's thousand brightest that were at some time from 2.2 Myr ago to 250,000 years ahead, rows",
+       "// as STARS (J2000 place today, V today, B-V, proper motion, colour temperature, name), then the MK",
+       "// type, distance and radial velocity.",
+       "const STAR_MOTION=[" + ",".join(motion) + "];",
+       "const STAR_EXTRA=["]
+for k in extra:
+    s = stars[k]
+    out.append(f"[{s['ra']:.4f},{s['dec']:.4f},{s['v']:.2f},{s['bv']:.2f},{s['pma']:.4f},{s['pmd']:.4f},{s['k']},{json.dumps(s['name'], ensure_ascii=False)},"
+               f"{json.dumps(type_of(s))},{s['dist']:.4g},{s['rv']:.1f}],")
+out.append("];")
 out.append(f"// The Sun's track through time (milkyway.js sunGalAt), every {TRACK_MYR} Myr back from now: the Galactic")
 out.append("// centre's longitude (today's coordinates, unwrapped) and the Sun's height above the plane (pc).")
 out.append("const STAR_SUN_TRACK=" + json.dumps(dict(step=TRACK_MYR, l=track_l, z=track_z), separators=(',', ':')) + ";")
@@ -343,18 +243,14 @@ def line_change(pos0, pos1):
 
 
 now = [(s['ra'], s['dec']) for s in verts]
-con_pos = {}
-for key, years in EPOCHS.items():
-    con_pos[key] = [at_epoch(s, years) for s in verts]
-    print(f"{key}: median line length change {line_change(now, [p[:2] for p in con_pos[key]]):.2f}")
+for key, years in {'zetaoph': 1.78e6, 'geminga': 3.42e5}.items():
+    print(f"{key}: median line length change {line_change(now, [at_epoch(s, years)[:2] for s in verts]):.2f}")
 con_out = ["// Constellation figures from Stellarium's modern sky culture, by build_star_epochs.py. CON_FIG rows",
            "// are abbreviation, name and chains of vertex indices. CON_VERT rows are J2000 right ascension,",
            "// declination, proper motion (arcsec/yr), distance (pc) and radial velocity (km/s), as in",
-           "// STAR_MOTION. CON_EPOCHS holds the vertices moved to the supernova epochs, with their motion there.",
+           "// STAR_MOTION; the page moves them as it moves the stars (stars.js).",
            "const CON_FIG=" + json.dumps(figures, ensure_ascii=False, separators=(',', ':')) + ";",
-           "const CON_VERT=[" + ",".join(f"[{s['ra']:.4f},{s['dec']:.4f},{motion_js(s['pma'], s['pmd'], s['dist'], s['rv'])}]" for s in verts) + "];",
-           "const CON_EPOCHS={" + ",".join(f"{k}:[" + ",".join(f"[{ra:.4f},{dec:.4f},{motion_js(pma, pmd, d, rv)}]" for ra, dec, _, d, pma, pmd, rv in pos) + "]"
-                                          for k, pos in con_pos.items()) + "};"]
+           "const CON_VERT=[" + ",".join(f"[{s['ra']:.4f},{s['dec']:.4f},{motion_js(s['pma'], s['pmd'], s['dist'], s['rv'])}]" for s in verts) + "];",]
 cpath = path.with_name('constellations.js')
 cpath.write_text("\n".join(con_out) + "\n", encoding="utf-8")
 print('wrote', cpath)

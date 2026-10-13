@@ -136,18 +136,18 @@ function airBlendShaft(A, B, w){
 // shown: linearly by the year between the main epochs (those without an entry take dflt), then
 // toward an event's own entry by the event's level while it is on. Other epochs, the polluted city
 // and an epoch shown away from its own time keep their own entries.
-let tableNowMemo=null;
+const tableNowMemo=new WeakMap();
 function tableNow(T, key, dflt){
   const own=T[key]||dflt;
   if(key!==EP[dIdx].key || key in AIR.sc) return own;
   const A=eventTime();
   if(epochIndexAt(A)!==dIdx) return own;
-  const m=tableNowMemo;
-  if(m && m.T===T && m.key===key && m.A===A) return m.v;
-  const P=MAIN_EPOCHS.map(k=>[epochAnchor(k), T[k]||dflt]), mix=(a, b, w)=>typeof a==='number'?a*(1-w)+b*w:Object.fromEntries(Object.keys(a).map(f=>[f, a[f]*(1-w)+b[f]*w]));
+  const m=tableNowMemo.get(T);
+  if(m && m.key===key && m.A===A) return m.v;
+  const P=MAIN_EPOCHS.map(k=>[epochAnchor(k), T[k]||dflt]), mix=(a, b, w)=>typeof a==='number'?a*(1-w)+b*w:Array.isArray(a)?a.map((v, j)=>v*(1-w)+b[j]*w):Object.fromEntries(Object.keys(a).map(f=>[f, a[f]*(1-w)+b[f]*w]));
   let i=0; while(i<P.length-2 && P[i+1][0]<=A) i++;
   let v=mix(P[i][1], P[i+1][1], Math.max(0, Math.min(1, (A-P[i][0])/(P[i+1][0]-P[i][0]))));
   for(const ev of EPOCH_EVENTS){ const l=eventLevel(ev, A); if(l>AIR_LMIN && T[ev.key]) v=mix(v, T[ev.key], l); }
-  tableNowMemo={T, key, A, v};
+  tableNowMemo.set(T, {key, A, v});
   return v;
 }

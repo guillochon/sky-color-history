@@ -1,7 +1,5 @@
 /* ---------- the Moon's face through time ---------- */
-// Ages (Ma) of the epochs whose Moon looked different from today's.
-const MOON_MA=aliasEpochs({hadean45:4500, kpg66:66, carbon30:300, ordovician466:466, snowball07:700, proterozoic22:2200,
-  archean27thin:2700, archean27:2700, archean27vthick:2700, archean38:3800, hadean40:4000});
+// Its look follows the age the sky shows (epoch_time.js ageMaOf).
 // The dark maria are basalt that flooded the great basins from about 3.9 Ga, most of it by 3.3 Ga
 // (Hiesinger et al. 2011, GSA Special Paper 477): before then the near side was bright highland
 // crust from limb to limb. They did not darken together. Each mare here has a date its floor
@@ -28,8 +26,11 @@ function mareVec(lat, lon){ return [cosd(lat)*sind(lon), sind(lat), cosd(lat)*co
 // sunlit Moon (see lunarLava), so the disk glows orange by day and night alike, and the air about
 // it carries a red aureole: the globe's red excess is the share that glows (moonGlow, drawn in the
 // sky shader and drawMoonOnDome), at 0.65 so the lit relief of the rafts stays clear beside it.
-const MOON_MOLTEN={hadean45:0.65};
-function moonGlow(key){ return MOON_MOLTEN[key]||0; }
+// Drawn so from the impact (airtime.py T_IMPACT, 4,510 Ma) for 20 Myr, until a crust had closed
+// over it: the Early Hadean's epoch, 10 Myr on, sees it so. The time is a guess.
+const MOLTEN_FROM_MA=4510, MOLTEN_TO_MA=4490;
+function moonMolten(key){ const a=ageMaOf(key); return a>MOLTEN_TO_MA && a<=MOLTEN_FROM_MA; }
+function moonGlow(key){ return moonMolten(key)?0.65:0; }
 // The light the molten Moon casts on the night (vr_paint.js): the sunlight its globe reflects, its
 // mean over the near side a quarter of today's (0.247 in linear luminance, the dark crust and the
 // lava's own colour) and orange (MOLTEN_REFL_RGB, today's moonlight's colour times the globes'
@@ -45,8 +46,8 @@ const MOLTEN_REFL=0.247, MOLTEN_REFL_RGB=[2.14, 0.51, 0.147], MOLTEN_LAVA_RGB=[1
 // turned on the Moon's axes (moon.js moonAxes), so it librates.
 const MOON_MAPS=__MOON_MAPS__;
 function moonMapName(key){
-  if(MOON_MOLTEN[key]) return 'molten';
-  const ma=MOON_MA[key]||0;
+  if(moonMolten(key)) return 'molten';
+  const ma=ageMaOf(key);
   return ma>=4000?'ma4000':ma>=3800?'ma3800':ma>=109?'notycho':'now';
 }
 // Each globe is fetched the first time its epoch is shown: the image for the walk-around view's
@@ -61,7 +62,7 @@ function moonMap(key){
     fetch(MOON_MAPS[name]).then(r=>r.blob()).then(b=>createImageBitmap(b, {colorSpaceConversion:'none', premultiplyAlpha:'none'})).then(bm=>{
       const c=document.createElement('canvas'); c.width=1024; c.height=512;
       const ctx=c.getContext('2d', {willReadFrequently:true}); ctx.drawImage(bm, 0, 0, 1024, 512);
-      m.px=ctx.getImageData(0, 0, 1024, 512).data; m.img=bm;
+      m.px=ctx.getImageData(0, 0, 1024, 512).data; m.img=bm; if(!moonShown) moonShown=m;
       if(moonMapName(EP[dIdx].key)===name){ moonReady=true; uploadMoon(); requestRender(); }
     }).catch(()=>{});
   }
@@ -77,7 +78,7 @@ function moonMap(key){
 // made-up profile and the globe no relief.
 const MOON_RELIEF={relief:[-9.2, 10.9], molten_relief:[-0.15, 2.25]};
 const moonReliefs={};
-function moonReliefName(key){ return MOON_MOLTEN[key]?'molten_relief':'relief'; }
+function moonReliefName(key){ return moonMolten(key)?'molten_relief':'relief'; }
 function loadMoonRelief(name='relief'){
   if(name in moonReliefs||!MOON_MAPS[name]) return; moonReliefs[name]=null;
   fetch(MOON_MAPS[name]).then(r=>r.blob()).then(b=>createImageBitmap(b, {colorSpaceConversion:'none', premultiplyAlpha:'none'})).then(bm=>{
@@ -122,7 +123,7 @@ const LIMB_N=1024, LIMB_X=2, LIMB_RANGE=0.03, moonLimbProf=new Float32Array(LIMB
 // 0.3–0.7% smaller than the mean sphere. It is drawn at its true size, not the relief's LIMB_X.
 const MOON_HF=2.435, GM_EARTH=398600.4, GM_MOON=4902.8;
 function moonTide(key){
-  if(!MOON_MOLTEN[key]) return null;
+  if(!moonMolten(key)) return null;
   const a=moonDist()*EARTH_R_KM, r3=MOON_R_KM**3/(a**3*GM_MOON);
   return [MOON_HF*GM_EARTH*r3, MOON_HF*(GM_EARTH+GM_MOON)*r3/3];
 }
@@ -133,14 +134,14 @@ function moonLimbSync(mo){
   if(!mo||!mo.ax) return;
   const R=moonReliefNow(), b=moonBasis(mo), ax=mo.ax, body=v=>[vdot(v, ax.E), vdot(v, ax.P), vdot(v, ax.M)];
   const eB=body(b.east), nB=body(b.north), mB=body(b.md);
-  const key=R?moonReliefName(EP[dIdx].key)+nB.concat(mB).map(x=>Math.round(x*1000)).join(','):MOON_MOLTEN[EP[dIdx].key]?'molten':'made-up';
+  const key=R?moonReliefName(EP[dIdx].key)+nB.concat(mB).map(x=>Math.round(x*1000)).join(','):moonMolten(EP[dIdx].key)?'molten':'made-up';
   if(key===moonLimbKey) return;
   moonLimbKey=key; moonLimbGen++;
   // The made-up profile (drawn at three times real relief, so scaled to LIMB_X), and a third of
   // that for the molten Moon's low rafts.
   // On the molten Moon the tide's shape is added along the limb.
   const tide=moonTide(EP[dIdx].key), limbTide=(sp, cp)=>tideAt(tide, eB[1]*sp+nB[1]*cp, eB[2]*sp+nB[2]*cp);
-  if(!R){ const s=(MOON_MOLTEN[EP[dIdx].key]?0.3:1)*LIMB_X/3; for(let i=0;i<LIMB_N;i++){ const pa=i/LIMB_N*2*Math.PI; moonLimbProf[i]=s*limbFake(pa)+limbTide(Math.sin(pa), Math.cos(pa)); } return; }
+  if(!R){ const s=(moonMolten(EP[dIdx].key)?0.3:1)*LIMB_X/3; for(let i=0;i<LIMB_N;i++){ const pa=i/LIMB_N*2*Math.PI; moonLimbProf[i]=s*limbFake(pa)+limbTide(Math.sin(pa), Math.cos(pa)); } return; }
   const lo=R.range[0]/MOON_R_KM, k=(R.range[1]-R.range[0])/255/MOON_R_KM;
   const NF=193, fc=new Float64Array(NF), fs=new Float64Array(NF);
   for(let j=0;j<NF;j++){ const f=(j-(NF-1)/2)/16*Math.PI/180; fc[j]=Math.cos(f); fs[j]=Math.sin(f); }
@@ -174,7 +175,7 @@ function moonAlbedo(m, v, out){
 // out of sight, in the maria then filling (from 50 Myr before a mare's onset to 500 Myr after),
 // the larger ones more often.
 function lunarLava(key){
-  const ma=MOON_MA[key]||0, live=MARIA.filter(m=>ma<=m[4]*1000+50&&ma>=m[4]*1000-500&&mareVec(m[1], m[2])[2]>0);
+  const ma=ageMaOf(key), live=MARIA.filter(m=>ma<=m[4]*1000+50&&ma>=m[4]*1000-500&&mareVec(m[1], m[2])[2]>0);
   if(!live.length) return [];
   const k=Math.floor((astroDay()-DN_NEW0)/synodic()+0.5), rnd=mulberry32(metHash(key+'|lava|'+k)), out=[];
   const n=1+Math.floor(rnd()*3), dm=5*Math.log10(moonDist()/40), tot=live.reduce((a, m)=>a+m[3]*m[3], 0);

@@ -87,25 +87,34 @@ let vrLabels=false, vrLabelsDrawn=false;
 const CON_PLACES={}, CON_KEEP={};
 // A line is left out when its stars have moved to more than three times today's separation.
 const CON_LINE_MAX=3;
-// Whether each line of CON_FIG, in order, is drawn for the epoch: all of them unless its stars
-// are moved there (CON_EPOCHS).
-function conKeep(key){
-  if(CON_KEEP[key]) return CON_KEEP[key];
-  const E=CON_EPOCHS[dataKey(key)], keep=[];
-  const unit=p=>{ const r=Math.PI/180, cd=Math.cos(p[1]*r); return [cd*Math.cos(p[0]*r), cd*Math.sin(p[0]*r), Math.sin(p[1]*r)]; };
-  const sep=(p, q)=>Math.acos(Math.max(-1, Math.min(1, vdot(unit(p), unit(q)))));
+// The figures' vertices at year A on the timeline (J2000 directions), moved along their stars'
+// lines as the stars are (stars.js starLine), while those hold; past them, none.
+function conVerts(A){
+  const dt=A-2000;
+  if(Math.abs(dt)>STAR_LINE_MIN-STAR_FADE) return null;
+  return CON_VERT.map(v=>starLine([v[0], v[1], 0, 0, v[2], v[3], 0, '', '', v[4], v[5]], dt).v);
+}
+// Whether each line of CON_FIG, in order, is drawn at year A: all of them unless its stars have
+// moved apart (kept to 10,000 years).
+function conKeep(A){
+  const id=Math.round(A/1e4);
+  if(CON_KEEP[id]) return CON_KEEP[id];
+  const E=conVerts(id*1e4), U=conVerts(2000), keep=[];
+  const sep=(p, q)=>Math.acos(Math.max(-1, Math.min(1, vdot(p, q))));
   for(const [, , chains] of CON_FIG) for(const run of chains) for(let k=1;k<run.length;k++){
     const i=run[k-1], j=run[k];
-    keep.push(!E||sep(E[i], E[j])<=CON_LINE_MAX*sep(CON_VERT[i], CON_VERT[j]));
+    keep.push(!E||sep(E[i], E[j])<=CON_LINE_MAX*sep(U[i], U[j]));
   }
-  return CON_KEEP[key]=keep;
+  return CON_KEEP[id]=keep;
 }
-// The figures' vertices for the epoch, as right ascension and declination of date, or null.
+// The figures' vertices for the epoch's calendar year, as right ascension and declination of date, or null.
 function conPlaces(key, year){
   const k=key+'|'+year;
   if(CON_PLACES[k]!==undefined) return CON_PLACES[k];
-  const moved=CON_EPOCHS[dataKey(key)], src=moved||(starsFor(key)===STARS?CON_VERT:null);
-  return CON_PLACES[k]=src&&src.map(v=>starMeanPlace([v[0], v[1], 0, 0, v[2], v[3], 0, '', undefined, v[4], v[5]], key, year));
+  if(Object.keys(CON_PLACES).length>200) for(const q in CON_PLACES) delete CON_PLACES[q];
+  const A=year+epochShift(key);
+  if(!conVerts(A)) return CON_PLACES[k]=null;
+  return CON_PLACES[k]=CON_VERT.map(v=>starMeanPlace([v[0], v[1], 0, 0, v[2], v[3], 0, '', '', v[4], v[5]], key, year));
 }
 // The constellation lines, as great circles between their stars, cut at the horizon; returns
 // the names to label, at the middle of the stars of each figure's lines that are drawn.
@@ -115,7 +124,7 @@ function drawConstellations(ctx, proj){
   const lat=LATDEG[dLat], LST=localSidereal();
   const dirs=P.map(p=>{ let H=rev(LST-rev(p.ra)); if(H>180) H-=360; const a=altaz(lat, p.dec, H); return horizDir(a.az, a.alt); });
   ctx.strokeStyle='rgba(140,170,225,.38)'; ctx.lineWidth=1; ctx.beginPath();
-  const names=[], keep=conKeep(key);
+  const names=[], keep=conKeep((STAR_YEAR[key]||pageDate()[0])+epochShift(key));
   let li=0;
   for(const [, name, chains] of CON_FIG){
     const sum=[0, 0, 0];

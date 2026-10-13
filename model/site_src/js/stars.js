@@ -51,31 +51,36 @@ function starTint(kelvin){
   return [r/y,g/y,b/y];
 }
 // Each star of STARS gets its motion (stars_epochs.js, STAR_MOTION): proper motion (arcsec/yr),
-// then distance (pc) and radial velocity (km/s) as row[9] and row[10].
-STARS.forEach((s, i)=>{ const m=STAR_MOTION[i]; if(m){ s[4]=m[0]; s[5]=m[1]; s[9]=m[2]; s[10]=m[3]; } });
-// Mean place in the year shown. Rows are J2000 places at the sky's year 0 (2000). A star with a
-// distance moves in a straight line through space, from its proper motion and radial velocity,
-// and dm is the change in its magnitude as its distance changes (no closer than 1 pc, as in
-// build_star_epochs.py). Without one it moves along a great circle at its proper motion. Straight
-// lines hold for about 2 million years, when the Galaxy's pull has bent them by a few parsecs;
-// further from year 0 the stars stay where they were then. The long-term precession (calendar.js)
-// then carries the place to `year`.
-const KMS_PC_YR=1.0227122e-6, ARCSEC=Math.PI/180/3600, STAR_LINE_YEARS=2e6;
-function starMeanPlace(star, epochKey, year){
-  void epochKey;
-  const dt=Math.max(-STAR_LINE_YEARS, Math.min(STAR_LINE_YEARS, year-2000)), a=star[0]*Math.PI/180, d=star[1]*Math.PI/180, sa=Math.sin(a), ca=Math.cos(a), sd=Math.sin(d), cd=Math.cos(d);
+// then distance (pc) and radial velocity (km/s) as row[9] and row[10]; row[8] is its MK type.
+// STAR_EXTRA's rows, the stars that outshone some of today's thousand at other times, come so.
+STARS.forEach((s, i)=>{ const m=STAR_MOTION[i]; if(m){ s[4]=m[0]; s[5]=m[1]; s[9]=m[2]; s[10]=m[3]; } s[8]=STAR_TYPES[i]||''; });
+const STAR_REAL=STARS.concat(STAR_EXTRA);
+// A star's J2000 direction and its change in magnitude dt years from 2000. A star with a distance
+// moves in a straight line through space, from its proper motion and radial velocity, and dm is
+// the change in its magnitude as its distance changes (no closer than 1 pc, as in
+// build_star_epochs.py). Without one it moves along a great circle at its proper motion.
+const KMS_PC_YR=1.0227122e-6, ARCSEC=Math.PI/180/3600;
+function starLine(star, dt){
+  const a=star[0]*Math.PI/180, d=star[1]*Math.PI/180, sa=Math.sin(a), ca=Math.cos(a), sd=Math.sin(d), cd=Math.cos(d);
   const u=[cd*ca, cd*sa, sd], ea=[-sa, ca, 0], ed=[-sd*ca, -sd*sa, cd];
   const pa=star[4]||0, pd=star[5]||0, dist=star[9], rv=star[10]||0;
-  let v=u, dm=0;
   if(dt && dist>0){
     // Position in pc at dt: today's, plus the velocity (pc/yr) times dt.
     const p=[0, 1, 2].map(i=>dist*u[i]+dt*(rv*KMS_PC_YR*u[i]+dist*ARCSEC*(pa*ea[i]+pd*ed[i])));
     const r=Math.hypot(...p);
-    v=p.map(c=>c/r); dm=5*Math.log10(Math.max(r, 1)/Math.max(dist, 1));
-  }else if(dt && (pa || pd)){
-    const w=Math.hypot(pa, pd), th=w*ARCSEC*dt, c=Math.cos(th), s=Math.sin(th);
-    v=[0, 1, 2].map(i=>u[i]*c+(pa*ea[i]+pd*ed[i])/w*s);
+    return {v:p.map(c=>c/r), dm:5*Math.log10(Math.max(r, 1)/Math.max(dist, 1))};
   }
+  if(dt && (pa || pd)){
+    const w=Math.hypot(pa, pd), th=w*ARCSEC*dt, c=Math.cos(th), s=Math.sin(th);
+    return {v:[0, 1, 2].map(i=>u[i]*c+(pa*ea[i]+pd*ed[i])/w*s), dm:0};
+  }
+  return {v:u, dm:0};
+}
+// Mean place in the year shown (the epoch's own calendar year, as the date picker has it): the
+// star's line taken to that year on the timeline, then the long-term precession (calendar.js).
+// The rows starsFor gives are already placed for their year, with no motion of their own.
+function starMeanPlace(star, epochKey, year){
+  const {v, dm}=starLine(star, year+epochShift(epochKey)-2000);
   const [X, Y, Z]=precessionMatrix(year).map(r=>r[0]*v[0]+r[1]*v[1]+r[2]*v[2]);
   let ra=Math.atan2(Y, X)*180/Math.PI; ra=((ra%360)+360)%360;
   return {ra, dec:Math.asin(Math.max(-1,Math.min(1,Z)))*180/Math.PI, dm};
@@ -99,36 +104,76 @@ function starDisplay(star, mag=star[2]){
 // so a datacenter brighter than that still grows, up to a higher cap.
 const POINT_TINT=starTint(5772).map(c=>Math.min(2.4, c));
 function pointDisplay(mag){ const d=magDisplay(mag, 200); return {px:d.px, rgb:POINT_TINT.map(c=>c*d.amp)}; }
-// The star list for an epoch, as rows of STARS. A moved epoch's rows come from stars_epochs.js.
-// An epoch traced through the Galaxy keeps its traced stars and fills each quarter magnitude up
-// to today's count with stand-ins: today's stars of that magnitude, keeping their galactic
-// latitude and colour but at a random galactic longitude (seeded per epoch), since the real
-// stars of that sky cannot be known.
-const STAR_LISTS={};
-function starsFor(key){
-  key=dataKey(key);
-  if(STAR_LISTS[key]) return STAR_LISTS[key];
-  const full=r=>[r[0], r[1], r[2], r[3], r[6]||0, r[7]||0, r[4], r[5], undefined, r[8], r[9]];
-  if(STARS_EPOCH[key]) return STAR_LISTS[key]=STARS_EPOCH[key].map(full);
-  const seed=STAR_STANDIN_SEED[key];
-  if(seed==null) return STARS;
-  const traced=(STAR_TRACED[key]||[]).map(full), have={}, bins=new Map();
-  for(const s of traced){ const b=Math.floor(s[2]*4); have[b]=(have[b]||0)+1; }
-  STARS.forEach((s, i)=>{ const b=Math.floor(s[2]*4); if(!bins.has(b)) bins.set(b, []); bins.get(b).push([s, i]); });
-  const rand=mulberry32(seed>>>0);
-  const d2r=Math.PI/180, [G0, G1, G2]=GAL_AXES, fill=[];
-  for(const [b, group] of bins){
-    for(const [s, i] of group.slice(0, Math.max(0, group.length-(have[b]||0)))){
-      const ra=s[0]*d2r, dec=s[1]*d2r, cd=Math.cos(dec);
-      const sb=Math.max(-1, Math.min(1, G2[0]*cd*Math.cos(ra)+G2[1]*cd*Math.sin(ra)+G2[2]*Math.sin(dec)));
-      const cb=Math.sqrt(1-sb*sb), l=rand()*2*Math.PI, u=cb*Math.cos(l), v=cb*Math.sin(l);
-      const e=[0, 1, 2].map(i=>u*G0[i]+v*G1[i]+sb*G2[i]);
-      // Unnamed, but with the spectral type of the star it copies (star_types.js).
-      fill.push([((Math.atan2(e[1], e[0])/d2r)%360+360)%360, Math.asin(Math.max(-1, Math.min(1, e[2])))/d2r, s[2], s[3], 0, 0, s[6], '', STAR_TYPES[i]||'']);
-    }
-  }
-  return STAR_LISTS[key]=traced.concat(fill).sort((a, b)=>a[2]-b[2]).slice(0, 1000);
+// The stars of a year, the thousand brightest, as rows of STARS placed for that year (J2000
+// direction, V then). Straight lines hold for about two million years, when the Galaxy's pull has
+// bent them by a few parsecs: each real star (today's thousand and STAR_EXTRA) is shown to a time
+// of its own between STAR_LINE_MIN and STAR_LINE_MAX years from 2000 and fades out over the
+// STAR_FADE before it. Each of today's thousand then gives way to stand-ins of its kind, whose real
+// counterparts that far back cannot be known: stars of its absolute magnitude, colour and type
+// passing the Sun one after another on straight lines at STAR_FLYBY_KMS (15-40 km/s, as the
+// nearby stars' speeds relative to the Sun run), each nearest the Sun, at today's star's distance,
+// halfway through its time and so as bright as today's star then, its closest approach toward the
+// galactic latitude today's star has, at a random longitude. Each passage lasts the time it takes
+// to go twice that distance, from half a million to twenty million years (the same for each of a
+// slot's passages), and fades into the next over STAR_FADE. So the sky changes as fast as the nearby stars move, and never all at once.
+const STAR_LINE_MIN=1.9e6, STAR_LINE_MAX=2.2e6, STAR_FADE=5e4, STAR_FLYBY_KMS=[15, 40];
+function starSeed(i, k){ let h=2166136261^i; h=Math.imul(h^(k+0x9e3779b9), 16777619); h=Math.imul(h^(h>>>15), 2246822507); return mulberry32((h^(h>>>13))>>>0); }
+const STAR_LINE_T=[];
+function starLineYears(i){ return STAR_LINE_T[i]??(STAR_LINE_T[i]=STAR_LINE_MIN+(STAR_LINE_MAX-STAR_LINE_MIN)*starSeed(i, -1)()); }
+function fadeIn(x){ return smooth01(0, STAR_FADE, x); }
+// Slot i's passages (today's star i's stand-ins): their speed (pc/yr), nearest distance (pc) and
+// length (years), the same for each passage of the slot.
+const STAR_SLOT=[];
+function starSlot(i){
+  if(STAR_SLOT[i]) return STAR_SLOT[i];
+  const s=STARS[i], b=Math.min(Math.max(s[9]||100, 3), 2000), V=(STAR_FLYBY_KMS[0]+(STAR_FLYBY_KMS[1]-STAR_FLYBY_KMS[0])*starSeed(i, -2)())*KMS_PC_YR;
+  return STAR_SLOT[i]={b, V, L:Math.min(2e7, Math.max(5e5, 2*b/V)), M:s[2]-5*Math.log10(Math.max(s[9]||100, 1)/10)};
 }
+// Passage k of slot i: the direction of its nearest approach, n, and of its motion, m.
+const STAR_PASS=new Map();
+function starPassage(i, k){
+  const id=i*4194304+k, hit=STAR_PASS.get(id); if(hit) return hit;
+  if(STAR_PASS.size>8000) STAR_PASS.clear();
+  const s=STARS[i], rnd=starSeed(i, k), {b, V, L, M}=starSlot(i);
+  const d2r=Math.PI/180, ra=s[0]*d2r, dec=s[1]*d2r, cd=Math.cos(dec), [G0, G1, G2]=GAL_AXES;
+  const sb=Math.max(-1, Math.min(1, G2[0]*cd*Math.cos(ra)+G2[1]*cd*Math.sin(ra)+G2[2]*Math.sin(dec)));
+  const cb=Math.sqrt(1-sb*sb), l=rnd()*2*Math.PI, n=[0, 1, 2].map(j=>cb*Math.cos(l)*G0[j]+cb*Math.sin(l)*G1[j]+sb*G2[j]);
+  // The way it moves: a random direction square to n.
+  const t=[rnd()-0.5, rnd()-0.5, rnd()-0.5], tn=vdot(t, n), m0=[0, 1, 2].map(j=>t[j]-tn*n[j]), mm=Math.hypot(...m0)||1;
+  const P={n, m:m0.map(c=>c/mm), b, V, L, M}; STAR_PASS.set(id, P); return P;
+}
+function standIn(i, k, x, w){
+  const P=starPassage(i, k), s=STARS[i], y=P.V*x, r=Math.hypot(P.b, y), v=[0, 1, 2].map(j=>(P.b*P.n[j]+y*P.m[j])/r);
+  return [Math.atan2(v[1], v[0])*180/Math.PI, Math.asin(Math.max(-1, Math.min(1, v[2])))*180/Math.PI,
+    P.M+5*Math.log10(r/10)-2.5*Math.log10(Math.max(w, 1e-4)), s[3], 0, 0, s[6], '', s[8]];
+}
+let starsMemo=null;
+function starsAt(A){
+  A=Math.round(A);
+  if(starsMemo && starsMemo.A===A) return starsMemo.list;
+  const dt=A-2000, out=[];
+  STAR_REAL.forEach((s, i)=>{
+    const T=starLineYears(i), w=1-fadeIn(Math.abs(dt)-(T-STAR_FADE));
+    if(!(w>0)) return;
+    const {v, dm}=starLine(s, dt), mag=s[2]+dm-2.5*Math.log10(w);
+    out.push([Math.atan2(v[1], v[0])*180/Math.PI, Math.asin(Math.max(-1, Math.min(1, v[2])))*180/Math.PI, mag, s[3], 0, 0, s[6], s[7], s[8]]);
+  });
+  // Stand-ins, from when each of today's stars fades on, the passages after one another, the far
+  // side (in the past, or the future) seeded apart.
+  STARS.forEach((s, i)=>{
+    const tau=Math.abs(dt)-(starLineYears(i)-STAR_FADE);
+    if(!(tau>0)) return;
+    const side=dt<0?0:1e6, L=starSlot(i).L, k=Math.floor(tau/L), x=tau-k*L;
+    out.push(standIn(i, side+k, x-L/2, fadeIn(x)));
+    if(k>0 && x<STAR_FADE) out.push(standIn(i, side+k-1, x+L/2, 1-fadeIn(x)));
+  });
+  out.forEach(r=>{ r[0]=((r[0]%360)+360)%360; });
+  const list=out.sort((a, b)=>a[2]-b[2]).slice(0, STAR_N);
+  starsMemo={A, list};
+  return list;
+}
+// The epoch key's stars in its calendar year `year` (the year on the timeline for the stars).
+function starsFor(key, year=STAR_YEAR[key]||pageDate()[0]){ return starsAt(year+epochShift(key)); }
 // A stand-in's label from its MK type: "K1.5 III" is a K1.5 giant.
 const STAR_LUM_WORD={V:'dwarf', IV:'subgiant', III:'giant', II:'bright giant', Ib:'supergiant', Iab:'supergiant', Ia:'supergiant', I:'supergiant'};
 function starTypeLabel(t){

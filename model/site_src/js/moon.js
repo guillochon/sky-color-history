@@ -45,8 +45,8 @@ const MOON_RE=aliasEpochs({
   archean38:40.4, hadean40:39.8, hadean45:8.0
 });
 // Before the giant impact there is no Moon: the proto-Earth of 4.55 Ga.
-const MOONLESS={protoearth455:true};
-function noMoon(){ return !!MOONLESS[EP[dIdx].key]; }
+// No Moon before the impact that made it (epoch_time.js T_IMPACT).
+function noMoon(){ return ageMaOf(EP[dIdx].key)>(2000-T_IMPACT)/1e6; }
 // Inside the Laplace radius the Moon's orbit precesses about the Earth's equator, not the
 // ecliptic (Tremaine, Touma & Namouni 2009, eq. 24). For the present Earth that radius is 8.4
 // Earth radii. A fluid Earth on a 5.9-hour day has J2 larger by (24/5.9)^2, and the radius

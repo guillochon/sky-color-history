@@ -42,6 +42,9 @@ function epochShift(key=EP[dIdx].key){ return key in EPOCH_YEAR?0:epochAnchor(ke
 function pageTime(){ return pageDate()[0]+epochShift(); }
 // The time shown to within the year, for events lasting years: the page year and how far through it.
 function eventTime(){ return physTime()+yearFraction()[1]; }
+// The age (Ma, none in the future) epoch key's sky shows: the year shown for the epoch on screen,
+// the epoch's own year for the others.
+function ageMaOf(key){ return Math.max(0, 2000-(key===EP[dIdx].key?physTime():epochAnchor(key)))/1e6; }
 // An event and the epoch whose sky it interrupts share everything but the air: the stars, the
 // Moon, the planets, the rates. The backgrounds added for them, the clear Neoarchean, the
 // Cryogenian between the snowballs and the Late Cretaceous, take the tables of their events' epochs (aliasEpochs fills in a table's
@@ -98,21 +101,29 @@ const EVENT_KEYS=new Set(EPOCH_EVENTS.map(ev=>ev.key));
 // The main epochs in time order, and the span of each (shared by its alternatives); an event's is
 // its window nearest year A.
 const MAIN_EPOCHS=EP.map(e=>e.key).filter(k=>!(k in EPOCH_PARENT) && !EVENT_KEYS.has(k)).sort((a, b)=>epochAnchor(a)-epochAnchor(b));
+// Where one main epoch's sky gives way to the next: halfway between them, but the proto-Earth's
+// ends at the Moon-forming impact (airtime.py T_IMPACT).
+const T_IMPACT=2000-4.51e9;
+function mainBoundary(i){
+  const a=MAIN_EPOCHS[i], b=MAIN_EPOCHS[i+1];
+  return a==='protoearth455'&&b==='hadean45'?T_IMPACT:(epochAnchor(a)+epochAnchor(b))/2;
+}
 function epochSpan(key, A=epochAnchor(key)){
   if(EVENT_KEYS.has(key)){
     const W=EPOCH_EVENTS.filter(ev=>ev.key===key).map(eventWindow);
     return W.reduce((b, w)=>Math.abs((w[0]+w[1])/2-A)<Math.abs((b[0]+b[1])/2-A)?w:b);
   }
-  const k=EPOCH_PARENT[key]||key, i=MAIN_EPOCHS.indexOf(k), A0=epochAnchor(k);
-  return [i>0?(A0+epochAnchor(MAIN_EPOCHS[i-1]))/2:TIME_MIN, i<MAIN_EPOCHS.length-1?(A0+epochAnchor(MAIN_EPOCHS[i+1]))/2:TIME_MAX];
+  const k=EPOCH_PARENT[key]||key, i=MAIN_EPOCHS.indexOf(k);
+  return [i>0?mainBoundary(i-1):TIME_MIN, i<MAIN_EPOCHS.length-1?mainBoundary(i):TIME_MAX];
 }
-// The epoch shown at year A: an event's while one holds, else the nearest main epoch, or the one
+// The epoch shown at year A: an event's while one holds, else the main epoch whose span holds it, or the one
 // shown now if it is that one's alternative.
 function epochIndexAt(A, cur=EP[dIdx].key){
   const ev=eventAt(A);
   if(ev) return EP.findIndex(e=>e.key===ev.key);
-  let best=MAIN_EPOCHS[0];
-  for(const k of MAIN_EPOCHS) if(Math.abs(A-epochAnchor(k))<Math.abs(A-epochAnchor(best))) best=k;
+  let i=0;
+  while(i<MAIN_EPOCHS.length-1 && A>=mainBoundary(i)) i++;
+  const best=MAIN_EPOCHS[i];
   return EP.findIndex(e=>e.key===((EPOCH_PARENT[cur]||cur)===best?cur:best));
 }
 // Whether a new year brings the epoch nearest it (the picker's "Auto-select epoch"): on unless

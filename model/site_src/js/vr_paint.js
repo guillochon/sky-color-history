@@ -4,7 +4,9 @@ function sizeVR(){
   if(c.width!==w||c.height!==h){ c.width=w; c.height=h; }
   if(vrGL){ vrGL.gl.viewport(0,0,c.width,c.height); }
 }
-function mtnSnowFor(key){
+// The ground's colour and snow follow the year as the clouds do (air_time.js tableNow): between
+// the main epochs, and toward an event's own (the Snowball's ice, the impact winter's snow) by its level.
+function mtnSnowOwn(key){
   if(key==='kpg66'||key==='snowball07') return 1;
   if(key==='modern'||key==='ozonehole'||key==='y1900'||key==='geminga'||key==='zetaoph') return 1;
   if(key==='modernpoll'||key==='y2100') return 0.75;
@@ -12,6 +14,7 @@ function mtnSnowFor(key){
   if(key==='proterozoic22'||key==='cryogenian65'||key==='ordovician466') return 0.2;
   return 0;
 }
+const MTN_SNOW=Object.fromEntries(EP.map(e=>[e.key, mtnSnowOwn(e.key)])), SNOW_COVER={snowball07:1};
 function scRad(k, r){ return (k>0.5&&k<1.5)?r*1.28:(k>1.5&&k<2.5)?r*1.12:(k>2.5&&k<3.5)?r*1.08:r; }
 const MTN_SCALE=0.67; // massif and hill heights relative to the original layout
 // Zones: [bearing deg, distance m, kind, radius m]. Cities and neighbourhoods draw a building
@@ -257,7 +260,7 @@ function settleVR(){
 }
 // The ground's colour under the sky's light and sunlight mu (sunMu in paintVR).
 function groundRGB(mu){
-  const alb=LAND[EP[dIdx].key]||[.2,.18,.14], cg=skyNow.colgrid, NR=skyNow.nr, NA=skyNow.na;
+  const alb=tableNow(LAND, EP[dIdx].key, [.2, .18, .14]), cg=skyNow.colgrid, NR=skyNow.nr, NA=skyNow.na;
   let ar=0,ag=0,ab=0,n=0; const ir=Math.round(NR*0.45);
   for(let ia=0; ia<=NA; ia+=8){ const c=(ir*(NA+1)+ia)*3; ar+=cg[c]; ag+=cg[c+1]; ab+=cg[c+2]; n++; }
   ar=ar/n*0.65+cg[0]*0.35; ag=ag/n*0.65+cg[1]*0.35; ab=ab/n*0.65+cg[2]*0.35;
@@ -548,8 +551,8 @@ function paintVR(){
   gl.uniform3fv(u.sunCol, sunCol);
   gl.uniform3fv(u.ground, ground);
   gl.uniform1f(u.showScn, vrScenery?1:0);
-  gl.uniform1f(u.mtnSnow, mtnSnowFor(EP[dIdx].key));
-  gl.uniform1f(u.snowCover, EP[dIdx].key==='snowball07'?1:0);
+  gl.uniform1f(u.mtnSnow, tableNow(MTN_SNOW, EP[dIdx].key, 0));
+  gl.uniform1f(u.snowCover, tableNow(SNOW_COVER, EP[dIdx].key, 0));
   gl.uniform1f(u.waterT, (performance.now()/1000)%1000);
   // Night lights: the Moon and, in the Geminga epoch, the supernova. Each lights the scene in
   // proportion to 0.6 times the square root of its brightness relative to the full Moon, a
@@ -718,7 +721,7 @@ function paintVR(){
   vrGL.fbCloud=new Float32Array(tint.map(c=>Math.pow(Math.pow(c*fbN, 2.2)+c*fbSunRel*3.2/0.6, 1/2.2)));
   gl.uniform3fv(u.fbDir, vrGL.fbDir); gl.uniform3fv(u.fbLight, vrGL.fbLight); gl.uniform3fv(u.fbSun, new Float32Array(tint.map(c=>c*fbSunRel)));
   // groundRGB's ground under a white Sun overhead, without the sky's light.
-  if(fbSunRel>0.001) gl.uniform3fv(u.groundDay, new Float32Array((LAND[EP[dIdx].key]||[.2, .18, .14]).map(a=>Math.min(1, a*(1.25*255+16)/255))));
+  if(fbSunRel>0.001) gl.uniform3fv(u.groundDay, new Float32Array(tableNow(LAND, EP[dIdx].key, [.2, .18, .14]).map(a=>Math.min(1, a*(1.25*255+16)/255))));
   if(mu.n){ gl.uniform4fv(u.metA, mu.A); gl.uniform4fv(u.metB, mu.B); gl.uniform4fv(u.metC, mu.C); }
   // Comets (comets.js).
   const cu=cometUniforms();
