@@ -249,12 +249,24 @@ function metDark(key){
   const mShow=nakedEyeLimit(L)-MET_PERCEPT+1.0;
   return MET.dark[id]={mShow, Mcut:Math.min(8, mShow+0.5-(k-0.25)), lim:nakedEyeLimit(L)};
 }
+// The meteors' sky time, in seconds from MET_ORIGIN (a whole number of days near the date shown),
+// so that a second stays a second however far an epoch's calendar runs from its year 2000: past
+// 2^53 seconds a second is lost. The origin moves, and the meteors are drawn afresh, only when the
+// date has gone more than 500,000 days from it.
+let MET_ORIGIN=0;
+function metSec(){
+  const d=astroDay();
+  if(Math.abs(d-MET_ORIGIN)>5e5){ MET_ORIGIN=Math.round(d/1e5)*1e5; MET.cache.clear(); }
+  return (d-MET_ORIGIN)*86400;
+}
+// The day number of meteor sky time T.
+function metDayOf(T){ return MET_ORIGIN+T/86400; }
 // The ecliptic frame at sky time T: the page's clock moved by T less its own time, in seconds (a
 // minute of the clock is dayHours × 2.5 s).
 function metFrameAt(T){
   const save=minutes;
   // From the page's own time, not MET.Tpage, which lags while the clock runs between ticks.
-  minutes=save+(T-astroDay()*86400)/(dayHours()*2.5);
+  minutes=save+(T-metSec())/(dayHours()*2.5);
   try{ return eclipticFrame(LATDEG[dLat]); } finally{ minutes=save; }
 }
 function metPoisson(l){ if(!(l>0)) return 0; if(l>40) return Math.max(0, Math.round(l+Math.sqrt(l)*metGauss())); let n=0, p=Math.exp(-l), s=p; const u=metRand(); while(u>s&&n<200){ n++; p*=l/n; s+=p; } return n; }
@@ -341,7 +353,7 @@ function metImpacts(t){
 function jumpNextImpact(back){
   // The first after now (past the one this jump left the view 4 s short of), or the last before
   // it, from the strikes listed; listed afresh about now when the list runs out that way.
-  const key=EP[dIdx].key, t=astroDay()*86400, tq=back?t:t+5;
+  const key=EP[dIdx].key, t=metSec(), tq=back?t:t+5;
   const pickFrom=I=>{ let best=null;
     for(const q of I.prev.concat(I.next)) if(back?q.t0<tq&&(!best||q.t0>best.t0):q.t0>tq&&(!best||q.t0<best.t0)) best=q; return best; };
   let I=metImpacts(tq), m=pickFrom(I);
@@ -356,7 +368,7 @@ function jumpNextImpact(back){
     return;
   }
   vrNote='';
-  const pg=pageAt((m.t0-4)/86400);
+  const pg=pageAt(metDayOf(m.t0-4));
   document.getElementById('moonDate').value=pg.date;
   minutes=pg.min; hslider.value=minutes;
   setPlaySpeed('real');
@@ -388,7 +400,7 @@ function flashLit(f, radDeg){ const l=moonLitAt(flashDir(f, radDeg), radDeg); re
 // One step: the sky time now, and what is in the air at it.
 function metTick(now){
   MET.last=now;
-  MET.Tpage=astroDay()*86400;
+  MET.Tpage=metSec();
   const t=MET.now=MET.Tpage, list=[], gone=[], flashes=[], bolides=[];
   for(let s=0;s<4;s++) for(let b=Math.floor((t-MET_LOOK[s])/MET_BIN[s]);b<=Math.floor(t/MET_BIN[s]);b++){
     const got=metBin(s, b);
@@ -405,7 +417,7 @@ function metTick(now){
   // The impacts about now, ready for i before it is pressed.
   if(vrOn&&!MET.impWait&&(MET_IMP.id!==EP[dIdx].key+'|'+dLat||t<MET_IMP.lo||t>MET_IMP.hi)){
     MET.impWait=true;
-    (window.requestIdleCallback||setTimeout)(()=>{ MET.impWait=false; if(vrOn) metImpacts(astroDay()*86400); });
+    (window.requestIdleCallback||setTimeout)(()=>{ MET.impWait=false; if(vrOn) metImpacts(metSec()); });
   }
   // Keep about the last few minutes' seconds (and the bolides' 90 minutes), wherever the clock has been.
   if(MET.cache.size>3000){ for(const [k, v] of MET.cache){ const q=k.split('|'), s=+q[q.length-2], b=+q[q.length-1]*MET_BIN[s]; if(b<t-400-MET_LOOK[s]||b>t+400) MET.cache.delete(k); } if(MET.cache.size>3000) MET.cache.clear(); }

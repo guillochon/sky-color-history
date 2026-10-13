@@ -779,7 +779,7 @@ function paintVR(){
     gl.uniform4fv(cu.obj, sc.o); gl.uniform1fv(cu.kind, sc.k);
     // Contrails and bolide dust trails (contrails.js).
     gl.uniform1f(cu.ctN, contrailUpload(gl));
-    gl.uniform3fv(cu.impHole, new Float32Array(impactHole(astroDay()*86400)));
+    gl.uniform3fv(cu.impHole, new Float32Array(impactHole(metSec())));
     shaftUpload(gl, cu);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     perfPassEnd('clouds');
@@ -859,7 +859,7 @@ function paintVR(){
   const [hh, mm, ss]=clockParts(minutes);
   const lat=latLabel();
   const hud=vrGL.hud||(vrGL.hud={place:document.getElementById('vrplace'), note:document.querySelector('.vrnote'), clock:document.getElementById('vrclock')});
-  setText(hud.place, EP[dIdx].name+' · '+lat);
+  setText(hud.place, EP[dIdx].name+(pageTime()===epochAnchor(EP[dIdx].key)?'':' · '+shownAge())+' · '+lat);
   setText(hud.note, vrCaption());
   setText(hud.clock, dateLabel()+' · '+hh+':'+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0')+' · '+(dayPlaying?'playing':'paused')+' · '+speedLabel()+(Math.abs(vrFov-60)>0.5?' · '+fovLabel(vrFov)+' view':'')+(skyNow.eclipse?' · '+skyNow.eclipse:'')+(vrClouds&&vrGL.field?' · clouds '+Math.round(vrGL.field.cov*100)+'%':'')+(vrNote?' · '+vrNote:''));
   placeBodyMarks();

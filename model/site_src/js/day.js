@@ -315,7 +315,7 @@ function cityUplight(key, Yref, k, p){
 function renderDay(fast){
   if(vrOn) perfBeg('sky model');
   // The date shows at once, while an epoch's sky is still loading.
-  syncDateUI();
+  syncDateUI(); syncTimeline();
   if(!dayReady(EP[dIdx].key, 'modern')) return;
   airSync();
   vrNote='';
@@ -605,7 +605,7 @@ function renderDay(fast){
   // Two short lines in the corner, clear of the sky circle and the S mark.
   dctx.font='italic 20px Newsreader, Georgia, serif'; dctx.fillText(ep.short, 12, H-27);
   if(z>1.005){ dctx.font='15px Newsreader, Georgia, serif'; dctx.fillText(`${z<9.95?z.toFixed(1):'10'}× · middle-drag to pan, double-click to reset`, 12, 22); }
-  dctx.font='15px Newsreader, Georgia, serif'; dctx.fillText(`${ep.age} · ${dLat==='Equator'?'equator':latLabel()+' latitude'}`, 12, H-8);
+  dctx.font='15px Newsreader, Georgia, serif'; dctx.fillText(`${shownAge()} · ${dLat==='Equator'?'equator':latLabel()+' latitude'}`, 12, H-8);
   // readouts
   document.getElementById('hclock').textContent=clockLabel(minutes);
   document.getElementById('rday').textContent=`${dayHoursLabel()} hours · ${Math.round(yearDays())}-day year`;

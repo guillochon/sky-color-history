@@ -37,6 +37,7 @@ button.tick.on{background:none;color:var(--ink)}
 .domes figcaption{font-size:.78rem;color:#f2f3f5;margin-top:.3rem;line-height:1.2}
 .domes figcaption small{display:block;color:#cfd3da;font-size:.7rem}
 .epoch-sub{color:var(--ink2);font-size:.95rem;margin:0 0 .15rem}
+.epoch-note{color:var(--ink2);font-size:.88rem;font-style:italic;margin:.35rem 0 .2rem;padding-left:.6rem;border-left:2px solid var(--line, rgba(127,127,127,.4))}
 .epoch-wiki{color:var(--ink2);font-size:.85rem;margin:0 0 .6rem}
 .epoch-wiki a{color:inherit}
 .swatchbar{display:flex;gap:2px;height:26px;border-radius:2px;overflow:hidden;background:var(--stage);padding:2px;margin:.4rem 0}

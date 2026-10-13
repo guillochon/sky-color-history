@@ -268,7 +268,7 @@ function showersAt(key, d){
 // got after the sporadics so those stay as they were. Each comes from near its radiant (spread
 // 1.5°, a storm's 0.4°) at its shower's speed.
 function showerBin(got, b, s, lo, hi, E, ctx, F, id){
-  for(const a of showersAt(ctx.key, b/86400)){
+  for(const a of showersAt(ctx.key, metDayOf(b))){
     const p=altaz(F.lat, a.dec, rev(F.lst-a.ra));
     if(p.alt<-11) continue;
     const Es={F:1, rf:a.r, rb:a.r, mix:{}, dh:E.dh, ring:0, flash:0};

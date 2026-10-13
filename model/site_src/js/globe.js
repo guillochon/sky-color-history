@@ -42,11 +42,12 @@ function renderGlobe(ep){
 let tPos=11, tIdx=11;
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 let refreshGlobeTip=()=>{}, refreshDomeTip=()=>{}, refreshBarTip=()=>{}, refreshNoonTip=()=>{};
-function drawGlobeAt(pos){ // blend between neighboring epochs
-  const i=Math.floor(pos), t=pos-i; const a=renderGlobe(EP[i]);
-  gctx.globalAlpha=1; gctx.drawImage(a,0,0);
-  if(t>0.001 && i<EP.length-1){ const b=renderGlobe(EP[i+1]); gctx.globalAlpha=t; gctx.drawImage(b,0,0); gctx.globalAlpha=1; }
-  gctx.font='italic 22px Newsreader, Georgia, serif'; tag(gctx, EP[Math.round(pos)].name, 14, globe.height-9);
+// The globe of the epoch shown: its limb is made for the epoch's own air, and a blend with the next
+// tick's could show the wrong one (the Snowball's ice a billion years early).
+function drawGlobeAt(pos){
+  void pos;
+  gctx.globalAlpha=1; gctx.drawImage(renderGlobe(EP[dIdx]),0,0);
+  gctx.font='italic 22px Newsreader, Georgia, serif'; tag(gctx, EP[dIdx].name, 14, globe.height-9);
   refreshGlobeTip();
 }
 const WIKI=aliasEpochs({
@@ -74,16 +75,18 @@ const WIKI=aliasEpochs({
   y2100:['Satellite constellation','https://en.wikipedia.org/wiki/Satellite_constellation']
 });
 // One epoch for the whole page: the globe follows the timeline continuously, and the dome and
-// VR follow it whenever it reaches another epoch. date, when given, makes the page date in the
+// VR follow it whenever it reaches another epoch (setEpoch; the timeline itself sets the year,
+// slideTo). date, when given, makes the page date in the
 // new epoch (epoch_time.js); otherwise the new epoch keeps the season (calendar.js, epochDate).
 function showEpoch(pos, date){
-  tPos=pos; drawGlobeAt(pos);
+  tPos=pos;
   const i=Math.round(pos);
   if(i!==dIdx){ const yf=yearFraction(), prev=EP[dIdx].key; dIdx=i; document.getElementById('moonDate').value=date?date():epochDate(prev, yf); sel.value=String(i); renderDay(); warm(); }
+  drawGlobeAt(pos);
   if(i===tIdx && document.getElementById('tname').textContent) return; tIdx=i;
   const ep=EP[i];
   document.getElementById('tname').textContent=ep.name;
-  document.getElementById('tage').textContent=ep.age;
+  epochTimeText();
   document.getElementById('tsub').textContent=ep.sub;
   const wiki=WIKI[ep.key], wa=document.getElementById('twiki');
   wa.href=wiki[1]; wa.textContent=wiki[0]+' on Wikipedia';
@@ -107,7 +110,39 @@ const track=document.getElementById('ttrack');
 EP.forEach((ep,i)=>{ const t=document.createElement('button'); t.type='button'; t.className='tick row'+(i%2); t.style.left=(100*i/(EP.length-1))+'%'; t.setAttribute('aria-label',ep.name); t.innerHTML='<i></i><span class="lb"></span><span class="name"></span>'; t.querySelector('.lb').textContent=ep.age; t.querySelector('.name').textContent=ep.name; t.addEventListener('click',()=>setEpoch(i)); track.appendChild(t); });
 const tslider=document.getElementById('tslider');
 function setEpoch(i, date){ i=Math.max(0, Math.min(EP.length-1, i)); tslider.value=String(i); showEpoch(i, date); }
-tslider.addEventListener('input',()=>{ showEpoch(+tslider.value); });
+// The timeline sets the time. The epochs' ticks are evenly spaced; between two, the year runs
+// linearly from one's to the next's, so the slider passes through every year, and near a tick
+// (TICK_SNAP) it holds that epoch at its own year. The epoch shown is the one the year belongs to.
+const TICK_SNAP=0.12;
+let tickT=null, sliding=false;
+function tickTimes(){ return tickT||(tickT=EP.map(e=>epochAnchor(e.key))); }
+function timeAtPos(p){ const T=tickTimes(), i=Math.max(0, Math.min(EP.length-2, Math.floor(p))), u=Math.max(0, Math.min(1, p-i)); return T[i]+(T[i+1]-T[i])*u; }
+function posAtTime(A){
+  const T=tickTimes();
+  if(A===T[dIdx]) return dIdx;
+  if(A<=T[0]) return 0;
+  for(let i=0;i<EP.length-1;i++) if(A>=T[i] && A<=T[i+1] && T[i+1]>T[i]) return i+(A-T[i])/(T[i+1]-T[i]);
+  return EP.length-1;
+}
+function slideTo(p){
+  const i=Math.round(p);
+  if(Math.abs(p-i)<TICK_SNAP){ if(i!==dIdx || pageTime()!==tickTimes()[i]) goToEpoch(i); }
+  else{ const A=Math.round(timeAtPos(p)); goToYearIn(A, epochIndexAt(A+yearFraction()[1])); }
+  tslider.value=String(p); tPos=p; drawGlobeAt(p); tslider.setAttribute('aria-valuetext', shownAge()); epochTimeText();
+}
+tslider.addEventListener('input',()=>{ sliding=true; slideTo(+tslider.value); sliding=false; });
+// The slider and the epoch's time text follow the date, however it was set.
+function syncTimeline(){
+  const p=posAtTime(pageTime());
+  if(!sliding && Math.abs(p-tPos)>0.004){ tslider.value=String(p); tPos=p; drawGlobeAt(p); }
+  tslider.setAttribute('aria-valuetext', shownAge());
+  epochTimeText();
+}
+function epochTimeText(){
+  const age=document.getElementById('tage'), note=document.getElementById('tnote'), a=shownAge(), n=epochNote();
+  if(age.textContent!==a) age.textContent=a;
+  if(note.textContent!==n){ note.textContent=n; note.hidden=!n; }
+}
 let tRAF=null; const tplay=document.getElementById('tplay');
 // The timeline's Play holds still while the epoch bar, the dome and the globe are all scrolled away.
 const epochViews=new Set(); let epochOnScreen=true;
@@ -116,5 +151,5 @@ if(window.IntersectionObserver){ const io=new IntersectionObserver(es=>{ es.forE
 tplay.addEventListener('click',()=>{ if(tRAF){cancelAnimationFrame(tRAF);tRAF=null;tplay.textContent='Play through time';tplay.setAttribute('aria-pressed','false');return;}
   tplay.textContent='Pause'; tplay.setAttribute('aria-pressed','true'); let last=performance.now();
   const speed=1/2200; // epochs per ms (2.2 s per epoch)
-  const step=now=>{ const dt=now-last; last=now; tRAF=requestAnimationFrame(step); if(!epochOnScreen) return; let p=tPos+dt*speed; if(p>EP.length-1) p=0; tslider.value=p.toFixed(2); showEpoch(p); };
+  const step=now=>{ const dt=now-last; last=now; tRAF=requestAnimationFrame(step); if(!epochOnScreen) return; let p=tPos+dt*speed; if(p>EP.length-1) p=0; sliding=true; slideTo(p); sliding=false; };
   tRAF=requestAnimationFrame(step); });

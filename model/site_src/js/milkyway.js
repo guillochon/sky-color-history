@@ -180,10 +180,17 @@ function mwParamsAt(A){
 // then each place's old and young light is scaled by the model's then over now. The model's dust
 // does the dimming; what more of it there is than today, in e-folds (the model's light without the
 // dust over with it, then over now), adds to the map's own for the reddening.
-let mwFor=null;
+// It takes about half a second, so while the year runs fast (the timeline dragged or playing) it is
+// made at most every MW_REBUILD_MS, the last one staying in between and the next render catching up.
+let mwFor=null, mwBuiltAt=-Infinity, mwLater=0;
+const MW_REBUILD_MS=1000;
 function buildMilkyWay(){
   const pe=MW_EPOCH[dataKey(EP[dIdx].key)], p=mwParamsAt(physTime()), seed=pe?pe.seed:0, id=p.T+'|'+seed;
   if(mwMap&&mwFor===id) return mwMap;
+  if(mwMap && performance.now()-mwBuiltAt<MW_REBUILD_MS){
+    if(!mwLater) mwLater=setTimeout(()=>{ mwLater=0; requestRender(); }, MW_REBUILD_MS);
+    return mwMap;
+  }
   const Y=mwLayout(seed), M=p.T>0?mwModel(p):null, M0=M?mwModel(MW_EPOCH.now):null;
   const n=MW_W*MW_H, m=new Float32Array(n), age=new Float32Array(n*2), rgb=new Float32Array(n*3), c=[0, 0, 0];
   const cols=Array.from({length:MW_W}, (_, i)=>mwColumn(-180+(i+0.5)/MW_W*360, Y)), NL=360/MW_DL;
@@ -211,6 +218,7 @@ function buildMilkyWay(){
     rgb[3*k]=m[k]*c[0]; rgb[3*k+1]=m[k]*c[1]; rgb[3*k+2]=m[k]*c[2];
   }
   mwAge=age; mwRGB=rgb; mwFor=id;
+  mwBuiltAt=performance.now();
   return mwMap=m;
 }
 // The map at galactic longitude l and latitude b (degrees), bilinear: its V surface brightness, and

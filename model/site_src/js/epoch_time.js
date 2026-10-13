@@ -134,9 +134,34 @@ try{ autoEpoch=localStorage.getItem('autoEpoch')!=='0'; }catch(e){}
 // epoch the month and day stay; into another, the season does (its calendar may differ).
 function goToYear(A){
   A=Math.round(Math.max(TIME_MIN, Math.min(TIME_MAX, A)));
-  const f=yearFraction()[1], i=autoEpoch?epochIndexAt(A+f):dIdx, [,M,D]=pageDate();
+  goToYearIn(A, autoEpoch?epochIndexAt(A+yearFraction()[1]):dIdx);
+}
+// Year A with epoch i shown.
+function goToYearIn(A, i){
+  A=Math.round(Math.max(TIME_MIN, Math.min(TIME_MAX, A)));
+  const f=yearFraction()[1], [,M,D]=pageDate();
   if(i===dIdx){ setPageDate(A-epochShift(), M, D); return; }
   setEpoch(i, ()=>dateInYear(A-epochShift(EP[i].key), f));
+}
+// A year in words to four figures, for spans: "717 Ma", "2.631 Ga", "1815".
+function fmtTimeRound(A){ if(A>-8000) return fmtYear(Math.round(A)); const a=2000-A; return a<1e6?`${(+a.toPrecision(3)).toLocaleString('en-US')} years ago`:a<1e9?`${+(a/1e6).toPrecision(4)} Ma`:`${+(a/1e9).toPrecision(4)} Ga`; }
+// The time shown in words for labels: the epoch's own age in its own year, else the year.
+function shownAge(){ const ep=EP[dIdx]; return pageTime()===epochAnchor(ep.key)?ep.age:fmtTime(pageTime()); }
+// What the epoch's text is to the time shown, when it is not simply that epoch's own year: an
+// event's place in its course, or for a year between the main epochs, which two, and that its
+// sky is this year's while the description is the epoch's. Empty when the text is the time's.
+function epochNote(){
+  const ep=EP[dIdx], key=ep.key, A=eventTime(), short=k=>EP.find(e=>e.key===k).short, ageOf=k=>EP.find(e=>e.key===k).age;
+  if(EVENT_KEYS.has(key)){
+    const [a, b]=epochSpan(key, A), ev=EPOCH_EVENTS.filter(e=>e.key===key).find(e=>{ const w=eventWindow(e); return w[0]===a && w[1]===b; }), l=ev?eventLevel(ev, A):1;
+    const s=`${ep.short}: from ${fmtTimeRound(a)}, for ${fmtDuration(b-a)}`;
+    return l<0.995?`${s}; ${Math.round(100*l)}% of its full strength now.`:pageTime()===epochAnchor(key)?'':`${s}.`;
+  }
+  if(key in AIR.sc || pageTime()===epochAnchor(key)) return '';
+  const T=MAIN_EPOCHS.map(k=>[k, epochAnchor(k)]);
+  if(A<T[0][1] || A>T[T.length-1][1]) return `The sky of ${fmtTime(pageTime())}, its Sun, Moon and stars that year's; the description is of ${ep.short} (${ep.age}).`;
+  let i=0; while(i<T.length-2 && T[i+1][1]<=A) i++;
+  return `Between ${short(T[i][0])} (${ageOf(T[i][0])}) and ${short(T[i+1][0])} (${ageOf(T[i+1][0])}). The air, the Sun, the Moon, the planets and the stars are this year's; the description is of ${ep.short} (${ep.age}).`;
 }
 // Go to epoch i at its own year (today for today's skies), keeping the season.
 function goToEpoch(i){

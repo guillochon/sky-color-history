@@ -327,13 +327,18 @@ function jumpNextEclipse(central, totalOnly, back=false){
   vrYaw=g.az; vrPitch=Math.max(-8, Math.min(15, elev-8));
   renderDay();
 }
+// A link gives the year on the timeline and the month and day (the epoch's calendar), and the
+// epoch only when it is not the one that year shows on its own (the polluted city, 2100, or one
+// chosen with auto-select off).
 function vrQuery(){
-  const q=new URLSearchParams(location.search);
+  const q=new URLSearchParams(location.search), [,M,D]=pageDate(), p=n=>String(n).padStart(2, '0');
   q.set('vr','1');
-  q.set('epoch', EP[dIdx].key);
+  q.set('year', String(pageTime()));
+  q.set('day', p(M)+'-'+p(D));
+  q.delete('date');
+  if(epochIndexAt(eventTime(), EPOCH_PARENT[EP[dIdx].key]||EP[dIdx].key)!==dIdx) q.set('epoch', EP[dIdx].key); else q.delete('epoch');
   q.set('lat', dLat==='Equator'?'equator':String(LATDEG[dLat]));
   q.set('t', String(Math.floor(minutes)));
-  q.set('date', document.getElementById('moonDate').value||localISODate(new Date()));
   return q;
 }
 function vrLinkURL(){ return location.pathname+'?'+vrQuery().toString()+location.hash; }
@@ -348,7 +353,7 @@ function syncVRLink(force){
   // iOS also repaints the page on each query change. On a phone, leave the clock out of the address bar until playback pauses.
   const q=new URLSearchParams(location.search);
   const latCode=dLat==='Equator'?'equator':String(LATDEG[dLat]);
-  const samePlace=q.get('epoch')===EP[dIdx].key && q.get('lat')===latCode;
+  const samePlace=q.get('year')===String(pageTime()) && q.get('lat')===latCode;
   if(!force && vrTouch && samePlace) return;
   vrLinkAt=now;
   try{ history.replaceState({vr:1},'',url); }
@@ -370,6 +375,14 @@ function applyLink(){
     if(idx<0 && /^\d+$/.test(ep)) idx=+ep;
     // Without a date in the link, the epoch's own year, at today's season.
     if(idx>=0 && idx<EP.length){ const yf=yearFraction(), prev=EP[dIdx].key; dIdx=idx; sel.value=String(dIdx); if(!q.get('date')) document.getElementById('moonDate').value=epochDate(prev, yf); }
+  }
+  // A link with the year: the epoch it names, or the one the year shows, at that year and day.
+  const year=q.get('year'), day=/^(\d{1,2})-(\d{1,2})$/.exec(q.get('day')||'');
+  if(year!=null && /^-?\d+$/.test(year)){
+    const A=Math.max(TIME_MIN, Math.min(TIME_MAX, +year)), named=EP.findIndex(e=>e.key===ep);
+    dIdx=named>=0?named:epochIndexAt(A); sel.value=String(dIdx);
+    const Y=A-epochShift(EP[dIdx].key), M=day?Math.max(1, Math.min(12, +day[1])):1;
+    document.getElementById('moonDate').value=fmtDate(Y, M, day?Math.max(1, Math.min(monthLen(Y, M), +day[2])):1);
   }
   const lat=(q.get('lat')||'').toLowerCase();
   const latName={equator:'Equator','0':'Equator','45':'Mid-latitude',mid:'Mid-latitude','mid-latitude':'Mid-latitude','75':'Polar',polar:'Polar','-45':'Mid-latitude S','-75':'Polar S'}[lat];
