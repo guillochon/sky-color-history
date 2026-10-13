@@ -4,6 +4,7 @@ the Galaxy, and the things that come and go. gen_report.py renders them in the H
 LaTeX paper from the same text. The numbers are the site's (model/site_src/js), read from its code
 where a table is made of them (site_consts.py) and quoted from it in the prose."""
 import re
+from pathlib import Path
 from site_consts import js_const
 
 # ---------------------------------------------------------------------------------------------------
@@ -667,19 +668,54 @@ TEN_THINGS = [
 "In 2100 thousands of orbital datacenters may outshine nearly every star at dusk, in a bright band along the terminator.",
 ]
 
+# The Moon's distance and the day at any year, as the site works them out (moon.js moonDistAt,
+# dayHoursAt): the distance along the Moon's history (moon_history.js), and the day between the main
+# epochs that give one in step with the square root of the distance.
+def _moon_hist():
+    import json
+    src = (Path(__file__).with_name('site_src') / 'js' / 'moon_history.js').read_text(encoding='utf-8')
+    return json.loads(re.search(r'MOON_HIST=\{a:(\[\[.*?\]\])', src).group(1))
+def _along(P, A, to=lambda x: x, frm=lambda x: x):
+    if A <= P[0][0]: return P[0][1]
+    if A >= P[-1][0]: return P[-1][1]
+    for (a, va), (b, vb) in zip(P, P[1:]):
+        if A < b:
+            u = (A-a)/(b-a)
+            return va if u == 0 else frm(to(va)*(1-u)+to(vb)*u)
+def moon_dist_at(A):
+    import airtime
+    P = sorted([(2000-ma*1e6, a) for ma, a in _moon_hist()] + [(airtime.ANCHOR['hadean45'], js_const('moon.js', 'MOON_RE')['hadean45'])])
+    if A < P[1][0]: return _along(P[:2], A, lambda a: a**6.5, lambda x: x**(1/6.5))
+    return _along(P, A)
+def day_hours_at(A):
+    import airtime
+    DAY = js_const('moon.js', 'DAY_HOURS')
+    if A < airtime.T_IMPACT: return DAY['protoearth455']
+    alias = {'archean27clear': 'archean27', 'cretaceous66': 'kpg66'}
+    mains = ['hadean45', 'hadean40', 'archean38', 'archean27clear', 'proterozoic22', 'cryogenian65', 'ordovician466', 'carbon30', 'cretaceous66']
+    P = [(airtime.YEAR[k], DAY.get(k, DAY.get(alias.get(k)))) for k in mains] + [(airtime.YEAR['modern'], 24.0)]
+    for (a, ha), (b, hb) in zip(P, P[1:]):
+        if a <= A < b:
+            s0, s1, s = (moon_dist_at(t)**0.5 for t in (a, b, A))
+            f = (s-s0)/(s1-s0) if abs(s1-s0) > 1e-12 else (A-a)/(b-a)
+            return 1/((1/ha)*(1-f)+(1/hb)*f)
+    return P[0][1] if A < P[0][0] else 24.0
+
 def epoch_rows(order, ages, byk):
     """The epochs: what changes in each, for the opening table."""
     from epochs import BY_KEY
     RE = js_const('moon.js', 'MOON_RE'); DAY = js_const('moon.js', 'DAY_HOURS')
-    # The site fills in the epochs added for events' backgrounds from their events' tables (epoch_time.js aliasEpochs).
-    alias = {'archean27clear': 'archean27', 'cretaceous66': 'kpg66', 'y1900': 'modern'}
+    # The Sun, the day and the Moon as the site draws them at each epoch's year (airtime.py sun_at;
+    # moon_dist_at, day_hours_at above).
+    import airtime
     out = []
     for k in order:
-        T, L = (BY_KEY.get(k) or BY_KEY['modern'])['sun']
-        m = RE.get(k, RE.get(alias.get(k, 'modern')))
-        moon = 'none' if k == 'protoearth455' else f'{60.14/m:.2f}×' if m < 60 else 'today’s'
+        A = airtime.YEAR[k]
+        T, L = airtime.sun_at(A)
+        m = moon_dist_at(A)
+        moon = 'none' if k == 'protoearth455' else f'{60.14/m:.2f}×' if m < 60.13 else 'today’s'
         name = re.sub(r',? ~?[\d.]+ (?:Ga|Ma|ka)', '', byk[k]['name'])
-        out.append([ages[k], name, f'{L:.2f}', f'{T:,}', f'{DAY.get(k, DAY.get(alias.get(k), 24.0)):.1f} h', moon, EPOCH_NOTE[k]])
+        out.append([ages[k], name, f'{L:.2f}', f'{int(round(T)):,}', f'{day_hours_at(A):.1f} h', moon, EPOCH_NOTE[k]])
     return out
 EPOCH_HEAD = ['Age', 'Epoch', 'Sun’s light', 'Sun (K)', 'Day', 'Moon’s width', 'What else is in the sky']
 EPOCH_CAPTION = ("The epochs, each at its own year on the site's timeline; the haze episodes, Snowball Earth, the impact "

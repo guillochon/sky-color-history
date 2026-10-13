@@ -49,6 +49,10 @@ ANCHOR = {'protoearth455': ma(4550), 'hadean45': ma(4500), 'hadean40': ma(4000),
           'archean27clear': ma(2700), 'archean27thin': ma(2580), 'archean27': ma(2520), 'proterozoic22': ma(2200),
           'snowball07': ma(700), 'cryogenian65': ma(650), 'ordovician466': ma(466), 'carbon30': ma(300),
           'kpg66': ma(66), 'volcanic': 1816, 'ozonehole': 1990, 'modern': MODERN_YEAR}
+# Every epoch's year on the timeline, those that keep another's air too (epoch_time.js epochAnchor),
+# and the report's very thick haze at its episode's.
+YEAR = {**ANCHOR, 'archean27vthick': ANCHOR['archean27'], 'cretaceous66': ma(66.1), 'zetaoph': ma(1.78),
+        'geminga': ma(0.342), 'y1900': 1900, 'modernpoll': MODERN_YEAR, 'y2100': 2100}
 # The main epochs with their own air, in time order; the rest of ANCHOR are events.
 MAIN = ['protoearth455', 'hadean45', 'hadean40', 'archean38', 'archean27clear', 'proterozoic22', 'cryogenian65',
         'ordovician466', 'carbon30', 'modern']

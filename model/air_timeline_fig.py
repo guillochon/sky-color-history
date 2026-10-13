@@ -35,8 +35,7 @@ LABEL = {'protoearth455': 'Proto-Earth', 'hadean45': 'Early Hadean', 'hadean40':
          'geminga': 'Geminga supernova', 'volcanic': 'Volcanic year', 'y1900': 'Dark nights', 'ozonehole': 'Ozone hole',
          'modern': 'Clean air', 'modernpoll': 'Polluted city', 'y2100': 'Year 2100'}
 # Where each epoch sits on the timeline (epoch_time.js epochAnchor).
-TICK = {**at.ANCHOR, 'archean27vthick': at.ANCHOR['archean27'], 'cretaceous66': at.ma(66), 'zetaoph': at.ma(1.78),
-        'geminga': at.ma(0.342), 'y1900': 1900, 'modernpoll': at.MODERN_YEAR, 'y2100': 2100}
+TICK = at.YEAR
 T = np.array([TICK[k] for k in EPOCHS], float)
 assert np.all(np.diff(T) >= 0), 'the epochs are not in time order'
 # Epochs whose air is their own rather than the background's at their year: the events, the

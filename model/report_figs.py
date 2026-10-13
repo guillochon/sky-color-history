@@ -69,7 +69,7 @@ SHOTS = {
 # close-ups share one scale, so the Moon's size shows; they leave the scenery out, which a low Sun
 # would sit behind. eclipse_montage() puts them together as view_eclipses.jpg.
 ECL_EPOCHS = [('modern', 'Today'), ('carbon30', '300 Ma'), ('proterozoic22', '2.2 Ga'),
-              ('archean27', '2.7 Ga, thick haze'), ('hadean40', '4.0 Ga')]
+              ('archean27', '2.52 Ga, thick haze'), ('hadean40', '4.0 Ga')]
 ECL_PHASES = [('partial', 'Partial phase'), ('ring', 'Diamond ring'), ('total', 'Totality'), ('wide', 'Totality, wide')]
 ECL_FROM, ECL_FOV, ECL_WIDE = '2026-10-11', 14, 75
 for _k, _ in ECL_EPOCHS:
