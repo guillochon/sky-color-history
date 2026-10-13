@@ -4,12 +4,12 @@
 // timeline: the modern-era skies at their own years, the others at their ages. The main epochs
 // are the sky's long-lived states: each one's sky holds from halfway back to the main epoch
 // before it to halfway on to the next. Events interrupt them for a while (EPOCH_EVENTS below): the
-// Neoarchean's haze episodes, the K-Pg impact winter, the volcanic year. Some epochs are
-// alternatives at another's time rather than times of their own (the polluted city, the ozone
-// hole and 2100 beside today's clean air), and one stays chosen through its main epoch's span.
+// Neoarchean's haze episodes, the K-Pg impact winter, the volcanic year, the ozone-hole years.
+// Some epochs are alternatives at another's time rather than times of their own (the polluted
+// city and 2100 beside today's clean air), and one stays chosen through its main epoch's span.
 // Underneath, each epoch keeps its own calendar years (pageDate): the modern-era skies number
 // them as we do, the others count from a year 0 of their own at 2000 (calendar.js).
-const EPOCH_PARENT={modernpoll:'modern', ozonehole:'modern', y2100:'modern'};
+const EPOCH_PARENT={modernpoll:'modern', y2100:'modern'};
 const TIME_MIN=2000-4.567e9, TIME_MAX=250000;   // the Solar System's birth; as far ahead as before
 // A year typed or labelled: "1815", "−3000", "3000 BCE", "250,000 years ago", "342 ka", "66 Ma",
 // "2.7 Ga", "today". Returns the year on the timeline, or null.
@@ -62,12 +62,16 @@ function dataKey(key){ return {archean27clear:'archean27', archean27thin:'archea
 //     decaying with a year's e-folding time, so its sky lasts about 1.7 years.
 //   - The volcanic year: Tambora erupted on 10 April 1815; its sulfate veil spread through the
 //     stratosphere over months, stayed through 1816, and cleared in 1817 (e-folding ~0.7 years).
+//   - The ozone-hole years, 1980 to 2000 as the epoch has them: the Antarctic springs when the
+//     hole opened and deepened. (It still opens each spring and is not expected to close before
+//     the 2060s, but past 2000 the page keeps today's clean air.)
 const MYR=1e6;
 function hazeEpisode(key, c){ return {key, start:c-0.7*MYR, rise:0.3*MYR, hold:0.8*MYR, fall:0.3*MYR}; }
 const EPOCH_EVENTS=[
   hazeEpisode('archean27thin', 2000-2.63e9), hazeEpisode('archean27thin', epochAnchor('archean27thin')), hazeEpisode('archean27', epochAnchor('archean27')),
   {key:'kpg66', start:epochAnchor('kpg66'), rise:0.02, hold:1, efold:1},
   {key:'volcanic', start:1815.28, rise:0.3, hold:1.32, efold:0.7},
+  {key:'ozonehole', start:1979.995, rise:0.01, hold:21, fall:0.01},
 ];
 // How far on an event (or any such shape) is at year A, 0 to 1.
 function eventLevel(ev, A){
