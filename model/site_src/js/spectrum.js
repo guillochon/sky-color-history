@@ -327,7 +327,7 @@ function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null, cr=null, moo
     const fo=AIRGLOW_O[key]??1, fc=AIRGLOW_CO2[key]||0;
     if(air) add('zodiacal light and stars', (1-AIRGLOW_SHARE)*NIGHT_NATURAL*f, SP_SUN5772, true);
     // Debris (debris.js): the extra zodiacal light, the ring, and the ring's light in the air.
-    if(air&&skyNow.ecl&&zodiK(key)>1) add(`zodiacal light, ${zodiK(key)}× today’s`, zodiExtra(key, horizDir(az, el), skyNow.ecl)*absZenith(key)*(0.4+0.6*extinction(el, extK(key))), SP_SUN5772, true);
+    if(air&&skyNow.ecl&&fmtTimes(zodiK(key))!=='1'&&zodiK(key)>1) add(`zodiacal light, ${fmtTimes(zodiK(key))}× today’s`, zodiExtra(key, horizDir(az, el), skyNow.ecl)*absZenith(key)*(0.4+0.6*extinction(el, extK(key))), SP_SUN5772, true);
     // Comets: each part's light here, with its own spectrum.
     for(const C of skyNow.comets||[]){
       const pc=cometAt(C, horizDir(az, el), Math.PI/180*90/domeView().R, {}), ex=extinction(el, extK(key))*absZenith(key), nm=C.c.name;

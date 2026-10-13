@@ -33,6 +33,8 @@ function fmtTime(A){
   return age<1e9?`${dec(age/1e6, 6)} Ma`:`${dec(age/1e9, 9)} Ga`;
 }
 // A length of time in words: about 1.7 years, about 1.1 million years.
+// A factor over today's, to two figures (whole numbers from 10), as in "0.85× today".
+function fmtTimes(x){ return x>=10?Math.round(x).toLocaleString('en-US'):String(+x.toPrecision(2)); }
 function fmtDuration(d){ const r=(x, u)=>`about ${+x.toPrecision(2)} ${u}`; return d<1e3?r(d, 'years'):d<1e6?r(d/1e3, 'thousand years'):r(d/1e6, 'million years'); }
 // Where epoch key sits on the timeline, and the timeline year less the epoch's own year.
 function epochAnchor(key){ return key in EPOCH_YEAR?epochYear(key):parseTime(EP.find(e=>e.key===key).age); }
