@@ -101,15 +101,20 @@ button.tick.on{background:none;color:var(--ink)}
 .vrbot{bottom:0;background:linear-gradient(transparent,rgba(8,10,16,.62));align-items:flex-end}
 .vrkeys{display:flex;flex-wrap:wrap;gap:.35rem 1.7rem}
 .vrkeys .kg{display:flex;flex-wrap:wrap;align-items:baseline;gap:.3rem .85rem}
-/* While shift or ctrl (⌘) is held the legend reads as the keys then act (vr_input.js vrMods): the
-   jumps go back, and the arrows step an hour, or with ctrl ten seconds. */
-#vr .s-ct,#vr .s-sh,#vr .j-prev{display:none}
+/* While shift, ctrl (⌘) or alt is held the legend reads as the keys then act (vr_input.js vrMods): the
+   jumps go back, and the arrows step an hour, with ctrl ten seconds, with ctrl and shift one second,
+   and with alt and shift a day. */
+#vr .s-ct,#vr .s-sh,#vr .s-cs,#vr .s-as,#vr .j-prev{display:none}
 #vr.mod-shift .j-next{display:none}
 #vr.mod-shift .j-prev{display:inline}
-#vr.mod-shift:not(.mod-ctrl) .s-no{display:none}
-#vr.mod-shift:not(.mod-ctrl) .s-sh{display:inline}
-#vr.mod-ctrl .s-no{display:none}
-#vr.mod-ctrl .s-ct{display:inline}
+#vr.mod-shift:not(.mod-ctrl):not(.mod-alt) .s-no{display:none}
+#vr.mod-shift:not(.mod-ctrl):not(.mod-alt) .s-sh{display:inline}
+#vr.mod-ctrl:not(.mod-shift) .s-no{display:none}
+#vr.mod-ctrl:not(.mod-shift) .s-ct{display:inline}
+#vr.mod-ctrl.mod-shift .s-no{display:none}
+#vr.mod-ctrl.mod-shift .s-cs{display:inline}
+#vr.mod-alt.mod-shift:not(.mod-ctrl) .s-no{display:none}
+#vr.mod-alt.mod-shift:not(.mod-ctrl) .s-as{display:inline}
 .vrkeys .kg>b{font-weight:400;font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;opacity:.62;margin-right:-.3rem}
 #vr .k-insp,#vr.inspect .k-look{display:none}
 /* The layers that are on read in the pad's "on" yellow. */

@@ -275,10 +275,10 @@ document.addEventListener('pointerlockchange', ()=>{
   if(vrRelock){ lockLook(); return; }
   vrLeaveUnlessAway(()=>document.pointerLockElement!==vrc&&!vrInspect&&!datePop.open);
 });
-// Shift and ctrl (or ⌘) held, for the key legend: the jumps go back and the steps change while they are.
-function vrMods(e){ const v=document.getElementById('vr'); v.classList.toggle('mod-shift', !!e.shiftKey); v.classList.toggle('mod-ctrl', !!(e.ctrlKey||e.metaKey)); }
+// Shift, ctrl (or ⌘) and alt held, for the key legend: the jumps go back and the steps change while they are.
+function vrMods(e){ const v=document.getElementById('vr'); v.classList.toggle('mod-shift', !!e.shiftKey); v.classList.toggle('mod-ctrl', !!(e.ctrlKey||e.metaKey)); v.classList.toggle('mod-alt', !!e.altKey); }
 document.addEventListener('keydown', vrMods); document.addEventListener('keyup', vrMods);
-window.addEventListener('blur', ()=>document.getElementById('vr').classList.remove('mod-shift', 'mod-ctrl'));
+window.addEventListener('blur', ()=>document.getElementById('vr').classList.remove('mod-shift', 'mod-ctrl', 'mod-alt'));
 document.addEventListener('keyup',e=>{ if(e.key==='Shift') vrHeld.delete('shift'); else vrHeld.delete(e.key.length===1?e.key.toLowerCase():e.key); });
 window.addEventListener('blur',()=>{ vrHeld.clear(); endStick(); });
 document.addEventListener('keydown',e=>{
@@ -298,11 +298,14 @@ document.addEventListener('keydown',e=>{
     if(k==='q'&&!e.repeat&&!vrTouch){ e.preventDefault(); setInspect(!vrInspect); return; }
     if(e.key==='Escape'){ e.preventDefault(); if(vrInspect) setInspect(false); else exitVR(); return; }
     if(e.key===' ' && !e.repeat){ e.preventDefault(); hplay.click(); return; }
-    // ← and → step five minutes of the clock; with ctrl (or ⌘) ten seconds of sky time, with shift an hour.
+    // ← and → step five minutes of the clock; with ctrl (or ⌘) ten seconds of sky time, with shift an hour,
+    // with ctrl and shift one second, and with alt and shift a whole day (the clock where it was, the next date).
     if(e.key==='ArrowRight'||e.key==='ArrowLeft'){
       e.preventDefault();
-      const s=e.ctrlKey||e.metaKey?10:e.shiftKey?3600:0;
-      stepMinutes((e.key==='ArrowRight'?1:-1)*(s?s/(dayHours()*2.5):5)); return;
+      const ctrl=e.ctrlKey||e.metaKey, dir=e.key==='ArrowRight'?1:-1;
+      if(e.altKey&&e.shiftKey&&!ctrl){ stepMinutes(dir*DAYMIN); return; }
+      const s=ctrl?(e.shiftKey?1:10):e.shiftKey?3600:0;
+      stepMinutes(dir*(s?s/(dayHours()*2.5):5)); return;
     }
     if(e.key==='ArrowUp'||e.key===']'){ e.preventDefault(); stepEpoch(1); return; }
     if(e.key==='ArrowDown'||e.key==='['){ e.preventDefault(); stepEpoch(-1); return; }
