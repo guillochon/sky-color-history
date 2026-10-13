@@ -184,16 +184,17 @@ function drawVRLabels(){
 function drawSkyLabels(ctx, W, H, o){
   const {at, lim, cloudAt}=o, key=EP[dIdx].key, pts=[];
   for(const n of drawConstellations(ctx, o.proj)) if(n.x>0&&n.x<W&&n.y>0&&n.y<H) pts.push({x:n.x, y:n.y, mag:1, text:n.text, kind:'con'});
-  const add=(s, text, kind)=>{
+  const add=(s, text, kind, color)=>{
     if(s.el<=0) return;
     const p=at(s.el, s.az);
     if(!p) return;
     // A planet or moon drawn larger than its label's usual offset is labelled beside its disk (or
     // rings). A moon's mark has no kind, only its body.
     const off=s.radDeg>0?o.diskPx(s):0;
-    pts.push({x:p[0]+off*0.7, y:p[1]-off*0.7, mag:s.mag, text, kind});
+    pts.push({x:p[0]+off*0.7, y:p[1]-off*0.7, mag:s.mag, text, kind, color});
   };
-  for(const s of skyNow.sns||[]) add(s, s.name, 'sn');
+  // The novae, supernovae, eruptions and comets in the colour of their stars in the date picker (transients.js).
+  for(const s of skyNow.sns||[]) add(s, s.name, 'sn', TR_TYPES[s.ev.type].color);
   // Active meteor showers' radiants (showers.js), marked with a small cross.
   for(const r of radiantMarks()){ const p=at(r.el, r.az); if(p) pts.push({x:p[0], y:p[1], mag:-3, text:r.text, kind:'rad'}); }
   // Nebulae and galaxies (dso.js), where the brightest of their light stands out from the sky; a
@@ -215,7 +216,7 @@ function drawSkyLabels(ctx, W, H, o){
     const a=cloudAt?cloudAt(horizDir(s.az, apparentEl(s.el))):0;
     const vis=starVisible(m-(s.mag-markMag(s)), skyRAt(skyNow.rgrid, s.el, s.az)*skyNow.rCd)*(1-a);
     // A comet by its whole light (its head is a quarter of it) against the naked-eye limit there.
-    if(s.comet){ if(starVisible(starThroughAir(s.comet.mag, s.el, key), skyRAt(skyNow.rgrid, s.el, s.az)*skyNow.rCd)*(1-a)>0.3) add(s, s.comet.c.name, 'comet'); continue; }
+    if(s.comet){ if(starVisible(starThroughAir(s.comet.mag, s.el, key), skyRAt(skyNow.rgrid, s.el, s.az)*skyNow.rCd)*(1-a)>0.3) add(s, s.comet.c.name, 'comet', TR_TYPES.comet.color); continue; }
     if(Math.max(...zoomedDisplay(s).rgb)*vis*dim<0.06) continue;
     add(s, s.planet||(s.star?s.star[7]||starTypeLabel(s.star[8]):'satellite'), s.host?'moon':s.planet?'planet':s.star?(s.star[7]?'star':'stype'):'sat');
   }
@@ -227,7 +228,7 @@ function drawSkyLabels(ctx, W, H, o){
   const placed=[], STYLE={con:['italic 13px', 'rgba(150,180,235,.7)'], sn:['600 13px', '#dbeaff'], planet:['600 13px', '#ffe2a8'], moon:['11px', 'rgba(255,226,168,.75)'], rad:['600 12px', '#ffd2b8'], star:['12px', 'rgba(220,230,255,.85)'], dso:['italic 12px', 'rgba(235,205,230,.8)'], stype:['italic 11px', 'rgba(205,215,240,.65)'], sat:['11px', 'rgba(180,190,205,.6)'], comet:['600 13px', '#8ff0cc']};
   for(const p of pts){
     if(!p.text) continue;
-    const [font, col]=STYLE[p.kind];
+    const [font, kindCol]=STYLE[p.kind], col=p.color||kindCol;
     ctx.font=font+' system-ui, sans-serif';
     const tw=ctx.measureText(p.text).width, x=p.kind==='con'?p.x-tw/2:p.x+7, y=p.kind==='con'?p.y:p.y-7, box=[x-2, y-8, x+tw+2, y+8];
     if(x+tw>W-4||y<o.top||y>H-o.bottom) continue;
