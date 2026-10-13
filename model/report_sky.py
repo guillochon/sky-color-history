@@ -53,13 +53,14 @@ SECTIONS = [
 "variability. Older, quieter stars like today's Sun brighten with activity, dominated by bright faculae (Shapiro "
 "et al. 2014; Reinhold et al. 2019), because spot area grows faster with activity than facular area does (Nemec "
 "et al. 2022). The Sun's rotation follows the slow-rotator sequence it most likely took (Gallet &amp; Bouvier "
-"2013): 3.1 days at 4.5 Ga, 16 at 2.7 Ga, 23 at 700 Ma.",
+"2013): 3.1 days at 4.5 Ga, 16 at 2.7 Ga, 23 at 700 Ma. Between the epochs the spot coverage and spot sizes run "
+"geometrically from one epoch's to the next's and the rotation smoothly, by the square of the period.",
 "Fast rotators carry spots at high latitudes and large cool polar caps, as Doppler images of young solar analogs "
 "show (Strassmeier 2009; Barnes et al. 2005), so the Hadean and early Archean Suns have their spots between 10° and 75° and caps "
 "round the poles. A regular cycle sets in at a few hundred million years (Katsova 2020); from 2.7 Ga the spots "
 "emerge in a butterfly pattern, from mid-latitudes toward the equator over each cycle (Hathaway 2011), on cycles "
 "lengthening from 8 to 11 years. On Gregorian dates the modern epochs follow the real cycles, each cycle's sunspot "
-"number from the SILSO record with the shape of Hathaway, Wilson &amp; Reichmann (1994): the 1815 volcanic year "
+"number from the SILSO record with the shape of Hathaway, Wilson &amp; Reichmann (1994): the 1816 volcanic year "
 "falls in the Dalton Minimum and dates in the Maunder Minimum are all but spotless. Beyond the record a sixth of "
 "the time is a grand minimum, as over the Holocene (Usoskin, Solanki &amp; Kovaltsov 2007).",
 "Each active region is a bipolar group: a large, round leading spot ahead in the rotation and nearer the equator "
@@ -171,8 +172,9 @@ SECTIONS = [
 "In clear, very cold air the sky fills with diamond dust, tiny hexagonal plates and columns of ice drifting near "
 "the ground. Snowball Earth's air would have been full of them at every latitude ({ref:fig:halos}). Today they are common on the "
 "Antarctic plateau and in Arctic winter, so they are drawn at 75° in the modern epochs and in the other cold "
-"epochs (2.2 Ga at the end of the Huronian glaciations, the Late Ordovician and Late Paleozoic ice ages, and the "
-"Pleistocene), and faintly at 45° at 342 ka, a glacial maximum.",
+"epochs (2.2 Ga at the end of the Huronian glaciations, the cold Cryogenian between the snowballs, the Late "
+"Ordovician and Late Paleozoic ice ages, and the Pleistocene), and faintly at 45° at 342 ka, a glacial maximum. "
+"Between the epochs their strength runs on with the year, and the Snowball's come and go with its ice.",
 "The halos are traced from the crystals' geometry with the refractive index of ice at 450, 550 and 650 nm (Warren "
 "&amp; Brandt 2008), so each arc carries its own dispersion, red toward the Sun: the 22° and 46° halos, the upper "
 "and lower tangent arcs, the sun dogs (which move out with the Sun's height and vanish above 61°), the circumzenithal "
@@ -187,21 +189,24 @@ SECTIONS = [
 "degree, as measured. Without the Sun or Moon the sky has its own light: today 22.0 mag/arcsec² at a dark zenith "
 "(Leinert et al. 1998), half of it starlight and zodiacal light and half airglow, brighter toward the horizon.",
 "Nearly all of today's airglow needs free oxygen: the 557.7 nm green and 630 nm red lines of oxygen atoms, the "
-"hydroxyl bands (H + O₃), the sodium D lines cycled through ozone, and the NO₂ continuum. We take it as 90% of "
-"today's at 466 Ma, 80% in the Snowball epoch (169 DU of ozone and less O₂), and 30% at 2.2 Ga, where 1% of "
-"today's oxygen leaves few atoms near 95 km. Before the Great Oxidation it is gone, replaced by a faint violet glow "
-"of the O₂ Herzberg II bands from oxygen split off CO₂, as on Venus (Krasnopolsky 1983): about as many photons as "
-"today's airglow but only 15% of its luminance, so Archean and Hadean nights were darker and bluer. These strengths "
-"are estimates; no model of an anoxic nightglow exists.",
+"hydroxyl bands (H + O₃), the sodium D lines cycled through ozone, and the NO₂ continuum. We take its strength "
+"from the air's O₂: 30% of today's at 1% of today's oxygen (2.2 Ga), where few atoms are left near 95 km, 80% at "
+"10% (the Snowball and the Cryogenian, 169 DU of ozone), 90% at 81% (466 Ma), today's from today's level up, and "
+"log-linearly between, so it fades in through the Great Oxidation. Before it the oxygen airglow is gone, replaced "
+"by a faint violet glow of the O₂ Herzberg II bands from oxygen split off CO₂, as on Venus (Krasnopolsky 1983): "
+"about as many photons as today's airglow but only 15% of its luminance, fading out as O₂ rises from a ten-thousandth "
+"to a hundredth of today's. So Archean and Hadean nights were darker and bluer. These strengths are estimates; no "
+"model of an anoxic nightglow exists.",
 "Starlight, the Milky Way and the airglow all come from above the air and are dimmed by it, at the rate given in "
-"{ref:method}: 0.25 magnitude per airmass in clean air, 0.8 under "
-"the thick haze or a polluted city, 0.85 under the proto-Earth's guessed air and dust, 2.3 through the "
-"impact-winter soot, and 5.8 under 30 bar of CO₂. That alone would leave the brightest stars at fourth magnitude "
+"{ref:method}, 1.086 times the air's optical depth at 550 nm: 0.24 magnitude per airmass in today's clean air, "
+"0.18 to 0.21 in the clean, ozone-poor air of 3.8 to 0.7 Ga, 0.84 under the thick haze, 0.79 in a polluted city, "
+"0.87 under the proto-Earth's guessed air and dust, 2.47 through the impact-winter soot, and 5.8 under 30 bar of "
+"CO₂. That alone would leave the brightest stars at fourth magnitude "
 "overhead, but the bombardment's zodiacal glow, two thousand times today's, hides every one.",
 "In the modern epochs the observer stands in a mid-sized city: a zenith glow of 18.8 mag/arcsec² today (Falchi et "
-"al. 2016), with orange sodium light in 1980–2000, at the brightness of the first World Atlas (Cinzano, Falchi &amp; Elvidge 2001), 1.6 times today's in "
-"polluted air, held at today's level in 2100 (the recent 9.6% a year, Kyba et al. 2023, cannot be projected that "
-"far), and almost nothing from the oil lamps of 1815 (Fouquet &amp; Pearson 2006)."]],
+"al. 2016), 1.6 times today's in polluted air and held at today's level in 2100, and back in time growing with "
+"electric light from almost nothing in 1900, the oil lamps of 1816 (Fouquet &amp; Pearson 2006), to a third of "
+"today's in 1990 and today's now (<em>City light</em>)."]],
 
 ['Aurorae', [
 "The aurora is an oval round the magnetic pole, fixed relative to the Sun: on a moderately active night today "
@@ -243,12 +248,14 @@ SECTIONS = [
 "apart from its Antihelion source (Rendtel 2027, Table 5), with their radiants and drift, speeds, population indices and peak rates, rising and falling "
 "about the maximum as Jenniskens (1994) measured them, and their outbursts and storms at the hour they were seen: "
 "the Leonids of 1799 to 2002, the Andromedids of 1872 and 1885, the Draconids of 1933 and 1946 and others "
-"(Jenniskens 1995 and the IMO's analyses), with the Leonid peaks predicted for 2034. Showers last thousands of "
-"years, so the older epochs have their own, drawn at random with the geometry, speeds and profiles of today's and "
-"outbursts at today's rate, about 0.5 a year above ZHR 100 and one in 45 years above 10,000. We take their number "
+"(Jenniskens 1995 and the IMO's analyses), with the Leonid peaks predicted for 2034; today's streams are kept for "
+"3,000 years either side of 2000. Showers last thousands of years, so further off, and in the older epochs, the "
+"sky has its own, drawn at random with the geometry, speeds and profiles of today's, a new set every 20,000 years, "
+"and outbursts at today's rate, about 0.5 a year above ZHR 100 and one in 45 years above 10,000. We take their number "
 "to follow the comets that feed them: three quarters from short-period comets, a quarter from long-period ones "
 "(only about a fifth of known streams have an identified parent; Ye &amp; Jenniskens 2024), giving about 30 times "
-"today's at 4.5 Ga, 5 at 4.0 Ga, today's by 2 Ga and 1.75 at 1.78 Ma, in the comet shower after a star's passage. "
+"today's at 4.5 Ga, 5 at 4.0 Ga, today's by 2 Ga and 1.75 at 1.78 Ma, in the comet shower after a star's passage; "
+"between the epochs they run geometrically, as the bombardment's decline does. "
 "No published work estimates showers in the early Solar System, so these are estimates, and in the bombardment "
 "they hardly show against the sporadic rate."]],
 
@@ -259,12 +266,16 @@ SECTIONS = [
 "al. 2010), as bright as a moonlit sky, hiding the fainter stars and meteors. At 466 Ma the speculative debris ring "
 "of Tomkins, Martin &amp; Cawood (2024) is drawn between 1.55 and 2.75 Earth radii with a normal optical depth of "
 "at most 0.00015: lost in the blue by day, a low arch at night cut by the Earth's shadow, and at the equator a "
-"source of slow, grazing fireballs from the west.",
-"Comets in the modern-era skies are the real ones on their real dates, from JPL's orbits; elsewhere they are drawn "
-"at the rate of their time, about one naked-eye comet a year today, 30 times that at 4.5 Ga while the giant planets "
+"source of slow, grazing fireballs from the west. The break-up's dust rises over 50,000 years from 466.1 Ma, holds "
+"for two million years and decays with a one-million-year e-folding time, and the meteors with it; the ring, if "
+"there was one, decays over tens of millions of years (a 20 Myr e-folding time here). Between the epochs the "
+"zodiacal light and the meteor and comet rates run geometrically, as the bombardment declined.",
+"Comets in the modern-era skies are the real ones on their real dates, from JPL's orbits, for the perihelia on "
+"record, 1578 to 2127; elsewhere they are drawn at the rate of their time, about one naked-eye comet a year today, 30 times that at 4.5 Ga while the giant planets "
 "eroded and then scattered the comet disk, falling to today's level by about 2 Ga, and about half of today's in the quiet Phanerozoic "
 "epochs, because the present flux of new long-period comets is still about two to two and a half times the tide-only rate "
-"(Kaib &amp; Raymond 2026). Their "
+"(Kaib &amp; Raymond 2026). After the ζ Ophiuchi star's passage the rate swells to about four times today's at "
+"1.78 Ma and dies away over a million years or so, a comet shower. Their "
 "heads and tails are dimmed by each epoch's air like the stars."]],
 
 ['Clouds', [
@@ -274,7 +285,8 @@ SECTIONS = [
 "stratiform deck under the steamy Hadean CO₂ (88% cover at 4.5 Ga), scattered cumulus in the Archean thinning as "
 "the haze thickens (from 48% at 3.8 Ga to 16% under the thickest haze), sparse thin cloud over the frozen Snowball "
 "(22%), towering convection in the warm Carboniferous (82%), almost none in the impact winter (8%), and more cirrus "
-"in the volcanic year. The weather changes over days and the clouds through each day: cumulus eras build to an "
+"in the volcanic year. Between the epochs the regime runs from one epoch's to the next's with the year, and toward "
+"an event's own with its strength. The weather changes over days and the clouds through each day: cumulus eras build to an "
 "afternoon peak and stratiform ones burn off by midday. After sunset the clouds stay lit from below until the "
 "Earth's shadow climbs past them."]],
 ]
@@ -293,7 +305,7 @@ SUNSPOT = [
 ['466 Ma Ordovician', '4.10 Gyr', '24 d', '0.20% (0.01–0.4%)', 'from 29°', '10.8 yr', '18%'],
 ['300 Ma Carboniferous', '4.27 Gyr', '25 d', '0.17% (0.01–0.4%)', 'from 28°', '11 yr', '12%'],
 ['66 Ma impact winter', '4.50 Gyr', '25 d', '0.14% (0.01–0.3%)', 'from 28°', '11 yr', '8%'],
-['1815, today and 2100', '4.57 Gyr', '25.4 d', '0.09% (0.01–0.19%)', 'from 28°', 'the real cycles', '4%'],
+['1816, 1900, today and 2100', '4.57 Gyr', '25.4 d', '0.09% (0.01–0.19%)', 'from 28°', 'the real cycles', '4%'],
 ]
 SUNSPOT_CAPTION = ("Sunspots by epoch, from the site's spot model. Coverage is the share of the surface in spots and their "
                    "penumbrae: the mean, and the 5–95% range over the cycle or the young Sun's irregular swings. A "
@@ -317,27 +329,29 @@ for _k, (_rmp, _kp, *_r) in js_const('aurora.js', 'AURORA_EPOCH').items():
         _f = ['the equator' if e < 0.5 else f'{e:.0f}°' for e in _e]
         AUR[_k] = f"from {_f[0]} (Kp 3), {_f[1]} (Kp {_kp:g}); {_AUR_COL[_k]}"
 
-# Other phenomena by epoch (values from the site: sunset.js and gen_site.py sun_bands for refraction,
-# day.js AIRGLOW_O/AIRGLOW_CO2 and EXT_K, aurora.js AURORA_EPOCH, meteors.js MET_EPOCH, debris.js ZODI).
+# Other phenomena by epoch (values from the site: sunset.js and airgrid.py sun_bands for refraction,
+# air_time.js airglowO/airglowCO2 and airgrid.py air_ext for the airglow and the extinction,
+# aurora.js AURORA_EPOCH, meteors.js MET_EPOCH, debris.js ZODI).
 PHENOMENA_HEAD = ['Epoch', 'Refraction', 'Airglow', 'Starlight extinction (mag/airmass)', 'Aurora', 'Meteors', 'Zodiacal light']
 PHENOMENA = [
-['4.55 Ga proto-Earth', '5.7× (trapped)', 'violet CO₂ glow only', '0.85', AUR['protoearth455'], '30,000×', '10×'],
+['4.55 Ga proto-Earth', '5.7× (trapped)', 'violet CO₂ glow only', '0.87', AUR['protoearth455'], '30,000×', '10×'],
 ['4.5 Ga Hadean', '47× (trapped)', 'violet CO₂ glow only', '5.8; no stars in the zodiacal glow', 'hidden by the air', '10,000×', '2,000×'],
-['4.0 Ga Hadean', '1.8×', 'violet CO₂ glow only', '0.35', AUR['hadean40'], '500×', '300×'],
-['3.8 Ga Archean', '0.97×', 'violet CO₂ glow only', '0.25', AUR['archean38'], '120×', '50×'],
-['2.7 Ga Archean', '0.90×', 'violet CO₂ glow only', '0.25–1.8 with the haze', AUR['archean27'], '2×', '1.5×'],
-['2.2 Ga post-GOE', '0.85×', 'oxygen lines at 30%', '0.25', AUR['proterozoic22'], '1.3×', 'today'],
-['700 Ma Snowball', '0.83×', 'oxygen lines at 80%', '0.25', AUR['snowball07'], '0.6×', 'today'],
+['4.0 Ga Hadean', '1.8×', 'violet CO₂ glow only', '0.37', AUR['hadean40'], '500×', '300×'],
+['3.8 Ga Archean', '0.97×', 'violet CO₂ glow only', '0.20', AUR['archean38'], '120×', '50×'],
+['2.7–2.52 Ga Neoarchean', '0.90×', 'violet CO₂ glow only', '0.19 clear, 0.35–1.8 with the haze', AUR['archean27'], '2×', '1.5×'],
+['2.2 Ga post-GOE', '0.85×', 'oxygen lines at 30%', '0.21', AUR['proterozoic22'], '1.3×', 'today'],
+['700 Ma Snowball', '0.83×', 'oxygen lines at 80%', '0.18', AUR['snowball07'], '0.6×', 'today'],
+['650 Ma Cryogenian', '0.83×', 'oxygen lines at 80%', '0.22', AUR['snowball07'], '0.6×', 'today'],
 ['466 Ma Ordovician', '0.97×', 'oxygen lines at 90%', '0.25', 'today’s', '100× fireballs', '30×'],
-['300 Ma Carboniferous', '1.11×', 'today’s', '0.25', 'today’s', '0.5×', 'today'],
-['66 Ma impact winter', '1.0×', 'today’s, dimmed by soot', '2.3', 'today’s', 'today', 'today'],
-['1815 volcanic year', '1.0×', 'today’s', '0.7', 'today’s', 'today', 'today'],
-['Today', '1.0× (34′ at the horizon)', '22.0 mag/arcsec² natural sky', '0.25', '63–72° at Kp 3; O green and red', '8 an hour', '—'],
+['300 Ma Carboniferous', '1.11×', 'today’s', '0.31', 'today’s', '0.5×', 'today'],
+['66 Ma impact winter', '1.0×', 'today’s, dimmed by soot', '2.47', 'today’s', 'today', 'today'],
+['1816 volcanic year', '1.0×', 'today’s', '0.68', 'today’s', 'today', 'today'],
+['Today', '1.0× (34′ at the horizon)', '22.0 mag/arcsec² natural sky', '0.24', '63–72° at Kp 3; O green and red', '8 an hour', '—'],
 ]
 
 
 PHENOMENA_CAPTION = ("Other phenomena by epoch. Refraction is the horizon bending relative to today's, from the "
-                     "epoch's gases. Airglow and aurora strengths are estimates; the aurora's latitude is the night-side "
+                     "epoch's gases. The starlight's extinction is 1.086 times the air's optical depth at 550 nm. Airglow and aurora strengths are estimates; the aurora's latitude is the night-side "
                      "equatorward edge of the oval, from the magnetopause distance, at Kp 3 and at the epoch's typical "
                      "activity. Meteor and zodiacal-light rates are relative to today's.")
 
@@ -366,7 +380,7 @@ FIG_CAPTION = ("The Moon in the Earth's shadow at nine epochs, on today's lunar 
                "with its V magnitude, each drawn as the page draws it, for an eye adapted to that Moon's brightest part. "
                "Middle: just inside the umbra, its limb at 0.95 of the umbral radius, all at one exposure so their light "
                "compares: today's ozone leaves a cool gray-blue edge, the ozone-free Archean edge is orange and the Hadean's deep red, "
-               "and under the Tambora veil, the thick haze and the K–Pg soot the umbra is dark to its edge. Bottom: the "
+               "and under the Tambora veil, the 2.52 Ga thick haze and the K–Pg soot the umbra is dark to its edge. Bottom: the "
                "light across the shadow, against the full Moon, with distance in units of each epoch's umbral radius.")
 
 REFS = [

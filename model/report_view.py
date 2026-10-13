@@ -19,7 +19,7 @@ MOON_ORBIT = [
 "long-term drift. At 4.5 Ga, some ten million years after the giant impact, the Moon is still at about "
 "8 Earth radii: Korenaga (2023) finds that a Moon whose magma ocean was still solidifying raised little "
 "tide in itself and had receded only to 7 to 9 Earth radii by the time the ocean froze. "
-"({ref:tab:moon} gives the numbers by epoch.)",
+"({ref:tab:moon} gives the numbers by epoch; between the epochs the distance follows the same history, year by year.)",
 
 "The day follows from the distance by holding the Earth–Moon angular momentum fixed: a closer Moon means a "
 "faster-spinning Earth. This reproduces the day lengths Farhat et al. (2022) give for their distances to "
@@ -64,7 +64,7 @@ MOON_FACE = [
 "the slopes, cast shadows toward the terminator, and shape the limb, so a zoomed crescent shows a ragged "
 "terminator and crater shadows, and the edge of the Moon in an eclipse breaks the last sunlight into "
 "Baily's beads. Five globes cover the Moon's history ({ref:fig:surfaces}). Tycho, about 109 million years old (Stöffler &amp; Ryder 2001, from the exposure ages of Arvidson et al. "
-"1976), is taken away with its rays for the epochs older than 109 Ma. Before about 3.9 Ga the maria had "
+"1976), is taken away with its rays for the skies older than 109 Ma. Before about 3.9 Ga the maria had "
 "not been flooded: basalts filled the great basins from about 3.9 Ga and most of them by 3.3 Ga "
 "(Hiesinger et al. 2011), so each mare darkens over 150 million years from an onset just before its oldest "
 "dated basalt. At 3.8 Ga Tranquillitatis is two-thirds dark, Serenitatis and Nectaris a third, and Imbrium "
@@ -74,7 +74,7 @@ MOON_FACE = [
 "1,400 K, as bright per area as the sunlit Moon and far redder, magnitude +3 to −1 as seen from the Earth.",
 
 "The Moon of 4.5 Ga is not yet solid. Its magma ocean is open at the top, some ten million years after the "
-"impact: rafts of dark quench crust and the first pale anorthosite, floating a few hundred meters to a "
+"impact (the site draws it so for the first 20 million years, a guess at when a crust closed over it): rafts of dark quench crust and the first pale anorthosite, floating a few hundred meters to a "
 "kilometre and a half above the melt, broken by cracks and lava lakes at 1,400 to 1,600 K in four "
 "generations of floes, each a network of cracks within the last. The lava shines about as brightly per "
 "area as the sunlit Moon, so the disk glows orange by day and night alike, also inside the Earth's "
@@ -121,11 +121,13 @@ PLANETS_WHERE = [
 "scale as the stars (Meeus's formulae with the phase angle, Saturn's rings included when there are rings, "
 "and Mallama &amp; Hilton 2018 for Uranus and Neptune), and dimmed by the young Sun's fainter light: 0.42 "
 "magnitudes at 4.5 Ga, 0.24 at 2.7 Ga. Any planet brighter than magnitude −6 lights the sky as the Moon "
-"does. In the historical and modern skies the positions are the real ones. Before history they cannot be "
-"known: the Solar System is chaotic, its uncertainties growing tenfold every ten million years or so "
-"(Laskar 1989), and every epoch's age is uncertain by far more than any planet's period. So each planet is "
-"put at a random place on its orbit, the same for every visit to an epoch, and moves on with the date. "
-"The orbits' shapes are today's, known to some 50 million years and statistically before.",
+"does. Within 10,000 years of today the positions are the real ones. Further off they cannot be known: the "
+"Solar System is chaotic, its uncertainties growing tenfold every ten million years or so (Laskar 1989), "
+"and every epoch's age is uncertain by far more than any planet's period. So each planet is put at a random "
+"place on its orbit, the same for every visit to an epoch (and in the modern-era skies far from today, for "
+"each 100,000 years), and moves on with the date. The orbits' shapes are today's, known to some 50 million "
+"years and statistically before; their slow changes, which Standish's rates give for a few thousand years, "
+"are held where they are 3,000 years from today.",
 
 "The two oldest skies have a different Solar System. In the reading of the meteorites' bombardment ages "
 "(Edwards et al. 2024; Liu, Raymond &amp; Jacobson 2022), the giant planets went unstable early, within the "
@@ -133,11 +135,13 @@ PLANETS_WHERE = [
 "Nesvorný &amp; Morbidelli (2012): Jupiter at 5.6 AU and Saturn at 7.34 AU in a 3:2 resonance, a fifth giant "
 "at 9.62 AU, Uranus at 15.3 and Neptune at 20 AU, each in resonance with the next. The fifth giant, an ice "
 "giant like Neptune that Jupiter threw out of the Solar System in the instability (Nesvorný 2011), is named "
-"here Oceanus. For the 4.5 Ga sky we take the instability to have come late enough, near 4.5 Ga, to keep it; "
-"the bombardment ages argue against that, as the 4.55 Ga sky's account says.",
+"here Oceanus. We date the instability to 4.48 Ga, the latest that the dated lunar and asteroidal impact record "
+"allows (Mojzsis et al. 2019) and within the first 100 million years (Nesvorný et al. 2018), so the 4.5 Ga "
+"sky still has the earlier arrangement; the bombardment ages would put it earlier still, as the 4.55 Ga sky's "
+"account says. From 4.48 Ga on the planets are on today's orbits.",
 
 "Theia, the Mars-sized body whose collision with the proto-Earth made the Moon, is a wandering planet in "
-"the 4.55 Ga sky. Its orbit is made up, as any that would meet the Earth's will do, since where it lay "
+"the skies before the impact, 4.51 Ga. Its orbit is made up, as any that would meet the Earth's will do, since where it lay "
 "is not known (Branco, Machado &amp; Raymond 2025). Every 25 years or so it passes within a few hundredths "
 "of an AU, and at its closest it reaches magnitude −8.5, half lit, brighter than any planet has been "
 "since, lighting the night. Its face is invented too: an airless, cratered, iron-rich basaltic crust "
@@ -211,7 +215,7 @@ JUPITER = [
 "The Great Red Spot is a vortex in the same flow: an anticyclone turning the clouds along its ellipses, "
 "faster toward its edge, with a slight inflow that draws belt and zone onto its rim as spiral arms, and "
 "its turbulent wake to the west. Its history is the observed one. It was first seen for sure in 1831 "
-"(Cassini's “permanent spot” of 1665–1713 may have been another storm), so the 1815 sky has none. Its "
+"(Cassini's “permanent spot” of 1665–1713 may have been another storm), so the 1816 sky has none. Its "
 "longitude follows the measured record (Peek's for 1831–1952, JUPOS since), and its size the fits of "
 "Simon et al. (2018) from 1979, 405.0 − 0.1939 Y degrees long and 107.2 − 0.0483 Y wide, and before "
 "1979 a steady shrinking from about 35° long in the 1880s. The fits meet in a round spot 8.4° across in "
@@ -251,13 +255,13 @@ SATURN = [
 "Chrysalis, orbiting between Titan and Iapetus in a 3:1 resonance with Titan, was torn apart roughly 100 to "
 "200 million years ago, about 160 million years ago in the case they illustrate, freeing Saturn's tilt from "
 "Neptune's pull and making the rings of its debris. We draw that illustrated case, so the "
-"rings appear in the 66 Ma sky and after, and before them Chrysalis is a moon of magnitude 13 to 14 beside "
-"a ringless Saturn. Younger rings are drawn more massive and cleaner: their depth grows with youth as "
+"rings appear 160 million years ago, and before them Chrysalis is a moon of magnitude 13 to 14 beside "
+"a ringless Saturn, from 300 million years back. Younger rings are drawn more massive and cleaner: their depth grows with youth as "
 "age⁻⁰·⁷⁵, between ring-rain losses (O'Donoghue et al. 2019; Waite et al. 2018) and viscous spreading "
 "(Salmon et al. 2010), half again today's at 66 Ma, and the meteoroid darkening of the C ring and Cassini "
 "division (Cuzzi &amp; Estrada 1998) is two fifths of today's. Both are guesses. Saturn's pole precesses "
 "once in about 1.87 million years (Ward &amp; Hamilton 2004), so the rings open from a different direction "
-"at each epoch: by a known angle at the Pleistocene supernovae, at random beyond ten million years.",
+"at each time: turned by the known rate over the last ten million years, at random before.",
 ]
 
 NEPTUNE = [
@@ -322,11 +326,11 @@ MOONS = [
 "Callisto; Mimas, Enceladus, Tethys, Dione, Rhea, Titan and Iapetus; Miranda, Ariel, Umbriel, Titania and "
 "Oberon; Triton; and Mars's Phobos and Deimos. Most hold to a tenth of a degree. Iapetus's two faces show: its trailing side is "
 "ten times brighter than its leading side, so it is magnitude 10.2 at western elongation and 11.9 at "
-"eastern. The planets' moons also change with the epoch. Triton, retrograde, was captured in the "
-"giant-planet instability, so the two oldest skies lack it, and Neptune has instead a family of regular "
+"eastern. The planets' moons also change with the time. Triton, retrograde, was captured in the "
+"giant-planet instability, so the skies before 4.48 Ga lack it, and Neptune has instead a family of regular "
 "moons, here named Kymo, Galene, Thetis and Amphitrite, drawn like Uranus's four largest at the same "
 "distances: Rufu &amp; Canup (2017) find that a system no heavier than Uranus's fits best, and that "
-"capturing Triton scattered and destroyed it. Mars, at 4.0 and 3.8 Ga, has Harmonia (named here), the moon "
+"capturing Triton scattered and destroyed it. Mars, from 4.3 to 3.5 Ga, has Harmonia (named here), the moon "
 "of some twenty times Phobos's mass at 3.3 Mars radii that Ćuk et al. (2020) find tilted Deimos's orbit, "
 "one generation of Mars's cycle of rings and moons (Hesselbrock &amp; Minton 2017). Phobos is falling "
 "toward Mars: its tidal acceleration, half the rate its mean motion grows, is 1.258 × 10⁻³ degrees per year "
@@ -345,29 +349,37 @@ MOONS = [
 # ---------------------------------------------------------------------------------------------------
 STARS = [
 "Today's sky has the thousand brightest stars of the Yale Bright Star Catalogue (Hoffleit &amp; Warren "
-"1991), down to about magnitude 4.6, carried to the year shown by proper motion and precession, each "
+"1991), down to about magnitude 4.6, carried to the year shown by their motion and precession, each "
 "tinted by its color temperature and shown only when it is brighter than the naked-eye limit for the sky "
-"around it, so stars come out one by one in twilight and cities keep only the brightest. Earth's axis "
-"keeps today's tilt and direction in every epoch, since its precession in the deep past cannot be pinned "
-"down. Going back, the stars move, and how far the page can follow them sets three kinds of sky.",
+"around it, so stars come out one by one in twilight and cities keep only the brightest. The Earth's axis "
+"turns by the long-term precession of Vondrák, Capitaine &amp; Wallace (2011), good to a degree or so over "
+"200,000 years either way: Polaris is the pole star only for a few thousand years, and Vega takes its place "
+"12,000 years from now. Each epoch's own year has today's axis, since its phase long ago cannot be pinned "
+"down; beyond 200,000 years from it the axis turns on at the same rate and its tilt rocks between 22° and "
+"24.5° on the 41,000-year cycle. Going back, the stars move, and how far the site can follow them sets two "
+"kinds of sky.",
 
-"For the Pleistocene supernovae, 1.78 Ma and 342 ka, every catalogue star is moved in a straight line "
-"from its Hipparcos parallax, proper motion and radial velocity (the XHIP compilation of Anderson &amp; "
-"Francis 2012), and the thousand brightest at that time are kept. Over two million years the Galaxy's "
-"pull bends their paths by only a few parsecs. The sky is recognizable but rearranged. At 1.78 Ma "
-"Canopus is the brightest star, −1.6, and Sirius, far away then, is fourth magnitude; at 342 ka "
-"Aldebaran, near its closest pass, outshines everything at −1.5, and Sirius is +0.8. Constellation "
-"figures move with their stars, and a line is dropped once its stars have drifted three times today's "
-"distance apart.",
+"Over the last two million years, and the 250,000 ahead, every catalogue star moves in a straight line from "
+"its Hipparcos parallax, proper motion and radial velocity (the XHIP compilation of Anderson &amp; Francis "
+"2012), brightening or fading as its distance changes, and the site shows the thousand brightest of the year: "
+"today's thousand and 732 others that were among them at some time over that span. Over two million years the "
+"Galaxy's pull bends the stars' paths by only a few parsecs. The sky is recognizable but rearranged. At "
+"1.78 Ma Canopus is the brightest star, −1.6, and Sirius, far away then, is fourth magnitude; at 342 ka "
+"Aldebaran, near its closest pass, outshines everything at −1.5, and Sirius is +0.8; Sirius itself is "
+"brightest, about −1.6, some 60,000 years from now. Constellation figures move with their stars, and a line "
+"is dropped once its stars have drifted three times today's distance apart.",
 
-"At 66 Ma the Sun and the catalogue stars are traced back along orbits in a model Galaxy: a flat "
-"rotation curve of 233 km/s, a vertical oscillation of 84 million years, and the Sun's motion from "
-"Schönrich, Binney &amp; Dehnen (2010), keeping only stars old enough to have been shining. Six of them were "
-"brighter than magnitude 4.6. Further back none of today's neighbors was near the Sun, and every star "
-"is a stand-in: a copy of a star of today's sky, keeping its brightness, color, spectral type and "
-"galactic latitude, at a random galactic longitude, a different random sky for each age. The stand-ins' "
-"labels give the type they copy, not a name. The sky's statistics are right; its patterns are invented, "
-"as they would be for any reconstruction that far back.",
+"Further back the lines no longer hold, and none of today's neighbors was near the Sun. Between 1.9 and 2.2 "
+"million years ago, at a time of its own, each real star fades out over 50,000 years and gives way to "
+"stand-ins of its kind: stars of its absolute magnitude, color and spectral type passing the Sun one after "
+"another on straight lines at 15 to 40 km/s, as the nearby stars' speeds relative to the Sun run, each nearest "
+"the Sun at today's star's distance and so as bright as it, toward the galactic latitude it has today and at a "
+"random longitude. Each passage lasts the time it takes to go twice that distance, from half a million to twenty "
+"million years, and fades into the next, so the deep sky changes as fast as the nearby stars move and never all "
+"at once. The stand-ins' labels give the type they copy, not a name. The sky's statistics are right; its "
+"patterns are invented, as they would be for any reconstruction that far back. The stars that outshone Sirius "
+"in the last ten million years (below) are traced through the Galaxy for the report; on the site, those of the "
+"last two million years show at their brightest.",
 ]
 
 MILKY_WAY = [
@@ -408,7 +420,9 @@ SUPERNOVAE = [
 "(Salvati &amp; Sacco 2008), exploded 90 to 240 pc away toward Orion (Pellizza et al. 2005); a typical "
 "Type II-P peaks near absolute magnitude −16.75 (Richardson et al. 2014), so from 147 pc it reached "
 "about −11, a fifth of the full Moon's light from a single point, bright enough to show by day and cast "
-"shadows at night for the three months of its plateau. The ζ Ophiuchi supernova, 1.78 million years ago "
+"shadows at night for the three months of its plateau. Each follows a Type II-P light curve: two weeks' rise, "
+"the plateau, a drop of a few magnitudes after about 100 to 130 days, and the radioactive tail, fading a magnitude "
+"every hundred days, so it is gone to the eye in a few years. The ζ Ophiuchi supernova, 1.78 million years ago "
 "at 107 pc in the Scorpius–Centaurus association (Neuhäuser et al. 2020), unbound its companion, now the "
 "runaway star ζ Oph, and peaked near −11.6, twice as bright. Its spectrum readout is a Type II-P near "
 "peak, with P Cygni profiles from fast ejecta (Filippenko 1997). At these distances neither touches the "
@@ -425,7 +439,8 @@ SUPERNOVAE = [
 SUN_YOUNG = [
 "The Sun was about 30% fainter when the Earth formed and has brightened since, as hydrogen burning has raised the density and "
 "temperature of its core. We follow the 1 M☉ track of Baraffe et al. (2015): 68% of today's light and "
-"5,530 K at 4.5 Ga, 80% and 5,660 K at 2.7 Ga, 94% at 700 Ma, today's 5,772 K by the Cenozoic. Its radius "
+"5,530 K at 4.5 Ga, 80% and 5,660 K at 2.7 Ga, 94% at 700 Ma, today's 5,772 K by the Cenozoic, and between "
+"the epochs as Gough (1981) gives the brightening, the inverse of the luminosity linear in time. Its radius "
 "follows from the luminosity and temperature: 0.90 of today's at 4.5 Ga, 0.93 at 2.7 Ga, 0.98 at 700 Ma, so the "
 "young Sun's disk was smaller as well as dimmer, and the closer Moon covered it easily. The 4.55 Ga Sun is "
 "different. Seventeen million years old, it is still contracting onto the main sequence: cooler, 4,614 K, at "
@@ -489,7 +504,7 @@ IMPACTS = [
 SHAFTS = [
 "Where the Sun shines from behind a cloud, beams fan out across the sky and the sky between them darkens: "
 "crepuscular rays, the cloud's shadow in the sunlit air. Only the part of each direction's light that is sunlight "
-"scattered once in the lower air can be shadowed, so the page computes that share from each epoch's own air, its "
+"scattered once in the lower air can be shadowed, so the page computes that share from each air along the timeline, its "
 "gas, aerosol, dust, haze, sulfate and soot layers with their heights, for every Sun height and direction "
 "(<em>shafts.py</em>); along each line of sight the stretches whose path to the Sun passes through cloud lose their "
 "share. The rays are strongest where the scattering sits low, and weakest in the 30-bar Hadean, whose light is "
@@ -500,7 +515,7 @@ SHAFTS = [
 CONTRAILS = [
 "The modern-era skies have airliners and their contrails: about 1.1 aircraft over each 10,000 km² of busy "
 "mid-latitude sky by day, from European traffic statistics, at 9 to 12 km along a few airways, quieter after "
-"midnight; under half of today's traffic in 1990, twice today's in 2100, none in 1815. A contrail forms where "
+"midnight; under half of today's traffic in 1990, twice today's in 2100, none in 1816 or 1900. A contrail forms where "
 "the exhaust's mixing line crosses saturation (Schmidt 1941; Appleman 1953), most often at mid and high latitudes, "
 "and lives seconds in dry air but spreads into contrail cirrus lasting hours in the 10 to 20% of cruise levels "
 "that are supersaturated with respect to ice (Gierens et al. 1999; Schumann 2005; Minnis et al. 1998). At night the "
@@ -511,9 +526,12 @@ SCENERY = [
 "The ground is scenery, like the clouds: a walkable landscape chosen for each era rather than computed, lit by the "
 "model's sky and Sun. The proto-Earth has magma pools; the 4.5 Ga Earth a hot ocean, about 230 °C while 100 to "
 "200 bars of CO₂ remained (Zahnle et al. 2010), steaming round volcanic islands; the Archean, water and volcanic shields; Snowball "
-"Earth, ice plateaus with blue banded cliffs and frozen ponds; the Ordovician, shallow seas with no land plants "
-"beyond mosses and crusts; the Carboniferous, forest and swamps; the impact winter, dead woods; the Pleistocene, "
-"1815 and today, woods and snow-capped peaks; and the modern epochs, a town with lit windows. Water reflects the "
+"Earth, ice plateaus with blue banded cliffs and frozen ponds, open water again in the Cryogenian between the "
+"glaciations; the Ordovician, shallow seas with no land plants beyond mosses and crusts; the Carboniferous, forest "
+"and swamps; the Late Cretaceous, forest, dead woods in its impact winter; the Pleistocene, 1816 and 1900, woods and "
+"snow-capped peaks; and the modern epochs, a town with lit windows. The ground's color, the snow on the peaks, the "
+"Snowball's snow cover and its ice halos cross-fade with the year and with an event's strength, while the layout "
+"of the scenery changes with the epoch. Water reflects the "
 "sky and glitters in the Sun and Moon; lava glows; distant scenery fades into the sky's color. None of this is "
 "part of the model: the sky above it is.",
 ]
@@ -523,11 +541,15 @@ SCENERY = [
 # ---------------------------------------------------------------------------------------------------
 CITY = [
 "In the modern epochs the observer stands in a mid-sized city: a zenith glow of 18.8 mag/arcsec² today (Falchi et "
-"al. 2016), with orange sodium light in 1980–2000, at the brightness of the first World Atlas (Cinzano, Falchi &amp; Elvidge 2001), 1.6 times today's in "
-"polluted air, held at today's level in 2100 (the recent 9.6% a year, Kyba et al. 2023, cannot be projected that "
-"far), and almost nothing from the oil lamps of 1815 (Fouquet &amp; Pearson 2006). The glow rises about threefold "
-"toward the horizon, and cloud bases over the city glow orange several times brighter than the clear sky (Kyba et "
-"al. 2011). Against that glow the city keeps only the brightest stars, and none of the Milky Way.",
+"al. 2016), 1.6 times today's in polluted air, and held at today's level in 2100 (the recent 9.6% a year, Kyba et "
+"al. 2023, cannot be projected that far). Back in time the glow follows the growth of electric light: only "
+"lamplight until 1900, then growing about 3% a year, an e-folding time of 30 years, between the 2.2% a year that "
+"satellites saw in lit area and radiance in 2012–2016 (Kyba et al. 2017) and the 9.6% a year in sky brightness "
+"that observers reported in 2011–2022. That reaches a third of today's in 1990, near the first World Atlas "
+"(Cinzano, Falchi &amp; Elvidge 2001), and today's now. Its color goes from gas and incandescent light to orange "
+"sodium by 1990 and on to today's LEDs. The glow rises about threefold toward the horizon, and cloud bases over the "
+"city glow orange several times brighter than the clear sky (Kyba et al. 2011). Against that glow the city keeps "
+"only the brightest stars, and none of the Milky Way.",
 ]
 
 SATELLITES = [
@@ -551,8 +573,8 @@ SATELLITES = [
 # ---------------------------------------------------------------------------------------------------
 INTRO = [
 "What did the sky look like from the ground in the Archean, under the young Sun, with the Moon nearer? "
-"We reconstruct the whole view from Earth's surface at nineteen moments in its history, from a "
-"proto-Earth 17 million years after the first solids to the year 2100: the color of the sky by day and at dusk, "
+"We reconstruct the whole view from Earth's surface through its history, at twenty-three moments and the "
+"years between them, from a proto-Earth 17 million years after the first solids to the year 2100: the color of the sky by day and at dusk, "
 "computed with a spectral radiative-transfer model of each epoch's air, and on that sky everything else that "
 "could be seen from the ground: the Sun and its spots, the Moon's size, face and eclipses, the planets and their "
 "moons, the stars and the Galaxy as they then lay, meteors, comets, aurorae, airglow, halos and clouds, and in "
@@ -560,14 +582,18 @@ INTRO = [
 "quantitative core, and grew with the interactive site built on the model, which draws each of these and is the "
 "source of every number quoted here outside the color tables.",
 
-"The nineteen epochs ({ref:tab:epochlist}) were chosen for what changed: the air (a 30-bar CO₂ Hadean, an Archean "
-"with no oxygen and organic haze, the first ozone after the Great Oxidation, a frozen Snowball, the oxygen-rich "
-"Carboniferous, the impact winter after Chicxulub, a volcanic year, the ozone hole and today's cities), the sky "
+"The epochs ({ref:tab:epochlist}) were chosen for what changed: the air (a 30-bar CO₂ Hadean, an Archean "
+"with no oxygen and its episodes of organic haze, the first ozone after the Great Oxidation, the Snowball "
+"glaciations, the oxygen-rich Carboniferous, the impact winter after Chicxulub, a volcanic year, the ozone hole "
+"and today's cities), the sky "
 "above it (a Moon forming and receding, a young and active Sun, a Solar System before the giant planets' "
 "instability, nearby supernovae, stars that outshone Sirius, a bombardment and a possible ring), and the view "
 "people have made (city light and a sky full of satellites). Each is a reconstruction, with the uncertainties "
 "the sections state: some quantities are measured, some modeled, some estimated to show a trend, and some, "
-"like where the planets stood on a given day four billion years ago, unknowable and drawn at random.",
+"like where the planets stood on a given day four billion years ago, unknowable and drawn at random. The epochs "
+"are fixed points on one timeline: between them the site runs the air, the Sun, the Moon, the planets and the "
+"stars on through every year, and some epochs are events with dates and durations of their own, the haze "
+"episodes, the glaciations, the impact winter, the volcanic year ({ref:method-time}).",
 
 "This is a living document. Much of what it draws rests on questions that are still argued: when the giant "
 "planets went unstable and whether a fifth giant was lost; how far away the Moon was in its first hundred "
@@ -592,7 +618,7 @@ INTRO = [
 "the sunset's colors are spread further apart than they are, and the Sun's limb darkening is softened. Each "
 "section says where its subject is measured, modeled or approximated.",
 
-"In {ref:method} we describe how the view is reconstructed. {ref:sky} gives the sky's colors by day and at dusk, "
+"In {ref:method} we describe how the view is reconstructed, at the epochs and between them. {ref:sky} gives the sky's colors by day and at dusk, "
 "and {ref:sun} through {ref:people} take in turn the Sun, the Moon, the planets, the stars and the Galaxy, the "
 "night and what crosses it, and the sky people made. {ref:epochs} goes through the epochs one by one, and "
 "{ref:caveats} says what the reconstruction leaves out and which of its numbers are estimates.",
@@ -603,18 +629,19 @@ METHOD_VIEW = [
 "them by the interactive site, in two views: a dome, the whole sky as a fisheye, and a first-person view in "
 "WebGL, with a walkable ground and clouds. Both draw on one photometric scale, calibrated in absolute units: the "
 "clear zenith with the Sun 45° up is 2.7 kcd/m², which puts the full-Moon sky at the measured 18 mag/arcsec². "
-"Stars, planets, meteors and satellites are placed by their magnitudes on that scale and dimmed by the epoch's "
-"air, 0.15 magnitude per airmass from the gas plus 1.086 times its aerosol or haze optical depth; each shows only "
+"Stars, planets, meteors and satellites are placed by their magnitudes on that scale and dimmed by the air, "
+"1.086 magnitudes per airmass for each unit of its optical depth at 550 nm, about 0.15 of it from the gas and the "
+"rest from the aerosol, haze, sulfate and soot; each shows only "
 "when it is brighter than the naked-eye limit for the sky around it. The Moon, moonlight, supernovae, fireballs "
-"and city glow light the sky through the same model. The clock runs over one solar day of the epoch, and the Sun "
-"follows the seasons for the date with today's 23.4° tilt in every epoch, since the Moon has held the obliquity "
-"between about 22° and 24.5°. The Sun and Moon are drawn at four times their angular size so that their disks show "
+"and city glow light the sky through the same model. The clock runs over one solar day of the time shown, and "
+"the Sun follows the seasons for the date, with today's 23.4° tilt at each epoch's own year and the long-term "
+"precession around it, since the Moon has held the obliquity between about 22° and 24.5°. The Sun and Moon are drawn at four times their angular size so that their disks show "
 "on a screen, and zooming in acts as a telescope, down to a field of 14 arcseconds.",
 
-"Where each body was is carried back as far as it can be known. The Moon's distance follows the tidal record, the "
-"Sun's brightness and size its evolutionary track, the stars their measured motions back to the Pleistocene and "
-"orbits in a model Galaxy to 66 Ma; beyond that the star field and the planets' positions are drawn at random, "
-"with the right statistics, since no calculation can recover them. The colors are shown as a daylight-balanced "
+"Where each body was is carried back as far as it can be known, for any year. The Moon's distance follows the "
+"tidal record, the Sun's brightness and size its evolutionary track, and the stars their measured motions over "
+"the last two million years; beyond that the star field, and the planets' positions more than 10,000 years from "
+"today, are drawn at random with the right statistics, since no calculation can recover them. The colors are shown as a daylight-balanced "
 "camera would record them, without chromatic adaptation, and the night as a dark-adapted eye sees it. The "
 "scenery and the clouds are drawn, not modeled; the sky is the model.",
 ]
@@ -623,8 +650,8 @@ TEN_THINGS = [
 "Under the 30-bar CO₂ of the early Hadean the sky was a shadowless peach-white glow with no visible Sun, and the "
 "molten newborn Moon, 4° across and 8 Earth radii away, glowed orange through it, rising and setting several times "
 "in a 6-hour day.",
-"During the hazy Neoarchean the whole dome was cream to apricot, with almost no difference between zenith and "
-"horizon.",
+"During the Neoarchean's haze episodes, each about a million and a half years long, the whole dome was cream "
+"to apricot, with almost no difference between zenith and horizon.",
 "Before the Great Oxidation every twilight ended in a cream zenith; the first ozone turned it pale blue, and the "
 "deep blue dusk needs a near-modern column.",
 "Snowball Earth had the bluest mid-latitude sky in Earth's history; the K–Pg impact winter had no sunsets at all.",
@@ -641,35 +668,46 @@ TEN_THINGS = [
 ]
 
 def epoch_rows(order, ages, byk):
-    """The nineteen epochs: what changes in each, for the opening table."""
+    """The epochs: what changes in each, for the opening table."""
     from epochs import BY_KEY
     RE = js_const('moon.js', 'MOON_RE'); DAY = js_const('moon.js', 'DAY_HOURS')
+    # The site fills in the epochs added for events' backgrounds from their events' tables (epoch_time.js aliasEpochs).
+    alias = {'archean27clear': 'archean27', 'cretaceous66': 'kpg66', 'y1900': 'modern'}
     out = []
     for k in order:
         T, L = (BY_KEY.get(k) or BY_KEY['modern'])['sun']
-        moon = 'none' if k == 'protoearth455' else f'{60.14/RE[k]:.2f}×' if RE[k] < 60 else 'today’s'
-        out.append([ages[k], re.sub(r',? ~?[\d.]+ (?:Ga|Ma|ka)', '', byk[k]['name']), f'{L:.2f}', f'{T:,}', f'{DAY.get(k, 24.0):.1f} h', moon, EPOCH_NOTE[k]])
+        m = RE.get(k, RE.get(alias.get(k, 'modern')))
+        moon = 'none' if k == 'protoearth455' else f'{60.14/m:.2f}×' if m < 60 else 'today’s'
+        name = re.sub(r',? ~?[\d.]+ (?:Ga|Ma|ka)', '', byk[k]['name'])
+        out.append([ages[k], name, f'{L:.2f}', f'{T:,}', f'{DAY.get(k, DAY.get(alias.get(k), 24.0)):.1f} h', moon, EPOCH_NOTE[k]])
     return out
 EPOCH_HEAD = ['Age', 'Epoch', 'Sun’s light', 'Sun (K)', 'Day', 'Moon’s width', 'What else is in the sky']
-EPOCH_CAPTION = ("The nineteen epochs. The Sun's light is relative to today's and its temperature from the solar track of "
-                 "Baraffe et al. (2015); the day and the Moon's width from the Moon's distance ({ref:tab:moon}); the last "
-                 "column lists what the sections that follow find in each sky besides its color.")
+EPOCH_CAPTION = ("The epochs, each at its own year on the site's timeline; the haze episodes, Snowball Earth, the impact "
+                 "winter, the volcanic year and the ozone hole are events with their own dates and durations "
+                 "({ref:method-time}), and the very thick haze is an upper bound on the 2.52 Ga episode, in this report "
+                 "only. The Sun's light is relative to today's and its temperature from the solar track of Baraffe et al. "
+                 "(2015); the day and the Moon's width from the Moon's distance ({ref:tab:moon}); the last column lists "
+                 "what the sections that follow find in each sky besides its color.")
 EPOCH_NOTE = {
  'protoearth455': 'No Moon; Theia passing; the giant planets before the instability, with a fifth giant; a saturated young Sun',
  'hadean45': 'The molten Moon at 8 R⊕; 10,000× today’s meteors; no stars through 30 bar of CO₂ and the debris’s glow',
  'hadean40': 'Bombardment; nitrogen aurorae to 37°; the Moon before the maria',
  'archean38': 'The maria flooding, lava fountains on the Moon; Mars’s lost moon Harmonia',
- 'archean27thin': 'Thin organic haze; an 18-month year',
- 'archean27': 'The Pale Orange Dot seen from below',
+ 'archean27clear': 'Clear between the haze episodes; an 18-month year',
+ 'archean27thin': 'Thin organic haze, about 1.4 Myr at 2.63 and 2.58 Ga',
+ 'archean27': 'The Pale Orange Dot seen from below, about 1.4 Myr',
  'archean27vthick': 'The thickest plausible haze',
  'proterozoic22': 'The first ozone; oxygen airglow at 30%',
- 'snowball07': 'Ice halos at every latitude; the clearest air',
+ 'snowball07': 'Two glaciations, 717–661 and 639–635 Ma; ice halos at every latitude',
+ 'cryogenian65': 'Open water between the glaciations; 10% of today’s oxygen',
  'ordovician466': '100× today’s fireballs and perhaps a ring',
  'carbon30': 'Saturn without rings, and its moon Chrysalis',
- 'kpg66': 'Soot from Chicxulub; Saturn’s young rings',
+ 'cretaceous66': 'Dinosaur-age forests; Saturn’s young rings',
+ 'kpg66': 'Soot from Chicxulub for about two years',
  'zetaoph': 'A supernova at −11.6 in Scorpius; stars moved back',
  'geminga': 'A supernova at −11 in Orion; Aldebaran at −1.5',
- 'volcanic': 'Tambora’s veil; oil lamps; no Red Spot yet',
+ 'volcanic': 'Tambora’s veil, 1815–17; oil lamps; no Red Spot yet',
+ 'y1900': 'No city glow; dark nights back into the Pleistocene',
  'ozonehole': 'Polar-spring ozone at 130 DU; sodium-lit cities',
  'modern': 'A mid-sized city’s glow; airliners; the real comets and showers',
  'modernpoll': 'A polluted megacity',

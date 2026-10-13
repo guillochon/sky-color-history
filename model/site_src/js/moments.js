@@ -20,7 +20,7 @@ const MOMENTS=[
   {epoch:'protoearth455', date:'0821-08-50', t:178, lat:'Mid-latitude S', look:{planet:'Theia'}, clear:true, title:'Theia’s closest pass, 4.55 Ga', sub:'The world that will make the Moon, half lit, magnitude −8.5, lighting the night', art:'theia'},
   {epoch:'hadean45', date:'2000-02-110', t:1015, look:[240, 14], title:'A Hadean evening, 4.5 Ga', sub:'Thirty bars of CO₂ under a young, faint Sun, and the molten newborn Moon', art:'hadean'},
   {epoch:'archean38', date:'2000-01-38', t:1410, look:[0, 30], clear:true, aurora:true, title:'Aurora over the young Earth, 3.8 Ga', sub:'All night under the young Sun’s stronger wind: nitrogen glowing violet and pink in air with no oxygen', art:'aurora'},
-  {epoch:'archean27', date:'2000-03-07', t:913, title:'Archean afternoon, 2.7 Ga', sub:'A pale orange organic haze, like Titan’s', art:'day'},
+  {epoch:'archean27', date:'2000-03-07', t:913, title:'Hazy afternoon, 2.52 Ga', sub:'A pale orange organic haze, like Titan’s', art:'day'},
   {epoch:'ordovician466', date:'2000-10-09', t:1324, look:[200, 18], clear:true, title:'Meteor storm and ring, 466 Ma', sub:'A shattered asteroid’s fragments, and perhaps a ring across the sky', art:'meteors'},
   {epoch:'carbon30', date:'2000-06-31', t:1417, look:[180, 32], clear:true, title:'The Milky Way, 300 Ma', sub:'No city lights, and stars no one has catalogued', art:'galaxy'},
   {epoch:'kpg66', date:'2000-04-01', t:720, title:'Noon after the asteroid', sub:'Soot from Chicxulub turns the sky dim amber', art:'day'},

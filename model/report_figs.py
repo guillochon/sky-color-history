@@ -26,7 +26,7 @@ W, H = 1600, 900
 SHOTS = {
     'hadean':       dict(moment='A Hadean evening, 4.5 Ga'),
     'aurora':       dict(moment='Aurora over the young Earth, 3.8 Ga', gain={'aur': 100}, wait=8000),
-    'archean':      dict(moment='Archean afternoon, 2.7 Ga'),
+    'archean':      dict(moment='Hazy afternoon, 2.52 Ga'),
     'ordovician':   dict(moment='Meteor storm and ring, 466 Ma'),
     'kpg':          dict(moment='Noon after the asteroid'),
     'geminga':      dict(moment='The Geminga supernova'),

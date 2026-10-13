@@ -859,7 +859,7 @@ function paintVR(){
   const [hh, mm, ss]=clockParts(minutes);
   const lat=latLabel();
   const hud=vrGL.hud||(vrGL.hud={place:document.getElementById('vrplace'), note:document.querySelector('.vrnote'), clock:document.getElementById('vrclock')});
-  setText(hud.place, EP[dIdx].name+(pageTime()===epochAnchor(EP[dIdx].key)?'':' · '+shownAge())+' · '+lat);
+  setText(hud.place, EP[dIdx].name+(atAnchor()?'':' · '+shownAge())+' · '+lat);
   setText(hud.note, vrCaption());
   setText(hud.clock, dateLabel()+' · '+hh+':'+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0')+' · '+(dayPlaying?'playing':'paused')+' · '+speedLabel()+(Math.abs(vrFov-60)>0.5?' · '+fovLabel(vrFov)+' view':'')+(skyNow.eclipse?' · '+skyNow.eclipse:'')+(vrClouds&&vrGL.field?' · clouds '+Math.round(vrGL.field.cov*100)+'%':'')+(vrNote?' · '+vrNote:''));
   placeBodyMarks();

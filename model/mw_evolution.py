@@ -22,7 +22,7 @@ This script gives that model its parameters for each epoch:
     born thick (0.9 kpc). Each component's height is its light-weighted mean then, so the disc of
     billions of years ago, its stars younger, was thinner.
   - The Sun was born about 5 kpc from the centre and has migrated out (Frankel et al. 2018, ApJ 865,
-    96: 5.2 kpc; Lu et al. 2024, MNRAS 528, 4434: 4.5 ± 0.4; Baba et al. 2024, ApJL 976, L29: ~5).
+    96: 5.2 kpc; Lu et al. 2024, MNRAS 535, 392: 4.5 ± 0.4; Baba et al. 2024, ApJL 976, L29: ~5).
     How it went is unknown; it is taken to move out evenly in time from 5.0 kpc at 4.57 Gyr ago.
   - The bulge and bar (the bar is at least 8 Gyr old: Sanders et al. 2024, MNRAS 530, 2972;
     Haywood et al. 2024) are old stars formed about 10.5 Gyr ago, fading as they age.

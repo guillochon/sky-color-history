@@ -5,8 +5,9 @@ from skymodel import XYZ_to_srgb, hexcol
 ROOT = Path(__file__).resolve().parent
 D = json.load(open(ROOT / 'skycolors.json', encoding='utf-8'))
 byk = {r['key']: r for r in D}
-# Year 2100 and the supernova epochs keep today's clean air. The satellites and the explosions
-# are drawn in the site.
+# Year 2100, the supernovae, the Late Cretaceous and 1900 keep today's clean air (the site draws the
+# air of their year, which differs from today's by a few percent at most: THROUGH_TIME). The
+# satellites, the explosions and the dark nights are drawn in the site.
 SAME_AIR_EPOCHS = [
     ('y2100', 'Year 2100', "today's clean air, with the filed megaconstellation and the Sunrise orbital datacenters"),
     ('zetaoph', 'ζ Ophiuchi supernova, ~1.78 Ma', 'clean Early Pleistocene air, under a magnitude −11.6 supernova in Scorpius'),
@@ -133,8 +134,10 @@ document.querySelectorAll('canvas[data-epoch]').forEach(render);
 </script>
 """
 
-order = ['protoearth455','hadean45','hadean40','archean38','archean27thin','archean27','archean27vthick','proterozoic22','snowball07','ordovician466','carbon30','kpg66','zetaoph','geminga','volcanic','ozonehole','modern','modernpoll','y2100']
-ages = {'protoearth455':'4.55 Ga','hadean45':'4.50 Ga','hadean40':'4.0 Ga','archean38':'3.8 Ga','archean27thin':'2.7 Ga','archean27':'2.7 Ga','archean27vthick':'2.7 Ga','proterozoic22':'2.2 Ga','snowball07':'700 Ma','ordovician466':'466 Ma','carbon30':'300 Ma','kpg66':'66 Ma','zetaoph':'1.78 Ma','geminga':'342 ka','volcanic':'1815','modern':'today','modernpoll':'today','ozonehole':'1980–2000','y2100':'2100'}
+# The epochs in time order: the site's (gen_site.py order), with the report's very thick haze, an
+# upper bound on the 2.52 Ga episode, beside the thick haze it bounds.
+order = ['protoearth455','hadean45','hadean40','archean38','archean27clear','archean27thin','archean27','archean27vthick','proterozoic22','snowball07','cryogenian65','ordovician466','carbon30','cretaceous66','kpg66','zetaoph','geminga','volcanic','y1900','ozonehole','modern','modernpoll','y2100']
+ages = {'protoearth455':'4.55 Ga','hadean45':'4.50 Ga','hadean40':'4.0 Ga','archean38':'3.8 Ga','archean27clear':'2.7 Ga','archean27thin':'2.58 Ga','archean27':'2.52 Ga','archean27vthick':'2.52 Ga','proterozoic22':'2.2 Ga','snowball07':'700 Ma','cryogenian65':'650 Ma','ordovician466':'466 Ma','carbon30':'300 Ma','cretaceous66':'66 Ma','kpg66':'66 Ma','zetaoph':'1.78 Ma','geminga':'342 ka','volcanic':'1816','y1900':'1900','ozonehole':'1980–2000','modern':'today','modernpoll':'today','y2100':'2100'}
 
 hero = ''
 for k in order:
@@ -179,10 +182,10 @@ FIGS = ROOT.parent / 'latex' / 'figures'
 def view(name): return FIGS / f'view_{name}.jpg'
 
 TITLE = "A Complete History of the Earth's Sky"
-LEDE = ("What could be seen from the ground at nineteen moments in Earth's history: the color of the sky, "
-        "straight up and at the horizon, at the equator and the poles, at noon and at dusk, reconstructed with a spectral "
-        "radiative-transfer model; and the Sun, Moon, planets, stars and everything else above it, from the molten "
-        "newborn Moon to a sky full of satellites.")
+LEDE = ("What could be seen from the ground through Earth's history, at twenty-three moments and the years between them: "
+        "the color of the sky, straight up and at the horizon, at the equator and the poles, at noon and at dusk, "
+        "reconstructed with a spectral radiative-transfer model; and the Sun, Moon, planets, stars and everything else "
+        "above it, from the molten newborn Moon to a sky full of satellites.")
 
 DONE_BEFORE = [
 "Not as such. A search of the Valency corpus (arXiv, PubMed, EarthArXiv and others) finds the two halves of the "
@@ -217,7 +220,9 @@ COLORS_METHOD = [
 "~1,700 K, pink antisolar Belt of Venus) before being pointed backward.",
 "We treat the young Sun as a blackbody whose effective temperature and luminosity follow the solar track of Baraffe "
 "et al. (2015): 5,530 K and 68% of today's output at 4.5 Ga, rising through 5,620 K (75%) at 3.8 Ga, 5,660 K (80%) at "
-"2.7 Ga and 5,700 K (85%) at 2.2 Ga to 5,772 K today, and 4,614 K (47%) for the 17-million-year-old Sun of 4.55 Ga. The "
+"2.7 Ga and 5,700 K (85%) at 2.2 Ga to 5,772 K today, and 4,614 K (47%) for the 17-million-year-old Sun of 4.55 Ga; "
+"between the epochs the temperature runs linearly in time and the inverse of the luminosity too, the form of the "
+"brightening that Gough (1981) gives. The "
 "color effect is small: the 5,530 K Sun of 4.5 Ga is only about 240 K cooler in color temperature than the modern one, a difference "
 "that is barely perceptible side by side and is swamped by atmospheric effects ten to a hundred times larger. The "
 "brightness effect is not small, and is why the early-epoch skies are rendered dimmer. We ignore Fraunhofer lines and "
@@ -233,24 +238,85 @@ FINDINGS = [
 ('Sunsets and sunrises through time', "The biggest surprise is ozone. Today the sky above a setting Sun grades from orange through pale yellow to a zenith that stays blue well into twilight: about 12,500 K with the Sun 4° down. That persistent blue is the Chappuis band, ozone absorbing yellow and orange along the grazing path. The same modern sky with the ozone removed drops that zenith to cream, about 6,000 K. Before the Great Oxidation Event there was no ozone, so every sunset for the first two billion years ended with the zenith fading through cream and beige to orange. At ~2.2 Ga a 66 DU column, the Cooke et al. (2022) global mean for 1% of present oxygen, turns that cream zenith a pale blue-gray near 7,100 K. The deep twilight blue arrives later, once the column is near modern: the snowball sky, at their 10% oxygen column of 169 DU, holds a dusk zenith near 10,800 K. The same thinning is visible in the ozone-hole years. A polar-spring column of 130 DU leaves the dusk zenith pale blue, near 7,800 K, against 12,500 K today. Beyond the ozone story: Hadean sunsets were not events at the horizon but a slow dimming of the whole glowing dome; hazy Archean sunsets were the longest and most saturated in Earth's history, vermilion at the horizon and amber overhead; Snowball sunsets were brief and golden; the sunsets of the impact winter did not exist as color at all; and the reddest, most theatrical skies of the Phanerozoic belong to volcanic years like 1815 and 1883."),
 ]
 
+THROUGH_TIME = [
+"The epochs are fixed points rather than the only times the view can show. The site's timeline runs from the "
+"Solar System's birth to 250,000 years ahead, and each epoch is exact at its own year, while between the epochs "
+"every quantity runs along a curve suited to it. The air (<em>airtime.py</em>) is an epoch's own at that epoch's "
+"year. Between epochs its gases run log-linearly in time from one to the next, since drawdowns and rises run "
+"roughly exponentially, with the steps the geological record shows added as fixed points of their own: the Great "
+"Oxidation Event's rise of O₂ and fall of CH₄ between 2.43 Ga (Gumsley et al. 2017) and 2.22 Ga (Poulton et al. "
+"2021), O₂ held near 1% of today's through the mid-Proterozoic until the Neoproterozoic rise from about 800 Ma "
+"(Lyons, Reinhard &amp; Planavsky 2014), and the Cambrian's 5–10% O₂ (Mills et al. 2023). Ozone is not "
+"interpolated on its own but follows the O₂, by the global-mean columns Cooke et al. (2022) simulate at fixed "
+"oxygen levels (18 DU at 0.1% of today's, 66 at 1%, 136 at 5%, 169 at 10%, 279 at today's), scaled at each epoch "
+"to that epoch's own columns by latitude. The tropospheric aerosol's optical depth runs log-linearly between the "
+"epochs, the Sun as above, the meteoric dust of the Ordovician break-up with the dust's own rise and decay "
+"(<em>Dust, comets and the Ordovician ring</em>), and the Moon-forming impact, about 4.51 Ga, is a step: the "
+"proto-Earth's air before it and the early Hadean's from it on. {ref:fig:airtime} shows the result.",
+"Some epochs are events that interrupt a longer-lived sky, and the timeline gives them dates and durations. The "
+"Neoarchean's haze episodes interrupt a clear background, which isotope records from South Africa and Western "
+"Australia keep returning to (Zerkle et al. 2012; Izon et al. 2015). Three episodes are recorded in the "
+"2.65–2.5 Ga Ghaap Group alone (Zerkle et al. 2012); we date them about 2.63, 2.58 and 2.52 Ga by spacing the "
+"drill core's ends evenly, so to within tens of millions of years. The youngest, which Izon et al. (2017) "
+"resolved, set in over 0.3 Myr and lasted 1.4 Myr in all, and each episode is given that shape: the two older "
+"are the thin haze and the youngest the thick. Snowball Earth is two glaciations over a non-glacial Cryogenian: "
+"the Sturtian from about 717 Ma (MacLennan et al. 2018) to 660.98 Ma (Rooney et al. 2020), and the Marinoan, about "
+"four million years long (Tasistro-Hart et al. 2025), ending at 635.21 Ma (Prave et al. 2016). Once the ice "
+"passed a critical latitude it reached the equator within years to decades (Eberhard et al. 2023), and it melted "
+"in about two thousand years (Hoffman et al. 2017). The K–Pg impact winter lets almost no sunlight through for "
+"over a year, and its soot has cleared about five years after the impact (Bardeen et al. 2017): the site holds it "
+"for a year and clears it with a one-year e-folding time, so its sky shows for about two years over a Late "
+"Cretaceous of today's air. Tambora's sulfate veil spreads through the stratosphere over the months after April "
+"1815, stays through 1816 and clears in 1817, and the ozone-hole sky holds from 1980 to 2000. As an event comes on, "
+"its own parts of the air (the haze and methane, the snowball's ice and clean air, the soot and sulfate, the "
+"ozone column) go from the background's to its own, while the rest stays the background's.",
+"The sky's colors cannot simply be blended between epochs as different as these, so the parts of the sky that are "
+"computed ahead of time (the day-cycle colors, the setting Sun's bands, the crepuscular rays' tables, the light in "
+"the Earth's shadow and the spectra) are computed for 143 airs along the timeline (<em>airgrid.py</em>). They are "
+"every epoch's own, the years where the curves bend, and more wherever blending the two neighbours would miss the "
+"air between them, at any of a set of test directions and Sun heights, by more than 0.02 in log₁₀ luminance (about "
+"5%) or 0.002 in chromaticity, found by halving each interval in turn. Each event is computed at steps of its "
+"strength in the same way. The site blends the two airs either side of the time shown, luminance in logarithm and "
+"chromaticity linearly, by the year or by the event's strength. The 62 background airs lie densest where the air "
+"changes fastest: through the Hadean's CO₂ drawdown, the Great Oxidation and the Ordovician dust. The starlight's "
+"extinction, the soot's absorption, the airglow and the cloud cover follow the same blended air, and everything "
+"else follows the year too: the Sun's brightness and spots, the Moon's distance, orbit and face and the day's "
+"length, the planets' moons and rings, the stars, the Sun's place in the Galaxy, the rates of comets, meteors and "
+"dust, and the glow of cities, as the sections that follow describe.",
+]
+AIRTIME_CAPTION = ("The air through Earth's history as the site draws it, with the epochs evenly spaced and time running "
+"linearly between neighbouring epochs. Top: the gases' partial pressures and their total. Middle: the mid-latitude ozone "
+"column. Below: the optical depths at 550 nm of Rayleigh scattering and of each kind of particle. The lines are the "
+"background air through time; the air of an event (italic labels: the haze episodes, Snowball Earth, the impact "
+"winter, the volcanic year and the ozone hole) and of the polluted city is drawn as a short bar at its tick, joined to "
+"the line, as its years or million years would not show at this scale. Shaded: the Great Oxidation Event and the two "
+"Snowball glaciations. The strips are the sky's color at mid-latitude, at the brightness relative to today's clean sky "
+"used throughout: the zenith and the horizon with the Sun 45° up, the horizon under the setting Sun, and the zenith "
+"with the Sun 4° below the horizon, from the airs the site blends between the ticks and each epoch's own at its tick "
+"(<em>air_timeline_fig.py</em>).")
+
 SUMMARY_HEAD = ['Epoch', 'Noon zenith, mid-latitude', 'Horizon', 'Sunset']
 SUMMARY = [
 ['4.55 Ga, proto-Earth', 'Pale blue-white under 3 bar of CO₂ and dust', 'Milky', 'Orange; a Sun larger and redder than today’s'],
 ['4.5 Ga, 30-bar CO₂', 'Peach-white, 3,300 K, shadowless', 'Same as zenith', 'Whole dome dims to orange; Sun rarely visible'],
 ['4.0 Ga, 0.5-bar CO₂', 'Pale milky blue, 10,500 K', 'Milk white', 'Deep red Sun; cream twilight (no ozone)'],
 ['3.8 Ga, clear Archean', 'Blue, 13,000 K', 'White', 'Modern-like, then yellow-beige twilight zenith'],
-['2.7 Ga, thin haze', 'Pastel milk-blue, 8,600 K', 'Warm white, 7,100 K', 'Orange twilight all the way to the zenith'],
-['2.7 Ga, thick haze', 'Cream-tan, 5,600 K', 'Cream-tan', 'Vermilion horizon, amber sky, long orange dusk'],
-['2.7 Ga, very thick haze', 'Saturated apricot, 3,900 K', 'Same as zenith', 'Sun lost in the haze before it sets; orange dusk'],
+['2.7 Ga, clear Neoarchean', 'Blue, 13,300 K', 'White, 7,500 K', 'Modern-like, then a grey-cream twilight zenith (~5,900 K)'],
+['2.58 Ga, thin haze', 'Pastel milk-blue, 8,600 K', 'Warm white, 7,100 K', 'Orange twilight all the way to the zenith'],
+['2.52 Ga, thick haze', 'Cream-tan, 5,600 K', 'Cream-tan', 'Vermilion horizon, amber sky, long orange dusk'],
+['2.52 Ga, very thick haze (upper bound)', 'Saturated apricot, 3,900 K', 'Same as zenith', 'Sun lost in the haze before it sets; orange dusk'],
 ['2.2 Ga, post-GOE', 'Blue, 13,300 K', 'White', 'Pale blue-gray twilight zenith (~7,100 K); deep blue dusk comes later'],
 ['700 Ma, Snowball', 'Deep blue, 16,200 K', 'Blue-white, stays blue', 'Golden, pale'],
+['650 Ma, Cryogenian', 'Blue, 14,100 K', 'White, 8,000 K', 'Orange; blue dusk zenith (~9,500 K)'],
 ['466 Ma, meteor storm', 'Blue, 14,200 K', 'White, 8,400 K', 'Modern-like; at night a hundred times today’s fireballs and a bright zodiacal band'],
 ['300 Ma, 33% O₂', 'Blue, 13,500 K', 'White, slightly brighter', 'Modern-like; smoky more often'],
+['66 Ma, Late Cretaceous', 'Same blue as today', 'White', 'Modern'],
 ['66 Ma, impact winter', 'Dim amber-beige, 4,600 K', 'Beige', 'None; dome fades to brown'],
 ['1.78 Ma, ζ Oph supernova', 'Same blue as today', 'White', 'Modern; a magnitude −11.6 supernova low in the south'],
 ['342 ka, Geminga supernova', 'Same blue as today', 'White', 'Modern; a magnitude −11 supernova in Orion that casts shadows'],
-['1815, volcanic year', 'Milky blue-white, 9,200 K', 'Slightly bluer than zenith', 'Salmon Sun, pink-lavender afterglow'],
-['Ozone-hole spring', 'Blue, still', 'White', 'Pale blue dusk zenith, ~7,800 K'],
+['1816, volcanic year', 'Milky blue-white, 9,200 K', 'Slightly bluer than zenith', 'Salmon Sun, pink-lavender afterglow'],
+['1900, dark nights', 'Same blue as today', 'White', 'Modern; no city glow after dark'],
+['1980–2000, ozone-hole spring', 'Blue, still', 'White', 'Pale blue dusk zenith, ~7,800 K'],
 ['Today, clean', 'Blue, 15,000 K', 'White, 8,400 K', 'Orange horizon, pink antisolar; twilight zenith ~12,500 K'],
 ['Today, polluted city', 'Pale gray-blue, 8,200 K', 'Slightly bluer than zenith, 8,900 K', 'Sun lost in gray murk before the horizon'],
 ['2100, megaconstellation', 'Same blue as today', 'White', 'Thousands of bright datacenters along the dusk terminator, plus a few hundred communications satellites'],
@@ -272,25 +338,33 @@ CAVEATS = [
 "eye would perceive the hazy Archean sky as nearer to white and the modern sky as bluer than shown). Clouds are "
 "omitted from the radiative transfer throughout. The two-stream multiple-scattering term is approximate for the "
 "thickest atmospheres, where a full Monte Carlo treatment would refine the exact tint of the Hadean sky.",
-"Beyond the colors, the strengths of the ancient airglow, aurorae, coronae, meteor, shower and comet rates and "
-"zodiacal dust are estimates set to show the trend, as each section says; the lunar eclipses, the Moon's orbit and "
-"the stars' motions back to 66 Ma are computed, and the eclipse shadow assumes today's cloud tops in every epoch. "
-"Several things are drawn for the eye rather than to scale: the Sun and Moon at four times their size (so eclipses "
-"are found and timed with the enlarged disks), the sunset's dispersion up to 24 times, and the limb darkening at a "
-"fifth of its strength. Some things cannot be known and are drawn at random: where the planets stood on a given day "
-"before history, and every star before 66 Ma, which are stand-ins with today's statistics. The Earth's axis keeps "
-"today's tilt and direction in every epoch. The Milky Way's dark clouds, star clouds and young-star fields before "
-"30 Ma are likewise stand-ins, and its evolution is a smooth model fitted to the Galaxy's history. The scenery and the clouds are drawn, not modeled, and the invented faces of Theia and the molten Moon are "
-"illustrations of what such worlds would be like.",
+"Between the epochs the air follows curves fitted through the epochs' own values and the few dated steps the "
+"record gives ({ref:method-time}); the real air wandered between them, and the events' dates and durations carry "
+"the uncertainties their sources state, tens of millions of years for the Neoarchean haze episodes. The grid of "
+"precomputed airs is set so that blending misses the air between by about 5% in luminance and 0.002 in "
+"chromaticity at most. Beyond the colors, the strengths of the ancient airglow, aurorae, coronae, meteor, shower and "
+"comet rates and zodiacal dust are estimates set to show the trend, as each section says; the lunar eclipses, the "
+"Moon's orbit and the stars' motions over the last two million years are computed, and the eclipse shadow assumes "
+"today's cloud tops in every epoch. Several things are drawn for the eye rather than to scale: the Sun and Moon at "
+"four times their size (so eclipses are found and timed with the enlarged disks), the sunset's dispersion up to 24 "
+"times, and the limb darkening at a fifth of its strength. Some things cannot be known and are drawn at random: where "
+"the planets stood on a given day more than 10,000 years from today, and every star more than about two million "
+"years back, where the stars are stand-ins of today's kinds passing the Sun. The Earth's axis turns by the long-term "
+"precession of Vondrák, Capitaine &amp; Wallace (2011) within 200,000 years of each epoch's year, from today's "
+"direction and tilt at that year, since its phase long ago cannot be pinned down. The Milky Way's dark clouds, star "
+"clouds and young-star fields before 30 Ma are likewise stand-ins, and its evolution is a smooth model fitted to the "
+"Galaxy's history. The scenery and the clouds are drawn, not modeled, and the invented faces of Theia and the molten "
+"Moon are illustrations of what such worlds would be like.",
 ]
 
 def epochs_table_rows():
     """The atmospheres, from epochs.py (the model's own inputs)."""
     names = {'protoearth455': '4.55 Ga proto-Earth', 'hadean45': '4.5 Ga Hadean', 'hadean40': '4.0 Ga Hadean', 'archean38': '3.8 Ga Archean',
-             'archean27thin': '2.7 Ga thin haze', 'archean27': '2.7 Ga thick haze', 'archean27vthick': '2.7 Ga very thick haze',
-             'proterozoic22': '2.2 Ga post-GOE', 'snowball07': '700 Ma Snowball', 'ordovician466': '466 Ma Ordovician',
-             'carbon30': '300 Ma Carboniferous', 'kpg66': '66 Ma impact winter', 'volcanic': '1815 volcanic year',
-             'ozonehole': 'Ozone-hole spring', 'modern': 'Modern, clean', 'modernpoll': 'Modern, polluted'}
+             'archean27clear': '2.7 Ga clear Neoarchean', 'archean27thin': '2.58 Ga thin haze', 'archean27': '2.52 Ga thick haze',
+             'archean27vthick': '2.52 Ga very thick haze', 'proterozoic22': '2.2 Ga post-GOE', 'snowball07': '700 Ma Snowball',
+             'cryogenian65': '650 Ma Cryogenian', 'ordovician466': '466 Ma Ordovician', 'carbon30': '300 Ma Carboniferous',
+             'kpg66': '66 Ma impact winter', 'volcanic': '1816 volcanic year', 'ozonehole': '1980–2000 ozone-hole spring',
+             'modern': 'Modern, clean', 'modernpoll': 'Modern, polluted'}
     sub = {'CO2': 'CO₂', 'N2': 'N₂', 'O2': 'O₂', 'H2O': 'H₂O', 'CH4': 'CH₄', 'Ar': 'Ar'}
     modern_gas = BY_KEY['modern']['gas']
     rows = []
@@ -305,8 +379,9 @@ def epochs_table_rows():
 EPOCHS_HEAD = ['Epoch', 'Gas (bar)', 'O₃ (DU)', 'AOD', 'Haze', 'Sulfate', 'Soot', 'T<sub>eff</sub> (K)', 'L/L☉']
 EPOCHS_CAPTION = ("Atmospheres used for each epoch. Gas amounts are partial pressures in bar; AOD is tropospheric aerosol optical "
                   "depth at 550 nm; haze, sulfate and soot are column optical depths at 550 nm; T<sub>eff</sub> and L/L☉ are the "
-                  "assumed solar effective temperature and luminosity relative to today. The supernova epochs and 2100 have today's "
-                  "clean air.")
+                  "assumed solar effective temperature and luminosity relative to today. The Late Cretaceous, the supernova epochs, "
+                  "1900 and 2100 have today's clean air; the site draws the air of their year, which differs from today's by at most "
+                  "a tenth more aerosol at 66 Ma and a Sun half a percent fainter.")
 
 # The sky-color panels, one per epoch: the HTML draws domes and strips from the colors, the paper
 # includes make_figs.py's figure of the same.
@@ -326,7 +401,7 @@ def epoch_panel(k):
     tw = strip(r['twilight'], ['solar_horizon','above_sun','above_sun30','zenith','anti_horizon'], ['sun horizon','15° up','30° up','zenith','antisolar'], Ytw, 'Sun 4° below horizon')
     sunset_sun = r['sunset']['sun']['hex'] if r['sunset']['sunY'] > 1e-8 else None
     sundot = f'<i class="sundot" style="background:{sunset_sun}"></i> setting Sun disk' if sunset_sun else '<i class="sundot" style="background:#111"></i> Sun not visible at the horizon'
-    h = (f'<section class="epoch" id="{k}"><header><span class="age">{ages[k]}</span><h4>{r["name"]}</h4><p class="sub">{r["sub"]}</p></header>'
+    h = (f'<section class="epoch" id="{k}"><header><span class="age">{ages[k]}</span><h4>{r["name"]}</h4><p class="sub">{R.link_cites(r["sub"], BIB, "html")}</p></header>'
          f'<div class="domes">{domes}</div><div class="strips">{ss}{tw}<p class="sundisk">{sundot}</p></div><p class="prose">{R.link_cites(paper_prose(k), BIB, "html")}</p></section>')
     t = (f"\\par\\vspace{{6pt}}\\noindent\\begin{{minipage}}{{\\linewidth}}\n{{\\normalsize\\bfseries {D.tex(r['name'])}\\par}}\n"
          f"{{\\small\\itshape {D.tex(r['sub'])}\\par}}\\vspace{{3pt}}\n\\centering\\includegraphics[width=\\linewidth]{{figures/sky_{sky_fig(k)}.png}}\n"
@@ -336,7 +411,7 @@ def epoch_panel(k):
     return b
 
 GL = ['modern','archean38','archean27','hadean45','snowball07','carbon30','kpg66','volcanic']
-GL_SHORT = {'modern':'Modern','archean38':'3.8 Ga, clear Archean','archean27':'2.7 Ga, hazy Archean','hadean45':'4.5 Ga, 30-bar CO$_2$','snowball07':'700 Ma, Snowball','carbon30':'300 Ma, Carboniferous','kpg66':'66 Ma, impact winter','volcanic':'1815, volcanic year'}
+GL_SHORT = {'modern':'Modern','archean38':'3.8 Ga, clear Archean','archean27':'2.52 Ga, hazy Neoarchean','hadean45':'4.5 Ga, 30-bar CO$_2$','snowball07':'700 Ma, Snowball','carbon30':'300 Ma, Carboniferous','kpg66':'66 Ma, impact winter','volcanic':'1816, volcanic year'}
 def globes_block():
     grid = ''
     for i, k in enumerate(GL):
@@ -363,8 +438,8 @@ def appendix_block():
                          f"{d['sunY']/byk['modern']['lat']['Equator']['sunY']:.2g}"])
     head = ['Epoch', 'Latitude', 'Zenith (x, y)', 'CCT (K)', 'Horizon (x, y)', 'CCT (K)', 'Sun']
     cap = ("CIE 1931 chromaticity (x, y) and correlated color temperature of the noon zenith and horizon sky, and direct-Sun "
-           "brightness relative to the modern equatorial Sun. The supernova epochs and the Year 2100 have today's clean air and "
-           "share its rows.")
+           "brightness relative to the modern equatorial Sun. The Late Cretaceous, the supernova epochs, 1900 and the Year 2100 "
+           "have today's clean air and share its rows.")
     body = '\n'.join(' & '.join(D.tex(c) for c in r) + r' \\' for r in rows)
     t = ('\\onecolumn\n\\section*{Appendix: computed chromaticities}\n\\scriptsize\n\\rowcolors{2}{rowa}{white}\n\\begin{longtable}{@{}llllllr@{}}\n'
          '\\caption{' + D.tex(cap) + '}\\label{tab:chroma}\\\\ \\toprule\n' + ' & '.join(D.tex(h) for h in head) + ' \\\\ \\midrule \\endfirsthead\n'
@@ -391,6 +466,9 @@ def blocks():
     B.append(S("The sky's colors", 'method-colors'))
     B += ps(*COLORS_METHOD)
     B.append(tab(EPOCHS_HEAD, epochs_table_rows(), EPOCHS_CAPTION, 'tab:epochs', spec='lYrrrrrrr', small=True))
+    B.append(S('Between the epochs', 'method-time'))
+    B += ps(*THROUGH_TIME)
+    B.append(fig(FIGS / 'air_timeline.png', AIRTIME_CAPTION, 'fig:airtime'))
     B.append(S('The rest of the view', 'method-view'))
     B += ps(*rv.METHOD_VIEW)
     B.append(S('The ground', 'ground'))
@@ -405,7 +483,7 @@ def blocks():
     B.append(globes_block())
     B.append(fig(view('kpg'), "Noon months after the Chicxulub impact, at 66 Ma: soot and sulfate turn the sky a dim, uniform amber-beige with no blue at all, about a fifth as bright as a clear sky, with almost no cloud.", 'fig:kpg', wide=False))
     B.append(S('Clouds')); B += ps(*RS['Clouds'])
-    B.append(fig(view('archean'), "An afternoon at 2.7 Ga under the thick organic haze, as the site's first-person view draws it: a pale orange dome with almost no difference between zenith and horizon, the Sun a soft disk, and sparse cumulus.", 'fig:archean', wide=False))
+    B.append(fig(view('archean'), "An afternoon at 2.52 Ga under the thick organic haze, as the site's first-person view draws it: a pale orange dome with almost no difference between zenith and horizon, the Sun a soft disk, and sparse cumulus.", 'fig:archean', wide=False))
     B.append(S('Crepuscular rays')); B += ps(*rv.SHAFTS)
     B.append(S('Ice halos')); B += ps(*RS['Ice halos'])
     B.append(fig(view('halos'), "A morning on Snowball Earth at 700 Ma, from mid-latitudes, the Sun 22° up through clear air full of "
@@ -429,8 +507,8 @@ def blocks():
                  "their size as on the site, so the growing Moon shows, from about the Sun's width today to 1.15 times it at 2.2 Ga and 1.55 "
                  "times at 4.0 Ga, where it hides the inner corona; each frame is exposed as the site's view adapts to its light. "
                  "Totality's sky is the epoch's twilight: slate blue-grey with a sunset rim on the horizon today, at 300 Ma and at "
-                 "2.2 Ga, amber over an orange horizon under the 2.7 Ga haze, which also dims the corona, and the hot young Sun's corona at 4.0 Ga is far larger and brighter. The young "
-                 "Sun's spots show on the crescents at 2.7 and 4.0 Ga. At 4.5 Ga the Moon is eight times the Sun's width and the corona "
+                 "2.2 Ga, amber over an orange horizon under the 2.52 Ga haze, which also dims the corona, and the hot young Sun's corona at 4.0 Ga is far larger and brighter. The young "
+                 "Sun's spots show on the crescents at 2.52 and 4.0 Ga. At 4.5 Ga the Moon is eight times the Sun's width and the corona "
                  "hardly clears it.", 'fig:solar'))
 
     B.append(P('The Moon', 'moon'))
@@ -492,8 +570,8 @@ def blocks():
     B.append(S('City light')); B += ps(*rv.CITY)
     B.append(fig(view('city'), "A city night today, looking toward the city 2.8 km away, its towers along the horizon: sodium and LED glow at 18.8 mag/arcsec² hides all but the brightest stars.", 'fig:city', wide=False))
     B.append(S('The sky before electric light'))
-    B.append(p("The 1815 sky is the last before gas and electric street lighting. Its towns burn oil lamps and candles: Britain then used about one six-thousand-five-hundredth of the artificial light per head that it used in 2000 (Fouquet &amp; Pearson 2006), so the town's glow on the sky is some ten thousand times fainter than a modern city's, and the Milky Way stands over the rooftops."))
-    B.append(fig(view('town1815'), "A town night in 1815: oil lamps light the streets but barely touch the sky, and the Milky Way shows over the hills.", 'fig:town1815', wide=False))
+    B.append(p("The volcanic year's towns burn oil lamps and candles: Britain then used about one six-thousand-five-hundredth of the artificial light per head that it used in 2000 (Fouquet &amp; Pearson 2006), so the town's glow on the sky is some ten thousand times fainter than a modern city's, and the Milky Way stands over the rooftops. The 1900 epoch, the dark nights, keeps that lamplight from the Pleistocene up to 1900, and the city of the later skies is only there once its glow has grown (<em>City light</em>)."))
+    B.append(fig(view('town1815'), "A town night in July 1815, under Tambora's young veil: oil lamps light the streets but barely touch the sky, and the Milky Way shows over the hills.", 'fig:town1815', wide=False))
     B.append(S('Aircraft')); B += ps(*rv.CONTRAILS)
     B.append(S('Satellites')); B += ps(*rv.SATELLITES)
     B.append(fig(view('sats2100'), "Dusk in 2100: the filed megaconstellations and the Sunrise orbital datacenters, still in sunlight above the darkening sky.", 'fig:sats2100', wide=False))
@@ -623,7 +701,7 @@ def render_html(B, nums):
 <p class="byline">James Guillochon · <a href="mailto:guillochon@gmail.com">guillochon@gmail.com</a> · October 2026</p>
 <p class="byline">Interactive experience at <a href="https://earthsky.astrocrash.net">earthsky.astrocrash.net</a></p>
 <div class="hero">{hero}</div>
-<p class="hero-caption"><b>Figure 1.</b> Mid-latitude noon sky at the nineteen epochs, zenith (top) to horizon (bottom), oldest at left. Brightness is shown relative to today's clean sky. Tap a column to jump to that epoch.</p>
+<p class="hero-caption"><b>Figure 1.</b> Mid-latitude noon sky at the epochs with their own air, zenith (top) to horizon (bottom), oldest at left. Brightness is shown relative to today's clean sky. Tap a column to jump to that epoch.</p>
 {toc_html}
 {body}
 <h2 class="part" id="references">References</h2>

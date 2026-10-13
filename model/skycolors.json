@@ -1562,8 +1562,8 @@
  },
  {
   "key": "archean27vthick",
-  "name": "Neoarchean, ~2.7 Ga (very thick haze)",
-  "sub": "upper-end haze, tau(550nm)~1.5: CH4/CO2 ~0.2",
+  "name": "Neoarchean haze episode, ~2.52 Ga (very thick haze, upper bound)",
+  "sub": "the thick episode at the upper end of plausible haze, tau(550nm)~1.5: CH4/CO2 ~0.2; in the report only",
   "note": "",
   "lat": {
    "Equator": {
@@ -2009,7 +2009,7 @@
  {
   "key": "snowball07",
   "name": "Snowball Earth, ~700 Ma",
-  "sub": "cold, dry, very clean air; ice/snow surface (albedo 0.75); ozone 169 DU",
+  "sub": "the Sturtian glaciation, 717-661 Ma: cold, dry, very clean air over ice (albedo 0.75); ozone 169 DU",
   "note": "Cooke et al. 2022 global-mean column at 10% of present O2: 169 DU, nearest this epoch",
   "lat": {
    "Equator": {
@@ -3123,8 +3123,8 @@
  },
  {
   "key": "volcanic",
-  "name": "Volcanic year (Tambora 1815 / Toba-lite)",
-  "sub": "stratospheric sulfate veil, tau(550nm)~0.4",
+  "name": "Volcanic year, 1816 (Tambora)",
+  "sub": "the stratospheric sulfate veil of Tambora (April 1815) through 1816, tau(550nm)~0.4",
   "note": "",
   "lat": {
    "Equator": {

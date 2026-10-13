@@ -25,6 +25,7 @@ input[type=range]{width:100%;accent-color:var(--ink);margin:.4rem 0}
 button.tick{background:none;border:none;border-radius:0;padding:0;font-weight:400}
 .tick.row1{top:1.15rem}.tick.row1 i{height:26px;margin-top:-18px}
 .tick.on{z-index:2;color:var(--ink);font-weight:700}
+.tick.sky i{width:3px;background:var(--ink)}.tick.sky .lb{color:var(--ink);text-decoration:underline dotted;text-underline-offset:2px}
 button.tick.on{background:none;color:var(--ink)}
 .tick i{display:block;width:1px;height:8px;background:var(--rule);margin:0 auto 3px}
 .tick .name{display:none;position:absolute;left:50%;top:3.2rem;transform:translateX(-50%);background:var(--ink);color:var(--bg);font-weight:400;font-size:.75rem;line-height:1.2;padding:.12rem .45rem;border-radius:3px;pointer-events:none;z-index:6;white-space:nowrap}

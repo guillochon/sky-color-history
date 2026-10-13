@@ -146,7 +146,11 @@ function goToYearIn(A, i){
 // A year in words to four figures, for spans: "717 Ma", "2.631 Ga", "1815".
 function fmtTimeRound(A){ if(A>-8000) return fmtYear(Math.round(A)); const a=2000-A; return a<1e6?`${(+a.toPrecision(3)).toLocaleString('en-US')} years ago`:a<1e9?`${+(a/1e6).toPrecision(4)} Ma`:`${+(a/1e9).toPrecision(4)} Ga`; }
 // The time shown in words for labels: the epoch's own age in its own year, else the year.
-function shownAge(){ const ep=EP[dIdx]; return pageTime()===epochAnchor(ep.key)?ep.age:fmtTime(pageTime()); }
+// Whether the year shown is epoch key's own: exactly, or for an epoch a million years old or more
+// within ANCHOR_SLACK years of it (the timeline's steadied frames, globe.js steadyYear, stop there).
+const ANCHOR_SLACK=25000;
+function atAnchor(key=EP[dIdx].key){ const A0=epochAnchor(key), d=Math.abs(pageTime()-A0); return d===0 || (2000-A0>=1e6 && d<=ANCHOR_SLACK); }
+function shownAge(){ const ep=EP[dIdx]; return atAnchor(ep.key)?ep.age:fmtTimeRound(pageTime()); }
 // What the epoch's text is to the time shown, when it is not simply that epoch's own year: an
 // event's place in its course, or for a year between the main epochs, which two, and that its
 // sky is this year's while the description is the epoch's. Empty when the text is the time's.
@@ -155,9 +159,9 @@ function epochNote(){
   if(EVENT_KEYS.has(key)){
     const [a, b]=epochSpan(key, A), ev=EPOCH_EVENTS.filter(e=>e.key===key).find(e=>{ const w=eventWindow(e); return w[0]===a && w[1]===b; }), l=ev?eventLevel(ev, A):1;
     const s=`${ep.short}: from ${fmtTimeRound(a)}, for ${fmtDuration(b-a)}`;
-    return l<0.995?`${s}; ${Math.round(100*l)}% of its full strength now.`:pageTime()===epochAnchor(key)?'':`${s}.`;
+    return l<0.995?`${s}; ${Math.round(100*l)}% of its full strength now.`:atAnchor(key)?'':`${s}.`;
   }
-  if(key in AIR.sc || pageTime()===epochAnchor(key)) return '';
+  if(key in AIR.sc || atAnchor(key)) return '';
   const T=MAIN_EPOCHS.map(k=>[k, epochAnchor(k)]);
   if(A<T[0][1] || A>T[T.length-1][1]) return `The sky of ${fmtTime(pageTime())}, its Sun, Moon and stars that year's; the description is of ${ep.short} (${ep.age}).`;
   let i=0; while(i<T.length-2 && T[i+1][1]<=A) i++;

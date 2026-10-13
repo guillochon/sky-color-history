@@ -26,9 +26,9 @@ COUNTS = {'hadean45': (7080, 3916, 57), 'hadean40': (438, 218, 106), 'archean38'
           'volcanic': (144, 84, 107), 'modern': (144, 84, 107)}
 TILT = {'hadean45': 23.44, 'hadean40': 5.80, 'archean38': 5.75, 'archean27': 5.46, 'proterozoic22': 5.37,
         'snowball07': 5.20, 'ordovician466': 5.19, 'carbon30': 5.18, 'kpg66': 5.15, 'volcanic': 5.15, 'modern': 5.15}
-LABEL = {'modern': 'Today', 'volcanic': '1815 (Tambora)', 'kpg66': '66 Ma impact winter', 'carbon30': '300 Ma',
-         'ordovician466': '466 Ma', 'snowball07': '700 Ma Snowball', 'proterozoic22': '2.2 Ga', 'archean27': '2.7 Ga thick haze',
-         'archean27thin': '2.7 Ga thin haze', 'archean38': '3.8 Ga', 'hadean40': '4.0 Ga', 'hadean45': '4.5 Ga'}
+LABEL = {'modern': 'Today', 'volcanic': '1816 (Tambora)', 'kpg66': '66 Ma impact winter', 'carbon30': '300 Ma',
+         'ordovician466': '466 Ma', 'snowball07': '700 Ma Snowball', 'proterozoic22': '2.2 Ga', 'archean27': '2.52 Ga thick haze',
+         'archean27thin': '2.58 Ga thin haze', 'archean38': '3.8 Ga', 'hadean40': '4.0 Ga', 'hadean45': '4.5 Ga'}
 
 
 def rec(key):

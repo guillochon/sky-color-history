@@ -100,7 +100,7 @@ function showEpoch(pos, date){
   for(const L of ['Equator','Mid-latitude','Polar summer']){ const v=ep.lat[L]; const zc=hex(tone(xyY2XYZ(v.z),YREF)), hc=hex(tone(xyY2XYZ(v.h),YREF));
     domes.insertAdjacentHTML('beforeend',`<figure><div class="sky" data-lat="${L}" data-zc="${zc}" data-hc="${hc}" style="background:linear-gradient(${zc},${hc})"></div><figcaption>${L}<small>zenith ${v.zc.toLocaleString()} K · horizon ${v.hc.toLocaleString()} K</small></figcaption></figure>`); }
   refreshNoonTip();
-  document.querySelectorAll('#ttrack .tick').forEach((t,j)=>{ const on=j===i; t.classList.toggle('on',on); if(on) t.setAttribute('aria-current','true'); else t.removeAttribute('aria-current'); });
+  markTicks();
 }
 document.getElementById('tmore').addEventListener('click', e=>{
   const box=document.getElementById('tprosebox'), open=box.classList.toggle('open');
@@ -126,15 +126,83 @@ function posAtTime(A){
 }
 function slideTo(p){
   const i=Math.round(p);
-  if(Math.abs(p-i)<TICK_SNAP){ if(i!==dIdx || pageTime()!==tickTimes()[i]) goToEpoch(i); }
-  else{ const A=Math.round(timeAtPos(p)); goToYearIn(A, epochIndexAt(A+yearFraction()[1])); }
-  tslider.value=String(p); tPos=p; drawGlobeAt(p); tslider.setAttribute('aria-valuetext', shownAge()); epochTimeText();
+  if(Math.abs(p-i)<TICK_SNAP){
+    // Onto a tick: its epoch at its own year, steadied too where that is a million years old or more.
+    if(i!==dIdx || !atAnchor(EP[i].key)){
+      const ref=skyRef(), A0=pageTime(), T=tickTimes()[i];
+      goToEpoch(i);
+      if(2000-T>=1e6){ const B=steadyYear(T, ref, A0, p>=tPos?1:-1); if(B!==T) goToYearIn(B, dIdx); }
+    }
+  }
+  else{
+    const A=Math.round(timeAtPos(p)), j=epochIndexAt(A+yearFraction()[1]), ref=skyRef(), A0=pageTime(), dir=p>=tPos?1:-1;
+    // Into another epoch: there first, then steadied in its calendar.
+    if(j!==dIdx){ goToYearIn(A, j); const B=steadyYear(A, ref, A0, dir); if(B!==A) goToYearIn(B, dIdx); }
+    else goToYearIn(steadyYear(A, ref, A0, dir), j);
+  }
+  tslider.value=String(p); tPos=p; drawGlobeAt(p); tslider.setAttribute('aria-valuetext', shownAge()); epochTimeText(); markTicks();
+}
+// As the timeline moves, a frame's year jumps by as much as millions of years, and the sky's fast
+// cycles land anywhere in their course: the Moon's phase and nodes, and the tilt's and the
+// perihelion's tens of thousands of years. The Moon would leap across the sky from frame to frame,
+// and the Sun wobble by most of a degree. So, like a strobe, each frame takes the year near its
+// own that keeps the Sun, then the Moon, nearest where they were (ref, skyRef before the move):
+// first to the thousand years within STEADY_KYR thousand (for frames a hundred thousand years
+// apart or more), then among the years within STEADY_YEARS the STEADY_TRY whose Moon is nearest
+// the phase it had, the one that puts it nearest where it was. Together they never stray more than
+// a third of the way to the next frame's year (nor a hundredth of the age), so the years still run one way. Where frames are
+// less than a few decades apart (near today) that leaves no room, so the year holds until the
+// timeline passes it, then goes on to whichever of the next STEADY_METON years (the Metonic cycle,
+// after which the phases come round to the same dates) suits the Moon best.
+const STEADY_KYR=20, STEADY_YEARS=400, STEADY_TRY=24, STEADY_METON=19;
+function sunDirNow(){ const s=sunGeom(LATDEG[dLat], minutes); return horizDir(s.az, 90-s.sza); }
+function moonDirNow(){ const m=lunarPlace(LATDEG[dLat]); return horizDir(m.az, m.el); }
+// The Moon's elongation east of the Sun, as a fraction of a turn, where the sky places them.
+function moonPhaseNow(){ const g=geoPair(astroDay()), c=vcross(g.s, g.m), x=Math.atan2(Math.hypot(...c)*Math.sign(c[2]||1), vdot(g.s, g.m))/(2*Math.PI); return x-Math.floor(x); }
+function skyRef(){ return {sun:sunDirNow(), moon:noMoon()?null:moonDirNow(), phase:moonPhaseNow()}; }
+// dir is the way the timeline moves (+1 later, -1 earlier).
+function steadyYear(A, ref, A0, dir){
+  const step=Math.abs(A-A0), strobe=step<6*STEADY_METON && ref.moon && !noMoon();
+  // Near today: hold until the timeline has passed the year shown.
+  if(strobe && (dir>0?A<=A0:A>=A0)) return A0;
+  if(step<1) return A;
+  const input=document.getElementById('moonDate'), save=input.value, [,M,D]=pageDate(), shift=epochShift();
+  const sep=(u, v)=>Math.acos(Math.max(-1, Math.min(1, vdot(u, v))));
+  const at=Y=>{ const y=Y-shift; input.value=fmtDate(y, M, Math.min(D, monthLen(y, M))); };
+  const best=(cands, cost)=>{ let b=cands[0], bc=Infinity; for(const Y of cands){ at(Y); const c=cost(); if(c<bc){ bc=c; b=Y; } } return b; };
+  try{
+    let B=A;
+    // Never more than a hundredth of the age: a jump from the Pleistocene to 1858 stays in 1858.
+    const room=Math.min(step/6, 0.01*Math.abs(2000-A)), K=Math.min(STEADY_KYR, Math.floor(room/1000));
+    if(K>=1) B=best(Array.from({length:2*K+1}, (_, k)=>A+(k-K)*1000), ()=>sep(sunDirNow(), ref.sun));
+    const J=Math.max(1, Math.min(STEADY_YEARS, Math.floor(room)));
+    if(ref.moon && !noMoon()){
+      const near=[], [lo, hi]=!strobe?[B-J, B+J]:dir>0?[A0+1, A+STEADY_METON]:[A-STEADY_METON, A0-1];
+      for(let Y=lo;Y<=hi;Y++){ at(Y); let d=moonPhaseNow()-ref.phase; d-=Math.round(d); near.push([Math.abs(d), Y]); }
+      near.sort((a, b)=>a[0]-b[0]);
+      B=best(near.slice(0, STEADY_TRY).map(n=>n[1]), ()=>sep(moonDirNow(), ref.moon)+2*sep(sunDirNow(), ref.sun));
+    }
+    return B;
+  }finally{ input.value=save; }
+}
+// The timeline's ticks: the one nearest the slider's thumb is lit, so the light moves along with
+// it; an event interrupts its background epoch, whose tick may lie behind, so the epoch whose sky
+// is shown, when it is another, is marked apart.
+let ticksMarked='';
+function markTicks(){
+  const at=Math.max(0, Math.min(EP.length-1, Math.round(tPos))), id=at+'|'+dIdx;
+  if(id===ticksMarked) return; ticksMarked=id;
+  document.querySelectorAll('#ttrack .tick').forEach((t, j)=>{
+    t.classList.toggle('on', j===at); t.classList.toggle('sky', j===dIdx && j!==at);
+    if(j===dIdx) t.setAttribute('aria-current', 'true'); else t.removeAttribute('aria-current');
+  });
 }
 tslider.addEventListener('input',()=>{ sliding=true; slideTo(+tslider.value); sliding=false; });
 // The slider and the epoch's time text follow the date, however it was set.
 function syncTimeline(){
   const p=posAtTime(pageTime());
   if(!sliding && Math.abs(p-tPos)>0.004){ tslider.value=String(p); tPos=p; drawGlobeAt(p); }
+  markTicks();
   tslider.setAttribute('aria-valuetext', shownAge());
   epochTimeText();
 }

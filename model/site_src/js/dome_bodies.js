@@ -1,5 +1,6 @@
-// Star places use this year for proper motion and precession, instead of the date picker's.
-const STAR_YEAR={volcanic:1815};
+// Star places use this year for proper motion and precession, instead of the date picker's: none
+// now, since every epoch's calendar runs on its own timeline (the modern-era skies' are the real years).
+const STAR_YEAR={};
 // Each epoch's star places for the year last shown, their magnitudes then (the catalog's, changed
 // with the star's distance), and how each star is drawn: these change only with the epoch and the
 // year, so a render redoes only the hour angle.

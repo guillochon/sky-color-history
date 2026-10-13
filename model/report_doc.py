@@ -35,9 +35,11 @@ def slug(s): return re.sub(r'[^a-z0-9]+', '-', html.unescape(re.sub(r'<[^>]+>', 
 def numbering(blocks, first_figure=1):
     """Section, figure and table numbers by label, in order of appearance: LaTeX numbers floats in
     source order, so the HTML's numbers match the paper's."""
-    nums, f, t, n = {}, first_figure, 1, 1
+    nums, f, t, n, m = {}, first_figure, 1, 1, 0
     for b in blocks:
-        if b['kind'] == 'part': nums[b['id']] = ('Section', n); n += 1
+        if b['kind'] == 'part': nums[b['id']] = ('Section', n); n += 1; m = 0
+        # A section within a part is numbered as the paper and the HTML number it, part.section.
+        elif b['kind'] == 'sec': m += 1; nums[b['id']] = ('Section', f'{n-1}.{m}')
         elif b['kind'] == 'fig': nums[b['label']] = ('Figure', f); f += 1
         elif b['kind'] == 'table': nums[b['label']] = ('Table', t); t += 1
         elif b['kind'] == 'raw':
