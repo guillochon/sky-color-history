@@ -113,16 +113,17 @@ const SP_CHROMO=spNorm(spLines([[656.3, 1], [486.1, 0.25], [434.0, 0.1], [587.6,
 const SP_AUR=[[[557.7, 1]], [[630.0, 0.76], [636.4, 0.24]], [[391.4, 3.0], [427.8, 1.0], [470.9, 0.28], [423.6, 0.25], [380.5, 0.4], [399.8, 0.2], [405.9, 0.1]],
   [[687.5, .15], [678.9, .22], [670.5, .25], [662.4, .2], [654.5, .12], [646.9, .06], [595, .08], [606, .06]]].map(spLines).map(spNorm);
 const SP_AUR_Y=[1.927e-4, 4.271e-5, 9.359e-6, 2.335e-5];
-// Each lamp mix by luminance share of sodium, matching the glow's x (day.js SKYGLOW), found once per epoch.
+// Each lamp mix by luminance share of sodium, matching the glow's x (day.js skyGlow), found once per x.
 const SP_GLOW={};
 function spGlow(key){
-  const g=SKYGLOW[key]; if(!g) return null;
-  if(key==='volcanic') return SP_OIL;
-  if(SP_GLOW[key]) return SP_GLOW[key];
+  const g=skyGlow(key); if(!g) return null;
+  if(glowIsLamps(g)) return SP_OIL;
+  const id=g[1].toFixed(3);
+  if(SP_GLOW[id]) return SP_GLOW[id];
   const xOf=S=>{ const [X, Y, Z]=spXYZ(S); return X/(X+Y+Z); };
   let lo=0, hi=1;
   for(let k=0;k<30;k++){ const w=(lo+hi)/2; if(xOf(spAdd([w, SP_HPS], [1-w, SP_LED]))<g[1]) lo=w; else hi=w; }
-  return SP_GLOW[key]=spAdd([lo, SP_HPS], [1-lo, SP_LED]);
+  return SP_GLOW[id]=spAdd([lo, SP_HPS], [1-lo, SP_LED]);
 }
 // The Moon's reflectance, relative, rising by about half from 400 to 750 nm.
 const SP_MOON_RED=Array.from(SP_LAM, l=>0.8+0.0014*(l-450));
@@ -243,12 +244,12 @@ function cloudLights(key, lat){
   let v=null;
   if(tRef>0){
     const zen=skySpectrum(90, 0), mid=skySpectrum(36, antiAz), perSky=(0.45*zen.Y+0.55*mid.Y)/tRef;
-    const cu=skyNow.cityUp, tCity=cu?0.2126*cu[0]+0.7152*cu[1]+0.0722*cu[2]:0, perCity=tCity>0&&SKYGLOW[key]?6*SKYGLOW[key][0]/tCity:perSky;
+    const cu=skyNow.cityUp, tCity=cu?0.2126*cu[0]+0.7152*cu[1]+0.0722*cu[2]:0, perCity=tCity>0&&skyGlow(key)?6*skyGlow(key)[0]/tCity:perSky;
     const lights=[['cloud, lit by the sky', spNorm(spAdd([0.45, zen.S], [0.55, mid.S])), 'post']];
     // Direct sunlight reaches a cloud a few km up until the Sun is about 3° down.
     if(skyNow.sunVis>0&&sza<93) lights.push(['cloud, sunlit', spNorm(spSunDisk(key, lat, Math.min(sza, 89))), true]);
     if(sza>=90&&mo.el>0&&skyNow.mScale>0) lights.push(['cloud, moonlit', spNorm(spSunDisk(key, lat, 90-mo.el).map((v, i)=>v*SP_MOON_RED[i])), true]);
-    if(sza>=90&&SKYGLOW[key]) lights.push([key==='volcanic'?'cloud, lit by oil lamps':'cloud, lit by the city', spGlow(key), false, true]);
+    if(sza>=90&&skyGlow(key)) lights.push([glowIsLamps(skyGlow(key))?'cloud, lit by oil lamps':'cloud, lit by the city', spGlow(key), false, true]);
     v={lights, A:lights.map(l=>spRGB(l[1])), perSky, perCity};
   }
   cloudLightsMemo={sky:skyNow, key, lat, v, sza:skyNow.sza, mel:skyNow.moon.el, t:now};
@@ -344,8 +345,8 @@ function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null, cr=null, moo
     }
     if(air) add('airglow', AIRGLOW_SHARE*fo*NIGHT_NATURAL*f, SP_AIRGLOW);
     if(air) add('violet O₂ airglow', AIRGLOW_SHARE*fc*NIGHT_NATURAL*f, SP_HERZ);
-    const glow=SKYGLOW[key];
-    if(air&&glow) add(key==='volcanic'?'oil lamps':'city light', glow[0]*(1+2.2*Math.exp(-el/12)), spGlow(key));
+    const glow=skyGlow(key);
+    if(air&&glow) add(glowIsLamps(glow)?'oil lamps':'city light', glow[0]*(1+2.2*Math.exp(-el/12)), spGlow(key));
     if(mwMap&&skyNow.gal){
       const age=[0, 0], L=mwAt(skyNow.gal, horizDir(az, el), age)*extinction(el, extK(key))*extZenith(key);
       if(L>0){ const mw=spMWAt(age[0], age[1]); add('Milky Way', L, mw.S); mixes.push(['Milky Way', mw.mix]); }

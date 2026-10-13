@@ -37,7 +37,7 @@ const COMETS_REAL=[
   ['The Great Comet of 1577', 'C/1577 V1', 0.1775, 1, 104.88, 31.237, 255.67, [2297356.95], -3],
   ['Messier’s Comet', 'C/1769 P1', 0.122755, 0.999249, 40.734, 178.29, 329.12, [2367454.62], 0.0],
 ];
-const COMET_REAL_EPOCHS=new Set(['modern', 'modernpoll', 'ozonehole', 'volcanic', 'y2100']);
+const COMET_REAL_EPOCHS=new Set(['modern', 'modernpoll', 'ozonehole', 'y1900', 'volcanic', 'y2100']);
 // Random comets for the other epochs: long-period comets with perihelia inside COMET_QMAX AU, each
 // year's drawn from a generator seeded by the epoch and the year, so a date always has the same.
 // Today about one comet a year reaches naked-eye brightness (peak m ≤ 6), 0.4 a year m ≤ 3 and

@@ -47,10 +47,10 @@ function eventTime(){ return physTime()+yearFraction()[1]; }
 // Cryogenian between the snowballs and the Late Cretaceous, take the tables of their events' epochs (aliasEpochs fills in a table's
 // missing entries; dataKey names the epoch whose seeded features, star lists and maps to use).
 function aliasEpochs(T){
-  for(const [k, src] of [['archean27clear', 'archean27'], ['cryogenian65', 'snowball07'], ['cretaceous66', 'kpg66']]) if(!(k in T) && src in T) T[k]=T[src];
+  for(const [k, src] of [['archean27clear', 'archean27'], ['cryogenian65', 'snowball07'], ['cretaceous66', 'kpg66'], ['y1900', 'modern']]) if(!(k in T) && src in T) T[k]=T[src];
   return T;
 }
-function dataKey(key){ return {archean27clear:'archean27', archean27thin:'archean27', archean27vthick:'archean27', cryogenian65:'snowball07', cretaceous66:'kpg66'}[key]||key; }
+function dataKey(key){ return {archean27clear:'archean27', archean27thin:'archean27', archean27vthick:'archean27', cryogenian65:'snowball07', cretaceous66:'kpg66', y1900:'volcanic'}[key]||key; }
 // Events. Each rises from `start` over `rise` years (smoothly), holds for `hold`, then falls over
 // `fall` or decays with e-folding time `efold`; its sky is shown while it is at least half on.
 //   - Neoarchean haze episodes: three in the 2.65–2.5 Ga Ghaap Group (Zerkle et al. 2012, at

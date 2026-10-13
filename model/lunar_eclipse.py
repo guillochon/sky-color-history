@@ -32,10 +32,10 @@ HERE = Path(__file__).resolve().parent
 
 # The page's epochs (gen_site.py order) and the air each one's shadow is computed with.
 ORDER = ['protoearth455', 'hadean45', 'hadean40', 'archean38', 'archean27clear', 'archean27thin', 'archean27', 'archean27vthick', 'proterozoic22',
-         'snowball07', 'cryogenian65', 'ordovician466', 'carbon30', 'cretaceous66', 'kpg66', 'zetaoph', 'geminga', 'volcanic', 'ozonehole',
+         'snowball07', 'cryogenian65', 'ordovician466', 'carbon30', 'cretaceous66', 'kpg66', 'zetaoph', 'geminga', 'volcanic', 'y1900', 'ozonehole',
          'modern', 'modernpoll', 'y2100']
 SHADOW_AIR = {k: k for k in epochs.BY_KEY}
-SHADOW_AIR.update(cretaceous66='modern', zetaoph='modern', geminga='modern', y2100='modern', ozonehole='modern', modernpoll='modern')
+SHADOW_AIR.update(y1900='modern', cretaceous66='modern', zetaoph='modern', geminga='modern', y2100='modern', ozonehole='modern', modernpoll='modern')
 # Mean Earth-Moon distance in Earth radii, as moon.js MOON_RE.
 MOON_RE = dict(modern=60.14, cretaceous66=59.93, kpg66=59.93, carbon30=58.56, ordovician466=58.21, snowball07=57.71, cryogenian65=57.82,
                proterozoic22=50.98, archean27clear=47.60, archean27thin=47.60, archean27=47.60, archean27vthick=47.60,

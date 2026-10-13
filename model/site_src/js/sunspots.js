@@ -40,7 +40,7 @@ function sunspotLib(){
     modern:        {age:4.57, prot:25.38, real:true,   cap:0,    lat0:28,                            size:60,  fac:16,  alon:0},
   };
   SUN_ACT.archean27=SUN_ACT.archean27vthick=SUN_ACT.archean27thin;
-  for(const k of ['volcanic','ozonehole','modernpoll','y2100']) SUN_ACT[k]=SUN_ACT.modern;
+  for(const k of ['volcanic','y1900','ozonehole','modernpoll','y2100']) SUN_ACT[k]=SUN_ACT.modern;
   // The activity for the year shown (sunActAt), set for the epoch's key: the key still seeds the
   // spots, and the activity comes from the time.
   const CUR={};

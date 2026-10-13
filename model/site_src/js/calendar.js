@@ -192,7 +192,7 @@ function localSidereal(){ return rev(sunEquatorial(astroDay()).RA+(minutes/60-12
 // The others count from a year 0 of their own, 2000 underneath (where their calendars start, with
 // today's Moon and eclipses for those with 24-hour days), at the epoch's age on the timeline
 // (epoch_time.js), which is what the page shows.
-const EPOCH_YEAR={modern:'now', modernpoll:'now', ozonehole:1990, volcanic:1816, y2100:2100};
+const EPOCH_YEAR={modern:'now', modernpoll:'now', ozonehole:1990, y1900:1900, volcanic:1816, y2100:2100};
 function yearZero(key=EP[dIdx].key){ return key in EPOCH_YEAR?0:2000; }
 function epochYear(key){ const y=EPOCH_YEAR[key]; return y===undefined?2000:y==='now'?new Date().getFullYear():y; }
 function fmtYear(y){ const a=Math.abs(y); return (y<0?'−':'')+(a>=10000?a.toLocaleString('en-US'):String(a)); }

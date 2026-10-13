@@ -10,7 +10,7 @@ const HALO_STRENGTH={
   ordovician466:{Polar:0.4},  // the mid-Ordovician cooling (Schmitz et al. 2019)
   carbon30:{Polar:0.6},        // the Late Paleozoic Ice Age's Gondwana ice sheets
   zetaoph:{Polar:0.7}, geminga:{Polar:0.8, 'Mid-latitude':0.25}, // Pleistocene; 342 ka is a glacial maximum
-  volcanic:{Polar:0.7}, ozonehole:{Polar:1}, modern:{Polar:0.6}, modernpoll:{Polar:0.3}, y2100:{Polar:0.4},
+  volcanic:{Polar:0.7}, y1900:{Polar:0.6}, ozonehole:{Polar:1}, modern:{Polar:0.6}, modernpoll:{Polar:0.3}, y2100:{Polar:0.4},
 };
 function haloStrength(key, lat){ const s=HALO_STRENGTH[key]; return (s&&s[lat])||0; }
 // Refractive index of ice at 650, 550 and 450 nm (Warren & Brandt 2008), one per display channel,

@@ -242,11 +242,12 @@ const MET_SPLIT=-1, MET_LOOK=[60, 160, 5400, 5400], MET_BIN=[1, 1, 60, 86400];
 // The faintest meteor worth making, for the darkest sky the epoch has (no Moon, no Sun): its zenith
 // limit for meteors, and the faintest absolute magnitude that could reach it from overhead.
 function metDark(key){
-  if(MET.dark[key]) return MET.dark[key];
+  const g=skyGlow(key), id=key+'|'+(g?g[0].toPrecision(2):0);
+  if(MET.dark[id]) return MET.dark[id];
   const k=extK(key), z=zodiK(key);
-  const L=nightNatural(key)[1]*absZenith(key)+(SKYGLOW[key]?SKYGLOW[key][0]:0)+(z>1?(z-1)*60*S10_CD:0);
+  const L=nightNatural(key)[1]*absZenith(key)+(g?g[0]:0)+(z>1?(z-1)*60*S10_CD:0);
   const mShow=nakedEyeLimit(L)-MET_PERCEPT+1.0;
-  return MET.dark[key]={mShow, Mcut:Math.min(8, mShow+0.5-(k-0.25)), lim:nakedEyeLimit(L)};
+  return MET.dark[id]={mShow, Mcut:Math.min(8, mShow+0.5-(k-0.25)), lim:nakedEyeLimit(L)};
 }
 // The ecliptic frame at sky time T: the page's clock moved by T less its own time, in seconds (a
 // minute of the clock is dayHours × 2.5 s).
@@ -641,7 +642,7 @@ function meteorReadout(){
   // Calibrated: about 8 an hour where the zenith shows stars to 6.5 in clean air, today.
   const sh=showerReadout(key, lim-(k-0.25));
   const per=MET_VIS_TODAY*E.F*metCum(E, lim-(k-0.25)-MET_PERCEPT+0.3)/metCum(metEpoch('modern'), 6.5-MET_PERCEPT+0.3)+sh.hr;
-  const rate=per<0.05?'almost none':per<1?`about one ${per>0.1?(Math.round(1/per)<2?'an hour':`every ${Math.round(1/per)} hours`):'every day of watching'}`:per<120?`about ${Math.round(per)} an hour`:per<7200?`about ${Math.round(per/60)} a minute`:`about ${Math.round(per/3600)} a second`;
+  const rate=per<0.05?'almost none':per<1?`about one ${per>0.1?(Math.round(1/per)<2?'an hour':`every ${Math.round(1/per)} hours`):'every day of watching'}`:per<120?(Math.round(per)===1?'about one an hour':`about ${Math.round(per)} an hour`):per<7200?`about ${Math.round(per/60)} a minute`:`about ${Math.round(per/3600)} a second`;
   const x=fmtTimes(E.F)==='1'?'':` · sporadics ${fmtTimes(E.F)}× today`;
   return rate+x+sh.text+(E.ring&&ringOf(key)?(dLat==='Equator'?' · ring debris overhead':''):'');
 }

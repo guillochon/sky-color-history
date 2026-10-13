@@ -182,7 +182,25 @@ function nightNatural(key){
   }
   return out;
 }
-const SKYGLOW={modern:[3.09e-3, 0.44, 0.40], modernpoll:[4.94e-3, 0.45, 0.40], ozonehole:[1.03e-3, 0.50, 0.41], y2100:[3.09e-3, 0.38, 0.38], volcanic:[3e-7, 0.52, 0.41]};
+const SKYGLOW={modern:[3.09e-3, 0.44, 0.40], modernpoll:[4.94e-3, 0.45, 0.40], ozonehole:[1.03e-3, 0.50, 0.41], y2100:[3.09e-3, 0.38, 0.38], volcanic:[3e-7, 0.52, 0.41], y1900:[3e-7, 0.52, 0.41]};
+// The glow through time, for the skies of the years before today (GLOW_TIMED): the lamps of 1900
+// (oil and gas, as in the volcanic year) until electric light, then growing with an e-folding time
+// of 30 years to today's. That passes a third of today's in 1990 (the ozone-hole years' glow) and
+// grows 3.3% a year, between the 2.2% a year in lit area and radiance satellites saw in 2012-2016
+// (Kyba et al. 2017) and the 9.6% a year in sky brightness the eye reported in 2011-2022 (Kyba et
+// al. 2023). Its colour goes from incandescent and gas to sodium by 1990, then to today's LEDs.
+const GLOW_FROM=1900, GLOW_EFOLD=30, GLOW_TIMED=new Set(['y1900', 'ozonehole', 'modern']);
+function skyGlowAt(A){
+  const L=SKYGLOW.y1900, M=SKYGLOW.modern, now=epochAnchor('modern');
+  if(A<=GLOW_FROM) return L;
+  if(A>=now) return M;
+  const f=Math.expm1((A-GLOW_FROM)/GLOW_EFOLD)/Math.expm1((now-GLOW_FROM)/GLOW_EFOLD), u=Math.max(0, (A-1990)/(now-1990));
+  return [L[0]+(M[0]-L[0])*f, A<1990?0.52-0.02*(A-GLOW_FROM)/90:0.50+(M[1]-0.50)*u, 0.41+(M[2]-0.41)*u];
+}
+// The glow of epoch key's sky: the epoch shown at the year shown, the others at their own years.
+function skyGlow(key){ return GLOW_TIMED.has(key) && key===EP[dIdx].key?skyGlowAt(eventTime()):SKYGLOW[key]; }
+// Lamplight only: too faint to matter, and drawn as oil lamps.
+function glowIsLamps(g){ return g[0]<1e-5; }
 // Extinction of starlight, magnitudes per airmass in V: about 0.15 from the gas (Rayleigh and
 // ozone) plus 1.086 times each epoch's aerosol or haze optical depth at 550 nm. Clean air is
 // 0.25. The Early Hadean's 30 bar of CO2 scatters so much (Rayleigh optical depth about 5 at 550 nm; 5.8 magnitudes
@@ -199,7 +217,7 @@ function absZenith(key){ return key==='kpg66' ? Math.pow(10, -0.4*1.086*1.5) : 1
 // A star's magnitude through the air at true altitude el, relative to clean air at the zenith.
 function starThroughAir(mag, el, key){ const k=extK(key); return mag-2.5*Math.log10(Math.max(extinction(el, k), 1e-9))+(k-0.25); }
 function nightRows(key, NR){
-  const cdu=cdPerUnit(), glow=SKYGLOW[key], q=6371/6471, rows=[], N=nightNatural(key);
+  const cdu=cdPerUnit(), glow=skyGlow(key), q=6371/6471, rows=[], N=nightNatural(key);
   for(let ir=0;ir<=NR;ir++){
     const vz=Math.min(90*ir/NR, 89.5), el=90-vz, sz=Math.sin(vz*Math.PI/180);
     const f=absZenith(key)*(0.4+0.6*extinction(el, extK(key)))/Math.sqrt(1-q*q*sz*sz)/cdu, X=N.map(v=>v*f);
@@ -292,7 +310,7 @@ function linToByte(v){ return LIN_BYTE[Math.max(0, Math.min(4096, Math.round(v*4
 // about tenfold (Kyba et al. 2011, PLoS ONE 6, e17307). Here the base is lit to six times the
 // clear-sky glow at the zenith, as linear display light for the cloud shader.
 function cityUplight(key, Yref, k, p){
-  const glow=SKYGLOW[key];
+  const glow=skyGlow(key);
   if(!glow) return new Float32Array(3);
   const c=tone(xyY2XYZ([glow[1], glow[2], 6*glow[0]/cdPerUnit()]), Yref, k, p, 0.95);
   return new Float32Array(c.map(v=>Math.pow(v/255, 2.2)));

@@ -66,6 +66,7 @@ const WIKI=aliasEpochs({
   kpg66:['Cretaceous–Paleogene extinction event','https://en.wikipedia.org/wiki/Cretaceous–Paleogene_extinction_event'],
   zetaoph:['Zeta Ophiuchi','https://en.wikipedia.org/wiki/Zeta_Ophiuchi'],
   geminga:['Geminga','https://en.wikipedia.org/wiki/Geminga'],
+  y1900:['Light pollution','https://en.wikipedia.org/wiki/Light_pollution'],
   volcanic:['Year Without a Summer','https://en.wikipedia.org/wiki/Year_Without_a_Summer'],
   modern:['Holocene','https://en.wikipedia.org/wiki/Holocene'],
   modernpoll:['Air pollution','https://en.wikipedia.org/wiki/Air_pollution'],

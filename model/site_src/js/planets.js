@@ -331,7 +331,7 @@ const GRS_LON=[1831.63,3308,1832.72,3220,1840.37,2816,1845.83,2549,1850.20,2345,
 const GRS_LAT=-22.4;
 // The year whose Red Spot an epoch shows: the year it stands for, keeping the page date's time of
 // year, or for today's skies the page date's own.
-const GRS_YEAR={volcanic:1815, ozonehole:1990, y2100:2100};
+const GRS_YEAR={volcanic:1815, y1900:1900, ozonehole:1990, y2100:2100};
 function grsAt(Y){
   if(!(Y>=1831.6)) return null;
   const T=GRS_LON, n=T.length/2;
