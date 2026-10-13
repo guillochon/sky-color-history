@@ -44,6 +44,17 @@ OWN = {k: at.event_air(k, at.ANCHOR[k], 1.0) for k in at.EV_FIELDS}
 OWN['archean27vthick'] = at.normalize(_ep.BY_KEY['archean27vthick'])
 OWN['modernpoll'] = at.scenario_air('modernpoll')
 ZONE = 0.16                      # half the width of a tick's own stretch
+# CO2 and water vapour leave the radiative model once they no longer touch the visible sky (CO2
+# after the Ordovician, H2O after the Hadean), so the air holds none from there. The figure goes on
+# with them as dashed lines through these pins, in ppm of the whole air (CO2) or bar (H2O), log-linear
+# between ticks; each starts from the model's last value. CO2: the Phanerozoic compilation of
+# Foster, Royer & Lunt (2017), EPICA Dome C at 342 ka (Bereiter et al. 2015), Law Dome for 1816 and
+# 1900 (MacFarling Meure et al. 2006), about 354 ppm in 1990 and 425 today as measured, and 603 in
+# 2100 on SSP2-4.5 (Meinshausen et al. 2020). H2O: today's mean near-surface vapour pressure, about
+# 75% humidity at 15 °C, held.
+CO2_PPM = {'carbon30': 400, 'cretaceous66': 700, 'zetaoph': 250, 'geminga': 205, 'volcanic': 284, 'y1900': 296,
+           'ozonehole': 354, 'modern': 425, 'y2100': 603}
+H2O_BAR = 0.013
 
 
 def time_at(x):
@@ -139,6 +150,21 @@ def strip_colours(kind):
     return out
 
 
+def tail_pins(g, v, tot):
+    """The dashed line's pins (x, bar) for CO2 and H2O: from the last main epoch whose air holds the
+    gas, at the model's value, on through the literature's values to the end."""
+    if g not in ('CO2', 'H2O'): return None
+    held = [i for i, k in enumerate(EPOCHS) if k in at.MAIN and at.background(TICK[k])['gas'][g] > 0]
+    i0 = held[-1]
+    pins = [(i0, float(v[np.argmin(np.abs(X-i0))]))]
+    for i, k in enumerate(EPOCHS):
+        if i <= i0: continue
+        if g == 'H2O': pins.append((i, H2O_BAR))
+        elif k in CO2_PPM: pins.append((i, CO2_PPM[k]*1e-6*float(tot[np.argmin(np.abs(X-i))])))
+    if pins[-1][0] < len(EPOCHS)-1: pins.append((len(EPOCHS)-1, pins[-1][1]))
+    return pins
+
+
 def main():
     plt.rcParams.update({'font.family': 'sans-serif', 'font.sans-serif': ['Helvetica', 'Arial', 'DejaVu Sans'], 'font.size': 7, 'mathtext.default': 'regular'})
     fig = plt.figure(figsize=(7.2, 8.4), dpi=220)
@@ -159,8 +185,13 @@ def main():
     tot = np.array([sum(a['gas'].values()) for a in AIRS])
     axg.plot(X, tot, color='#1c2230', lw=1.1, label='Total')
     for g, lab, col in GAS:
-        v = np.array([a['gas'][g] for a in AIRS]); v = np.where(v > 0, v, np.nan)
-        axg.plot(X, v, color=col, lw=1.2, label=lab)
+        v = np.array([a['gas'][g] for a in AIRS])
+        tail = tail_pins(g, v, tot)
+        if tail:
+            x0 = tail[0][0]; v = np.where(X <= x0, v, 0)
+            px, py = zip(*tail); xx = X[X >= x0]
+            axg.plot(xx, np.exp(np.interp(xx, px, np.log(py))), color=col, lw=1.0, ls=(0, (3, 1.5)))
+        axg.plot(X, np.where(v > 0, v, np.nan), color=col, lw=1.2, label=lab)
     for k, air in OWN.items():
         i = EPOCHS.index(k)
         for g, lab, col in GAS + [('_tot', '', '#1c2230')]:

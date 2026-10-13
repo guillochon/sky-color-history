@@ -289,7 +289,7 @@ AIRTIME_CAPTION = ("The air through Earth's history as the site draws it, with t
 "column. Below: the optical depths at 550 nm of Rayleigh scattering and of each kind of particle. The lines are the "
 "background air through time; the air of an event (italic labels: the haze episodes, Snowball Earth, the impact "
 "winter, the volcanic year and the ozone hole) and of the polluted city is drawn as a short bar at its tick, joined to "
-"the line, as its years or million years would not show at this scale. Shaded: the Great Oxidation Event and the two "
+"the line, as its years or million years would not show at this scale. Dashed: CO₂ after the Ordovician and water vapor after the Hadean, which the sky model leaves out once they no longer touch the visible sky. CO₂ follows the Phanerozoic compilation of Foster, Royer & Lunt (2017), about 400 ppm at 300 Ma and 700 ppm at 66 Ma; the EPICA Dome C record at 342 ka, about 205 ppm (Bereiter et al. 2015); Law Dome for 1816 and 1900, 284 and 296 ppm (MacFarling Meure et al. 2006); the measured 354 ppm of 1990 and 425 ppm of today; and 603 ppm in 2100 on SSP2-4.5 (Meinshausen et al. 2020). Water vapor is today's mean near-surface pressure, about 0.013 bar (75% humidity at 15 °C), held through the later epochs. Shaded: the Great Oxidation Event and the two "
 "Snowball glaciations. The strips are the sky's color at mid-latitude, at the brightness relative to today's clean sky "
 "used throughout: the zenith and the horizon with the Sun 45° up, the horizon under the setting Sun, and the zenith "
 "with the Sun 4° below the horizon, from the airs the site blends between the ticks and each epoch's own at its tick "
