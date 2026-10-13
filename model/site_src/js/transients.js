@@ -20,8 +20,8 @@
 //  Ib/c (Drout et al. 2011): 15 days to peak, 2 mag by day 40, then 2 mag per 100 days.
 //  Classical novae (Strope, Schaefer & Henden 2010): a rise of a day or two, t2 and t3 the days
 //   to fade 2 and 3 magnitudes, then a power-law tail: 4.9 mag down at 3 t3, 7 at 10 t3.
-const TR_TYPES={sn:{label:'supernova', color:'#8cc4ff'}, nova:{label:'nova', color:'#ffd257'}, erupt:{label:'stellar eruption', color:'#ff8a62'}};
-const TR_GROUPS=[['hist', 'Supernovae in history'], ['pre', 'Supernovae before history'], ['nova', 'Novae'], ['erupt', 'Stellar eruptions'], ['future', 'To come']];
+const TR_TYPES={sn:{label:'supernova', color:'#8cc4ff'}, nova:{label:'nova', color:'#ffd257'}, erupt:{label:'stellar eruption', color:'#ff8a62'}, comet:{label:'comet', color:'#6fe0b8'}};
+const TR_GROUPS=[['hist', 'Supernovae in history'], ['pre', 'Supernovae before history'], ['nova', 'Novae'], ['erupt', 'Stellar eruptions'], ['comet', 'Comets'], ['future', 'To come']];
 const TR_CURVE={
   IIP:{k:[[-14, 3], [-10, 1.6], [-6, 0.7], [0, 0], [86, 0.52], [101, 1.52], [116, 2.52]], tail:0.0098},
   Ia:{k:[[-18, 3.5], [-10, 1.2], [-5, 0.3], [0, 0], [15, 0.7], [40, 2.2], [150, 4.9]], tail:0.015},
@@ -232,17 +232,20 @@ function placeTransients(lat, LST, tex, marks, up){
 // The brightest shown now, which lights the scene (vr_paint.js), or null.
 function supernovaPlace(lat){ return transientPlaces(lat)[0]||null; }
 
-// The date picker. The events on the days of month M of page year Y, in this epoch's calendar:
-// a map from day to events.
+// The date picker lists every event: these, and the comets' apparitions (comets.js addEvents).
+// The events on the days of month M of page year Y, in this epoch's calendar: a map from day to events.
+const EVENTS=TRANSIENTS.slice();
 function transientDays(Y, M){
   const A0=Y+epochShift(), len=yearLen(Y), m0=monthStart(Y, M), n=monthLen(Y, M), out=new Map();
-  for(const ev of TRANSIENTS){
+  for(const ev of EVENTS){
     if(ev.Y!==A0) continue;
     const d=Math.min(len-1, Math.round(ev.f*len))-m0+1;
     if(d>=1 && d<=n){ if(!out.has(d)) out.set(d, []); out.get(d).push(ev); }
   }
   return out;
 }
+// Where an event is now: a nova's or supernova's place, or a comet's head (comets.js).
+function eventPlace(ev, lat){ return ev.comet?cometEventPlace(ev, lat):transientPlace(ev, lat); }
 // The clock time on the day shown when ev stands highest in the darkest sky, or null when it
 // never rises at this latitude that day.
 function transientBestMinute(ev, lat){
@@ -251,7 +254,7 @@ function transientBestMinute(ev, lat){
   try{
     for(let m=0; m<DAYMIN; m+=10){
       minutes=m;
-      const p=transientPlace(ev, lat);
+      const p=eventPlace(ev, lat);
       if(!p||p.el<3) continue;
       const sunEl=90-sunGeom(lat, m, dec).sza, s=p.el+(sunEl<-12?200:sunEl<-6?100:sunEl<0?50:0);
       if(!best||s>best.s) best={s, m};
@@ -259,9 +262,11 @@ function transientBestMinute(ev, lat){
   }finally{ minutes=keep; }
   return best?best.m:null;
 }
-// Go to ev's day: its epoch's sky (auto-select on) or the one shown, at the hour it shows best.
+// Go to ev's day: its epoch's sky (auto-select on) or the one shown, at the hour it shows best. A
+// comet shows only in the skies with real comets, so with auto-select off it still takes its own.
 function goToTransient(ev){
-  const i=autoEpoch?epochIndexAt(ev.A):dIdx, date=()=>dateInYear(ev.Y-epochShift(EP[i].key), ev.f);
+  const keep=!autoEpoch && !(ev.comet && !COMET_REAL_EPOCHS.has(EP[dIdx].key));
+  const i=keep?dIdx:epochIndexAt(ev.A), date=()=>dateInYear(ev.Y-epochShift(EP[i].key), ev.f);
   if(i===dIdx) document.getElementById('moonDate').value=date();
   else setEpoch(i, date);
   const m=transientBestMinute(ev, LATDEG[dLat]);
@@ -277,15 +282,21 @@ function transientNote(Y, M, D){
 // The menu, by group, oldest first in each, and the colour key under it. The ones before history
 // are listed by age, the others by year.
 function transientWhen(ev){ const a=2000-ev.Y; return ev.group!=='pre'?fmtYear(ev.Y):a<1e6?`${+(a/1e3).toPrecision(3)} ka`:`${+(a/1e6).toPrecision(3)} Ma`; }
-(function(){
-  const sel=document.getElementById('dpEvents');
-  sel.add(new Option('Go to a supernova, nova or eruption…', ''));
+const dpEvents=document.getElementById('dpEvents');
+function buildEventMenu(){
+  dpEvents.replaceChildren(new Option('Go to a supernova, nova, eruption or comet…', ''));
   for(const [g, label] of TR_GROUPS){
     const og=document.createElement('optgroup'); og.label=label;
-    TRANSIENTS.map((ev, i)=>[ev, i]).filter(([ev])=>ev.group===g).sort((a, b)=>a[0].A-b[0].A)
+    EVENTS.map((ev, i)=>[ev, i]).filter(([ev])=>ev.group===g).sort((a, b)=>a[0].A-b[0].A)
       .forEach(([ev, i])=>og.appendChild(new Option(`${transientWhen(ev)} · ${ev.name}`, String(i))));
-    sel.appendChild(og);
+    if(og.children.length) dpEvents.appendChild(og);
   }
-  sel.addEventListener('change', ()=>{ const ev=TRANSIENTS[+sel.value]; sel.value=''; if(ev) goToTransient(ev); });
   document.getElementById('dpEvKey').innerHTML=Object.values(TR_TYPES).map(t=>`<span><i style="color:${t.color}">★</i> ${t.label}</span>`).join('');
-})();
+}
+// More events, each with a date (YYYY-MM-DD, Gregorian), placed on the timeline as the others.
+function addEvents(list){
+  for(const ev of list){ const [Y, M, D]=/^(-?\d+)-(\d+)-(\d+)$/.exec(ev.date).slice(1).map(Number); ev.Y=Y; ev.f=trYearFrac(Y, M, D); ev.A=Y+ev.f; EVENTS.push(ev); }
+  buildEventMenu();
+}
+buildEventMenu();
+dpEvents.addEventListener('change', ()=>{ const ev=EVENTS[+dpEvents.value]; dpEvents.value=''; if(ev) goToTransient(ev); });

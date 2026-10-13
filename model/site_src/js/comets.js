@@ -38,10 +38,10 @@ const COMETS_REAL=[
   ['Messier’s Comet', 'C/1769 P1', 0.122755, 0.999249, 40.734, 178.29, 329.12, [2367454.62], 0.0],
 ];
 const COMET_REAL_EPOCHS=new Set(['modern', 'modernpoll', 'ozonehole', 'y1900', 'volcanic', 'y2100']);
-// Those epochs' real comets are the perihelia on record (1578-2127), and their meteor showers
+// Those epochs' real comets are the perihelia on record (1577-2127), and their meteor showers
 // today's streams, taken to hold 3,000 years either side of 2000. Past those, even in a modern-era
 // epoch's span (1900's reaches back into the Pleistocene), comets and streams are drawn at random.
-const REAL_COMET_YEARS=[1578, 2127], REAL_SHOWER_SPAN=3000;
+const REAL_COMET_YEARS=[1577, 2127], REAL_SHOWER_SPAN=3000;
 function cometsReal(key){
   if(!COMET_REAL_EPOCHS.has(key)) return false;
   if(key!==EP[dIdx].key) return true;
@@ -130,6 +130,32 @@ const cometReal=COMETS_REAL.map(([name, desig, q, e, i, om, w, tps, peak, rmin])
   c.M1=cometFitM1(c, tps[0], peak);
   return c;
 });
+// Each real comet's apparitions as events for the date picker (transients.js), on the day (UT)
+// it stands out most: brightest by the law above against the faintest star that shows at its
+// angle from the Sun (roughly: −8 by the Sun, −4 at 5°, 0 at 15°, 3 at 25°, 5 past 40° in a dark
+// sky). A comet near perihelion behind the Sun waits for its evenings; a sungrazer bright enough
+// to see by day keeps its perihelion.
+const COMET_SEEN=[[0, -8], [5, -4], [15, 0], [25, 3], [40, 5], [180, 5]];
+function cometSeenLimit(el){ let i=0; while(COMET_SEEN[i+1][0]<el) i++; const [a0, m0]=COMET_SEEN[i], [a1, m1]=COMET_SEEN[i+1]; return m0+(m1-m0)*(el-a0)/(a1-a0); }
+function cometPeak(c, tp){
+  let best={s:-Infinity};
+  for(let t=-250;t<=250;t+=0.5){
+    const jd=tp+t, P=cometHelio(c, jd, tp), E=earthHelio(jd-JD_D0), r=Math.hypot(...P), V=[P[0]-E[0], P[1]-E[1], P[2]-E[2]], D=Math.hypot(...V), m=cometMag(c, r, D);
+    const el=Math.acos(Math.max(-1, Math.min(1, -(V[0]*E[0]+V[1]*E[1]+V[2]*E[2])/(D*Math.hypot(...E)))))*180/Math.PI, s=cometSeenLimit(el)-m;
+    if(s>best.s) best={s, m, jd, D, el};
+  }
+  return best;
+}
+addEvents(cometReal.flatMap((c, n)=>c.tps.map((tp, k)=>{
+  const pk=cometPeak(c, tp), t=new Date((pk.jd-2440587.5)*86400000);
+  return {id:`comet${n}-${k}`, name:c.name, type:'comet', group:'comet', comet:c, tp, date:fmtDate(t.getUTCFullYear(), t.getUTCMonth()+1, t.getUTCDate()),
+    note:`At its best, magnitude ${pk.m.toFixed(1).replace('-', '−')}, ${Math.round(pk.el)}° from the Sun and ${pk.D.toFixed(2)} AU from Earth (${c.desig}).`};
+})));
+// Where an event's comet's head is now, as the picker needs it (transients.js eventPlace).
+function cometEventPlace(ev, lat){
+  const d=astroDay(), P=cometHelio(ev.comet, d+JD_D0, ev.tp), h=helioToHoriz(P, earthHelio(d), lat, localSidereal());
+  return {el:h.el, az:h.az, mag:cometMag(ev.comet, Math.hypot(...P), h.D)};
+}
 // Random comets of year bin b (365.25-day years of the day number) for epoch key.
 const cometBins=new Map();
 function cometYear(key, b){
