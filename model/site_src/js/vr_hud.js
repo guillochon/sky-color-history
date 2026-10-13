@@ -205,7 +205,8 @@ function drawSkyLabels(ctx, W, H, o){
     add({el, az:(az+360)%360, mag:2}, (/^(M|NGC )\d/.test(p.o.id)&&p.o.name!==p.o.id?`${p.o.id} ${p.o.name}`:p.o.name)+far, 'dso');
   }
   for(const s of skyNow.starMarks){
-    if((s.mag>lim&&!s.planet)||s.el<=0||markHidden(s)||s.transient) continue;
+    // A comet is labelled whenever it shows, however faint its head next to the stars labelled.
+    if((s.mag>lim&&!s.planet&&!s.comet)||s.el<=0||markHidden(s)||s.transient) continue;
     // Labelled when it shows: its colour as the sky pass adds it (faded near the naked-eye limit,
     // dimmed by the air), times what the cloud in front lets through. 0.06 is where the drawn
     // point stands out from the sky around it. A planet or moon at its colour as zoomed in
@@ -213,8 +214,9 @@ function drawSkyLabels(ctx, W, H, o){
     const m=starThroughAir(s.mag, s.el, key), dim=Math.pow(10, -0.2*(m-s.mag));
     const a=cloudAt?cloudAt(horizDir(s.az, apparentEl(s.el))):0;
     const vis=starVisible(m-(s.mag-markMag(s)), skyRAt(skyNow.rgrid, s.el, s.az)*skyNow.rCd)*(1-a);
+    // A comet by its whole light (its head is a quarter of it) against the naked-eye limit there.
+    if(s.comet){ if(starVisible(starThroughAir(s.comet.mag, s.el, key), skyRAt(skyNow.rgrid, s.el, s.az)*skyNow.rCd)*(1-a)>0.3) add(s, s.comet.c.name, 'comet'); continue; }
     if(Math.max(...zoomedDisplay(s).rgb)*vis*dim<0.06) continue;
-    if(s.comet){ add(s, s.comet.c.name, 'comet'); continue; }
     add(s, s.planet||(s.star?s.star[7]||starTypeLabel(s.star[8]):'satellite'), s.host?'moon':s.planet?'planet':s.star?(s.star[7]?'star':'stype'):'sat');
   }
   // Placed brightest first, a label that would overlap one placed left out; the novae, supernovae
