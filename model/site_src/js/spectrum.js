@@ -48,7 +48,7 @@ const SP_TAU_O2=Float32Array.from(SP_LAM, l=>(l>=759&&l<=770?2.0*(l<762?1:0.25+0
 const SP_TAU_H2O=Float32Array.from(SP_LAM, l=>0.25*Math.exp(-0.5*((l-725)/5)**2));
 // O2 relative to today's 21%, and the water column relative to today's.
 const SP_O2=aliasEpochs({protoearth455:0, hadean45:0, hadean40:0, archean38:0, archean27thin:0, archean27:0, archean27vthick:0, proterozoic22:0.01, snowball07:0.1, ordovician466:0.81, carbon30:1.57});
-const SP_H2O={hadean45:4, protoearth455:1.5, snowball07:0.2};
+const SP_H2O={hadean45:4, protoearth455:1.5, snowball07:0.2, cryogenian65:0.6};
 // The night's sources, each to unit luminance.
 const SP_SUN5772=spNorm(spPlanck(5772));
 const SP_AIRGLOW=spNorm(spAdd([1, spLines([[557.7, 250], [589.0, 40], [589.6, 25], [630.0, 50], [636.4, 16]])],
@@ -148,21 +148,28 @@ function spLoad(){
 }
 // The stored epoch for key: 2100 and the supernova epochs have today's air.
 function spEpoch(key){ return spData.epochs.indexOf(spData.epochs.includes(key)?key:'modern'); }
+// Where the sky spectra for key are: the air in use at the time shown (air_time.js) has its own
+// file, the nearer of the two blended; until it loads, the epoch's own in spectra.bin.
+function spSrc(key){
+  key=airFor(key);
+  if(AIR_CUR && key===AIR_CUR.key){ const b=airSpectra(AIR_CUR.sp); if(b) return {bytes:b, e:0}; key=EP[AIR_CUR.idx].key; }
+  return {bytes:spData.bytes, e:spEpoch(key)};
+}
 // log10 shape at (sza index si, slot), 10 nm grid.
-function spRaw(e, lat, si, slot){
+function spRaw(src, lat, si, slot){
   const D=spData;
-  return spDecode(((((e*D.lats.length+lat)*D.szas.length+si)*D.slots)+slot)*D.nl);
+  return spDecode(src.bytes, ((((src.e*D.lats.length+lat)*D.szas.length+si)*D.slots)+slot)*D.nl);
 }
 // The stored shape at byte offset o.
-function spDecode(o){
+function spDecode(bytes, o){
   const D=spData, out=new Float32Array(D.nl);
-  for(let i=0;i<D.nl;i++) out[i]=D.lo*(1-D.bytes[o+i]/255);
+  for(let i=0;i<D.nl;i++) out[i]=D.lo*(1-bytes[o+i]/255);
   return out;
 }
 // The scattered-light spectrum for Sun zenith angle sza, view zenith angle vz and azimuth from
 // the Sun azr, interpolated in log between the stored samples, on the 1 nm grid, unit luminance.
 function spSky(key, lat, sza, vz, azr){
-  const D=spData, e=spEpoch(key), li=D.lats.indexOf(lat);
+  const D=spData, e=spSrc(key), li=D.lats.indexOf(lat);
   const [si, st]=bracket(D.szas, sza), [vi, vt]=bracket(D.vz, vz), [ai, at]=bracket(D.az, azr), na=D.az.length;
   const acc=new Float32Array(D.nl);
   for(const [s, ws] of [[si, 1-st], [si+1, st]]) for(const [v, wv] of [[vi, 1-vt], [vi+1, vt]]) for(const [a, wa] of [[ai, 1-at], [ai+1, at]]){
@@ -172,7 +179,7 @@ function spSky(key, lat, sza, vz, azr){
   return spNorm(spTo1nm(acc));
 }
 function spSunDisk(key, lat, sza){
-  const D=spData, e=spEpoch(key), li=D.lats.indexOf(lat), i=Math.max(0, D.szas.findIndex(z=>z>=Math.min(sza, 89)));
+  const D=spData, e=spSrc(key), li=D.lats.indexOf(lat), i=Math.max(0, D.szas.findIndex(z=>z>=Math.min(sza, 89)));
   return spTo1nm(spRaw(e, li, i, D.slots-1));
 }
 // 10 nm log grid to the 1 nm linear grid.
@@ -531,7 +538,7 @@ function moonLitAt(dir, radDeg){
 function globeSpectrum(key, lat, h){
   const G=spData.limb, D=spData, e=G.epochs.indexOf(G.epochs.includes(key)?key:'modern'), na=G.alts.length+1;
   const off=D.epochs.length*D.lats.length*D.szas.length*D.slots*D.nl;
-  const raw=(i, j)=>spDecode(off+((e*G.lats.length+i)*na+j)*D.nl);
+  const raw=(i, j)=>spDecode(D.bytes, off+((e*G.lats.length+i)*na+j)*D.nl);
   const [li, lt]=bracket(G.lats, lat), acc=new Float32Array(D.nl);
   const cells=h==null?[[na-1, 1]]:(([j, u])=>[[j, 1-u], [j+1, u]])(bracket(G.alts, h));
   for(const [i, wi] of [[li, 1-lt], [li+1, lt]]) for(const [j, wj] of cells){ const r=raw(i, j); for(let k=0;k<D.nl;k++) acc[k]+=wi*wj*r[k]; }
@@ -745,7 +752,7 @@ function starAbove(T){
 // One airmass of the epoch's air, up to a constant, on the log grid: the direct Sun at 60° over
 // the Sun overhead.
 function spAirPerMass(key){
-  const D=spData, e=spEpoch(key), li=D.lats.indexOf(dayLat()), lo=spRaw(e, li, D.szas.indexOf(60), D.slots-1), hi=spRaw(e, li, D.szas.indexOf(0), D.slots-1);
+  const D=spData, e=spSrc(key), li=D.lats.indexOf(dayLat()), lo=spRaw(e, li, D.szas.indexOf(60), D.slots-1), hi=spRaw(e, li, D.szas.indexOf(0), D.slots-1);
   return spTo1nm(lo.map((v, i)=>Math.max(v-hi[i], D.lo)));
 }
 // A point source's light S through X airmasses of the epoch's air, with the O2 and water bands.
@@ -807,7 +814,7 @@ function metFmtSize(cm){ return cm<0.1?`${+(cm*10).toPrecision(2)} mm`:cm<100?`$
 const MET_SRC={apex:'from the apex of Earth’s motion: cometary dust met head-on', helion:'from the helion source, near the Sun', antihelion:'from the antihelion source, opposite the Sun',
   toroidal:'from a toroidal source, high above the ecliptic', iso:'from no particular direction', aster:'from the asteroid belt, slow', ring:'falling from the ring'};
 function meteorSpectrumTip(h){
-  const key=EP[dIdx].key, air=EP[dIdx].air||{O:0.21, N:0.79, C:0, O2:0.21}, X=Math.min(spAirmass(h.el), 40);
+  const key=EP[dIdx].key, air=airNow().air||{O:0.21, N:0.79, C:0, O2:0.21}, X=Math.min(spAirmass(h.el), 40);
   if(h.kind==='lava'){
     const S=spPlanck(h.f.temp), marks=[];
     spThroughAir(S, marks, key, X);

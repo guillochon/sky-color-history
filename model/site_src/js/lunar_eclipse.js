@@ -13,6 +13,8 @@
 const MOON_ER=MOON_R_KM/EARTH_R_KM, AU_KM=1.495979e8, DANJON=1+1/85;
 const LUN_LUT_N=64, LUN_ADAPT_P=0.25, LUN_REL_P=0.6;
 function shadowRec(key){
+  key=airFor(key);
+  if(AIR_CUR && key===AIR_CUR.key) return AIR_CUR.shadow;
   let s=(EP.find(e=>e.key===key)||EP[0]).shadow;
   if(typeof s==='string') s=EP.find(e=>e.key===s).shadow;
   return s;
@@ -75,6 +77,7 @@ function lunarPhaseEnd(ms, total){
 // uneclipsed Moon's, and its colour (linear sRGB over that luminance).
 const lunarLuts=new Map();
 function lunarLut(key){
+  key=airFor(key);
   let L=lunarLuts.get(key); if(L) return L;
   const s=shadowRec(key), n=s.Y.length, Y=new Float32Array(LUN_LUT_N), C=new Float32Array(LUN_LUT_N*3);
   for(let i=0;i<LUN_LUT_N;i++){

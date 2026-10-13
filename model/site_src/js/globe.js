@@ -59,6 +59,7 @@ const WIKI=aliasEpochs({
   archean27vthick:['Neoarchean','https://en.wikipedia.org/wiki/Neoarchean'],
   proterozoic22:['Paleoproterozoic','https://en.wikipedia.org/wiki/Paleoproterozoic'],
   snowball07:['Snowball Earth','https://en.wikipedia.org/wiki/Snowball_Earth'],
+  cryogenian65:['Cryogenian','https://en.wikipedia.org/wiki/Cryogenian'],
   ordovician466:['Ordovician meteor event','https://en.wikipedia.org/wiki/Ordovician_meteor_event'],
   carbon30:['Carboniferous','https://en.wikipedia.org/wiki/Carboniferous'],
   cretaceous66:['Late Cretaceous','https://en.wikipedia.org/wiki/Late_Cretaceous'],

@@ -40,7 +40,7 @@ function apparentEl(h){ if(h>80) return h; const u=h+10.3/(h+5.11); if(u<0.25) r
 // Icarus 400, 115564).
 const MOON_RE=aliasEpochs({
   modern:60.14, modernpoll:60.14, ozonehole:60.14, y2100:60.14, volcanic:60.14, geminga:60.14, zetaoph:60.14,
-  kpg66:59.93, carbon30:58.56, ordovician466:58.21, snowball07:57.71,
+  kpg66:59.93, carbon30:58.56, ordovician466:58.21, snowball07:57.71, cryogenian65:57.82,
   proterozoic22:50.98, archean27thin:47.60, archean27:47.60, archean27vthick:47.60,
   archean38:40.4, hadean40:39.8, hadean45:8.0
 });
@@ -62,7 +62,7 @@ function moonInEquatorAt(A){ return moonDistAt(A)<8.4*Math.pow(24/dayHoursAt(A),
 // the equator's plane (MOON_EQUATORIAL).
 const MOON_INC_NOW=5.1454;
 const MOON_INC=aliasEpochs({
-  carbon30:5.18, ordovician466:5.19, snowball07:5.20, proterozoic22:5.37,
+  carbon30:5.18, ordovician466:5.19, snowball07:5.20, cryogenian65:5.20, proterozoic22:5.37,
   archean27thin:5.46, archean27:5.46, archean27vthick:5.46, archean38:5.75, hadean40:5.80
 });
 // The orbit's eccentricity. Run back in time with tides in the Moon included, it grows: from
@@ -78,7 +78,7 @@ const MOON_INC=aliasEpochs({
 // and ±12° at 4 Ga.
 const MOON_ECC_NOW=0.0549;
 const MOON_ECC=aliasEpochs({
-  kpg66:0.0557, carbon30:0.0592, ordovician466:0.0601, snowball07:0.0613, proterozoic22:0.0781,
+  kpg66:0.0557, carbon30:0.0592, ordovician466:0.0601, snowball07:0.0613, cryogenian65:0.0610, proterozoic22:0.0781,
   archean27thin:0.0866, archean27:0.0866, archean27vthick:0.0866, archean38:0.1046, hadean40:0.1061, hadean45:0.01
 });
 // The Moon's obliquity to its orbit, θ (lunar_inclination.py, Cassini state 2: its pole tilted
@@ -88,7 +88,7 @@ const MOON_ECC=aliasEpochs({
 // orbit's (Ward 1975, Science 189, 377).
 const MOON_OBL_NOW=6.68;
 const MOON_OBL=aliasEpochs({
-  kpg66:6.74, carbon30:6.93, ordovician466:6.99, snowball07:7.06, proterozoic22:8.68,
+  kpg66:6.74, carbon30:6.93, ordovician466:6.99, snowball07:7.06, cryogenian65:7.05, proterozoic22:8.68,
   archean27thin:10.24, archean27:10.24, archean27vthick:10.24, archean38:20.83, hadean40:22.88, hadean45:0
 });
 const MOON_R_KM=1737.4, EARTH_R_KM=6378.14;
@@ -97,7 +97,7 @@ const MOON_R_KM=1737.4, EARTH_R_KM=6378.14;
 // day lengths Farhat et al. 2022 (Tables D.1, D.2) give for their Moon distances to within
 // 0.1 h, and it gives 15.2 h at 3.2 Ga.
 const DAY_HOURS=aliasEpochs({
-  kpg66:23.8, carbon30:22.6, ordovician466:22.3, snowball07:21.9, proterozoic22:17.4,
+  kpg66:23.8, carbon30:22.6, ordovician466:22.3, snowball07:21.9, cryogenian65:22.0, proterozoic22:17.4,
   archean27thin:15.6, archean27:15.6, archean27vthick:15.6,
   archean38:12.8, hadean40:12.6, hadean45:5.9,
   // How fast the proto-Earth turned before the impact cannot be known; half a day is a guess.

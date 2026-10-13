@@ -44,8 +44,10 @@ function herm(xs, ys, x){ // PCHIP: ys is an array of [X,Y,Z]; stays between adj
   return out;
 }
 const dense={}; // per (epoch,lat): by sza index, a 91 x 91 table of XYZ, 1 deg in vz, 2 deg in az
-function denseSlices(key, lat){ const id=key+'|'+lat; return dense[id]||(dense[id]=[]); }
+// The epoch shown stands for the air in use at the time shown (air_time.js airFor).
+function denseSlices(key, lat){ key=airFor(key); const id=key+'|'+lat; return dense[id]||(dense[id]=[]); }
 function denseSlice(key, lat, s){
+  key=airFor(key);
   const slices=denseSlices(key, lat); if(slices[s]) return slices[s];
   const G=DAY.epochs[key][lat].dome[s].map(row=>row.map(xyY2XYZ));
   const T=new Float32Array(91*91*3);
@@ -300,8 +302,9 @@ function renderDay(fast){
   // The date shows at once, while an epoch's sky is still loading.
   syncDateUI();
   if(!dayReady(EP[dIdx].key, 'modern')) return;
+  airSync();
   vrNote='';
-  const ep=EP[dIdx], rec=DAY.epochs[ep.key][dayLat()], sunNow=sunEquatorial(astroDay()); const {sza,az:sunAz}=sunGeom(LATDEG[dLat], minutes, sunNow.Dec);
+  const ep=EP[dIdx], rec=DAY.epochs[airFor(ep.key)][dayLat()], sunNow=sunEquatorial(astroDay()); const {sza,az:sunAz}=sunGeom(LATDEG[dLat], minutes, sunNow.Dec);
   // Sunlight, and the moonlight it makes, go as the inverse square of the distance from the Sun:
   // 3.4% brighter at perihelion in January than on average, 3.3% dimmer at aphelion in July.
   const sunFlux=1/(sunNow.au*sunNow.au);

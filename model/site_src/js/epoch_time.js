@@ -41,14 +41,14 @@ function pageTime(){ return pageDate()[0]+epochShift(); }
 // The time shown to within the year, for events lasting years: the page year and how far through it.
 function eventTime(){ return physTime()+yearFraction()[1]; }
 // An event and the epoch whose sky it interrupts share everything but the air: the stars, the
-// Moon, the planets, the rates. The two backgrounds added for them, the clear Neoarchean and the
-// Late Cretaceous, take the tables of their events' epochs (aliasEpochs fills in a table's
+// Moon, the planets, the rates. The backgrounds added for them, the clear Neoarchean, the
+// Cryogenian between the snowballs and the Late Cretaceous, take the tables of their events' epochs (aliasEpochs fills in a table's
 // missing entries; dataKey names the epoch whose seeded features, star lists and maps to use).
 function aliasEpochs(T){
-  for(const [k, src] of [['archean27clear', 'archean27'], ['cretaceous66', 'kpg66']]) if(!(k in T) && src in T) T[k]=T[src];
+  for(const [k, src] of [['archean27clear', 'archean27'], ['cryogenian65', 'snowball07'], ['cretaceous66', 'kpg66']]) if(!(k in T) && src in T) T[k]=T[src];
   return T;
 }
-function dataKey(key){ return {archean27clear:'archean27', archean27thin:'archean27', archean27vthick:'archean27', cretaceous66:'kpg66'}[key]||key; }
+function dataKey(key){ return {archean27clear:'archean27', archean27thin:'archean27', archean27vthick:'archean27', cryogenian65:'snowball07', cretaceous66:'kpg66'}[key]||key; }
 // Events. Each rises from `start` over `rise` years (smoothly), holds for `hold`, then falls over
 // `fall` or decays with e-folding time `efold`; its sky is shown while it is at least half on.
 //   - Neoarchean haze episodes: three in the 2.65–2.5 Ga Ghaap Group (Zerkle et al. 2012, at
@@ -57,6 +57,11 @@ function dataKey(key){ return {archean27clear:'archean27', archean27thin:'archea
 //     Izon et al. (2017) resolved, set in within 0.3 ± 0.1 Myr and lasted 1.4 ± 0.4 Myr in all;
 //     each is given that shape, falling as fast as it rose. The two older are the thin haze
 //     Zerkle et al. model as the stable hazy state; the youngest is drawn as the thick one.
+//   - Snowball Earth: the Sturtian glaciation, from about 717 Ma (MacLennan et al. 2018) to
+//     660.98 Ma (Rooney et al. 2020), and the Marinoan, about 4 Myr long (Tasistro-Hart et al.
+//     2025), ending at 635.21 Ma (Prave et al. 2016). Once the ice passed a critical latitude it
+//     ran to the equator within years to decades (Eberhard et al. 2023), and it melted in about
+//     2,000 years (Hoffman et al. 2017).
 //   - The K-Pg impact winter: soot cut sunlight to almost nothing for about a year and the sky
 //     came back over the next few (Bardeen et al. 2017): held a year after the impact, then
 //     decaying with a year's e-folding time, so its sky lasts about 1.7 years.
@@ -67,8 +72,10 @@ function dataKey(key){ return {archean27clear:'archean27', archean27thin:'archea
 //     the 2060s, but past 2000 the page keeps today's clean air.)
 const MYR=1e6;
 function hazeEpisode(key, c){ return {key, start:c-0.7*MYR, rise:0.3*MYR, hold:0.8*MYR, fall:0.3*MYR}; }
+function snowball(onsetMa, endMa){ const rise=50, fall=2000; return {key:'snowball07', start:2000-onsetMa*MYR, rise, hold:(onsetMa-endMa)*MYR-rise-fall/2, fall}; }
 const EPOCH_EVENTS=[
   hazeEpisode('archean27thin', 2000-2.63e9), hazeEpisode('archean27thin', epochAnchor('archean27thin')), hazeEpisode('archean27', epochAnchor('archean27')),
+  snowball(717, 660.98), snowball(639.5, 635.21),
   {key:'kpg66', start:epochAnchor('kpg66'), rise:0.02, hold:1, efold:1},
   {key:'volcanic', start:1815.28, rise:0.3, hold:1.32, efold:0.7},
   {key:'ozonehole', start:1979.995, rise:0.01, hold:21, fall:0.01},
@@ -144,8 +151,8 @@ function autoEpochCheck(){
 // and dust follow the year shown (physTime), whichever epoch's sky is drawn: each is set at the
 // main epochs that give it a value, and runs between them along a curve suited to it; events
 // (ζ Oph's comet shower, the Ordovician break-up's dust, meteors and ring, the supernovae) add
-// their own rise and fall on top. What is drawn from tables made for each epoch (the air's
-// colours, the maps and the star lists) is still the epoch's own.
+// their own rise and fall on top. The air follows the year too (air_time.js); what is drawn from
+// tables made for each epoch (the clouds, the maps and the star lists) is still the epoch's own.
 // [year, value] at each main epoch that table gives a value for, and today's (now) if given, in time order.
 function epochPoints(table, now){
   const P=MAIN_EPOCHS.filter(k=>table[k]!=null).map(k=>[epochAnchor(k), table[k]]);

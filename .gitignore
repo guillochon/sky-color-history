@@ -15,6 +15,7 @@ model/spectra_cache.npz
 model/limb_spectra.npz
 site/*.gz
 site/day/*.gz
+site/air/*.gz
 .venv/
 site/main.pdf
 model/data/

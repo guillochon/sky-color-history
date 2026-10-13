@@ -9,7 +9,7 @@ function mtnSnowFor(key){
   if(key==='modern'||key==='ozonehole'||key==='geminga'||key==='zetaoph') return 1;
   if(key==='modernpoll'||key==='y2100') return 0.75;
   if(key==='carbon30'||key==='cretaceous66') return 0.35;
-  if(key==='proterozoic22'||key==='ordovician466') return 0.2;
+  if(key==='proterozoic22'||key==='cryogenian65'||key==='ordovician466') return 0.2;
   return 0;
 }
 function scRad(k, r){ return (k>0.5&&k<1.5)?r*1.28:(k>1.5&&k<2.5)?r*1.12:(k>2.5&&k<3.5)?r*1.08:r; }
@@ -30,6 +30,8 @@ const ZONES={
   archean38:WATER, archean27clear:WATER, archean27thin:WATER, archean27:WATER, archean27vthick:WATER,
   proterozoic22:[[20,520,'water',180],[300,720,'water',250],[100,480,'water',120]],
   snowball07:[[30,320,'ice',120],[300,520,'ice',200],[60,700,'ice',160]],
+  // Between the glaciations the same lowland is open water again.
+  cryogenian65:[[30,320,'water',120],[300,520,'water',200],[60,700,'water',160]],
   carbon30:[[0,560,'carb',300],[70,520,'carb',230],[140,720,'carb',350],[205,560,'carb',260],[265,860,'carb',420],[325,620,'carb',270],[105,170,'swamp',55],[235,150,'swamp',45],[350,130,'swamp',40]],
   // No land plants yet beyond mosses and crusts; shallow seas flooded the continents.
   ordovician466:[[20,600,'water',260],[110,900,'water',380],[230,480,'water',150],[300,1400,'water',420]],
@@ -510,7 +512,7 @@ function paintVR(){
   }
   gl.uniform4fv(u.beads, skyNow.beads||new Float32Array(24));
   // The setting Sun (sunset.js): the epoch's bands, the light at the disk's middle, the day's layers.
-  const sb=EP[dIdx].sun, rd=skyNow.moon.sunRadDeg*DISK_SCALE, sl=sunsetLayers(rd);
+  const sb=airNow().sun, rd=skyNow.moon.sunRadDeg*DISK_SCALE, sl=sunsetLayers(rd);
   // Each channel's gain keeps sunCol at the disk's middle. It is held to at least the brightest
   // channel's, so a colour the display curve has dropped from sunCol (the blue at sunset) still
   // shows where it is all that is left: a blue flash.
@@ -867,10 +869,10 @@ function paintVR(){
   if(!vrGL.aurTimer && aurOn) vrGL.aurTimer=setTimeout(()=>{ vrGL.aurTimer=0; requestVR(); }, 33);
 }
 // The crepuscular rays' tables for the epoch (shafts.py, shader_clouds.js shaftLayer): its share
-// texture on unit 17, made when the epoch changes, and its parts of the air.
+// texture on unit 17, made when the air changes, and its parts of the air.
 function shaftUpload(gl, cu){
-  const sh=EP[dIdx].shaft;
-  if(vrGL.shaftEp!==dIdx){
+  const sh=airNow().shaft, shKey=airFor(EP[dIdx].key)+'|'+dIdx;
+  if(vrGL.shaftEp!==shKey){
     const b=atob(sh.share), n=b.length/3, px=new Uint8Array(n*4);
     for(let i=0;i<n;i++){ for(let q=0;q<3;q++) px[i*4+q]=b.charCodeAt(i*3+q); px[i*4+3]=255; }
     if(!vrGL.shaftTex) vrGL.shaftTex=gl.createTexture();
@@ -879,7 +881,7 @@ function shaftUpload(gl, cu){
     gl.texImage3D(gl.TEXTURE_3D, 0, gl.RGBA8, SHAFT.na, SHAFT.nv, SHAFT.ns, 0, gl.RGBA, gl.UNSIGNED_BYTE, px);
     const m=Math.min(6, sh.comps.length), P=new Float32Array(24), E=new Float32Array(18), S=new Float32Array(18);
     sh.comps.slice(0, m).forEach((c, i)=>{ P.set([c[0], c[1], c[2], c[3]], i*4); E.set(c.slice(4, 7), i*3); S.set(c.slice(7, 10), i*3); });
-    vrGL.shaftU={n:m, P, E, S}; vrGL.shaftEp=dIdx;
+    vrGL.shaftU={n:m, P, E, S}; vrGL.shaftEp=shKey;
   }
   gl.activeTexture(gl.TEXTURE17); gl.bindTexture(gl.TEXTURE_3D, vrGL.shaftTex);
   // Which part of the sky is sunlight and which moonlight, sent with each new sky.

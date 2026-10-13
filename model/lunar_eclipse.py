@@ -32,12 +32,12 @@ HERE = Path(__file__).resolve().parent
 
 # The page's epochs (gen_site.py order) and the air each one's shadow is computed with.
 ORDER = ['protoearth455', 'hadean45', 'hadean40', 'archean38', 'archean27clear', 'archean27thin', 'archean27', 'archean27vthick', 'proterozoic22',
-         'snowball07', 'ordovician466', 'carbon30', 'cretaceous66', 'kpg66', 'zetaoph', 'geminga', 'volcanic', 'ozonehole',
+         'snowball07', 'cryogenian65', 'ordovician466', 'carbon30', 'cretaceous66', 'kpg66', 'zetaoph', 'geminga', 'volcanic', 'ozonehole',
          'modern', 'modernpoll', 'y2100']
 SHADOW_AIR = {k: k for k in epochs.BY_KEY}
 SHADOW_AIR.update(cretaceous66='modern', zetaoph='modern', geminga='modern', y2100='modern', ozonehole='modern', modernpoll='modern')
 # Mean Earth-Moon distance in Earth radii, as moon.js MOON_RE.
-MOON_RE = dict(modern=60.14, cretaceous66=59.93, kpg66=59.93, carbon30=58.56, ordovician466=58.21, snowball07=57.71,
+MOON_RE = dict(modern=60.14, cretaceous66=59.93, kpg66=59.93, carbon30=58.56, ordovician466=58.21, snowball07=57.71, cryogenian65=57.82,
                proterozoic22=50.98, archean27clear=47.60, archean27thin=47.60, archean27=47.60, archean27vthick=47.60,
                archean38=40.4, hadean40=39.8, hadean45=8.0)
 SUN_RADIUS_DEG = 0.2666
@@ -65,6 +65,18 @@ def refractivity(e):
 def sun_radius(e):
     T, L = e['sun']
     return np.radians(SUN_RADIUS_DEG)*L**0.5/(T/5772.0)**2
+
+
+def shadow_rec(s):
+    """A shadow as the page takes it: luminance and linear sRGB over the uneclipsed Moon's, and
+    log10 spectra, per lateral distance."""
+    Y, Ym = summary(None, s)
+    rgbS = lin_rgb(s['S0'])
+    rgb = np.clip(np.array([lin_rgb(s['S0']*r)/rgbS for r in s['ratio']]), 0, None)
+    return dict(D=round(s['D'], 3), rhoMax=round(float(s['rho'][-1]), 5),
+                Y=[float('%.3g' % v) for v in Y],
+                rgb=[[float('%.3g' % v) for v in c] for c in rgb],
+                sp=[[round(float(np.log10(max(v, 1e-12))), 2) for v in r] for r in s['ratio']])
 
 
 def trace(atm, N0, b):
@@ -119,8 +131,13 @@ def trace(atm, N0, b):
 
 def shadow(key):
     e = epochs.BY_KEY[SHADOW_AIR[key]]
-    atm = epochs.build(e, 0.15)
-    D = MOON_RE.get(key, MOON_RE['modern'])*R_E
+    return shadow_air(epochs.build(e, 0.15), e, MOON_RE.get(key, MOON_RE['modern']))
+
+
+def shadow_air(atm, e, moon_re):
+    """The shadow for the model atmosphere atm, of air e (its gases and Sun), with the Moon at
+    moon_re Earth radii."""
+    D = moon_re*R_E
     a_s = sun_radius(e)
     N0 = refractivity(e)
     # Impact parameters: fine through the lower air, where the bend changes fastest.
@@ -195,17 +212,10 @@ def main():
             continue
         s = shadow(key)
         Y, Ym = summary(key, s)
-        rgbS = lin_rgb(s['S0'])
-        rgb = np.array([lin_rgb(s['S0']*r)/rgbS for r in s['ratio']])
-        rgb = np.clip(rgb, 0, None)
         trapped = s['hb'][~s['ok']].max() if (~s['ok']).any() else 0
         print('%-16s D %.2f  N0 %.2e  no rays below %5.1f km  centre Y %.2e  central-eclipse disk %.2e (%+.1f mag)' %
               (key, s['D'], s['N0'], trapped, Y[0], Ym, -2.5*np.log10(Ym)))
-        rec = dict(D=round(s['D'], 3), rhoMax=round(float(s['rho'][-1]), 5),
-                   Y=[float('%.3g' % v) for v in Y],
-                   rgb=[[float('%.3g' % v) for v in c] for c in rgb],
-                   sp=[[round(float(np.log10(max(v, 1e-12))), 2) for v in r] for r in s['ratio']])
-        cache[tag] = out[key] = rec
+        cache[tag] = out[key] = shadow_rec(s)
     # Epochs that share another's shadow point to it, as the page's limb data does.
     first = {}
     final = {}

@@ -205,9 +205,9 @@ function metEmission(v, air, ring){
 // from the emission, by speed in 2 km/s steps.
 const metTints={};
 function metTint(v, key, ring){
-  const vb=Math.round(v/2)*2, id=key+'|'+vb+(ring?'r':'');
+  const vb=Math.round(v/2)*2, id=airFor(key)+'|'+vb+(ring?'r':'');
   if(metTints[id]) return metTints[id];
-  const air=(EP.find(e=>e.key===key)||{}).air||{O:0.21, N:0.79, C:0, O2:0.21};
+  const air=(key===EP[dIdx].key?airNow():EP.find(e=>e.key===key)||{}).air||{O:0.21, N:0.79, C:0, O2:0.21};
   const S=metEmission(vb, air, ring), X=[0, 0, 0];
   for(let i=0;i<SP_N;i++) for(let q=0;q<3;q++) X[q]+=S[i]*SP_CMF[i][q];
   const lin=xyzLin(X).map(c=>Math.max(0, c)), mx=Math.max(...lin)||1, s=lin.map(c=>255*g(c/mx));
@@ -271,7 +271,7 @@ function metBin(s, b, store=true){
     if(hi>lo||s){
       // The frame takes a while, and most minutes of the bolide stream have nothing in them: there it waits.
       let F=s<2?metFrameAt(T0):null;
-      const frame=()=>F||(F=metFrameAt(T0)), ctx={key, k:extK(key), mShow:D.mShow, air:ep.air||{O:0.21, N:0.79, C:0, O2:0.21}};
+      const frame=()=>F||(F=metFrameAt(T0)), ctx={key, k:extK(key), mShow:D.mShow, air:(key===EP[dIdx].key?airNow():ep).air||{O:0.21, N:0.79, C:0, O2:0.21}};
       const rate=MET_Q1*E.F*(metCum(E, hi)-(lo===-Infinity?0:metCum(E, lo)))/3600*dT;
       const keep=(m, i)=>{ if(m){ m.t0=T0+dT*metRand(); m.id=id+'|'+i; got.met.push(m); } };
       const n=Math.min(metPoisson(rate), 2000);

@@ -1,8 +1,8 @@
 /* ---------- the setting Sun: refraction by wavelength, mirages, and the flash ---------- */
-// The epoch's refraction as a multiple of today's (gen_site.py sun_bands): its gases' surface
+// The air's refraction as a multiple of today's (airgrid.py sun_bands): its gases' surface
 // refractivity. apparentEl and the shader's trueAlt scale today's curve by it.
 // With the air off (airOff), none.
-function refK(){ return airOff()?0:(EP[dIdx]&&EP[dIdx].sun)?EP[dIdx].sun.k:1; }
+function refK(){ return airOff()?0:(EP[dIdx]&&airNow().sun)?airNow().sun.k:1; }
 // The walk-around view with its air taken away (the v key), to judge the colors of what lies
 // beyond it: no sky light, no extinction or reddening, no refraction or mirages, no clouds, halos,
 // aurorae or meteors; the Sun as it is above the air. The page's dome always has its air.
@@ -18,7 +18,7 @@ const SUN_APP=[0, 0.3, 0.7, 1.2, 2, 3, 5, 8, 14, 30];
 // Each band's optical depth at apparent altitude app (degrees).
 function sunTauAt(app){
   if(airOff()) return new Array(SUN_BANDS).fill(0);
-  const t=EP[dIdx].sun.t, a=Math.max(0, Math.min(30, app));
+  const t=airNow().sun.t, a=Math.max(0, Math.min(30, app));
   let i=0; while(i<SUN_APP.length-2 && a>SUN_APP[i+1]) i++;
   const f=(a-SUN_APP[i])/(SUN_APP[i+1]-SUN_APP[i]);
   return Array.from({length:SUN_BANDS}, (_, b)=>t[i*SUN_BANDS+b]*(1-f)+t[(i+1)*SUN_BANDS+b]*f);
@@ -26,7 +26,7 @@ function sunTauAt(app){
 // The bands' light through the air at apparent altitude app, as linear sRGB, times e^off (the
 // shader's optical depths are less off, so the thickest air stays inside single precision).
 function sunBandsAt(app, off=0){
-  const w=EP[dIdx].sun.w, c=[0, 0, 0];
+  const w=airNow().sun.w, c=[0, 0, 0];
   sunTauAt(app).forEach((t, b)=>{ const T=Math.exp(off-t); for(let q=0;q<3;q++) c[q]+=w[b*3+q]*T; });
   return c;
 }
@@ -43,7 +43,7 @@ function sunBandsAt(app, off=0){
 //   the surface, and the bottom of the Sun meets its own inverted image: the omega.
 // The cold surface of Snowball Earth makes inversions common and inferior mirages rare; the warm
 // oceans of the Hadean and Archean the reverse.
-const MIRAGE_ODDS=aliasEpochs({snowball07:[0.05, 0.75], protoearth455:[0.55, 0.2], hadean45:[0.55, 0.2], hadean40:[0.55, 0.2], archean38:[0.5, 0.25],
+const MIRAGE_ODDS=aliasEpochs({snowball07:[0.05, 0.75], cryogenian65:[0.35, 0.4], protoearth455:[0.55, 0.2], hadean45:[0.55, 0.2], hadean40:[0.55, 0.2], archean38:[0.5, 0.25],
   archean27thin:[0.5, 0.25], archean27:[0.5, 0.25], archean27vthick:[0.5, 0.25]});
 let sunsetCache=null;
 function sunsetLayers(rd){
