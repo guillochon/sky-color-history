@@ -145,20 +145,27 @@ function metPath(M, v, radDir, n, E, ctx, src){
   if(mPeak>ctx.mShow+0.5) return null;
   const flares=[];
   if(M<-1||metRand()<0.25){ const nf=1+Math.floor(metRand()*(M<-4?3:2)); for(let i=0;i<nf;i++) flares.push([0.45+0.5*metRand(), 0.6+metRand()*(M<-3?5:2), 0.015+0.03*metRand()]); }
-  // The impact: a flash as the body meets the ground.
+  // The impact: a flash as the body meets the ground. A superbolide that does not reach it bursts in
+  // the air at the end of its path, as Chelyabinsk did 30 km up (Borovička et al. 2013): it brightens
+  // into the thicker air as a strike does, flares, and the burst's glowing cloud fades over a
+  // second or two where it burst (burst, the e-folding time in seconds: about 4 magnitudes a
+  // second, kept for 25 of them, until even Chelyabinsk's is out of sight; metScene).
+  const burst=!ground&&M<=CT_BOLIDE?0.25:0;
   if(ground) flares.push([0.99, 8, 0.008]);
+  if(burst) flares.push([0.985, 2, 0.02]);
   const mass=metMass(M, v);
   const air=ctx.air, o2=air.O2||0;
   // Persistent trains need the air's oxygen and ozone (FeO and Na chemiluminescence).
   const tr=(o2>0.001&&((v>35&&M<-1)||M<-4)&&metRand()<0.75)?Math.min(150, 2*Math.pow(10, 0.13*(-M-1)))*Math.min(1, Math.sqrt(o2/0.21)):0;
-  return {id:0, t0:0, T, B, u, L, v, M, mass, diam:Math.cbrt(6*mass/(Math.PI*rho)), rho, hb, he, src, flares, train:tr, ground,
+  return {id:0, t0:0, T, B, u, L, v, M, mass, diam:Math.cbrt(6*mass/(Math.PI*rho)), rho, hb, he, src, flares, train:tr, ground, burst,
     wake:Math.min(1.2, 0.08+0.04*Math.max(0, -M)), tint:metTint(v, ctx.key, src==='ring')};
 }
 // Light curve: rises to its peak 65% of the way along, then falls, with any flares on top. One
-// that reaches the ground keeps brightening down into the thicker air until it strikes.
+// that reaches the ground, or bursts in the air, keeps brightening down into the thicker air until
+// it strikes or bursts.
 function metCurve(m, x){
   if(x<0||x>1) return 0;
-  let f=m.ground?Math.pow(Math.min(x, 0.65)/0.65, 1.3)*(1+0.8*Math.max(0, x-0.65)/0.35):Math.pow(x/0.65, 1.3)*Math.pow((1-x)/0.35, 0.7);
+  let f=m.ground||m.burst?Math.pow(Math.min(x, 0.65)/0.65, 1.3)*(1+0.8*Math.max(0, x-0.65)/0.35):Math.pow(x/0.65, 1.3)*Math.pow((1-x)/0.35, 0.7);
   for(const [c, a, w] of m.flares) f+=a*Math.exp(-0.5*((x-c)/w)**2)*Math.pow(x/0.65, 0.5);
   return f;
 }
@@ -455,7 +462,7 @@ function metTick(now){
     for(const m of got.met){
       if(m.t0>t) continue;
       const end=m.t0+m.T;
-      if(t<=end+Math.max(m.wake, m.train)) list.push(m);
+      if(t<=end+Math.max(m.wake, m.train, 25*m.burst)) list.push(m);
       if(t>end&&t-end<3) gone.push(m);
       if(s>=2) bolides.push(m);
     }
@@ -476,8 +483,10 @@ function metScene(){
   const out=[], t=MET.now, k=extK(EP[dIdx].key), g0=skyNow.rgrid, rCd=skyNow.rCd;
   for(const m of MET.list){
     const x=(t-m.t0)/m.T;
-    if(x<=1.05){
+    if(x<=1.05||m.burst&&x<=1+25*m.burst/m.T){
       const xh=Math.min(x, 1), a=metApparent(m, xh, k);
+      // An airburst's cloud, fading where it burst.
+      if(x>1&&m.burst) a.mag+=1.0857*(t-m.t0-m.T)/m.burst;
       if(a.el<0) continue;
       const vis=metVisible(a.mag, skyRAt(g0, a.el, Math.atan2(a.dir[0], a.dir[1])*180/Math.PI)*rCd);
       if(vis>0.01){
