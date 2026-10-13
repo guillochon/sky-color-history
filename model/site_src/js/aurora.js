@@ -117,6 +117,21 @@ function aurSubstorm(n, t, kh, rise=6){
 // Kp wider, twice the energy, and substorms one after another as in a great storm, so the arcs
 // stay bright and keep breaking up all night rather than for half an hour round midnight.
 let aurStorm=false, aurActive=false;
+// The great storms on record, seen far toward the equator, as the storm the button makes, on their
+// dates in the modern-era skies: [first and last day number (UT), Kp in this oval's scale, name].
+//   - The Carrington storms of 1859: aurora overhead in the Caribbean on 28–29 August, and from the
+//     night of 1 September to Cuba, Hawaii and Chile (Green & Boardsen 2006).
+//   - 13–15 May 1921: seen to Samoa and Jamaica, the strongest of the 20th century (Silverman &
+//     Cliver 2001).
+//   - 10–11 May 2024: red aurora over Mexico and Florida, the strongest since 2003.
+const AUR_GREAT=[
+  [dayNumber(1859, 8, 28, 20), dayNumber(1859, 8, 29, 14), 11, 'the Carrington storm'],
+  [dayNumber(1859, 9, 1, 22), dayNumber(1859, 9, 2, 20), 11, 'the Carrington storm'],
+  [dayNumber(1921, 5, 13, 16), dayNumber(1921, 5, 15, 14), 11, 'the great storm of May 1921'],
+  [dayNumber(2024, 5, 10, 17), dayNumber(2024, 5, 11, 16), 10.5, 'the Gannon storm'],
+];
+// The great storm on at day number d, in a modern-era sky, or null.
+function aurGreatAt(key, d=astroDay()){ return key in EPOCH_YEAR&&AUR_GREAT.find(s=>d>=s[0]&&d<=s[1])||null; }
 function auroraState(key, latDeg, clockMin, zenithCd){
   // The southern oval is the northern one mirrored (the magnetic poles taken at the geographic
   // ones), so a southern sky is worked out at the northern latitude and drawn with north and
@@ -127,7 +142,9 @@ function auroraState(key, latDeg, clockMin, zenithCd){
   const seed=metHash(key), n=aurDayIndex(), x=clockMin/DAYMIN, w=smooth01(0.35, 0.65, x);
   const night=j=>aurHashI(n-1, j, seed)*(1-w)+aurHashI(n, j, seed)*w;
   let kp=Math.max(0, kp0+(night(3)-0.5)*2), drive=drive0*(0.7+0.6*night(4));
-  if(aurStorm){ kp=Math.min(11, kp+7); drive*=3; }
+  const great=aurGreatAt(key), storm=aurStorm||!!great;
+  if(great){ kp=Math.max(kp, great[2]); drive*=3; }
+  else if(aurStorm){ kp=Math.min(11, kp+7); drive*=3; }
   else if(aurActive){ kp=Math.min(11, kp+0.5); drive*=2; }
   const [cm, cn, wm, wn]=aurOvalToday(kp), e=[cm-wm, cm+wm, cn-wn, cn+wn].map(l=>aurScaleLat(l, rmp));
   const mid=(e[0]+e[1])/2, noon=(e[2]+e[3])/2, hwm=(e[1]-e[0])/2, hwn=(e[3]-e[2])/2;
@@ -144,8 +161,8 @@ function auroraState(key, latDeg, clockMin, zenithCd){
   if(zenithCd>2){ st.why='bright'; return st; }
   st.on=true;
   st.sub=aurSubstorm(n, x*1440, seed); st.spread=aurSubstorm(n, x*1440, seed, 20);
-  if(aurStorm||aurActive){ const b=0.6+0.3*Math.sin((n+x)*1440/23); st.sub=Math.max(st.sub, b); st.spread=Math.max(st.spread, b); }
-  st.red=aurStorm?5:1;
+  if(storm||aurActive){ const b=0.6+0.3*Math.sin((n+x)*1440/23); st.sub=Math.max(st.sub, b); st.spread=Math.max(st.spread, b); }
+  st.red=storm?5:1;
   st.iv=AUR_IV*drive; st.diff=AUR_DIFF*drive*(1+st.sub);
   st.spec=[fO*AUR_RATIO[0], fO*AUR_RATIO[1], fN*AUR_RATIO[2], fN*(1+0.3*(1-Math.min(fO, 1)))*AUR_RATIO[3]];
   // Extinction per emission: Rayleigh as λ^-4 and the rest of each epoch's extinction (aerosol or
@@ -664,3 +681,13 @@ function domePixel(x, y){
   const px=new Uint8Array(4); domeAur.gl.readPixels(x, domeAur.canvas.height-1-y, 1, 1, domeAur.gl.RGBA, domeAur.gl.UNSIGNED_BYTE, px);
   return px;
 }
+// The great aurorae as events for the date picker (transients.js), on the evening (in the
+// visitor's time zone, as the clock is) of the night nearest the middle of each storm, seen from
+// whichever mid-latitude is darker: the September Carrington storm, 1921's and 2024's.
+addEvents([[1, 'aur1859', 'The Carrington aurora', 'The great storm of 1859, after the first solar flare ever seen: aurora overhead at mid-latitudes, to Cuba and Hawaii.'],
+  [2, 'aur1921', 'The great aurora of May 1921', 'The strongest storm of the 20th century: aurora seen to Samoa and Jamaica.'],
+  [3, 'aur2024', 'The Gannon aurora', 'The storm of May 2024: red and violet aurora over Europe and the United States, south to Mexico.']].map(([i, id, name, note])=>{
+  const [a, b]=AUR_GREAT[i], mid=new Date(((a+b)/2-DN_UNIX)*86400000), t=new Date(mid.getFullYear(), mid.getMonth(), mid.getDate()+(mid.getHours()<12?0:1)-1);
+  return {id, name, note, type:'aurora', group:'aurora', date:fmtDate(t.getFullYear(), t.getMonth()+1, t.getDate()), unseen:'The aurora does not reach this latitude.',
+    place:(ev, lat)=>Math.abs(lat)>=30&&Math.abs(lat)<=60&&aurGreatAt(EP[dIdx].key)?{el:30}:null};
+}));

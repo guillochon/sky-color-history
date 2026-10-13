@@ -35,12 +35,32 @@ function airBracket(P, x){
   const w=P.length<2?0:Math.round(Math.max(0, Math.min(1, (x-P[i][0])/(P[i+1][0]-P[i][0])))*AIR_WSTEP)/AIR_WSTEP;
   return w===0?{a:P[i][1], b:P[i][1], w:0}:w===1?{a:P[i+1][1], b:P[i+1][1], w:0}:{a:P[i][1], b:P[i+1][1], w};
 }
+// Volcanic veils with no epoch of their own, over the modern-era skies: Tambora's air (the volcanic
+// event's, its stratospheric sulfate lerped from 1816's background) at its level times amp, the
+// veil's peak optical depth at 550 nm over Tambora's 0.4. Each rises, holds and fades as an event
+// does (epoch_time.js eventLevel).
+//   - Laki, from 8 June 1783: the sulfur fog over the Northern Hemisphere through the summer
+//     (Thordarson & Self 2003), dense enough over Europe to redden the noon Sun; taken at Tambora's
+//     depth, though most of it lay in the troposphere rather than in a stratospheric layer; the
+//     northern skies only.
+//   - Krakatoa, from 27 August 1883: about 0.14 at its peak, a global veil by late in the year
+//     (Sato et al. 1993), fading with an e-folding time of about a year.
+//   - Pinatubo, from 15 June 1991: about 0.15 at its peak early in 1992 (Sato et al. 1993), the same.
+const AIR_VEILS=[
+  {key:'laki', start:1783.435, rise:0.04, hold:0.2, efold:0.25, amp:1, north:true},
+  {key:'krakatoa', start:1883.655, rise:0.2, hold:0.4, efold:1, amp:0.35},
+  {key:'pinatubo', start:1991.453, rise:0.35, hold:0.3, efold:1, amp:0.375},
+];
 // The airs for the time shown: {a, b, w}, or null for the epoch's own.
 function airTarget(){
   const key=EP[dIdx].key;
   if(AIR.sc[key]) return {a:AIR.sc[key], b:AIR.sc[key], w:0};
   const A=eventTime();
   if(epochIndexAt(A)!==dIdx) return null;
+  if(key in EPOCH_YEAR && key!=='volcanic') for(const v of AIR_VEILS){
+    const l=v.north&&LATDEG[dLat]<0?0:eventLevel(v, A)*v.amp, set=l>AIR_LMIN&&AIR.ev.find(e=>e.key==='volcanic');
+    if(set) return airBracket(set.lv, l);
+  }
   for(const ev of EPOCH_EVENTS){
     const l=eventLevel(ev, A);
     if(!(l>AIR_LMIN)) continue;

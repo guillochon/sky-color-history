@@ -304,10 +304,58 @@ function metBin(s, b, store=true){
       if(E.flash&&!s) flashBin(got, b, E, key, D, id);
       // Showers (showers.js), last, so the sporadics of the second stay as they were.
       if(s<2) showerBin(got, b, s, lo, hi, E, ctx, F, id);
+      // The impacts on record (MET_DATED), in the bolide or impact stream as bright as each is.
+      if(s>=2) for(const I of MET_DATED){
+        const d=metDatedDay(I), ti=(d-MET_ORIGIN)*86400;
+        if(!(ti>T0-600&&ti<T0+dT+600)) continue;
+        const m=metDatedMake(I, E, ctx);
+        if(!m||(m.ground?3:2)!==s) continue;
+        m.t0=ti-m.T;
+        if(m.t0>=T0&&m.t0<T0+dT){ m.id=id+'|'+I.id; got.met.push(m); }
+      }
     }
   }finally{ metRng=Math.random; }
   if(store) MET.cache.set(id, got);
   return got;
+}
+// Three impacts on record, each placed with its ground point (or, for an airburst, the point under
+// the burst) within 100 km of the observer, at the local time it struck, from its radiant's azimuth
+// (from) and height (ang, the entry angle), at speed v (km/s) with energy Y (Mt of TNT): the
+// meteoroid's magnitude follows from its mass, ½mv² = Y, by metMass, so the bright ones strike
+// the ground (MET_GROUND) and burst there, the others burst in the air.
+//   - Tunguska, 30 June 1908, 7:03 local solar time (0:14 UT): about 12 Mt (10–15) at about 15 km/s,
+//     entering at 35° from the east-south-east (Chyba et al. 1993; Longo 2007). It burst some 8 km
+//     up over the taiga, drawn here as a strike; the observer stands where Vanavara's trading post
+//     did, 65 km south-south-east of it.
+//   - Chelyabinsk, 15 February 2013, 7:24 local solar time (3:20 UT): about 0.5 Mt at 19.2 km/s,
+//     entering at 18.3° from azimuth 103.5° (Popova et al. 2013), bursting 30 km up some 40 km
+//     south of the observer, as it did of Chelyabinsk: brighter than the Sun for a moment.
+//   - Chicxulub, 66 Ma, as the K–Pg event's soot begins (epoch_time.js): a 10 km asteroid at 20 km/s,
+//     about 6.5×10⁷ Mt, entering steeply (60°) from the north-east (Collins et al. 2020), striking
+//     90 km away. The hour is assumed.
+const MET_DATED=[
+  {id:'tunguska', year:1908, md:[6, 30], clock:7*60+3, Y:12, v:15, ang:35, from:115, dist:65, az:340},
+  {id:'chelyabinsk', year:2013, md:[2, 15], clock:7*60+24, Y:0.5, v:19.2, ang:18.3, from:103.5, dist:40, az:180},
+  {id:'chicxulub', year:2000-66e6, md:[1, 1], clock:10*60, Y:6.5e7, v:20, ang:60, from:30, dist:90, az:45},
+];
+// The day number of impact I in the epoch shown (its year counted on the timeline).
+function metDatedDay(I){
+  const Yp=I.year-epochShift(), [M, D]=I.md;
+  if(gregorian(Yp)) return localDate(Yp, M-1, D, Math.floor(I.clock/60), I.clock%60).getTime()/86400000+DN_UNIX;
+  return DN_2000-TZ_STD/24+(epochDayIndex(Yp, M, D)+I.clock/DAYMIN)*dayHours()/24;
+}
+// Impact I as a meteor, its path moved until its end lies over the place given.
+function metDatedMake(I, E, ctx){
+  const massG=2*I.Y*4.184e15/(I.v*1e3)**2*1e3, M=55.34-8.75*Math.log10(I.v*1e5)-2.25*Math.log10(massG);
+  const rad=horizDir(I.from, I.ang), th=I.dist/MET_RE, a=I.az*Math.PI/180, S=[Math.sin(th)*Math.sin(a), Math.sin(th)*Math.cos(a), Math.cos(th)];
+  let n=S, m=null;
+  for(let k=0;k<4;k++){
+    m=metPath(M, I.v, rad, n, E, ctx, 'aster');
+    if(!m) return null;
+    const P=metPoint(m, 1), g=vnorm([P[0], P[1], P[2]+MET_RE]);
+    n=vnorm(vadd(n, S, vscale(g, -1)));
+  }
+  return m;
 }
 // A ground strike's explosion at sky time t, or null before it or once it has gone. The energy is
 // the meteoroid's kinetic energy, Y in megatons of TNT (4.184e15 J). Scaled from nuclear tests
@@ -658,3 +706,10 @@ function meteorReadout(){
   const x=fmtTimes(E.F)==='1'?'':` · sporadics ${fmtTimes(E.F)}× today`;
   return rate+x+sh.text+(E.ring&&ringOf(key)?(dLat==='Equator'?' · ring debris overhead':''):'');
 }
+// The impacts on record as events for the date picker (transients.js): 3 seconds before each.
+addEvents([['tunguska', 'The Tunguska airburst', 'Mid-latitude', 'A stony body some 50 m across bursts over Siberia with the energy of about 12 Mt, flattening 2,000 km² of forest; seen from 65 km, as from Vanavara.'],
+  ['chelyabinsk', 'The Chelyabinsk meteor', 'Mid-latitude', 'A 20 m asteroid bursts 30 km up, brighter than the Sun for a moment, 40 km away as it was from Chelyabinsk, where its shock wave broke windows across the city.'],
+  ['chicxulub', 'The Chicxulub impact', 'Equator', 'A 10 km asteroid strikes the Yucatán shelf, seen from 90 km: the end of the dinosaurs. The hour is assumed.']].map(([id, name, lat, note])=>{
+  const I=MET_DATED.find(x=>x.id===id);
+  return {id, name, note, lat, type:'impact', group:'impact', at:I.clock-3/60, date:fmtDate(I.year, I.md[0], I.md[1])};
+}));

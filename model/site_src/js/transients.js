@@ -20,8 +20,9 @@
 //  Ib/c (Drout et al. 2011): 15 days to peak, 2 mag by day 40, then 2 mag per 100 days.
 //  Classical novae (Strope, Schaefer & Henden 2010): a rise of a day or two, t2 and t3 the days
 //   to fade 2 and 3 magnitudes, then a power-law tail: 4.9 mag down at 3 t3, 7 at 10 t3.
-const TR_TYPES={sn:{label:'supernova', color:'#8cc4ff'}, nova:{label:'nova', color:'#ffd257'}, erupt:{label:'stellar eruption', color:'#ff8a62'}, comet:{label:'comet', color:'#6fe0b8'}, tde:{label:'tidal disruption', color:'#e98cff'}};
-const TR_GROUPS=[['hist', 'Supernovae in history'], ['pre', 'Supernovae before history'], ['nova', 'Novae'], ['erupt', 'Stellar eruptions'], ['comet', 'Comets'], ['future', 'To come']];
+const TR_TYPES={sn:{label:'supernova', color:'#8cc4ff'}, nova:{label:'nova', color:'#ffd257'}, erupt:{label:'stellar eruption', color:'#ff8a62'}, comet:{label:'comet', color:'#6fe0b8'}, tde:{label:'tidal disruption', color:'#e98cff'},
+  veil:{label:'volcanic sky', color:'#c9a3ff'}, aurora:{label:'great aurora', color:'#9dff6a'}, storm:{label:'meteor storm', color:'#f4a6c4'}, impact:{label:'impact', color:'#ff5a45'}};
+const TR_GROUPS=[['hist', 'Supernovae in history'], ['pre', 'Supernovae before history'], ['nova', 'Novae'], ['erupt', 'Stellar eruptions'], ['comet', 'Comets'], ['veil', 'Volcanic skies'], ['aurora', 'Great aurorae'], ['storm', 'Meteor storms'], ['impact', 'Impacts'], ['future', 'To come']];
 const TR_CURVE={
   IIP:{k:[[-14, 3], [-10, 1.6], [-6, 0.7], [0, 0], [86, 0.52], [101, 1.52], [116, 2.52]], tail:0.0098},
   Ia:{k:[[-18, 3.5], [-10, 1.2], [-5, 0.3], [0, 0], [15, 0.7], [40, 2.2], [150, 4.9]], tail:0.015},
@@ -276,18 +277,20 @@ function transientDays(Y, M){
   }
   return out;
 }
-// Where an event is now: a nova's or supernova's place, or a comet's head (comets.js).
-function eventPlace(ev, lat){ return ev.comet?cometEventPlace(ev, lat):transientPlace(ev, lat); }
+// Where an event is now: a nova's or supernova's place, a comet's head (comets.js), or for the
+// others their own test (ev.place: an aurora's storm, a meteor storm's radiant), {el} or null.
+function eventPlace(ev, lat){ return ev.place?ev.place(ev, lat):ev.comet?cometEventPlace(ev, lat):transientPlace(ev, lat); }
 // The clock time on the day shown when ev stands highest in the darkest sky (full night before
 // astronomical twilight, then nautical, civil, day), or null when it never rises at this latitude that day.
 function transientBestMinute(ev, lat){ const b=transientBestView(ev, lat); return b?b.m:null; }
 // The same as {m, s}: s scores the view, the height in degrees plus 400 in full night, 200 in
-// astronomical twilight, 100 nautical, 50 civil.
+// astronomical twilight, 100 nautical, 50 civil. An event at a set time (ev.minute: a meteor storm's
+// peak) is scored at that time alone.
 function transientBestView(ev, lat){
   const keep=minutes, dec=sunEquatorial(astroDay()).Dec;
   let best=null;
   try{
-    for(let m=0; m<DAYMIN; m+=10){
+    for(let m=ev.minute??0; m<DAYMIN; m+=ev.minute!=null?DAYMIN:10){
       minutes=m;
       const p=eventPlace(ev, lat);
       if(!p||p.el<3) continue;
@@ -302,6 +305,7 @@ function transientBestView(ev, lat){
 // those sees it at least 10° up at night (astronomical twilight or darker).
 const TR_LATS=['Mid-latitude', 'Mid-latitude S', 'Equator'], TR_POLAR=['Polar', 'Polar S'];
 function transientBestLat(ev){
+  if(ev.lat) return ev.lat;
   const pick=names=>names.map(n=>[n, transientBestView(ev, LATDEG[n])]).filter(([, b])=>b).reduce((a, b)=>!a||b[1].s>a[1].s?b:a, null);
   const near=pick(TR_LATS);
   if(near && near[1].s>=210) return near[0];
@@ -318,19 +322,27 @@ function goToTransient(ev){
   // From the latitude it is best seen from, at that hour.
   dLat=transientBestLat(ev);
   document.querySelectorAll('[data-lat]').forEach(x=>x.setAttribute('aria-pressed', x.dataset.lat===dLat?'true':'false'));
-  const m=transientBestMinute(ev, LATDEG[dLat]);
+  // An impact at its moment, a volcanic sky at dusk, the rest at their best hour.
+  const m=ev.at!=null?ev.at:ev.dusk?duskMinute(LATDEG[dLat]):transientBestMinute(ev, LATDEG[dLat]);
   if(m!=null){ minutes=m; hslider.value=String(minutes); }
   datePopDrawn=''; renderDay(); warm();
+}
+// The clock time on the day shown when the Sun has set 4° in the evening, where the twilight
+// colours are deepest.
+function duskMinute(lat){
+  const dec=sunEquatorial(astroDay()).Dec;
+  for(let m=720; m<DAYMIN; m+=2) if(90-sunGeom(lat, m, dec).sza<-4) return m;
+  return 1200;
 }
 // The note under the days: the day's events, and whether each rises here.
 function transientNote(Y, M, D){
   const evs=transientDays(Y, M).get(D);
   if(!evs) return '';
-  return evs.map(ev=>`★ ${ev.name}: ${ev.note}`+(transientBestMinute(ev, LATDEG[dLat])==null?' It does not rise at this latitude today.':'')).join(' ');
+  return evs.map(ev=>`★ ${ev.name}: ${ev.note}`+(ev.at==null&&!ev.dusk&&transientBestMinute(ev, LATDEG[dLat])==null?' '+(ev.unseen||'It does not rise at this latitude today.'):'')).join(' ');
 }
 // The menu, by group, oldest first in each, and the colour key under it. The ones before history
 // are listed by age, the others by year.
-function transientWhen(ev){ const a=2000-ev.Y; return ev.group!=='pre'?fmtYear(ev.Y):a<1e6?`${+(a/1e3).toPrecision(3)} ka`:`${+(a/1e6).toPrecision(3)} Ma`; }
+function transientWhen(ev){ const a=2000-ev.Y; return ev.group!=='pre'&&ev.Y>-8000?fmtYear(ev.Y):a<1e6?`${+(a/1e3).toPrecision(3)} ka`:`${+(a/1e6).toPrecision(3)} Ma`; }
 const dpEvents=document.getElementById('dpEvents');
 function buildEventMenu(){
   dpEvents.replaceChildren(new Option('Go to a supernova, nova, eruption or comet…', ''));
@@ -349,3 +361,9 @@ function addEvents(list){
 }
 buildEventMenu();
 dpEvents.addEventListener('change', ()=>{ const ev=EVENTS[+dpEvents.value]; dpEvents.value=''; if(ev) goToTransient(ev); });
+// The volcanic skies (air_time.js AIR_VEILS) as events: their most vivid evenings, at dusk.
+addEvents([
+  {id:'laki', name:'The Laki haze', date:'1783-06-24', note:'The Icelandic fissure’s sulfur fog over the Northern Hemisphere all summer: a dim, red Sun at noon and blood-red sunsets. Northern skies only.'},
+  {id:'krakatoa', name:'Krakatoa’s twilights', date:'1883-11-27', note:'Krakatoa’s veil had circled the world: twilights so red that fire engines were called out in New York and Connecticut.'},
+  {id:'pinatubo', name:'Pinatubo’s twilights', date:'1991-12-15', note:'Pinatubo’s veil: purple twilights and paler days worldwide through 1992.'},
+].map(ev=>({...ev, type:'veil', group:'veil', lat:'Mid-latitude', dusk:true})));

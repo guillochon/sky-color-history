@@ -398,3 +398,13 @@ function radiantMarks(){
   }
   return out;
 }
+// The great meteor storms as events for the date picker (transients.js): 10 minutes before the
+// peak, at the time it fell in the visitor's time zone (as openStorm takes it), from the latitude
+// with the radiant highest in the darkest sky then.
+addEvents([['LEO', 1833, 'storm1833', 'The Leonid storm of 1833', 'Tens of thousands of meteors an hour over North America, the night that began the study of meteors.'],
+  ['AND', 1872, 'storm1872', 'The Andromedid storm of 1872', 'Thousands an hour from the debris of Biela’s Comet, which had broken in two, seen across Europe.'],
+  ['AND', 1885, 'storm1885', 'The Andromedid storm of 1885', 'Biela’s Comet’s debris again, thousands an hour over Europe and the Americas.']].map(([code, year, id, name, note])=>{
+  const st=stormList().find(s=>s.sh.code===code&&s.year===year), t=new Date((st.d-10/1440-DN_UNIX)*86400000), m=t.getHours()*60+t.getMinutes();
+  return {id, name, note, type:'storm', group:'storm', st, minute:m, at:m, date:fmtDate(t.getFullYear(), t.getMonth()+1, t.getDate()),
+    place:(ev, lat)=>{ const h=showerAltsAt(ev.st.d, ev.st.ra, ev.st.dec, lat); return h.rad.alt>5?{el:h.rad.alt}:null; }};
+}));
