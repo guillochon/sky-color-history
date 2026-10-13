@@ -1067,16 +1067,18 @@ void main(){
       float pick=h12(cell.xy+cell.z*17.31), tw=fract(pick*91.7+waterT*0.35);
       float glint=step(0.988, pick)*pow(max(sin(tw*6.2831853), 0.0), 12.0)*14.0;
       L+=haloSunLin*rH*glint; rH*=1.0+glint;
-      if(rH>rBg*0.003) skyC=overSky(skyC, rBg, rH, L);
+      if(rH>rBg*0.003) skyC=overSky(skyC, rBg+rMwBg, rH, L);
     }
     if(ringV.z>0.5 && !onBody && te>-1.0){
       float rR=ringAtG(src, sd, 1.2*fy/res.y)*extinctionAt(max(te, 0.0), mwK);
-      if(rR>rBg*0.003) skyC=overSky(skyC, rBg, rR, ringLin*rR);
+      if(rR>rBg*0.003) skyC=overSky(skyC, rBg+rMwBg, rR, ringLin*rR);
     }
     if(cometN>0.5 && !onBody && te>-0.5){
       vec3 Lc=cometsAt(src, 1.2*fy/res.y)*extinctionAt(max(te, 0.0), mwK);
+      // Over the sky and the Milky Way together, as the nebulae: taken over the sky's light alone,
+      // a tail's faint edge would darken the Milky Way under it out to where its light is cut off.
       float rC=dot(Lc, vec3(0.2126, 0.7152, 0.0722));
-      if(rC>rBg*0.003) skyC=overSky(skyC, rBg, rC, Lc);
+      if(rC>rBg*0.003) skyC=overSky(skyC, rBg+rMwBg, rC, Lc);
     }
     if(aurOn>0.5 && !onBody && te>-0.5) skyC=auroraMix(skyC, rBg, texture(aurTex, gl_FragCoord.xy/res)*(0.001*aurOn));
     if(corona>0.001 && !onBody && te>-1.0){
