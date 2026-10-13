@@ -299,8 +299,12 @@ function stepMinutes(d){
   while(minutes<0){ minutes+=DAYMIN; shiftMoonDate(-1); }
   hslider.value=minutes; renderDay();
 }
+// With the view locked on something, the clock moves to keep it near where it was (find.js lockKeep).
 function stepEpoch(d){
-  setEpoch((dIdx+d%EP.length+EP.length)%EP.length);
+  const keep=lockKeep();
+  lockHeld=!!keep;
+  try{ setEpoch((dIdx+d%EP.length+EP.length)%EP.length); }finally{ lockHeld=false; }
+  if(keep) keep();
 }
 // Jump to 30 minutes before the next eclipse, or with central set to 5 minutes before the next
 // total or annular phase. Pressing again from that lead moves on to the one after.

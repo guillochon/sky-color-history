@@ -789,6 +789,7 @@ function vrPinBody(p){
 // Before each paint: drop the pins whose bodies have set, turn a view flying to or following
 // something found to it (find.js), and turn a locked view to its pin.
 function lockVRView(){
+  if(lockHeld) return;
   for(const p of vrPins.slice()){ const q=vrPinDir(p); if(q&&q.el<-PIN_SET_DEG) unpinVRTip(p); }
   findStep();
   const q=vrLockPin&&vrPinDir(vrLockPin);

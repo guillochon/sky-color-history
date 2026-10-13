@@ -164,6 +164,67 @@ function findLook(dx, dy){
   vrFind=null;
   return true;
 }
+// A change of epoch (stepEpoch) with the view locked on something (a pin's lock, or following
+// something found, in the walk-around view or on the dome) sets the clock to the time of the new
+// epoch's day that puts it nearest where it was, above the horizon; one that never rises leaves
+// the clock alone. It is kept LOCK_WELL_UP_DEG up (or as high as it was) where it can be, so as
+// not to end just over the horizon when higher places are not much farther. The day is tried
+// every 10 minutes, then each minute round the best. A star is found again in the new epoch's
+// list by its name. lockKeep is called before the change and
+// returns what to do after it, or null; while lockHeld, the paints the change makes leave the
+// lock, the follow and the pins as they are (lockVRView), not yet knowing the star again.
+const LOCK_UP_DEG=2, LOCK_WELL_UP_DEG=10;
+let lockHeld=false;
+function lockTarget(){
+  if(vrOn&&vrLockPin){
+    const p=vrLockPin;
+    return p.kind==='sun'||p.kind==='moon'||p.kind==='sn'?{k:p.kind}:p.kind==='mark'?(p.planet?{k:'body', name:p.planet}:p.star?{k:'star', star:p.star}:null):null;
+  }
+  if(vrOn&&vrFind) return vrFind.t;
+  if(!vrOn&&domeFind) return domeFind.t;
+  return null;
+}
+// Its true azimuth and altitude at the clock's time, worked out afresh rather than from the last
+// render (skyNow), which the search does not make.
+function lockPlace(t){
+  const lat=LATDEG[dLat], key=EP[dIdx].key;
+  if(t.k==='sun'){ const g=sunGeom(lat, minutes); return {az:g.az, el:90-g.sza}; }
+  if(t.k==='moon') return noMoon()?null:lunarPlace(lat);
+  if(t.k==='body'){ placePlanets(lat, [], [], key, STAR_YEAR[key]||pageDate()[0], localSidereal()); return BODY_WHERE.get(t.name)||null; }
+  return findWhere(t);
+}
+function lockRematch(t){
+  if(t.k!=='star') return t;
+  const key=EP[dIdx].key, P=starPlaces(key, STAR_YEAR[key]||pageDate()[0]), list=P.list.slice(0, P.n);
+  if(list.includes(t.star)) return t;
+  const name=t.star[7], s=name&&list.find(x=>x[7]===name);
+  return s?{...t, star:s}:null;
+}
+function lockKeep(){
+  const t0=lockTarget(), w0=t0&&lockPlace(t0);
+  if(!w0) return null;
+  const d0=horizDir(w0.az, w0.el), pin=vrOn&&vrLockPin, f=vrOn?vrFind:domeFind;
+  return ()=>{
+    const t=lockRematch(t0);
+    if(vrOn) requestVR();
+    if(!t) return;
+    if(pin){ if(t.k==='star') pin.star=t.star; }
+    else f.t=t;
+    const m0=minutes, near=(m, up)=>{ minutes=m; const w=lockPlace(t); return w&&w.el>up?vdot(d0, horizDir(w.az, w.el)):-2; };
+    let best=m0, bc=-2;
+    for(const up of [Math.max(LOCK_UP_DEG, Math.min(LOCK_WELL_UP_DEG, w0.el)), LOCK_UP_DEG]){
+      bc=near(m0, up); best=m0;
+      for(let m=0;m<DAYMIN;m+=10){ const c=near(m, up); if(c>bc){ bc=c; best=m; } }
+      if(bc<=-2) continue;
+      for(let m=best-9;m<=best+9;m++){ const mm=(m+DAYMIN)%DAYMIN, c=near(mm, up); if(c>bc){ bc=c; best=mm; } }
+      break;
+    }
+    minutes=bc>-2?best:m0;
+    // The planets as the clock now has them, for findWhere until the next render.
+    if(t.k==='body') lockPlace(t);
+    if(minutes!==m0){ hslider.value=minutes; renderDay(); }
+  };
+}
 function findRender(){
   const q=findNorm(findQ.value);
   findHits=[];
