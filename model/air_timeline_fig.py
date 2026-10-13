@@ -46,15 +46,29 @@ OWN['modernpoll'] = at.scenario_air('modernpoll')
 ZONE = 0.16                      # half the width of a tick's own stretch
 # CO2 and water vapour leave the radiative model once they no longer touch the visible sky (CO2
 # after the Ordovician, H2O after the Hadean), so the air holds none from there. The figure goes on
-# with them as dashed lines through these pins, in ppm of the whole air (CO2) or bar (H2O), log-linear
-# between ticks; each starts from the model's last value. CO2: the Phanerozoic compilation of
-# Foster, Royer & Lunt (2017), EPICA Dome C at 342 ka (Bereiter et al. 2015), Law Dome for 1816 and
-# 1900 (MacFarling Meure et al. 2006), about 354 ppm in 1990 and 425 today as measured, and 603 in
-# 2100 on SSP2-4.5 (Meinshausen et al. 2020). H2O: today's mean near-surface vapour pressure, about
-# 75% humidity at 15 °C, held.
-CO2_PPM = {'carbon30': 400, 'cretaceous66': 700, 'zetaoph': 250, 'geminga': 205, 'volcanic': 284, 'y1900': 296,
+# with them as dashed lines through these pins, log-linear between ticks; each starts from the
+# model's last value. CO2, in ppm of the whole air: the stage medians of PhanDA (Judd et al. 2024),
+# EPICA Dome C at 342 ka (Bereiter et al. 2015), Law Dome for 1816 and 1900 (MacFarling Meure et al.
+# 2006), about 354 ppm in 1990 and 425 today as measured, and 603 in 2100 on SSP2-4.5 (Meinshausen
+# et al. 2020).
+CO2_PPM = {'carbon30': 458, 'cretaceous66': 943, 'zetaoph': 253, 'geminga': 205, 'volcanic': 284, 'y1900': 296,
            'ozonehole': 354, 'modern': 425, 'y2100': 603}
-H2O_BAR = 0.013
+# H2O: the near-surface vapour pressure at a fixed 80% relative humidity (Held & Soden 2006) and each
+# epoch's global mean surface temperature, °C. The Precambrian between glaciations is temperate,
+# held at 20 °C, the middle of the 8-30 °C that the carbon cycle allows (Charnay et al. 2017;
+# Krissansen-Totton et al. 2018); the Phanerozoic is PhanDA's stage medians (Judd et al. 2024), with
+# 342 ka a glacial maximum, 6.1 °C under the preindustrial (Tierney et al. 2020); 1850-1900 is
+# 13.7 °C (Jones et al. 1999), today 1.4 °C warmer (Forster et al. 2025) and 2100 2.7 °C on SSP2-4.5
+# (IPCC 2021).
+GMST = {'archean38': 20, 'archean27clear': 20, 'proterozoic22': 20, 'cryogenian65': 20, 'ordovician466': 31.0,
+        'carbon30': 16.5, 'cretaceous66': 24.5, 'zetaoph': 12.8, 'geminga': 7.6, 'volcanic': 13.7, 'y1900': 13.7,
+        'ozonehole': 14.2, 'modern': 15.1, 'y2100': 16.4}
+RH = 0.8
+
+
+def h2o_bar(t_c):
+    """Vapour pressure (bar) at relative humidity RH and t_c °C (Bolton 1980's saturation curve)."""
+    return RH*6.112*np.exp(17.67*t_c/(t_c+243.5))/1000
 
 
 def time_at(x):
@@ -79,9 +93,28 @@ def rayleigh(air):
 
 
 GAS = [('N2', r'N$_2$', '#5a6b8c'), ('O2', r'O$_2$', '#2f8f5b'), ('CO2', r'CO$_2$', '#c8562b'), ('CH4', r'CH$_4$', '#8d5bb5'), ('H2O', r'H$_2$O', '#2f8fc8')]
-TAUS = [('Rayleigh', lambda a: rayleigh(a), '#5a6b8c'), ('Tropospheric aerosol', lambda a: a['aer'][0], '#b38b2d'),
-        ('Dust', lambda a: a['dust'], '#9b6a3c'), ('Organic haze', lambda a: a['haze'], '#d9822b'),
-        ('Stratospheric sulfate', lambda a: a['sulf'], '#7a8aa6'), ('Soot', lambda a: a['soot'], '#222222')]
+TAUS = [('Rayleigh', lambda a: rayleigh(a), '#3b5bdb', '-'), ('Tropospheric aerosol', lambda a: a['aer'][0], '#868e96', (0, (4, 1.5))),
+        ('Dust', lambda a: a['dust'], '#8c564b', '-'), ('Organic haze', lambda a: a['haze'], '#f08c00', '-'),
+        ('Stratospheric sulfate', lambda a: a['sulf'], '#9c36b5', (0, (5, 1.5, 1, 1.5))), ('Soot', lambda a: a['soot'], '#111111', '-')]
+
+
+def plot_runs(ax, v, floor, col, ls='-', lw=1.2, label=None, drop_right=True):
+    """A curve that is there only part of the time: each stretch where it is above zero is drawn on
+    its own, falling to the axis' floor where it starts from or goes to nothing, so it does not hang
+    in the air; a stretch narrower than a tick's own is a passing event, drawn as a tick's bar."""
+    pos = np.nan_to_num(v) > 0
+    edges = np.flatnonzero(np.diff(np.concatenate([[0], pos.astype(int), [0]])))
+    for a, b in zip(edges[::2], edges[1::2]-1):
+        if X[b]-X[a] < 2*ZONE and 0 < a and b < len(X)-1:
+            c = round(float(X[(a+b)//2]))
+            ax.plot([c-ZONE, c+ZONE], [v[a:b+1].max()]*2, color=col, lw=2.4, solid_capstyle='butt', label=label)
+        else:
+            xs, ys = list(X[a:b+1]), list(v[a:b+1])
+            if a > 0: xs, ys = [xs[0]]+xs, [floor]+ys
+            if b < len(X)-1 and drop_right: xs, ys = xs+[xs[-1]], ys+[floor]
+            ax.plot(xs, ys, color=col, lw=lw, ls=ls, label=label)
+        label = None
+    if label: ax.plot([], [], color=col, lw=lw, ls=ls, label=label)
 
 
 # ---------- the sky's colours: the page's blended airs between the ticks, each epoch's own at its tick ----------
@@ -159,8 +192,8 @@ def tail_pins(g, v, tot):
     pins = [(i0, float(v[np.argmin(np.abs(X-i0))]))]
     for i, k in enumerate(EPOCHS):
         if i <= i0: continue
-        if g == 'H2O': pins.append((i, H2O_BAR))
-        elif k in CO2_PPM: pins.append((i, CO2_PPM[k]*1e-6*float(tot[np.argmin(np.abs(X-i))])))
+        if g == 'H2O' and k in GMST: pins.append((i, float(h2o_bar(GMST[k]))))
+        elif g == 'CO2' and k in CO2_PPM: pins.append((i, CO2_PPM[k]*1e-6*float(tot[np.argmin(np.abs(X-i))])))
     if pins[-1][0] < len(EPOCHS)-1: pins.append((len(EPOCHS)-1, pins[-1][1]))
     return pins
 
@@ -191,7 +224,7 @@ def main():
             x0 = tail[0][0]; v = np.where(X <= x0, v, 0)
             px, py = zip(*tail); xx = X[X >= x0]
             axg.plot(xx, np.exp(np.interp(xx, px, np.log(py))), color=col, lw=1.0, ls=(0, (3, 1.5)))
-        axg.plot(X, np.where(v > 0, v, np.nan), color=col, lw=1.2, label=lab)
+        plot_runs(axg, v, 1e-6, col, label=lab, drop_right=not tail)
     for k, air in OWN.items():
         i = EPOCHS.index(k)
         for g, lab, col in GAS + [('_tot', '', '#1c2230')]:
@@ -199,7 +232,7 @@ def main():
             base = tot[np.argmin(np.abs(X-i))] if g == '_tot' else AIRS[int(np.argmin(np.abs(X-i)))]['gas'][g]
             if val > 0 and abs(np.log(max(val, 1e-12))-np.log(max(base, 1e-12))) > 0.02:
                 axg.plot([i-ZONE, i+ZONE], [val, val], color=col, lw=2.4, solid_capstyle='butt')
-                axg.plot([i, i], [max(base, 1e-7), val], color=col, lw=0.6, alpha=0.7)
+                if base > 0: axg.plot([i, i], [base, val], color=col, lw=0.6, alpha=0.7)
     axg.set_yscale('log'); axg.set_ylim(1e-6, 100); axg.set_ylabel('Partial pressure (bar)')
     axg.legend(loc='upper left', bbox_to_anchor=(1.005, 1.0), frameon=False, fontsize=6.5, handlelength=1.6)
     axg.text(x_at((at.GOE_START+at.GOE_END)/2), 40, 'Great\nOxidation', ha='center', va='top', fontsize=5.5, color='#4a6b3c')
@@ -216,17 +249,16 @@ def main():
             axo.plot([i, i], [base, air['ozone']['Mid-latitude']], color='#3a7ec8', lw=0.6, alpha=0.7)
     axo.set_ylim(0, 360); axo.set_ylabel('Ozone (DU)')
     # Optical depths.
-    for lab, f, col in TAUS:
-        v = np.array([f(a) for a in AIRS]); v = np.where(v > 0, v, np.nan)
-        if np.isfinite(v).any(): axt.plot(X, v, color=col, lw=1.2, label=lab)
+    for lab, f, col, ls in TAUS:
+        v = np.array([f(a) for a in AIRS])
+        # Entries that are only events show in the legend as their bars.
+        if (v > 0).any(): plot_runs(axt, v, 3e-3, col, ls=ls, label=lab)
+        else: axt.plot([], [], color=col, lw=2.4, label=lab)
         for k, air in OWN.items():
             i = EPOCHS.index(k); val = f(air); base = f(AIRS[int(np.argmin(np.abs(X-i)))])
             if val > 0 and abs(val-base) > 0.005:
                 axt.plot([i-ZONE, i+ZONE], [val, val], color=col, lw=2.4, solid_capstyle='butt')
-                axt.plot([i, i], [max(base, 3e-3), val], color=col, lw=0.6, alpha=0.7)
-    # Labels for the legend's entries that are only events.
-    for lab, f, col in TAUS:
-        if not np.isfinite(np.array([f(a) if f(a) > 0 else np.nan for a in AIRS])).any(): axt.plot([], [], color=col, lw=2.4, label=lab)
+                if base > 0: axt.plot([i, i], [base, val], color=col, lw=0.6, alpha=0.7)
     axt.set_yscale('log'); axt.set_ylim(3e-3, 20); axt.set_ylabel('Optical depth at 550 nm')
     axt.legend(loc='upper left', bbox_to_anchor=(1.005, 1.0), frameon=False, fontsize=6.5, handlelength=1.6)
     # Colour strips.
