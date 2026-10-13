@@ -146,7 +146,7 @@ function goToYearIn(A, i){
   setEpoch(i, ()=>dateInYear(A-epochShift(EP[i].key), f));
 }
 // A year in words to four figures, for spans: "717 Ma", "2.631 Ga", "1815".
-function fmtTimeRound(A){ if(A>-8000) return fmtYear(Math.round(A)); const a=2000-A; return a<1e6?`${(+a.toPrecision(3)).toLocaleString('en-US')} years ago`:a<1e9?`${+(a/1e6).toPrecision(4)} Ma`:`${+(a/1e9).toPrecision(4)} Ga`; }
+function fmtTimeRound(A){ if(A>-8000) return fmtYear(Math.round(A)); const a=2000-A; return a<1e6?`${(+a.toPrecision(4)).toLocaleString('en-US')} years ago`:a<1e9?`${+(a/1e6).toPrecision(4)} Ma`:`${+(a/1e9).toPrecision(4)} Ga`; }
 // The time shown in words for labels: the epoch's own age in its own year, else the year.
 // Whether the year shown is epoch key's own: exactly, or for an epoch a million years old or more
 // within ANCHOR_SLACK years of it (the timeline's steadied frames, globe.js steadyYear, stop there).

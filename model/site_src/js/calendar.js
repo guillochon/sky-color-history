@@ -196,7 +196,8 @@ const EPOCH_YEAR={modern:'now', modernpoll:'now', ozonehole:1990, y1900:1900, vo
 function yearZero(key=EP[dIdx].key){ return key in EPOCH_YEAR?0:2000; }
 function epochYear(key){ const y=EPOCH_YEAR[key]; return y===undefined?2000:y==='now'?new Date().getFullYear():y; }
 function fmtYear(y){ const a=Math.abs(y); return (y<0?'−':'')+(a>=10000?a.toLocaleString('en-US'):String(a)); }
-function dateLabel(){ const [,M,D]=pageDate(); return `${MONTH_NAMES[M-1]} ${D}, ${fmtTime(pageTime())}`; }
+// The year to four figures (epoch_time.js fmtTimeRound); the date picker gives it in full.
+function dateLabel(){ const [,M,D]=pageDate(); return `${MONTH_NAMES[M-1]} ${D}, ${fmtTimeRound(pageTime())}`; }
 // A new epoch keeps the season. It keeps the year on the timeline too when that year shows it
 // (the polluted city at today's year, an event's background just after the event), and otherwise
 // takes its own year: one chosen from the menu, a tick or the arrow keys is shown at its own time,
