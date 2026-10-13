@@ -32,6 +32,7 @@ function placeStars(lat){
   placeTransients(lat, LST, tex, marks, up);
   const comets=cometsNow(epochKey, lat);
   placeCometHeads(comets, tex, marks, up);
+  placeIncoming(lat, tex, marks, up);
   // The cube cells are for the VR sky shader only.
   const bins=vrOn?starBinsFor(up, tex):{info:null, idx:null, count:0};
   return {tex, marks, bodies, comets, bins:bins.info, idx:bins.idx, idxCount:bins.count};

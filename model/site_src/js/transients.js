@@ -324,6 +324,8 @@ function goToTransient(ev){
   document.querySelectorAll('[data-lat]').forEach(x=>x.setAttribute('aria-pressed', x.dataset.lat===dLat?'true':'false'));
   // An impact as it comes in, a meteor storm at its peak, a volcanic sky at dusk, the rest at
   // their best hour.
+  // A time worked out from the sky (an impact's) needs the day's sky drawn first.
+  if(typeof ev.at==='function') renderDay();
   const at=typeof ev.at==='function'?ev.at():ev.at, m=at!=null?at:ev.dusk?duskMinute(LATDEG[dLat]):transientBestMinute(ev, LATDEG[dLat]);
   if(m!=null){ minutes=m; hslider.value=String(minutes); }
   datePopDrawn=''; renderDay(); warm();

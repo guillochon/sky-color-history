@@ -583,7 +583,7 @@ function starNear(dir, tolDeg, out){
   const el=Math.asin(Math.max(-1, Math.min(1, dir[2])))*180/Math.PI;
   for(const s of skyNow.starMarks){
     const R=s.radDeg!=null?s.radDeg:0, reach=Math.max(tolDeg, R*(s.rings?2.3:1));
-    if(s.comet||s.transient||Math.abs(s.el-el)>reach||markHidden(s)) continue;
+    if(s.comet||s.transient||s.asteroid||Math.abs(s.el-el)>reach||markHidden(s)) continue;
     const sep=Math.acos(Math.max(-1, Math.min(1, vdot(dir, horizDir(s.az, s.el)))))*180/Math.PI;
     if(sep>reach) continue;
     const m=starThroughAir(s.mag, s.el, key), dim=Math.pow(10, -0.2*(m-s.mag));

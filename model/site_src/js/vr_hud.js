@@ -207,7 +207,7 @@ function drawSkyLabels(ctx, W, H, o){
   }
   for(const s of skyNow.starMarks){
     // A comet is labelled whenever it shows, however faint its head next to the stars labelled.
-    if((s.mag>lim&&!s.planet&&!s.comet)||s.el<=0||markHidden(s)||s.transient) continue;
+    if((s.mag>lim&&!s.planet&&!s.comet&&!s.asteroid)||s.el<=0||markHidden(s)||s.transient) continue;
     // Labelled when it shows: its colour as the sky pass adds it (faded near the naked-eye limit,
     // dimmed by the air), times what the cloud in front lets through. 0.06 is where the drawn
     // point stands out from the sky around it. A planet or moon at its colour as zoomed in
@@ -215,6 +215,8 @@ function drawSkyLabels(ctx, W, H, o){
     const m=starThroughAir(s.mag, s.el, key), dim=Math.pow(10, -0.2*(m-s.mag));
     const a=cloudAt?cloudAt(horizDir(s.az, apparentEl(s.el))):0;
     const vis=starVisible(m-(s.mag-markMag(s)), skyRAt(skyNow.rgrid, s.el, s.az)*skyNow.rCd)*(1-a);
+    // An incoming asteroid (meteors.js placeIncoming) in the impacts' colour.
+    if(s.asteroid){ add(s, s.asteroid, 'comet', TR_TYPES.impact.color); continue; }
     // A comet by its whole light (its head is a quarter of it) against the naked-eye limit there.
     if(s.comet){ if(starVisible(starThroughAir(s.comet.mag, s.el, key), skyRAt(skyNow.rgrid, s.el, s.az)*skyNow.rCd)*(1-a)>0.3) add(s, s.comet.c.name, 'comet', TR_TYPES.comet.color); continue; }
     if(Math.max(...zoomedDisplay(s).rgb)*vis*dim<0.06) continue;
@@ -230,8 +232,9 @@ function drawSkyLabels(ctx, W, H, o){
     if(!p.text) continue;
     const [font, kindCol]=STYLE[p.kind], col=p.color||kindCol;
     ctx.font=font+' system-ui, sans-serif';
-    const tw=ctx.measureText(p.text).width, x=p.kind==='con'?p.x-tw/2:p.x+7, y=p.kind==='con'?p.y:p.y-7, box=[x-2, y-8, x+tw+2, y+8];
-    if(x+tw>W-4||y<o.top||y>H-o.bottom) continue;
+    // To the right of its point, or to the left where that would run off the edge.
+    const tw=ctx.measureText(p.text).width, xr=p.kind==='con'?p.x-tw/2:p.x+7, x=p.kind!=='con'&&xr+tw>W-4?p.x-7-tw:xr, y=p.kind==='con'?p.y:p.y-7, box=[x-2, y-8, x+tw+2, y+8];
+    if(x<4||x+tw>W-4||y<o.top||y>H-o.bottom) continue;
     if(placed.some(b=>box[0]<b[2]&&box[2]>b[0]&&box[1]<b[3]&&box[3]>b[1])) continue;
     placed.push(box, [p.x-4, p.y-4, p.x+4, p.y+4]);
     ctx.strokeStyle='rgba(0,0,0,.75)'; ctx.lineWidth=3; ctx.strokeText(p.text, x, y);
