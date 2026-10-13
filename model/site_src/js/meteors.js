@@ -394,12 +394,12 @@ function impactAt(m, t){
   const P=metPoint(m, 1), up=vnorm([P[0], P[1], P[2]+MET_RE]);
   // The fireball drawn no wider than a quarter of its distance: Chicxulub's, by the scaling 1,300 km,
   // would hold the observer 200 km away inside it and sit its centre 1,000 km up.
-  const tau=Math.min(60, 8*Math.pow(Y, 0.4)), Rf=Math.min(1000*Math.pow(Y, 0.4), 250*Math.hypot(P[0], P[1])), x=age/tau;
+  const d=1000*Math.hypot(P[0], P[1]), tau=Math.min(60, 8*Math.pow(Y, 0.4)), Rf=Math.min(1000*Math.pow(Y, 0.4), 0.25*d), x=age/tau;
   // The thermal pulse, W: up within the first 15% of it (or half a second, for the longest), then
   // down; its shape integrates to about 0.425.
   const x1=Math.min(0.15, 0.5/tau), L=0.3*E/tau/0.425*(x<x1?x/x1:Math.exp(-(x-x1)/0.35));
   const tTr=Math.pow(1.03*Math.pow(E/1.2, 0.2)/1000, 1/0.6), rs=age<tTr?1.03*Math.pow(E/1.2, 0.2)*Math.pow(age, 0.4):1000*tTr+340*(age-tTr);
-  return {age, E, Y, life, base:P.map(v=>v*1000), up, tau, Rf, L, temp:2000+4500*Math.exp(-x/0.6), rs};
+  return {age, E, Y, life, base:P.map(v=>v*1000), up, tau, Rf, L, temp:2000+4500*Math.exp(-x/0.6), rs, d};
 }
 // The ground strikes near enough to see about sky time t: the 10 before it and the 10 after, looked for up to 30 years
 // either way in the fourth stream. Kept until the epoch or place changes or t leaves the span
@@ -633,7 +633,8 @@ function metUniforms(){
   for(const m of MET.bolides||[]) if(m.ground){
     const S=impactAt(m, MET.now);
     if(!S||!(S.L>0)||S.age>S.tau*4) continue;
-    const c=vadd(S.base, vscale(S.up, S.Rf*0.8+60*S.age), vscale(eye, -1)), d=Math.hypot(...c), dir=c.map(v=>v/d);
+    // On the ground, as a surface burst's is, rising as it cools.
+    const c=vadd(S.base, vscale(S.up, S.Rf*0.3+60*S.age), vscale(eye, -1)), d=Math.hypot(...c), dir=c.map(v=>v/d);
     const el=Math.asin(dir[2])*180/Math.PI, top=Math.asin((c[2]+S.Rf)/d)*180/Math.PI;
     const m0=-14.18-2.5*Math.log10(Math.max(S.L*90/(4*Math.PI*d*d), 1e-30)), through=Math.pow(10, -0.4*(starThroughAir(m0, Math.max(el, 0), key)-m0));
     const mag=m0-2.5*Math.log10(Math.max(top<0?0:el<0?0.3*through:through, top<0?0.05:0.1));
@@ -822,6 +823,20 @@ function metDatedStart(I){
     }
   }finally{ minutes=keep; }
   return metDatedClock(I, r, found??r.m.t0-1);
+}
+// Played faster than real time, the clock stops 30 s before an impact on record's meteor appears
+// and goes on in real time, so its fall, burst and clouds are seen at their own pace: called after
+// a step from sky time t0, it takes the clock back to there if the step passed it.
+function metBrake(t0){
+  const t1=metSec();
+  for(const I of MET_DATED){
+    const r=metDatedMeteor(I), tb=r&&r.m.t0-30;
+    if(!r||!(t0<tb&&t1>=tb)) continue;
+    minutes-=(t1-tb)/60*24/dayHours();
+    setPlaySpeed('real');
+    return true;
+  }
+  return false;
 }
 // The impacts on record as events for the date picker (transients.js): a second before each
 // meteor appears.

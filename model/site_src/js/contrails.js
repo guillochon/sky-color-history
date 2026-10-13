@@ -179,8 +179,11 @@ function ctImpacts(T){
     if(!S) continue;
     const {age, Y, base, up}=S, a=Math.abs(up[2])<0.9?[0, 0, 1]:[1, 0, 0], e1=vnorm(vcross(a, up)), e2=vcross(up, e1);
     const at=(h, x, y)=>{ const dr=ctDrift(h, age); return [base[0]+up[0]*h+e1[0]*x+e2[0]*y+dr[0], base[1]+up[1]*h+e1[1]*x+e2[1]*y+dr[1], base[2]+up[2]*h+e1[2]*x+e2[2]*y]; };
-    const H=Math.min(45000, 18000*Math.pow(Y, 0.2)), tr=100+40*Math.pow(Y, 0.1), hc=Math.max(S.Rf*0.8, H*(1-Math.exp(-age/tr)));
-    const R0=6000*Math.pow(Y, 0.35), Rc=Math.max(S.Rf, R0*(1-Math.exp(-age/(1.5*tr))))+3*age, fade=Math.exp(-((age/S.life)**2));
+    // The largest (Chicxulub's) drawn no wider than a third of their distance, the condensation dome
+    // spreading out past the observer: by the scalings the cap and dome would be thousands of km
+    // across, all round the observer, and the cloud pass would not show them.
+    const H=Math.min(45000, 18000*Math.pow(Y, 0.2)), tr=100+40*Math.pow(Y, 0.1), hc=Math.max(S.Rf*0.3, H*(1-Math.exp(-age/tr)));
+    const R0=Math.min(6000*Math.pow(Y, 0.35), S.d/3), Rc=Math.max(S.Rf, R0*(1-Math.exp(-age/(1.5*tr))))+3*age, fade=Math.exp(-((age/S.life)**2));
     const glow=4*Math.exp(-age/(1.5*S.tau)), seed=(m.t0*0.618)%1;
     // The stem, from the ground to under the cap, and the cap, a flattened ball (a segment a couple of
     // metres long, which the shader rounds over its width).
@@ -196,9 +199,9 @@ function ctImpacts(T){
     const blob=(c, sg, sv, tau, glow, kind, s)=>{ out.push({kind, seed:s, pts:[-1, 1].map(d=>({p:[c[0]+d, c[1], c[2]], sg, sv, tau, along:d, glow}))}); };
     // The fireball, a glowing ball that grows, rises and cools, into the cap.
     const fbT=8*Math.exp(-age/(3*S.tau));
-    if(fbT>0.01) blob(at(S.Rf*0.8+60*age, 0, 0), S.Rf*(0.6+0.4*Math.min(1, age/S.tau)), S.Rf*(0.55+0.4*Math.min(1, age/S.tau)), fbT, 14*Math.exp(-age/(0.8*S.tau)), 1, seed+0.41);
+    if(fbT>0.01) blob(at(S.Rf*0.3+60*age, 0, 0), S.Rf*(0.6+0.4*Math.min(1, age/S.tau)), S.Rf*(0.55+0.4*Math.min(1, age/S.tau)), fbT, 14*Math.exp(-age/(0.8*S.tau)), 1, seed+0.41);
     // The condensation cloud, a thin dome over the burst behind the blast wave while it is near.
-    const rMax=8000*Math.pow(Y, 1/3);
+    const rMax=Math.min(8000*Math.pow(Y, 1/3), 1.2*S.d);
     if(S.rs<rMax*1.5) blob(at(0, 0, 0), S.rs, 0.7*S.rs, 0.35*Math.exp(-S.rs/rMax), 0, 0, seed+0.57);
     // The base surge, the dust the blast sweeps up along the ground: a low, wide pancake of it, slower
     // than the blast wave and lingering.
@@ -230,7 +233,9 @@ function contrailData(T){
   if(key===CT.key) return CT;
   CT.key=key; CT.T=T;
   if(CT.flights.size>400){ const lo=Math.floor((T-CT_LOOK)/CT_BIN)-2; for(const k of CT.flights.keys()) if(+k.slice(k.lastIndexOf('|')+1)<lo) CT.flights.delete(k); }
-  const trails=ctJets(T).concat(ctBolides(T), ctImpacts(T)).map(t=>{
+  // The jets by the day number's seconds, the meteors' dust and strikes by the meteors' own sky time
+  // (meteors.js metSec), counted from an origin that moves on in the far past and future.
+  const tm=metSec(), trails=ctJets(T).concat(ctBolides(tm), ctImpacts(tm)).map(t=>{
     let tmax=0, dmin=Infinity; for(const q of t.pts){ tmax=Math.max(tmax, q.tau); dmin=Math.min(dmin, Math.hypot(...q.p)); }
     t.score=tmax/(1+dmin/40000); return t;
   }).filter(t=>t.score>0.002).sort((a, b)=>b.score-a.score);

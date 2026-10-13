@@ -771,7 +771,9 @@ function adoptPlayRate(){
       playRAF=requestAnimationFrame(frame);
       let dt=(now-playStamp)/1000; playStamp=now; if(dt>0.05) dt=0.05;
       stepWalk(dt);
+      const t0=metSec();
       minutes+=playSpeed==='real'?dt*realMinPerSec():dt*(2.5/0.06)/5*eclipseSlow()*24/dayHours()*SPEED_X[playSpeed];
+      if(playSpeed!=='real') metBrake(t0);
       while(minutes>=DAYMIN){ minutes-=DAYMIN; shiftMoonDate(1); }
       hslider.value=minutes; renderDay(true);
     };
@@ -795,7 +797,9 @@ function adoptPlayRate(){
       }
       if(dt<60) return;
       playStamp=now;
+      const t0=metSec();
       minutes+=2.5*Math.min(dt/60, 4)*eclipseSlow()*24/dayHours()*SPEED_X[playSpeed];
+      metBrake(t0);
       while(minutes>=DAYMIN){ minutes-=DAYMIN; shiftMoonDate(1); }
       hslider.value=minutes; renderDay();
     };
