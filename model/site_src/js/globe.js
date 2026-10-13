@@ -49,7 +49,7 @@ function drawGlobeAt(pos){ // blend between neighboring epochs
   gctx.font='italic 22px Newsreader, Georgia, serif'; tag(gctx, EP[Math.round(pos)].name, 14, globe.height-9);
   refreshGlobeTip();
 }
-const WIKI={
+const WIKI=aliasEpochs({
   protoearth455:['Nice model','https://en.wikipedia.org/wiki/Nice_model'],
   hadean45:['Giant-impact hypothesis','https://en.wikipedia.org/wiki/Giant-impact_hypothesis'],
   hadean40:['Hadean','https://en.wikipedia.org/wiki/Hadean'],
@@ -61,6 +61,7 @@ const WIKI={
   snowball07:['Snowball Earth','https://en.wikipedia.org/wiki/Snowball_Earth'],
   ordovician466:['Ordovician meteor event','https://en.wikipedia.org/wiki/Ordovician_meteor_event'],
   carbon30:['Carboniferous','https://en.wikipedia.org/wiki/Carboniferous'],
+  cretaceous66:['Late Cretaceous','https://en.wikipedia.org/wiki/Late_Cretaceous'],
   kpg66:['Cretaceous–Paleogene extinction event','https://en.wikipedia.org/wiki/Cretaceous–Paleogene_extinction_event'],
   zetaoph:['Zeta Ophiuchi','https://en.wikipedia.org/wiki/Zeta_Ophiuchi'],
   geminga:['Geminga','https://en.wikipedia.org/wiki/Geminga'],
@@ -69,7 +70,7 @@ const WIKI={
   modernpoll:['Air pollution','https://en.wikipedia.org/wiki/Air_pollution'],
   ozonehole:['Ozone depletion','https://en.wikipedia.org/wiki/Ozone_depletion'],
   y2100:['Satellite constellation','https://en.wikipedia.org/wiki/Satellite_constellation']
-};
+});
 // One epoch for the whole page: the globe follows the timeline continuously, and the dome and
 // VR follow it whenever it reaches another epoch. date, when given, makes the page date in the
 // new epoch (epoch_time.js); otherwise the new epoch keeps the season (calendar.js, epochDate).

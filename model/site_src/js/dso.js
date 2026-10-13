@@ -67,7 +67,7 @@ function dsoPlace(lat){
   const key=EP[dIdx].key, year=STAR_YEAR[key]||pageDate()[0], LST=localSidereal(), out=[];
   const dir=(ra, dec)=>{ const p=starMeanPlace([ra, dec, 0, 0, 0, 0], key, year), q=raDecAltaz(lat, p.ra, p.dec, LST); return horizDir(q.az, q.alt); };
   DSO.objects.forEach((o, i)=>{
-    const e=o.ep[key]; if(!e||!(e[3]>0)) return;
+    const e=o.ep[dataKey(key)]; if(!e||!(e[3]>0)) return;
     const hw=o.hw*e[2], R=Math.atan(hw*Math.SQRT2), C=dir(e[0], e[1]);
     if(C[2]<-Math.sin(Math.min(R+0.02, 1.5))) return;
     const n=dir(e[0], e[1]+(e[1]>89?-0.05:0.05)), sg=e[1]>89?-1:1, dn=vdot(n, C);

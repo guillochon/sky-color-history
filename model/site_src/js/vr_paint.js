@@ -8,7 +8,7 @@ function mtnSnowFor(key){
   if(key==='kpg66'||key==='snowball07') return 1;
   if(key==='modern'||key==='ozonehole'||key==='geminga'||key==='zetaoph') return 1;
   if(key==='modernpoll'||key==='y2100') return 0.75;
-  if(key==='carbon30') return 0.35;
+  if(key==='carbon30'||key==='cretaceous66') return 0.35;
   if(key==='proterozoic22'||key==='ordovician466') return 0.2;
   return 0;
 }
@@ -27,12 +27,14 @@ const ZONES={
   // pool at a vent below it.
   hadean45:[[0,0,'sea',300],[70,225,'magma',32]],
   hadean40:[[30,330,'water',100],[95,520,'magma',140],[320,430,'water',130],[255,1300,'water',280],[40,1500,'magma',260]],
-  archean38:WATER, archean27thin:WATER, archean27:WATER, archean27vthick:WATER,
+  archean38:WATER, archean27clear:WATER, archean27thin:WATER, archean27:WATER, archean27vthick:WATER,
   proterozoic22:[[20,520,'water',180],[300,720,'water',250],[100,480,'water',120]],
   snowball07:[[30,320,'ice',120],[300,520,'ice',200],[60,700,'ice',160]],
   carbon30:[[0,560,'carb',300],[70,520,'carb',230],[140,720,'carb',350],[205,560,'carb',260],[265,860,'carb',420],[325,620,'carb',270],[105,170,'swamp',55],[235,150,'swamp',45],[350,130,'swamp',40]],
   // No land plants yet beyond mosses and crusts; shallow seas flooded the continents.
   ordovician466:[[20,600,'water',260],[110,900,'water',380],[230,480,'water',150],[300,1400,'water',420]],
+  // Before the impact and after its winter, the Late Cretaceous's forests stand.
+  cretaceous66:[[20,520,'wood',260],[300,650,'wood',300],[110,300,'water',70]],
   kpg66:[[20,520,'dead',260],[300,650,'dead',300],[110,300,'water',70]],
   zetaoph:[[20,520,'wood',260],[300,650,'wood',300],[80,800,'wood',280],[110,330,'water',90],[240,500,'water',130]],
   geminga:[[20,520,'wood',260],[300,650,'wood',300],[80,800,'wood',280],[110,330,'water',90],[240,500,'water',130]],
@@ -82,7 +84,7 @@ function buildScene(key){ // [bearing deg, distance m, radius m, height m, kind]
   if(key==='carbon30') return spots(TREES);
   if(TOWNS[key]) return spots(TOWN_MTNS);
   if(key==='hadean45') return spots(ISLES);
-  if(key==='protoearth455'||key==='hadean40'||key==='archean38'||key==='archean27thin'||key==='archean27'||key==='archean27vthick'||key==='volcanic') return spots(VOLC);
+  if(key==='protoearth455'||key==='hadean40'||key==='archean38'||key==='archean27clear'||key==='archean27thin'||key==='archean27'||key==='archean27vthick'||key==='volcanic') return spots(VOLC);
   return spots(PEAKS);
 }
 function fract(x){ return x-Math.floor(x); }

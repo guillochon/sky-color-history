@@ -47,7 +47,7 @@ const SP_FRAUN_T=Float32Array.from(SP_LAM, l=>SP_FRAUN.reduce((t, [c, d, s])=>t*
 const SP_TAU_O2=Float32Array.from(SP_LAM, l=>(l>=759&&l<=770?2.0*(l<762?1:0.25+0.75*(770-l)/8):0)+(l>=686.5&&l<=694?0.55*(l<689?1:(694-l)/5):0));
 const SP_TAU_H2O=Float32Array.from(SP_LAM, l=>0.25*Math.exp(-0.5*((l-725)/5)**2));
 // O2 relative to today's 21%, and the water column relative to today's.
-const SP_O2={protoearth455:0, hadean45:0, hadean40:0, archean38:0, archean27thin:0, archean27:0, archean27vthick:0, proterozoic22:0.01, snowball07:0.1, ordovician466:0.81, carbon30:1.57};
+const SP_O2=aliasEpochs({protoearth455:0, hadean45:0, hadean40:0, archean38:0, archean27thin:0, archean27:0, archean27vthick:0, proterozoic22:0.01, snowball07:0.1, ordovician466:0.81, carbon30:1.57});
 const SP_H2O={hadean45:4, protoearth455:1.5, snowball07:0.2};
 // The night's sources, each to unit luminance.
 const SP_SUN5772=spNorm(spPlanck(5772));
@@ -366,7 +366,7 @@ function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null, cr=null, moo
   const sun=share('sunlit')+share('moonlit')+share('Sun')+share('the Moon')+share('zodiacal')+share('cloud, sunlit')+share('cloud, lit by the sky')+share('cloud, moonlit');
   if(share('sunlit')+share('moonlit')+share('cloud, lit by the sky')>0.3){
     if(spOzone(key)) marks.push({a:500, b:680, t:'O₃ Chappuis', band:true});
-    if(key.startsWith('archean27')) marks.push({a:380, b:480, t:'organic haze', band:true});
+    if(key.startsWith('archean27')&&key!=='archean27clear') marks.push({a:380, b:480, t:'organic haze', band:true});
     if(key==='kpg66') marks.push({a:380, b:780, t:'soot dims all colours', band:true});
   }
   if(feat&&tioDepth(feat.T)>0.03) TIO_HEADS.forEach(l=>marks.push({l, t:'TiO'}));
@@ -543,7 +543,7 @@ function globeSpectrum(key, lat, h){
   for(let i=0;i<SP_N;i++) S[i]*=SP_FRAUN_T[i]*Math.exp(-SP_TAU_O2[i]*o2-SP_TAU_H2O[i]*h2o);
   const marks=[...SP_SUN_MARKS];
   if(spOzone(key)) marks.unshift({a:500, b:680, t:'O₃ Chappuis', band:true});
-  if(key.startsWith('archean27')) marks.unshift({a:380, b:480, t:'organic haze', band:true});
+  if(key.startsWith('archean27')&&key!=='archean27clear') marks.unshift({a:380, b:480, t:'organic haze', band:true});
   spAirMarks(marks, o2, h2o);
   return {S, Y:1, parts:[], marks};
 }
@@ -784,7 +784,7 @@ function noonSpectrum(key, L, f){
   for(let i=0;i<SP_N;i++) S[i]*=SP_FRAUN_T[i]*Math.exp(-SP_TAU_O2[i]*o2-SP_TAU_H2O[i]*h2o);
   const marks=[...SP_SUN_MARKS];
   if(spOzone(key)) marks.unshift({a:500, b:680, t:'O₃ Chappuis', band:true});
-  if(key.startsWith('archean27')) marks.unshift({a:380, b:480, t:'organic haze', band:true});
+  if(key.startsWith('archean27')&&key!=='archean27clear') marks.unshift({a:380, b:480, t:'organic haze', band:true});
   if(key==='kpg66') marks.unshift({a:380, b:780, t:'soot dims all colours', band:true});
   spAirMarks(marks, o2, h2o);
   return {S, Y:1, parts:[], marks, vz, sza};

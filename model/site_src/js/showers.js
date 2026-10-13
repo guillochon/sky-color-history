@@ -179,7 +179,7 @@ function showerFromRow(row){
 let SHOWER_LIST=null;
 function showerList(){ return SHOWER_LIST||(SHOWER_LIST=SHOWERS.map(showerFromRow)); }
 // The short-period comets relative to today's (see above).
-const SHOWER_J={protoearth455:30, hadean45:30, hadean40:5, archean38:4, archean27thin:1.5, archean27:1.5, archean27vthick:1.5, proterozoic22:1.2};
+const SHOWER_J=aliasEpochs({protoearth455:30, hadean45:30, hadean40:5, archean38:4, archean27thin:1.5, archean27:1.5, archean27vthick:1.5, proterozoic22:1.2});
 // Through time like the comet rate (comets.js).
 const showerJNow=byTime(rateCurve(SHOWER_J));
 function showerFactor(key){ return key===EP[dIdx].key?0.75*showerJNow()+0.25*cometRateNow():0.75*(SHOWER_J[key]??1)+0.25*(COMET_RATE[key]??1); }

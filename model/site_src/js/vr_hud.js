@@ -91,7 +91,7 @@ const CON_LINE_MAX=3;
 // are moved there (CON_EPOCHS).
 function conKeep(key){
   if(CON_KEEP[key]) return CON_KEEP[key];
-  const E=CON_EPOCHS[key], keep=[];
+  const E=CON_EPOCHS[dataKey(key)], keep=[];
   const unit=p=>{ const r=Math.PI/180, cd=Math.cos(p[1]*r); return [cd*Math.cos(p[0]*r), cd*Math.sin(p[0]*r), Math.sin(p[1]*r)]; };
   const sep=(p, q)=>Math.acos(Math.max(-1, Math.min(1, vdot(unit(p), unit(q)))));
   for(const [, , chains] of CON_FIG) for(const run of chains) for(let k=1;k<run.length;k++){
@@ -104,7 +104,7 @@ function conKeep(key){
 function conPlaces(key, year){
   const k=key+'|'+year;
   if(CON_PLACES[k]!==undefined) return CON_PLACES[k];
-  const moved=CON_EPOCHS[key], src=moved||(starsFor(key)===STARS?CON_VERT:null);
+  const moved=CON_EPOCHS[dataKey(key)], src=moved||(starsFor(key)===STARS?CON_VERT:null);
   return CON_PLACES[k]=src&&src.map(v=>starMeanPlace([v[0], v[1], 0, 0, v[2], v[3], 0, '', undefined, v[4], v[5]], key, year));
 }
 // The constellation lines, as great circles between their stars, cut at the horizon; returns

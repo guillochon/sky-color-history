@@ -106,6 +106,7 @@ function pointDisplay(mag){ const d=magDisplay(mag, 200); return {px:d.px, rgb:P
 // stars of that sky cannot be known.
 const STAR_LISTS={};
 function starsFor(key){
+  key=dataKey(key);
   if(STAR_LISTS[key]) return STAR_LISTS[key];
   const full=r=>[r[0], r[1], r[2], r[3], r[6]||0, r[7]||0, r[4], r[5], undefined, r[8], r[9]];
   if(STARS_EPOCH[key]) return STAR_LISTS[key]=STARS_EPOCH[key].map(full);

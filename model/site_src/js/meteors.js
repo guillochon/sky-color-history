@@ -43,7 +43,7 @@
 //     the chronology run back past 4.4 Ga, taken as 30,000 and 10,000 times today.
 // Heights: in the Early Hadean's 30 bar of CO₂ every density level sits higher, so meteors burn
 // about 22 km higher up (in the proto-Earth's guessed 4 bar, 9 km); elsewhere the difference is a few kilometres and is left out.
-const MET_EPOCH={
+const MET_EPOCH=aliasEpochs({
   protoearth455:{F:30000, rf:3.0, rb:2.0, mix:{aster:0.9, iso:0.1}, dh:9, flash:1},
   hadean45:{F:10000, rf:3.0, rb:2.0, mix:{aster:0.85, iso:0.15}, dh:22, flash:1},
   hadean40:{F:500, rf:3.0, rb:2.1, mix:{aster:0.6, apex:0.15, iso:0.25}, flash:1},
@@ -51,14 +51,18 @@ const MET_EPOCH={
   archean27thin:{F:2, mix:{aster:0.3}}, archean27:{F:2, mix:{aster:0.3}}, archean27vthick:{F:2, mix:{aster:0.3}},
   proterozoic22:{F:1.3}, snowball07:{F:0.6}, carbon30:{F:0.5},
   ordovician466:{F:100, rf:3.4, rb:2.3, mix:{aster:0.8, apex:0.07, helion:0.05, antihelion:0.05, iso:0.03}, ring:0.25, flash:1},
-};
+});
 // Today's mix of sources, by number among naked-eye meteors.
 const MET_MIX_TODAY={apex:0.28, helion:0.2, antihelion:0.2, toroidal:0.12, iso:0.08, aster:0.12};
 // The flux of the epoch shown runs geometrically through time between the epochs (epoch_time.js
-// rateCurve), the Ordovician break-up's keeping its epoch's through its span; the rest is the epoch's.
-const metFluxNow=byTime(rateCurve(Object.fromEntries(Object.entries(MET_EPOCH).map(([k, e])=>[k, e.F])), ['ordovician466']));
+// rateCurve), and toward the Ordovician break-up's 100 times as its meteoroids arrive (debris.js
+// ORD_DUST). The break-up's slow, steep, sodium-yellow mix is the Ordovician sky's while its
+// meteoroids are at least half in, and its ring debris goes with the ring.
+const metFluxBase=rateCurve(Object.fromEntries(Object.entries(MET_EPOCH).map(([k, e])=>[k, e.F])), ['ordovician466']);
+const metFluxNow=byTime(A=>{ const b=metFluxBase(A); return b*Math.pow(MET_EPOCH.ordovician466.F/b, ordDustAt(A)); });
 function metEpoch(key){
-  const e={...MET_EPOCH[key]};
+  let e={...MET_EPOCH[key]};
+  if(key==='ordovician466'){ if(ordDustNow()<0.5) e={}; else if(e.ring) e.ring*=ordRingNow(); }
   if(key===EP[dIdx].key) e.F=metFluxNow();
   const mix=Object.assign({}, e.mix&&Object.keys(e.mix).length>1?{}:MET_MIX_TODAY, e.mix||{});
   return {F:e.F??1, rf:e.rf??3.0, rb:e.rb??2.3, mix, dh:e.dh||0, ring:e.ring||0, flash:e.flash||0};

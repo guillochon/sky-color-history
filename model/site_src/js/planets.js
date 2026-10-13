@@ -288,7 +288,7 @@ function zoomedDisplay(o){ return o.tint?planetDisplay(o.mag-moonGain(), o.tint)
 // moving on from there with the date; Jupiter's moons share one offset, keeping their resonance.
 // The orbits' shapes are today's: known back to about 50 Myr (La2010; Zeebe & Lourens 2019), only
 // statistically before.
-const PLANET_AGE_MA={protoearth455:4550, hadean45:4500, hadean40:4000, archean38:3800, archean27thin:2700, archean27:2700, archean27vthick:2700, proterozoic22:2200, snowball07:700, ordovician466:466, carbon30:300, kpg66:66, zetaoph:1.78, geminga:0.342};
+const PLANET_AGE_MA=aliasEpochs({protoearth455:4550, hadean45:4500, hadean40:4000, archean38:3800, archean27thin:2700, archean27:2700, archean27vthick:2700, proterozoic22:2200, snowball07:700, ordovician466:466, carbon30:300, kpg66:66, zetaoph:1.78, geminga:0.342});
 // Saturn's rings may be young: their mass and how little meteoroid dust darkens them put them at
 // tens to a few hundred Myr (Iess et al. 2019; Kempf et al. 2023), though whether they are is still argued.
 // They are drawn from Chrysalis's break-up, the illustrated case of about 160 Myr ago within a
@@ -310,7 +310,7 @@ function planetPhases(key){
   const P=planetPhases.cache||(planetPhases.cache={});
   if(P[key]!==undefined) return P[key];
   if(PLANET_AGE_MA[key]==null) return P[key]=null;
-  let h=2166136261; for(const c of key) h=Math.imul(h^c.charCodeAt(0), 16777619);
+  let h=2166136261; for(const c of dataKey(key)) h=Math.imul(h^c.charCodeAt(0), 16777619);
   // Drawn in this order so each table's later rows leave the earlier ones' phases as they were.
   const rand=mulberry32(h>>>0), planets=PLANETS.map(()=>rand()*360), jup=rand()*360;
   const moons=PLANET_MOONS.map(m=>m[1]===3?jup:MOON_LATE.has(m[0])?0:rand()*360), lost=LOST_PLANETS.map(()=>rand()*360);

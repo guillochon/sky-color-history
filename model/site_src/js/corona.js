@@ -23,7 +23,7 @@
 //     gas is near its temperature (spread 0.2 dex about the mean).
 //   - Chromosphere: as L_X^0.25; chromospheric emission rises more slowly than X rays.
 // The disk itself, and so all of this, is dimmer per area for a cooler Sun: luminance as T_eff^4.6.
-const CORONA_GA={protoearth455:4.55, hadean45:4.5, hadean40:4.0, archean38:3.8, archean27thin:2.7, archean27:2.7, archean27vthick:2.7, proterozoic22:2.2, snowball07:0.7, ordovician466:0.466, carbon30:0.3, kpg66:0.066};
+const CORONA_GA=aliasEpochs({protoearth455:4.55, hadean45:4.5, hadean40:4.0, archean38:3.8, archean27thin:2.7, archean27:2.7, archean27vthick:2.7, proterozoic22:2.2, snowball07:0.7, ordovician466:0.466, carbon30:0.3, kpg66:0.066});
 const SUN_B0=1.87e9; // today's mean disk luminance above the air, cd/m²: 1.27e5 lux over 6.80e-5 sr
 // [nm, equivalent width today near the limb (nm, against K), log T of formation, name]
 const CORONA_LINES=[[530.3, 2.0, 6.25, 'Fe XIV'], [637.4, 1.0, 6.0, 'Fe X'], [569.4, 0.05, 6.65, 'Ca XV']];

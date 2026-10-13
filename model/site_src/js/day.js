@@ -169,8 +169,8 @@ const NIGHT_NATURAL=1.71e-4, NIGHT_XY=[0.310, 0.330];
 //     so their luminance is about 15% of today's airglow (band shape: a Gaussian at 450 nm, 45 nm
 //     wide, xy 0.145, 0.120).
 const NIGHT_REST_XY=[0.3265, 0.3361], AIRGLOW_XY=[0.294, 0.324], HERZBERG_XY=[0.145, 0.120], AIRGLOW_SHARE=0.5;
-const AIRGLOW_O={protoearth455:0, hadean45:0, proterozoic22:0.3, snowball07:0.8, ordovician466:0.9, archean27thin:0, archean27:0, archean27vthick:0, archean38:0, hadean40:0};
-const AIRGLOW_CO2={protoearth455:0.15, hadean45:0.15, archean27thin:0.15, archean27:0.15, archean27vthick:0.15, archean38:0.15, hadean40:0.15};
+const AIRGLOW_O=aliasEpochs({protoearth455:0, hadean45:0, proterozoic22:0.3, snowball07:0.8, ordovician466:0.9, archean27thin:0, archean27:0, archean27vthick:0, archean38:0, hadean40:0});
+const AIRGLOW_CO2=aliasEpochs({protoearth455:0.15, hadean45:0.15, archean27thin:0.15, archean27:0.15, archean27vthick:0.15, archean38:0.15, hadean40:0.15});
 // The natural night sky at the zenith outside the air (cd/m², XYZ) for epoch key.
 function nightNatural(key){
   const fo=AIRGLOW_O[key]??1, fc=AIRGLOW_CO2[key]||0, out=[0,0,0];

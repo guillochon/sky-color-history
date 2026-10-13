@@ -21,12 +21,22 @@
 // The pattern, in S10 (tenth-magnitude solar stars per square degree) against elongation from
 // the Sun along the ecliptic and ecliptic latitude, is a fit to Leinert et al. 1998 (A&AS 127, 1):
 // 60 at the ecliptic poles, about 1,800 at 30°, 220 at 90°, 150 at 150°, 200 in the gegenschein.
-const ZODI={protoearth455:10, hadean45:2000, hadean40:300, archean38:50, archean27thin:1.5, archean27:1.5, archean27vthick:1.5, ordovician466:30};
+const ZODI=aliasEpochs({protoearth455:10, hadean45:2000, hadean40:300, archean38:50, archean27thin:1.5, archean27:1.5, archean27vthick:1.5, ordovician466:30});
 const ZODI_BAND={ordovician466:0.6};
 const S10_CD=8.35e-7; // one S10 in cd/m² (27.78 mag/arcsec²)
-// Between the epochs it runs geometrically through time (epoch_time.js rateCurve); the Ordovician
-// break-up's dust keeps its epoch's through its span.
-const zodiNow=byTime(rateCurve(ZODI, ['ordovician466']));
+// Between the epochs it runs geometrically through time (epoch_time.js rateCurve). The Ordovician
+// break-up comes on top: its dust and meteoroids (and those of its ring, below) arrive within some
+// 50,000 years of it, stay up for over 2 Myr (Schmitz et al. 2019) and fall off over another
+// million or so (an e-folding time of 1 Myr); the ring, if there was one, lasted tens of millions
+// of years (Tomkins et al. 2024), taken as an e-folding time of 20 Myr. The break-up is put 0.1
+// Myr before the 466 Ma epoch, so the epoch shows it in full.
+const ORD_START=epochAnchor('ordovician466')-0.1e6;
+const ORD_DUST={start:ORD_START, rise:0.05e6, hold:2e6, efold:1e6}, ORD_RING={start:ORD_START, rise:100, hold:0, efold:20e6};
+function ordDustAt(A){ return eventLevel(ORD_DUST, A); }
+const ordDustNow=byTime(ordDustAt), ordRingNow=byTime(A=>eventLevel(ORD_RING, A));
+// The cloud's brightness: from the baseline toward the break-up's 30 times today, geometrically.
+const zodiBase=rateCurve(ZODI, ['ordovician466']);
+const zodiNow=byTime(A=>{ const b=zodiBase(A); return b*Math.pow(ZODI.ordovician466/b, ordDustAt(A)); });
 function zodiK(key){ return key===EP[dIdx].key?zodiNow():ZODI[key]||1; }
 // Today's zodiacal light toward direction v (unit, horizon frame), in S10. F holds the Sun's
 // direction s and the ecliptic pole N.
@@ -52,7 +62,7 @@ function eclipticFrame(lat){
 // The excess zodiacal light of epoch key toward v, in cd/m² above the air.
 function zodiExtra(key, v, F){
   const K=zodiK(key);
-  return K>1?(K-1)*zodiS10(v, F, ZODI_BAND[key]||0)*S10_CD:0;
+  return K>1?(K-1)*zodiS10(v, F, (ZODI_BAND[key]||0)*(key==='ordovician466'?ordDustNow():1))*S10_CD:0;
 }
 
 // The Ordovician ring. Tomkins, Martin & Cawood 2024 (EPSL 646, 118991) found all 21 known
@@ -69,7 +79,11 @@ function zodiExtra(key, v, F){
 // around midnight. Taken in the equatorial plane of the year shown.
 const RING={ordovician466:{rIn:1.55, rOut:2.75, tau:1.5e-4, H:2, alb:0.25, sunL:0.962}};
 const RE_KM=6371;
-function ringOf(key){ return RING[key]||null; }
+// The ring as it is at the time shown: from the break-up on, thinning as it decays.
+function ringOf(key){
+  const R=RING[key], w=R?ordRingNow():0;
+  return w<0.01?null:w>0.999?R:{...R, tau:R.tau*w};
+}
 // The ring's optical depth at rho Earth radii from the centre.
 function ringTau(R, rho){
   if(rho<R.rIn||rho>R.rOut) return 0;

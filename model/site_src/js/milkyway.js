@@ -182,7 +182,7 @@ function mwParamsAt(A){
 // dust over with it, then over now), adds to the map's own for the reddening.
 let mwFor=null;
 function buildMilkyWay(){
-  const pe=MW_EPOCH[EP[dIdx].key], p=mwParamsAt(physTime()), seed=pe?pe.seed:0, id=p.T+'|'+seed;
+  const pe=MW_EPOCH[dataKey(EP[dIdx].key)], p=mwParamsAt(physTime()), seed=pe?pe.seed:0, id=p.T+'|'+seed;
   if(mwMap&&mwFor===id) return mwMap;
   const Y=mwLayout(seed), M=p.T>0?mwModel(p):null, M0=M?mwModel(MW_EPOCH.now):null;
   const n=MW_W*MW_H, m=new Float32Array(n), age=new Float32Array(n*2), rgb=new Float32Array(n*3), c=[0, 0, 0];

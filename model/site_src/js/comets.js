@@ -61,11 +61,14 @@ const COMET_REAL_EPOCHS=new Set(['modern', 'modernpoll', 'ozonehole', 'volcanic'
 //     4 Ga would put thousands at 4.0 Ga instead). Before the instability, at 4.55 and (as that
 //     epoch has it) 4.50 Ga, the ice giants were still eroding the disk: 30, about what the
 //     scattered disk gives just after it.
-const COMET_RATE={protoearth455:30, hadean45:30, hadean40:5, archean38:4, archean27thin:1.5, archean27:1.5, archean27vthick:1.5, proterozoic22:1.2,
-  snowball07:0.45, ordovician466:0.45, carbon30:0.45, kpg66:0.45, zetaoph:4, geminga:1.1};
-// Between the epochs the rate runs geometrically through time (epoch_time.js rateCurve); ζ Oph's
-// comet shower keeps its epoch's rate through its span.
-const cometRateAt=rateCurve(COMET_RATE, ['zetaoph']), cometRateNow=byTime(cometRateAt);
+const COMET_RATE=aliasEpochs({protoearth455:30, hadean45:30, hadean40:5, archean38:4, archean27thin:1.5, archean27:1.5, archean27vthick:1.5, proterozoic22:1.2,
+  snowball07:0.45, ordovician466:0.45, carbon30:0.45, kpg66:0.45, zetaoph:4, geminga:1.1});
+// Between the epochs the rate runs geometrically through time (epoch_time.js rateCurve). ζ Oph's
+// comet shower rises and falls on top of it: a Gaussian 0.55 Myr wide, at 4 times today at 1.78
+// Ma and 1.1 in its tail at 342 ka, as above.
+const cometBase=rateCurve(COMET_RATE, ['zetaoph', 'geminga']), COMET_SHOWER={at:epochAnchor('zetaoph'), width:0.55e6};
+function cometRateAt(A){ const b=cometBase(A); return b+(COMET_RATE.zetaoph-b)*Math.exp(-0.5*((A-COMET_SHOWER.at)/COMET_SHOWER.width)**2); }
+const cometRateNow=byTime(cometRateAt);
 function cometRate(key){ return COMET_REAL_EPOCHS.has(key)?0:key===EP[dIdx].key?cometRateNow():(COMET_RATE[key]??1); }
 // Comets a year today with H ≤ 10 and q ≤ 2 AU: 3.2 gives one a year peaking at m ≤ 6 (seen at
 // least 20° from the Sun) and 0.3 a year at m ≤ 3; Hughes's normalisation (0.5 a year per AU

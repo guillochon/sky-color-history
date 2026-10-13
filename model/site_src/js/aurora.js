@@ -26,7 +26,7 @@
 //   - Nitrogen's blue-violet N2+ bands and the pink-red N2 first positive bands go with the N2.
 //     Without oxygen atoms to quench excited N2, the first positive bands gain 30%.
 // All of these are estimates, set to show the trend rather than to predict a particular night.
-const AURORA_EPOCH={
+const AURORA_EPOCH=aliasEpochs({
   protoearth455:[0.30, 7.0, 8.0, 0.5, 0.3],
   hadean45:[0.35, 6.5, 7.0, 0.6, 0.15],
   hadean40:[0.45, 6.0, 5.0, 0.12, 1],
@@ -36,7 +36,7 @@ const AURORA_EPOCH={
   archean27vthick:[0.60, 5.0, 3.0, 0.12, 1],
   proterozoic22:[0.80, 4.0, 2.0, 0.3, 1],
   snowball07:[0.95, 3.3, 1.2, 0.8, 1],
-};
+});
 const AURORA_TODAY=[1, 3, 1, 1, 1];
 // Column brightness of a typical arc today, looking up along the field (kR of 557.7 nm, IBC II),
 // which a substorm raises eightfold (about 150 kR, IBC III),

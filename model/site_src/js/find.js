@@ -59,11 +59,11 @@ function findCatalog(){
   if(!noMoon()) out.push({name:'Moon', kind:'the Earth’s moon', prio:10, t:{k:'moon'}});
   for(const [name, b] of BODY_WHERE) out.push({name, kind:b.host?`moon of ${b.host}`:b.what?b.what.replace(/^an? /, ''):'planet', prio:b.host?4:9, t:{k:'body', name}});
   const sn=SUPERNOVA[key];
-  if(sn) out.push({name:sn.name||'Supernova', also:['supernova'], kind:'supernova', prio:9, t:{k:'sn'}});
+  if(sn && supernovaMag(sn, astroDay())!=null) out.push({name:sn.name||'Supernova', also:['supernova'], kind:'supernova', prio:9, t:{k:'sn'}});
   const P=starPlaces(key, year);
   for(let i=0;i<P.n;i++){ const s=P.list[i]; if(s[7]) out.push({name:s[7], kind:'star', prio:Math.max(0, Math.min(8, 7-s[2])), t:{k:'star', star:s}}); }
   for(const o of DSO.objects){
-    const e=o.ep[key];
+    const e=o.ep[dataKey(key)];
     if(!e||!(e[3]>0)) continue;
     const both=/^(M|NGC )\d/.test(o.id)&&o.name!==o.id;
     out.push({name:both?`${o.id} ${o.name}`:o.name, also:[o.id, o.name], kind:FIND_DSO_KIND[o.k]||'nebula', prio:6, t:{k:'dso', o}});
@@ -91,7 +91,7 @@ function findWhere(t){
     return at(p.az, p.alt, 0);
   }
   if(t.k==='dso'){
-    const e=t.o.ep[key];
+    const e=t.o.ep[dataKey(key)];
     if(!e||!(e[3]>0)) return null;
     // Its window's radius (dso.py's r) is 1.3 times the half-diagonal of the object's ellipse.
     const m=starMeanPlace([e[0], e[1], 0, 0, 0, 0], key, year), p=raDecAltaz(lat, m.ra, m.dec, LST);

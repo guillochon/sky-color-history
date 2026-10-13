@@ -71,6 +71,7 @@ function epochDateOf(k){
 function shiftMoonDate(days){
   const el=document.getElementById('moonDate'), [Y,M,D]=pageDate();
   el.value=fmtDate(...epochDateOf(epochDayIndex(Y, M, D)+days));
+  autoEpochCheck();
 }
 // The instant shown, as a day number of today's 24-hour days for the ephemerides. In the other
 // calendars time runs from local midnight starting 2000 Jan 1, on standard time.
@@ -186,11 +187,12 @@ function sunEquatorial(d){
 // from the Sun's right ascension and its hour angle.
 function localSidereal(){ return rev(sunEquatorial(astroDay()).RA+(minutes/60-12)*15); }
 // Each epoch's own years. The modern-era skies count them as we do, and move to their own year
-// when chosen (today's for the clean and polluted skies, 1990 for the ozone hole, 1815, 2100).
+// when chosen (today's for the clean and polluted skies, 1990 for the ozone hole, 1816, the year
+// without a summer under Tambora's veil, and 2100).
 // The others count from a year 0 of their own, 2000 underneath (where their calendars start, with
 // today's Moon and eclipses for those with 24-hour days), at the epoch's age on the timeline
 // (epoch_time.js), which is what the page shows.
-const EPOCH_YEAR={modern:'now', modernpoll:'now', ozonehole:1990, volcanic:1815, y2100:2100};
+const EPOCH_YEAR={modern:'now', modernpoll:'now', ozonehole:1990, volcanic:1816, y2100:2100};
 function yearZero(key=EP[dIdx].key){ return key in EPOCH_YEAR?0:2000; }
 function epochYear(key){ const y=EPOCH_YEAR[key]; return y===undefined?2000:y==='now'?new Date().getFullYear():y; }
 function fmtYear(y){ const a=Math.abs(y); return (y<0?'−':'')+(a>=10000?a.toLocaleString('en-US'):String(a)); }
@@ -226,7 +228,7 @@ EP.forEach((ep, i)=>{
 // The month's length is taken in the new year's calendar, so the page goes to its first day first.
 function setPageDate(Y, M, D){
   const el=document.getElementById('moonDate');
-  el.value=fmtDate(Y, M, 1); el.value=fmtDate(Y, M, Math.max(1, Math.min(D, monthLen(Y, M)))); renderDay();
+  el.value=fmtDate(Y, M, 1); el.value=fmtDate(Y, M, Math.max(1, Math.min(D, monthLen(Y, M)))); autoEpochCheck(); renderDay();
 }
 let datePopDrawn='';
 function drawDatePop(){
@@ -250,12 +252,13 @@ function drawDatePop(){
   dpDaySel.replaceChildren(...Array.from({length:monthLen(Y, M)}, (_, i)=>new Option(weeks?`${i+1} ${WD[weekday(Y, M, i+1)]}`:String(i+1), String(i+1))));
   dpDaySel.value=String(D);
   const lens=MONTH_NAMES.map((_, i)=>monthLen(Y, i+1)), lo=Math.min(...lens), hi=Math.max(...lens);
-  const sh=epochShift(key), [from, to]=epochSpan(key), ep=EP[dIdx];
+  const sh=epochShift(key), [from, to]=epochSpan(key, pageTime()), ep=EP[dIdx];
   dpNote.textContent=(greg?(z?'Today’s 24-hour days and calendar.':'The Gregorian calendar.')
     :dayHours()===24?`Gregorian months, with leap days set to keep step with the seasons outside ${fmtTime(GREG_LO+sh)} to ${fmtTime(GREG_HI+sh)}: ${yearLen(Y)} days this year.`
     :weeks?`${dayHoursLabel()}-hour days: Gregorian months, with leap days set to keep step with the seasons: ${yearLen(Y)} days this year.`
     :`${dayHoursLabel()}-hour days: twelve months of ${lo===hi?lo:lo+'–'+hi} days, ${yearLen(Y)} this year.`)
-    +(autoEpoch?` This sky (${ep.short}, ${ep.age}) holds from ${fmtTime(from)} to ${fmtTime(to)}.`
+    +(autoEpoch?(EVENT_KEYS.has(key)?` This sky (${ep.short}, ${ep.age}) is an event: it holds for ${fmtDuration(to-from)} from ${fmtTime(Math.floor(from))}.`
+      :` This sky (${ep.short}, ${ep.age}) holds from ${fmtTime(from)} to ${fmtTime(to)}.`)
       :` This sky (${ep.short}, ${ep.age}) stays at every year while auto-select is off; the Sun, the Moon and the day follow the year.`);
   dpBack.textContent=EPOCH_YEAR[key]==='now'?'Today':`Back to ${ep.age}`;
 }

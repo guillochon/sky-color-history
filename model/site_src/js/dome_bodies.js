@@ -97,17 +97,29 @@ function vnorm(a){ const m=Math.hypot(a[0],a[1],a[2])||1; return [a[0]/m,a[1]/m,
 // (Neuhauser et al. 2019). Peak V about -11.6 for a Type II-P at 107 pc. Their abstract gives no
 // position; RA 242.4, Dec -21.0 is where a straight-line trace of zeta Oph's Hipparcos motion
 // (RV -9 to -15 km/s) puts it 1.78 Myr ago, in Scorpius about 7 degrees NW of Antares.
+// mag is each one's peak. They explode on 24 December of the year before their epoch's year 0
+// (t0, day number in the epoch's calendar), so they peak in early January of year 0.
 const SUPERNOVA={
-  geminga:{ra:85.25, dec:7.44, mag:-10.9, rgb:[0.86, 0.92, 1.0], name:'Geminga’s supernova'},
-  zetaoph:{ra:242.4, dec:-21.0, mag:-11.6, rgb:[0.86, 0.92, 1.0], name:'The supernova that launched ζ Oph'},
+  geminga:{ra:85.25, dec:7.44, mag:-10.9, rgb:[0.86, 0.92, 1.0], name:'Geminga’s supernova', t0:dayNumber(1999, 12, 24, 0)},
+  zetaoph:{ra:242.4, dec:-21.0, mag:-11.6, rgb:[0.86, 0.92, 1.0], name:'The supernova that launched ζ Oph', t0:dayNumber(1999, 12, 24, 0)},
 };
+// A Type II-P supernova's light (Anderson et al. 2014; Richardson et al. 2014): to peak in two
+// weeks, a plateau falling about half a magnitude over the next 90 days, a drop of 2 magnitudes
+// over a month as it ends, then the tail of cobalt-56 decay at 0.98 magnitudes per 100 days. It
+// fades past the naked eye after four to five years. Null before the explosion and once too faint.
+function supernovaMag(sn, d){
+  const t=d-sn.t0;
+  if(t<0) return null;
+  const m=sn.mag+(t<14?3*(1-t/14)**2:t<100?0.006*(t-14):t<130?0.52+2*smooth01(100, 130, t):2.52+0.0098*(t-130));
+  return m>7?null:m;
+}
 function supernovaPlace(lat){
-  const sn=SUPERNOVA[EP[dIdx].key];
-  if(!sn) return null;
+  const sn=SUPERNOVA[EP[dIdx].key], mag=sn?supernovaMag(sn, astroDay()):null;
+  if(mag==null) return null;
   const year=pageDate()[0], LST=localSidereal();
-  const place=starMeanPlace([sn.ra, sn.dec, sn.mag, 0, 0, 0], EP[dIdx].key, year);
+  const place=starMeanPlace([sn.ra, sn.dec, mag, 0, 0, 0], EP[dIdx].key, year);
   const p=raDecAltaz(lat, place.ra, place.dec, LST);
-  return {az:p.az, el:p.alt, mag:sn.mag, rgb:sn.rgb, name:sn.name};
+  return {az:p.az, el:p.alt, mag, rgb:sn.rgb, name:sn.name};
 }
 // A point too bright to resolve: a white core and a glare halo, bright enough to show by day.
 function drawSupernovaOnDome(sn){

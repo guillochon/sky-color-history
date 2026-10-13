@@ -17,7 +17,8 @@ def _src(f):
 
 def js_const(f, name):
     s = _src(f)
-    m = re.search(r'\b' + re.escape(name) + r'\s*=\s*', s)
+    # A table wrapped in aliasEpochs(...) (epoch_time.js) is read as its literal.
+    m = re.search(r'\b' + re.escape(name) + r'\s*=\s*(?:aliasEpochs\()?', s)
     if not m: raise KeyError(f'{name} not in {f}')
     rest = s[m.end():]
     if rest.startswith('{'):

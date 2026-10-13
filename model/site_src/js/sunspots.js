@@ -431,6 +431,7 @@ function sunspotLib(){
   return {SUN_ACT, setAct, sunAct, spotCoverage, spotGroups, buildSunMap, planckRatio, diffRot};
 }
 const SS=sunspotLib();
+aliasEpochs(SS.SUN_ACT);
 // The Sun's activity at year A: SUN_ACT at its epochs; between them the rotation slows as P ∝ t^0.5
 // (P² linear in time), the coverage and the groups' size fall geometrically, the rest run linearly,
 // and what is a kind rather than an amount (latitudes spread evenly or in a butterfly, a cycle or

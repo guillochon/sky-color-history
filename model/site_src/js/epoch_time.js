@@ -1,14 +1,15 @@
 /* ---------- the time shown: one timeline through all the epochs ---------- */
 // The time shown is a year on one timeline, numbered as we number years (year 0 is 1 BC). Ages
 // count back from 2000: "66 Ma" is the year 2000 − 66,000,000. Each epoch is a fixed point on the
-// timeline: the modern-era skies at their own years, the others at their ages. For now the sky at
-// any other time is the nearest fixed point's: each epoch's sky holds from halfway back to the one
-// before it to halfway on to the next. Some epochs are alternatives at another's time rather than
-// times of their own (the polluted city, the ozone hole, 1815 and 2100 beside today's clean air;
-// the thin and very thick hazes beside 2.7 Ga's thick one), and one stays chosen through its main
-// epoch's span. Underneath, each epoch keeps its own calendar years (pageDate): the modern-era
-// skies number them as we do, the others count from a year 0 of their own at 2000 (calendar.js).
-const EPOCH_PARENT={modernpoll:'modern', ozonehole:'modern', volcanic:'modern', y2100:'modern', archean27thin:'archean27', archean27vthick:'archean27'};
+// timeline: the modern-era skies at their own years, the others at their ages. The main epochs
+// are the sky's long-lived states: each one's sky holds from halfway back to the main epoch
+// before it to halfway on to the next. Events interrupt them for a while (EPOCH_EVENTS below): the
+// Neoarchean's haze episodes, the K-Pg impact winter, the volcanic year. Some epochs are
+// alternatives at another's time rather than times of their own (the polluted city, the ozone
+// hole and 2100 beside today's clean air), and one stays chosen through its main epoch's span.
+// Underneath, each epoch keeps its own calendar years (pageDate): the modern-era skies number
+// them as we do, the others count from a year 0 of their own at 2000 (calendar.js).
+const EPOCH_PARENT={modernpoll:'modern', ozonehole:'modern', y2100:'modern'};
 const TIME_MIN=2000-4.567e9, TIME_MAX=250000;   // the Solar System's birth; as far ahead as before
 // A year typed or labelled: "1815", "−3000", "3000 BCE", "250,000 years ago", "342 ka", "66 Ma",
 // "2.7 Ga", "today". Returns the year on the timeline, or null.
@@ -31,18 +32,72 @@ function fmtTime(A){
   if(age<1e6) return `${age.toLocaleString('en-US')} years ago`;
   return age<1e9?`${dec(age/1e6, 6)} Ma`:`${dec(age/1e9, 9)} Ga`;
 }
+// A length of time in words: about 1.7 years, about 1.1 million years.
+function fmtDuration(d){ const r=(x, u)=>`about ${+x.toPrecision(2)} ${u}`; return d<1e3?r(d, 'years'):d<1e6?r(d/1e3, 'thousand years'):r(d/1e6, 'million years'); }
 // Where epoch key sits on the timeline, and the timeline year less the epoch's own year.
 function epochAnchor(key){ return key in EPOCH_YEAR?epochYear(key):parseTime(EP.find(e=>e.key===key).age); }
 function epochShift(key=EP[dIdx].key){ return key in EPOCH_YEAR?0:epochAnchor(key)-2000; }
 function pageTime(){ return pageDate()[0]+epochShift(); }
-// The main epochs in time order, and the span of each (shared by its alternatives).
-const MAIN_EPOCHS=EP.map(e=>e.key).filter(k=>!(k in EPOCH_PARENT)).sort((a, b)=>epochAnchor(a)-epochAnchor(b));
-function epochSpan(key){
-  const k=EPOCH_PARENT[key]||key, i=MAIN_EPOCHS.indexOf(k), A=epochAnchor(k);
-  return [i>0?(A+epochAnchor(MAIN_EPOCHS[i-1]))/2:TIME_MIN, i<MAIN_EPOCHS.length-1?(A+epochAnchor(MAIN_EPOCHS[i+1]))/2:TIME_MAX];
+// The time shown to within the year, for events lasting years: the page year and how far through it.
+function eventTime(){ return physTime()+yearFraction()[1]; }
+// An event and the epoch whose sky it interrupts share everything but the air: the stars, the
+// Moon, the planets, the rates. The two backgrounds added for them, the clear Neoarchean and the
+// Late Cretaceous, take the tables of their events' epochs (aliasEpochs fills in a table's
+// missing entries; dataKey names the epoch whose seeded features, star lists and maps to use).
+function aliasEpochs(T){
+  for(const [k, src] of [['archean27clear', 'archean27'], ['cretaceous66', 'kpg66']]) if(!(k in T) && src in T) T[k]=T[src];
+  return T;
 }
-// The epoch shown at year A: the nearest main epoch, or the one shown now if it is that one's alternative.
+function dataKey(key){ return {archean27clear:'archean27', archean27thin:'archean27', archean27vthick:'archean27', cretaceous66:'kpg66'}[key]||key; }
+// Events. Each rises from `start` over `rise` years (smoothly), holds for `hold`, then falls over
+// `fall` or decays with e-folding time `efold`; its sky is shown while it is at least half on.
+//   - Neoarchean haze episodes: three in the 2.65–2.5 Ga Ghaap Group (Zerkle et al. 2012, at
+//     about 1400, 1100 and 800 m in core GKF01, dated here by spacing the core's ~2.65 and ~2.5 Ga
+//     ends evenly: about 2.63, 2.58 and 2.52 Ga, uncertain by tens of Myr). The youngest, the one
+//     Izon et al. (2017) resolved, set in within 0.3 ± 0.1 Myr and lasted 1.4 ± 0.4 Myr in all;
+//     each is given that shape, falling as fast as it rose. The two older are the thin haze
+//     Zerkle et al. model as the stable hazy state; the youngest is drawn as the thick one.
+//   - The K-Pg impact winter: soot cut sunlight to almost nothing for about a year and the sky
+//     came back over the next few (Bardeen et al. 2017): held a year after the impact, then
+//     decaying with a year's e-folding time, so its sky lasts about 1.7 years.
+//   - The volcanic year: Tambora erupted on 10 April 1815; its sulfate veil spread through the
+//     stratosphere over months, stayed through 1816, and cleared in 1817 (e-folding ~0.7 years).
+const MYR=1e6;
+function hazeEpisode(key, c){ return {key, start:c-0.7*MYR, rise:0.3*MYR, hold:0.8*MYR, fall:0.3*MYR}; }
+const EPOCH_EVENTS=[
+  hazeEpisode('archean27thin', 2000-2.63e9), hazeEpisode('archean27thin', epochAnchor('archean27thin')), hazeEpisode('archean27', epochAnchor('archean27')),
+  {key:'kpg66', start:epochAnchor('kpg66'), rise:0.02, hold:1, efold:1},
+  {key:'volcanic', start:1815.28, rise:0.3, hold:1.32, efold:0.7},
+];
+// How far on an event (or any such shape) is at year A, 0 to 1.
+function eventLevel(ev, A){
+  let t=A-ev.start;
+  if(t<0) return 0;
+  if(t<ev.rise) return smooth01(0, ev.rise, t);
+  t-=ev.rise+ev.hold;
+  if(t<0) return 1;
+  return ev.efold?Math.exp(-t/ev.efold):1-smooth01(0, ev.fall, t);
+}
+// The years an event's sky holds, where it is at least half on.
+function eventWindow(ev){ return [ev.start+ev.rise/2, ev.start+ev.rise+ev.hold+(ev.efold?ev.efold*Math.LN2:ev.fall/2)]; }
+function eventAt(A){ return EPOCH_EVENTS.find(ev=>{ const [a, b]=eventWindow(ev); return A>=a && A<b; })||null; }
+const EVENT_KEYS=new Set(EPOCH_EVENTS.map(ev=>ev.key));
+// The main epochs in time order, and the span of each (shared by its alternatives); an event's is
+// its window nearest year A.
+const MAIN_EPOCHS=EP.map(e=>e.key).filter(k=>!(k in EPOCH_PARENT) && !EVENT_KEYS.has(k)).sort((a, b)=>epochAnchor(a)-epochAnchor(b));
+function epochSpan(key, A=epochAnchor(key)){
+  if(EVENT_KEYS.has(key)){
+    const W=EPOCH_EVENTS.filter(ev=>ev.key===key).map(eventWindow);
+    return W.reduce((b, w)=>Math.abs((w[0]+w[1])/2-A)<Math.abs((b[0]+b[1])/2-A)?w:b);
+  }
+  const k=EPOCH_PARENT[key]||key, i=MAIN_EPOCHS.indexOf(k), A0=epochAnchor(k);
+  return [i>0?(A0+epochAnchor(MAIN_EPOCHS[i-1]))/2:TIME_MIN, i<MAIN_EPOCHS.length-1?(A0+epochAnchor(MAIN_EPOCHS[i+1]))/2:TIME_MAX];
+}
+// The epoch shown at year A: an event's while one holds, else the nearest main epoch, or the one
+// shown now if it is that one's alternative.
 function epochIndexAt(A, cur=EP[dIdx].key){
+  const ev=eventAt(A);
+  if(ev) return EP.findIndex(e=>e.key===ev.key);
   let best=MAIN_EPOCHS[0];
   for(const k of MAIN_EPOCHS) if(Math.abs(A-epochAnchor(k))<Math.abs(A-epochAnchor(best))) best=k;
   return EP.findIndex(e=>e.key===((EPOCH_PARENT[cur]||cur)===best?cur:best));
@@ -55,9 +110,8 @@ try{ autoEpoch=localStorage.getItem('autoEpoch')!=='0'; }catch(e){}
 // epoch the month and day stay; into another, the season does (its calendar may differ).
 function goToYear(A){
   A=Math.round(Math.max(TIME_MIN, Math.min(TIME_MAX, A)));
-  const i=autoEpoch?epochIndexAt(A):dIdx, [,M,D]=pageDate();
+  const f=yearFraction()[1], i=autoEpoch?epochIndexAt(A+f):dIdx, [,M,D]=pageDate();
   if(i===dIdx){ setPageDate(A-epochShift(), M, D); return; }
-  const f=yearFraction()[1];
   setEpoch(i, ()=>dateInYear(A-epochShift(EP[i].key), f));
 }
 // Go to epoch i at its own year (today for today's skies), keeping the season.
@@ -68,15 +122,26 @@ function goToEpoch(i){
   const f=yearFraction()[1];
   setEpoch(i, ()=>dateInYear(epochYear(key), f));
 }
+// After the date moves (by the picker or a day at a time), auto-select brings the epoch the new
+// date belongs to: into an event's sky or back out of it. The date stays the same day on the
+// timeline.
+let autoChecking=false;
+function autoEpochCheck(){
+  if(!autoEpoch || autoChecking) return;
+  const i=epochIndexAt(eventTime());
+  if(i===dIdx) return;
+  const [Y,M,D]=pageDate(), Y2=Y+epochShift()-epochShift(EP[i].key);
+  autoChecking=true;
+  try{ setEpoch(i, ()=>fmtDate(Y2, M, D)); }finally{ autoChecking=false; }
+}
 
 /* ---------- the sky's physics through time ---------- */
 // The Sun, the Moon and the day, the Sun's place in the Galaxy, and the rates of comets, meteors
 // and dust follow the year shown (physTime), whichever epoch's sky is drawn: each is set at the
-// epochs that give it a value, and runs between them along a curve suited to it. An alternative
-// epoch takes its main epoch's values. An event (ζ Oph's comet shower, the Ordovician break-up's
-// dust and meteors) keeps its value through its epoch's span until events have durations of
-// their own. What is drawn from tables made for each epoch (the air's colours, the maps and the
-// star lists) is still the epoch's own.
+// main epochs that give it a value, and runs between them along a curve suited to it; events
+// (ζ Oph's comet shower, the Ordovician break-up's dust, meteors and ring, the supernovae) add
+// their own rise and fall on top. What is drawn from tables made for each epoch (the air's
+// colours, the maps and the star lists) is still the epoch's own.
 // [year, value] at each main epoch that table gives a value for, and today's (now) if given, in time order.
 function epochPoints(table, now){
   const P=MAIN_EPOCHS.filter(k=>table[k]!=null).map(k=>[epochAnchor(k), table[k]]);
@@ -98,15 +163,11 @@ function alongTime(P, A, to=x=>x, from=x=>x){
   const [i, u]=timeBracket(P, A);
   return u===0?P[i][1]:u===1?P[i+1][1]:from(to(P[i][1])*(1-u)+to(P[i+1][1])*u);
 }
-// A rate through time from its values at the epochs and today's 1: geometric between them (the
-// long declines of the bombardment), and an event epoch's own value through its span.
-function rateCurve(table, events=[]){
+// A rate through time from its values at the main epochs (less those in `leave`, an event's) and
+// today's 1: geometric between them, as the long declines of the bombardment run.
+function rateCurve(table, leave=[]){
   let P=null;
-  return A=>{
-    for(const k of events){ const [lo, hi]=epochSpan(k); if(A>=lo && A<hi) return table[k]; }
-    P=P||epochPoints(Object.fromEntries(Object.entries(table).filter(([k])=>!events.includes(k))), 1);
-    return alongTime(P, A, Math.log, Math.exp);
-  };
+  return A=>alongTime(P=P||epochPoints(Object.fromEntries(Object.entries(table).filter(([k])=>!leave.includes(k))), 1), A, Math.log, Math.exp);
 }
 // fn of the year shown, worked out once for each year.
 function byTime(fn){ let A0=NaN, v; return ()=>{ const A=physTime(); if(A!==A0){ A0=A; v=fn(A); } return v; }; }
