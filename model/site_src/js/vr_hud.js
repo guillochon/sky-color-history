@@ -214,11 +214,12 @@ function drawSkyLabels(ctx, W, H, o){
     const a=cloudAt?cloudAt(horizDir(s.az, apparentEl(s.el))):0;
     const vis=starVisible(m-(s.mag-markMag(s)), skyRAt(skyNow.rgrid, s.el, s.az)*skyNow.rCd)*(1-a);
     if(Math.max(...zoomedDisplay(s).rgb)*vis*dim<0.06) continue;
+    if(s.comet){ add(s, s.comet.c.name, 'comet'); continue; }
     add(s, s.planet||(s.star?s.star[7]||starTypeLabel(s.star[8]):'satellite'), s.host?'moon':s.planet?'planet':s.star?(s.star[7]?'star':'stype'):'sat');
   }
   pts.sort((a, b)=>a.mag-b.mag);
   ctx.textBaseline='middle'; ctx.lineJoin='round';
-  const placed=[], STYLE={con:['italic 13px', 'rgba(150,180,235,.7)'], sn:['600 13px', '#dbeaff'], planet:['600 13px', '#ffe2a8'], moon:['11px', 'rgba(255,226,168,.75)'], rad:['600 12px', '#ffd2b8'], star:['12px', 'rgba(220,230,255,.85)'], dso:['italic 12px', 'rgba(235,205,230,.8)'], stype:['italic 11px', 'rgba(205,215,240,.65)'], sat:['11px', 'rgba(180,190,205,.6)']};
+  const placed=[], STYLE={con:['italic 13px', 'rgba(150,180,235,.7)'], sn:['600 13px', '#dbeaff'], planet:['600 13px', '#ffe2a8'], moon:['11px', 'rgba(255,226,168,.75)'], rad:['600 12px', '#ffd2b8'], star:['12px', 'rgba(220,230,255,.85)'], dso:['italic 12px', 'rgba(235,205,230,.8)'], stype:['italic 11px', 'rgba(205,215,240,.65)'], sat:['11px', 'rgba(180,190,205,.6)'], comet:['600 13px', '#8ff0cc']};
   for(const p of pts){
     if(!p.text) continue;
     const [font, col]=STYLE[p.kind];

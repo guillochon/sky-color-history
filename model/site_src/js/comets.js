@@ -227,6 +227,20 @@ function cometsNow(key, lat){
   }
   return list;
 }
+// The heads join the stars as points, on the dome and, the brightest HEAD_CAP, in the walk-around
+// view's star map after the novae (stars.js): the coma and tails are drawn per pixel, and at night
+// the display's curve leaves even a great comet's coma a faint smudge without the point.
+function placeCometHeads(comets, tex, marks, up){
+  comets.filter(C=>C.el>=0).sort((a, b)=>a.mag-b.mag).forEach((C, k)=>{
+    const m=cometHeadMag(C), d=magDisplay(m, 200), rgb=starTint(5200).map(v=>Math.min(2.4, v)*d.amp);
+    marks.push({az:C.az, el:C.el, mag:m, px:d.px, rgb, comet:C});
+    if(k>=HEAD_CAP) return;
+    const i=STAR_N+SAT_CAP+TR_CAP+k, o=i*4, dir=horizDir(C.az, C.el);
+    tex[o]=dir[0]; tex[o+1]=dir[1]; tex[o+2]=dir[2]; tex[o+3]=d.px;
+    const c=STAR_MAP_W*4+o; tex[c]=rgb[0]; tex[c+1]=rgb[1]; tex[c+2]=rgb[2]; tex[c+3]=m;
+    up.push({i, x:dir[0], y:dir[1], z:dir[2]});
+  });
+}
 // Light (lux above the air) of each part. A comet's total magnitude is measured on its head, so
 // that light goes to the coma (with the central condensation, drawn as a point like a star, a
 // quarter of it); the dust tail carries twice as much and the ion tail a sixteenth, set so a great

@@ -217,7 +217,6 @@ function transientPlaces(lat){
   return out.sort((a, b)=>a.mag-b.mag);
 }
 // Up to TR_CAP of them as points among the stars, after the satellites in the star map (stars.js).
-const TR_CAP=4;
 function placeTransients(lat, LST, tex, marks, up){
   const list=transientPlaces(lat).filter(p=>p.el>0).slice(0, TR_CAP);
   list.forEach((p, k)=>{
@@ -246,8 +245,8 @@ function transientDays(Y, M){
 }
 // Where an event is now: a nova's or supernova's place, or a comet's head (comets.js).
 function eventPlace(ev, lat){ return ev.comet?cometEventPlace(ev, lat):transientPlace(ev, lat); }
-// The clock time on the day shown when ev stands highest in the darkest sky, or null when it
-// never rises at this latitude that day.
+// The clock time on the day shown when ev stands highest in the darkest sky (full night before
+// astronomical twilight, then nautical, civil, day), or null when it never rises at this latitude that day.
 function transientBestMinute(ev, lat){
   const keep=minutes, dec=sunEquatorial(astroDay()).Dec;
   let best=null;
@@ -256,7 +255,7 @@ function transientBestMinute(ev, lat){
       minutes=m;
       const p=eventPlace(ev, lat);
       if(!p||p.el<3) continue;
-      const sunEl=90-sunGeom(lat, m, dec).sza, s=p.el+(sunEl<-12?200:sunEl<-6?100:sunEl<0?50:0);
+      const sunEl=90-sunGeom(lat, m, dec).sza, s=p.el+(sunEl<-18?400:sunEl<-12?200:sunEl<-6?100:sunEl<0?50:0);
       if(!best||s>best.s) best={s, m};
     }
   }finally{ minutes=keep; }

@@ -30,9 +30,11 @@ function placeStars(lat){
   placePlanets(lat, marks, bodies, epochKey, year, LST);
   if(epochKey==='y2100') placeSatellites(lat, tex, marks, up);
   placeTransients(lat, LST, tex, marks, up);
+  const comets=cometsNow(epochKey, lat);
+  placeCometHeads(comets, tex, marks, up);
   // The cube cells are for the VR sky shader only.
   const bins=vrOn?starBinsFor(up, tex):{info:null, idx:null, count:0};
-  return {tex, marks, bodies, bins:bins.info, idx:bins.idx, idxCount:bins.count};
+  return {tex, marks, bodies, comets, bins:bins.info, idx:bins.idx, idxCount:bins.count};
 }
 // Sky luminance ratio at (el, az), interpolated in log from the dome grid (skyNow.rgrid, rows
 // of DOME_NA+1 from the zenith down). Each render makes a new grid, and its logs are kept with it.

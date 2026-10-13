@@ -481,7 +481,7 @@ function renderDay(fast){
   }
   const haloOn=!fast && halos.length>0;
   // Comets (comets.js), per pixel on the dome.
-  const comets=cometsNow(ep.key, LATDEG[dLat]), cometOn=!fast&&comets.length>0;
+  const comets=stars.comets, cometOn=!fast&&comets.length>0;
   // The ring, per pixel on the dome; for VR its constants.
   const ringPw=Math.PI/180*90/R, ringOn=!fast&&!!ringR;
   const ringVR=ringR?{R:ringR, P:ecl.pole, k:1.27e5*ringR.sunL*sunFlux*ringR.alb/(4*Math.PI)/(Yref*cdu)*absZenith(ep.key)}:null;
@@ -525,8 +525,6 @@ function renderDay(fast){
   const sunRelD=sTop?1:rec.sun[visI][2]/noonY;
   const SUNR=DOME_DISK*z*moon.sunRadDeg/SUN_RADIUS_DEG, rr=R*sza/90, a=sunAz*Math.PI/180, sx=cx+rr*Math.sin(a), sy=cy-rr*Math.cos(a);
   const sunRGB=tone(sXd, sXd[1], 0.95,0.4,0.98);
-  // Comet heads join the stars as points (their coma and tails are drawn per pixel above).
-  for(const C of comets){ if(C.el<0) continue; const sh=pointDisplay(cometHeadMag(C)); stars.marks.push({az:C.az, el:C.el, mag:cometHeadMag(C), px:sh.px, rgb:starTint(5200).map(v=>Math.min(2.4, v)*Math.min(1, 0.62*Math.sqrt(Math.pow(10, -0.4*(cometHeadMag(C)-STAR_VANCHOR))))), comet:C}); }
   if(!fast) drawStarsOnDome(stars.marks, rgrid, Yref*cdu, ep.key, moon);
   const sunUpPix=!fast && rr-SUNR<R && sunRelD>3e-4;
   if(sunUpPix){

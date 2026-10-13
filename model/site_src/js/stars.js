@@ -1,7 +1,8 @@
 const STAR_N=STARS.length;
-// The texture holds the stars, then satellites, then the novae and supernovae (transients.js).
-// The planets and their moons are drawn apart (planets.js, the sky shader's bodies).
-const SAT_CAP=2048, DOME_SAT_CAP=6400, STAR_MAP_W=STAR_N+SAT_CAP+TR_CAP;
+// The texture holds the stars, then satellites, then the novae and supernovae (transients.js),
+// then the comets' heads (comets.js). The planets and their moons are drawn apart (planets.js,
+// the sky shader's bodies).
+const SAT_CAP=2048, DOME_SAT_CAP=6400, TR_CAP=4, HEAD_CAP=4, STAR_MAP_W=STAR_N+SAT_CAP+TR_CAP+HEAD_CAP;
 // V of the hundredth star. Brighter stars, and every star this bright, keep the
 // sizes from when the dome showed only that hundred.
 const STAR_VANCHOR=STARS[Math.min(99, STARS.length-1)][2];
