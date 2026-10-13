@@ -117,14 +117,16 @@ function epochSpan(key, A=epochAnchor(key)){
   return [i>0?mainBoundary(i-1):TIME_MIN, i<MAIN_EPOCHS.length-1?mainBoundary(i):TIME_MAX];
 }
 // The epoch shown at year A: an event's while one holds, else the main epoch whose span holds it, or the one
-// shown now if it is that one's alternative.
+// shown now if it is that one's alternative (through the main epoch's events too).
 function epochIndexAt(A, cur=EP[dIdx].key){
-  const ev=eventAt(A);
-  if(ev) return EP.findIndex(e=>e.key===ev.key);
   let i=0;
   while(i<MAIN_EPOCHS.length-1 && A>=mainBoundary(i)) i++;
   const best=MAIN_EPOCHS[i];
-  return EP.findIndex(e=>e.key===((EPOCH_PARENT[cur]||cur)===best?cur:best));
+  // An alternative chosen (the polluted city, 2100) stays through its main epoch's span, its events too.
+  if(EPOCH_PARENT[cur]===best) return EP.findIndex(e=>e.key===cur);
+  const ev=eventAt(A);
+  if(ev) return EP.findIndex(e=>e.key===ev.key);
+  return EP.findIndex(e=>e.key===best);
 }
 // Whether a new year brings the epoch nearest it (the picker's "Auto-select epoch"): on unless
 // the viewer has turned it off. Off, the epoch shown stays at any year.

@@ -197,10 +197,13 @@ function yearZero(key=EP[dIdx].key){ return key in EPOCH_YEAR?0:2000; }
 function epochYear(key){ const y=EPOCH_YEAR[key]; return y===undefined?2000:y==='now'?new Date().getFullYear():y; }
 function fmtYear(y){ const a=Math.abs(y); return (y<0?'−':'')+(a>=10000?a.toLocaleString('en-US'):String(a)); }
 function dateLabel(){ const [,M,D]=pageDate(); return `${MONTH_NAMES[M-1]} ${D}, ${fmtTime(pageTime())}`; }
-// A new epoch keeps the season, and takes its own year when that differs from the last one's.
+// A new epoch keeps the season. It keeps the year on the timeline too when that year shows it
+// (the polluted city at today's year, an event's background just after the event), and otherwise
+// takes its own year: one chosen from the menu, a tick or the arrow keys is shown at its own time,
+// whatever year the last one had reached, so the next day does not take it somewhere else.
 function epochDate(prevKey, yf){
-  const Yp=epochYear(prevKey), Yn=epochYear(EP[dIdx].key);
-  return dateInYear(Yn!==Yp?Yn:yf[0], yf[1]);
+  const A=yf[0]+epochShift(prevKey), key=EP[dIdx].key;
+  return dateInYear(epochIndexAt(A+yf[1], key)===dIdx?A-epochShift(key):epochYear(key), yf[1]);
 }
 // The date at fraction f through year Y of the epoch shown, in that year's calendar: the page is
 // moved into the year first, since its day length (and so its months) goes with the year.
