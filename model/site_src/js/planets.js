@@ -292,7 +292,8 @@ function moonGain(){ return 5*Math.log10(Math.max(1, vrOn?60/vrFov:domeZoom.z));
 function markMag(s){ return s.planet?s.mag-moonGain():s.mag; }
 // How a planet's or moon's point is drawn, at that same gain: brighter and larger as the view
 // zooms, as through a telescope, so a moon that shows is not left a near-black dot.
-function zoomedDisplay(o){ return o.tint?planetDisplay(o.mag-moonGain(), o.tint):o; }
+// One that sets its own colour (an incoming asteroid's, meteors.js incomingRGB) keeps it.
+function zoomedDisplay(o){ return o.tint&&!o.ownRGB?planetDisplay(o.mag-moonGain(), o.tint):o; }
 // The epochs before history, and their ages in Myr. On any day of one of them, where each planet and
 // moon was on its orbit cannot be known: the Solar System is chaotic, its uncertainties growing
 // tenfold every ~10 Myr (Laskar 1989), and an epoch's age is uncertain by far more than any orbital
