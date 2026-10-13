@@ -26,11 +26,16 @@ function mareVec(lat, lon){ return [cosd(lat)*sind(lon), sind(lat), cosd(lat)*co
 // sunlit Moon (see lunarLava), so the disk glows orange by day and night alike, and the air about
 // it carries a red aureole: the globe's red excess is the share that glows (moonGlow, drawn in the
 // sky shader and drawMoonOnDome), at 0.65 so the lit relief of the rafts stays clear beside it.
-// Drawn so from the impact (airtime.py T_IMPACT, 4,510 Ma) for 20 Myr, until a crust had closed
-// over it: the Early Hadean's epoch, 10 Myr on, sees it so. The time is a guess.
-const MOLTEN_FROM_MA=4510, MOLTEN_TO_MA=4490;
-function moonMolten(key){ const a=ageMaOf(key); return a>MOLTEN_TO_MA && a<=MOLTEN_FROM_MA; }
-function moonGlow(key){ return moonMolten(key)?0.65:0; }
+// Drawn so from the impact (airtime.py T_IMPACT, 4,510 Ma) for 20 Myr; then, as a crust closes
+// over it, it cools into the Moon of 4.0 Ga by 4,450 Ma: the lava's glow fades and the black rafts
+// grey as the one globe gives way to the other (moonMelt, 1 to 0). The Early Hadean's epoch,
+// 10 Myr on, sees it wholly molten. The times are a guess.
+const MOLTEN_FROM_MA=4510, MOLTEN_TO_MA=4490, MOLTEN_COOL_MA=4450;
+function moonMelt(key){ const a=ageMaOf(key); return a>MOLTEN_FROM_MA||a<=MOLTEN_COOL_MA?0:smooth01(MOLTEN_COOL_MA, MOLTEN_TO_MA, a); }
+// In steps of 1/64, for the globe's texture and the limb, made again at each step.
+function moonMeltQ(key){ return Math.round(moonMelt(key)*64)/64; }
+function moonMolten(key){ return moonMelt(key)>0; }
+function moonGlow(key){ return 0.65*moonMelt(key); }
 // The light the molten Moon casts on the night (vr_paint.js): the sunlight its globe reflects, its
 // mean over the near side a quarter of today's (0.247 in linear luminance, the dark crust and the
 // lava's own colour) and orange (MOLTEN_REFL_RGB, today's moonlight's colour times the globes'
@@ -41,12 +46,13 @@ const MOLTEN_REFL=0.247, MOLTEN_REFL_RGB=[2.14, 0.51, 0.147], MOLTEN_LAVA_RGB=[1
 // The Moon's whole globe for each epoch (moon_maps.py, from the LRO colour mosaic toned to a
 // full-Moon photograph): today's; before Tycho (108 Myr old; Apollo 17 samples of its ray,
 // Arvidson et al. 1976), its rays, the brightest on the full Moon, gone; at 3.8 and 4.0 Ga the
-// maria part-flooded and not yet (MARIA); and the molten newborn Moon. Equirectangular, longitude
+// maria part-flooded and not yet (MARIA); and the molten newborn Moon, laid over the 4.0 Ga globe
+// as it cools (moonMelted). Equirectangular, longitude
 // −180° at the left edge and north at the top, in mareVec's frame; the shader and the dome draw it
 // turned on the Moon's axes (moon.js moonAxes), so it librates.
 const MOON_MAPS=__MOON_MAPS__;
 function moonMapName(key){
-  if(moonMolten(key)) return 'molten';
+  if(moonMeltQ(key)>=1) return 'molten';
   const ma=ageMaOf(key);
   return ma>=4000?'ma4000':ma>=3800?'ma3800':ma>=109?'notycho':'now';
 }
@@ -54,8 +60,8 @@ function moonMapName(key){
 // texture, and a 1024 x 512 copy of its pixels for the dome (dome_bodies.js paintMoonSprite).
 // moonShown is the epoch's globe once it is ready, and the last one shown until then.
 const moonMaps=new Map(); let moonShown=null;
-function moonMap(key){
-  const name=moonMapName(key); let m=moonMaps.get(name);
+function moonMapLoad(name){
+  let m=moonMaps.get(name);
   if(!m){
     m={name, img:null, px:null}; moonMaps.set(name, m);
     if(name==='molten') loadMoonRelief('molten_relief');
@@ -63,11 +69,21 @@ function moonMap(key){
       const c=document.createElement('canvas'); c.width=1024; c.height=512;
       const ctx=c.getContext('2d', {willReadFrequently:true}); ctx.drawImage(bm, 0, 0, 1024, 512);
       m.px=ctx.getImageData(0, 0, 1024, 512).data; m.img=bm; if(!moonShown) moonShown=m;
-      if(moonMapName(EP[dIdx].key)===name){ moonReady=true; uploadMoon(); requestRender(); }
+      const k=EP[dIdx].key;
+      if(moonMapName(k)===name||name==='molten'&&moonMolten(k)){ moonReady=true; uploadMoon(); requestRender(); }
     }).catch(()=>{});
   }
+  return m;
+}
+function moonMap(key){
+  const m=moonMapLoad(moonMapName(key));
   if(m.img) moonShown=m;
   return moonShown;
+}
+// While the Moon cools, the molten globe over moonMap's and its share (moonMeltQ), once it is in.
+function moonMelted(key){
+  const k=moonMeltQ(key); if(!(k>0&&k<1)) return null;
+  const m=moonMapLoad('molten'); return m.img?{m, k}:null;
 }
 // The Moon's heights (moon_maps.py), on the globes' grid, one byte from MOON_RELIEF[name][0] to [1]
 // km: today's (relief), the LRO laser altimeter's over a sphere of 1737.4 km, 5760 x 2880, fetched
@@ -78,7 +94,6 @@ function moonMap(key){
 // made-up profile and the globe no relief.
 const MOON_RELIEF={relief:[-9.2, 10.9], molten_relief:[-0.15, 2.25]};
 const moonReliefs={};
-function moonReliefName(key){ return moonMolten(key)?'molten_relief':'relief'; }
 function loadMoonRelief(name='relief'){
   if(name in moonReliefs||!MOON_MAPS[name]) return; moonReliefs[name]=null;
   fetch(MOON_MAPS[name]).then(r=>r.blob()).then(b=>createImageBitmap(b, {colorSpaceConversion:'none', premultiplyAlpha:'none'})).then(bm=>{
@@ -89,9 +104,16 @@ function loadMoonRelief(name='relief'){
     moonReliefs[name]={h, w:bm.width, ht:bm.height, range:MOON_RELIEF[name]}; moonLimbKey=''; uploadMoon(); requestRender();
   }).catch(()=>{});
 }
-// The heights for the epoch's globe, once in.
-function moonReliefNow(){ return moonReliefs[moonReliefName(EP[dIdx].key)]||null; }
-function moonReliefOn(){ return !!moonReliefNow(); }
+// Whether the epoch's globe has heights in (either of the two while the Moon cools; the other is
+// level then).
+function moonReliefOn(){ const k=moonMeltQ(EP[dIdx].key); return !!(k>0&&moonReliefs.molten_relief||k<1&&moonReliefs.relief); }
+// The heights' range in km, [low, span], as the texture holds them: while the Moon cools its alpha
+// is the two globes' mixed in its share, and so is the range, so they go over from one to the
+// other (syncMoonTex).
+function moonHRange(key){
+  const k=moonMeltQ(key), a=MOON_RELIEF.relief, b=MOON_RELIEF.molten_relief, lo=a[0]+(b[0]-a[0])*k;
+  return [lo, a[1]+(b[1]-a[1])*k-lo];
+}
 // A globe's pixels for the walk-around view's texture, the heights in alpha (level where there
 // are none).
 function moonTexPixels(m){
@@ -132,16 +154,27 @@ let moonLimbKey='', moonLimbGen=0;
 for(let i=0;i<LIMB_N;i++) moonLimbProf[i]=limbFake(i/LIMB_N*2*Math.PI)*LIMB_X/3;
 function moonLimbSync(mo){
   if(!mo||!mo.ax) return;
-  const R=moonReliefNow(), b=moonBasis(mo), ax=mo.ax, body=v=>[vdot(v, ax.E), vdot(v, ax.P), vdot(v, ax.M)];
+  const b=moonBasis(mo), ax=mo.ax, body=v=>[vdot(v, ax.E), vdot(v, ax.P), vdot(v, ax.M)];
   const eB=body(b.east), nB=body(b.north), mB=body(b.md);
-  const key=R?moonReliefName(EP[dIdx].key)+nB.concat(mB).map(x=>Math.round(x*1000)).join(','):moonMolten(EP[dIdx].key)?'molten':'made-up';
+  // While the Moon cools, the molten globe's profile and the 4.0 Ga one's, mixed in its share.
+  const key0=EP[dIdx].key, k=moonMeltQ(key0), Rm=k>0&&moonReliefs.molten_relief||null, Rn=k<1&&moonReliefs.relief||null;
+  const key=k+(Rm?'m':'')+(Rn?'n':'')+(Rm||Rn||k>0?nB.concat(mB).map(x=>Math.round(x*1000)).join(','):'');
   if(key===moonLimbKey) return;
   moonLimbKey=key; moonLimbGen++;
-  // The made-up profile (drawn at three times real relief, so scaled to LIMB_X), and a third of
-  // that for the molten Moon's low rafts.
-  // On the molten Moon the tide's shape is added along the limb.
-  const tide=moonTide(EP[dIdx].key), limbTide=(sp, cp)=>tideAt(tide, eB[1]*sp+nB[1]*cp, eB[2]*sp+nB[2]*cp);
-  if(!R){ const s=(moonMolten(EP[dIdx].key)?0.3:1)*LIMB_X/3; for(let i=0;i<LIMB_N;i++){ const pa=i/LIMB_N*2*Math.PI; moonLimbProf[i]=s*limbFake(pa)+limbTide(Math.sin(pa), Math.cos(pa)); } return; }
+  if(k<1) limbProfile(moonLimbProf, Rn, 1, null, eB, nB, mB);
+  if(k>0){
+    const p=k<1?limbScratch:moonLimbProf;
+    limbProfile(p, Rm, 0.3, moonTide(key0), eB, nB, mB);
+    if(k<1) for(let i=0;i<LIMB_N;i++) moonLimbProf[i]+=(p[i]-moonLimbProf[i])*k;
+  }
+}
+const limbScratch=new Float32Array(LIMB_N);
+// One profile into out, from the heights R; until they are in, the made-up one (drawn at three
+// times real relief, so scaled to LIMB_X) at fake times that (a third for the molten Moon's low
+// rafts). On the molten Moon the tide's shape is added along the limb.
+function limbProfile(out, R, fake, tide, eB, nB, mB){
+  const limbTide=(sp, cp)=>tideAt(tide, eB[1]*sp+nB[1]*cp, eB[2]*sp+nB[2]*cp);
+  if(!R){ const s=fake*LIMB_X/3; for(let i=0;i<LIMB_N;i++){ const pa=i/LIMB_N*2*Math.PI; out[i]=s*limbFake(pa)+limbTide(Math.sin(pa), Math.cos(pa)); } return; }
   const lo=R.range[0]/MOON_R_KM, k=(R.range[1]-R.range[0])/255/MOON_R_KM;
   const NF=193, fc=new Float64Array(NF), fs=new Float64Array(NF);
   for(let j=0;j<NF;j++){ const f=(j-(NF-1)/2)/16*Math.PI/180; fc[j]=Math.cos(f); fs[j]=Math.sin(f); }
@@ -157,7 +190,7 @@ function moonLimbSync(mo){
     }
     // The heights over the tide's shape at the limb drawn LIMB_X over, that shape as it is.
     const t0=limbTide(sp, cp);
-    moonLimbProf[i]=LIMB_X*(best-1-t0)+t0;
+    out[i]=LIMB_X*(best-1-t0)+t0;
   }
 }
 // The albedo (0-255 RGB, into out) of a globe's small copy at body-frame direction v.

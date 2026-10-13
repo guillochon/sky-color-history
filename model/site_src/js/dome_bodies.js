@@ -222,7 +222,7 @@ function moonBasis(moon){
 function paintMoonSprite(moon, sunAz, sunEl){
   const sctx=moonSprite.getContext('2d',{willReadFrequently:true});
   const img=sctx.createImageData(96,96), px=img.data, b=moonBasis(moon), sd=horizDir(sunAz,sunEl);
-  const E=b.east, N=b.north, M=b.md, map=moonMap(EP[dIdx].key), ax=moon.ax, alb=[0,0,0];
+  const E=b.east, N=b.north, M=b.md, map=moonMap(EP[dIdx].key), melt=moonMelted(EP[dIdx].key), ax=moon.ax, alb=[0,0,0], alb2=[0,0,0];
   for(let j=0;j<96;j++) for(let i=0;i<96;i++){
     const u=(i+0.5)/96*2-1, v=1-(j+0.5)/96*2, o=(j*96+i)*4;
     if(u*u+v*v>1){ px[o+3]=0; moonSpriteLit[j*96+i]=0; continue; }
@@ -231,7 +231,10 @@ function paintMoonSprite(moon, sunAz, sunEl){
     const lit=smooth01(-0.02,0.05, x/m*sd[0]+y/m*sd[1]+z/m*sd[2]);
     // The globe there, on the Moon's axes (moon.js moonAxes).
     const n=[x/m, y/m, z/m];
-    moonAlbedo(map, [vdot(n, ax.E), vdot(n, ax.P), vdot(n, ax.M)], alb);
+    const bv=[vdot(n, ax.E), vdot(n, ax.P), vdot(n, ax.M)];
+    moonAlbedo(map, bv, alb);
+    // While it cools, the molten globe over it (moon_surface.js moonMelted).
+    if(melt){ moonAlbedo(melt.m, bv, alb2); for(let q=0;q<3;q++) alb[q]+=(alb2[q]-alb[q])*melt.k; }
     px[o]=alb[0]; px[o+1]=alb[1]; px[o+2]=alb[2]; px[o+3]=255;
     // The sunlit share is kept beside the sprite, not in its alpha, as a canvas loses the colour
     // where alpha is 0 and the molten Moon's night side glows.
@@ -305,10 +308,49 @@ function drawMoonOnDome(moon, sunAz, sunEl, lu){
 function syncMoonTex(){
   if(!vrGL||!moonReady) return false;
   // The heights ride in its alpha (moon_surface.js moonTexPixels), so it is sent again when they come.
-  const m=moonMap(EP[dIdx].key), id=m&&m.name+(moonReliefs[m.name==='molten'?'molten_relief':'relief']?'+relief':''); if(!m||vrGL.moonSrc===id) return false;
-  const gl=vrGL.gl; gl.bindTexture(gl.TEXTURE_2D, vrGL.moonTex);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, m.img.width, m.img.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, moonTexPixels(m));
+  const key=EP[dIdx].key, m=moonMap(key), melt=moonMelted(key); if(!m) return false;
+  const src=g=>g.name+(moonReliefs[g.name==='molten'?'molten_relief':'relief']?'+relief':'');
+  const id=melt?src(m)+'|'+src(melt.m)+'|'+melt.k:src(m); if(vrGL.moonSrc===id) return false;
+  const gl=vrGL.gl;
+  if(melt) moonBlendTex(gl, m, src(m), melt.m, src(melt.m), melt.k);
+  else {
+    gl.bindTexture(gl.TEXTURE_2D, vrGL.moonTex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, m.img.width, m.img.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, moonTexPixels(m));
+    vrGL.moonW=m.img.width; vrGL.moonH=m.img.height;
+  }
   gl.generateMipmap(gl.TEXTURE_2D);
   vrGL.moonSrc=id; return true;
+}
+// While the Moon cools: the two globes, each sent once to a texture of its own, mixed on the GPU
+// into the Moon's texture at the larger one's size, the molten one in its share k. Units 0 and 1
+// are used, which the paint binds again after (vr_paint.js); the texture is left bound on unit 0.
+const MOON_BLEND_FS=`#version 300 es
+precision highp float;
+uniform sampler2D base, melt; uniform vec2 size; uniform float k;
+out vec4 o;
+void main(){ vec2 uv=gl_FragCoord.xy/size; o=mix(texture(base, uv), texture(melt, uv), k); }`;
+function moonBlendTex(gl, a, aId, b, bId, k){
+  if(!vrGL.moonBlend){
+    const fs=glShader(gl, gl.FRAGMENT_SHADER, MOON_BLEND_FS), p=gl.createProgram();
+    gl.attachShader(p, vrGL.vs); gl.attachShader(p, fs); gl.bindAttribLocation(p, 0, 'a'); gl.linkProgram(p);
+    gl.useProgram(p); bindSamplers(gl, p, [['base', 0], ['melt', 1]]);
+    vrGL.moonBlend={p, u:uniformLocs(gl, p, ['size', 'k']), fb:gl.createFramebuffer(), src:[null, null], tex:[0, 1].map(()=>{
+      const t=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t); texParams(gl, gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE); return t;
+    })};
+  }
+  const B=vrGL.moonBlend, W=Math.max(a.img.width, b.img.width), H=Math.max(a.img.height, b.img.height);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, vrGL.moonTex);
+  if(vrGL.moonW!==W||vrGL.moonH!==H){ gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, W, H, 0, gl.RGBA, gl.UNSIGNED_BYTE, null); vrGL.moonW=W; vrGL.moonH=H; }
+  [[a, aId], [b, bId]].forEach(([g, id], i)=>{
+    gl.activeTexture(gl.TEXTURE0+i); gl.bindTexture(gl.TEXTURE_2D, B.tex[i]);
+    if(B.src[i]!==id){ gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, g.img.width, g.img.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, moonTexPixels(g)); B.src[i]=id; }
+  });
+  gl.bindFramebuffer(gl.FRAMEBUFFER, B.fb); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, vrGL.moonTex, 0);
+  gl.viewport(0, 0, W, H); gl.disable(gl.BLEND); gl.useProgram(B.p);
+  gl.uniform2f(B.u.size, W, H); gl.uniform1f(B.u.k, k);
+  gl.drawArrays(gl.TRIANGLES, 0, 6);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.useProgram(vrGL.prog);
+  gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, vrGL.moonTex);
 }
 function uploadMoon(){ if(syncMoonTex()&&vrOn) paintVR(); }
