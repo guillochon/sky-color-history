@@ -4,7 +4,7 @@
 //
 // The modern-era skies (today's air, the polluted city, the ozone-hole years, 1815 and 2100)
 // show real comets on their real dates, from JPL's orbital elements (Small-Body Database), for
-// whatever date the page shows. The periodic ones return: Halley (1682 to 2061), Swift–Tuttle
+// whatever date the page shows. The periodic ones return: Halley (837 to 2061), Swift–Tuttle
 // (1862, 1992, 2126), Pons–Brooks (1884, 1954, 2024, 2095), on the same orbit each time. The
 // brightness law m = M1 + 5 log Δ + 10 log r (r and Δ in AU from the Sun and from Earth) has M1
 // set so each comet's brightest moment matches the peak magnitude recorded for it (for the
@@ -12,7 +12,10 @@
 // Each row: name, designation, q (AU), e, i, Ω, ω (degrees, J2000 ecliptic), perihelion times
 // (JD), peak magnitude, and the floor on r if any.
 const COMETS_REAL=[
-  ['Halley’s Comet', '1P/Halley', 0.574864, 0.967936, 162.19, 59.099, 112.24, [2446469.97, 2335655.80, 2363592.60, 2391598.90, 2418781.70, 2474033.80], 2.4],
+  // Halley's perihelia back to 837 (Yeomans & Kiang 1981): 837, 912, 989, 1066, 1145, 1222, 1301,
+  // 1378, 1456, 1531, 1607 (Julian calendar dates).
+  ['Halley’s Comet', '1P/Halley', 0.574864, 0.967936, 162.19, 59.099, 112.24, [2446469.97, 2335655.80, 2363592.60, 2391598.90, 2418781.70, 2474033.80,
+    2026830.77, 2054365.17, 2082538.19, 2110493.43, 2139377.08, 2167664.32, 2196546.08, 2224686.19, 2253022.13, 2280492.74, 2308314.04], 2.4],
   ['Comet Swift–Tuttle', '109P/Swift–Tuttle', 0.959516, 0.9632258, 113.45, 139.38, 152.98, [2448968.50, 2401375.90, 2497757.50], 5.0],
   ['Comet Pons–Brooks', '12P/Pons–Brooks', 0.780861, 0.9545612, 74.191, 255.86, 198.99, [2460421.63, 2409201.50, 2434884.50, 2486394.50], 4.5],
   ['Comet Hale–Bopp', 'C/1995 O1', 0.890538, 0.994981, 89.288, 282.73, 130.41, [2450537.13], -0.8],
@@ -38,10 +41,11 @@ const COMETS_REAL=[
   ['Messier’s Comet', 'C/1769 P1', 0.122755, 0.999249, 40.734, 178.29, 329.12, [2367454.62], 0.0],
 ];
 const COMET_REAL_EPOCHS=new Set(['modern', 'modernpoll', 'ozonehole', 'y1900', 'volcanic', 'y2100']);
-// Those epochs' real comets are the perihelia on record (1577-2127), and their meteor showers
+// Those epochs' real comets are the perihelia on record (837-2127: Halley's back to its 837
+// passage, 0.03 AU from Earth), and their meteor showers
 // today's streams, taken to hold 3,000 years either side of 2000. Past those, even in a modern-era
 // epoch's span (1900's reaches back into the Pleistocene), comets and streams are drawn at random.
-const REAL_COMET_YEARS=[1577, 2127], REAL_SHOWER_SPAN=3000;
+const REAL_COMET_YEARS=[837, 2127], REAL_SHOWER_SPAN=3000;
 function cometsReal(key){
   if(!COMET_REAL_EPOCHS.has(key)) return false;
   if(key!==EP[dIdx].key) return true;
@@ -104,7 +108,10 @@ function cometHelio(c, jd, tp){
     const W=3*COMET_K/Math.sqrt(2*q*q*q)*dt, Y=Math.cbrt(W/2+Math.sqrt(W*W/4+1)), s=Y-1/Y, nu=2*Math.atan(s), r=q*(1+s*s);
     x=r*Math.cos(nu); y=r*Math.sin(nu);
   }
-  const d2r=Math.PI/180, O=(c.om+1.397*(jd-2451545)/36525)*d2r, w=c.w*d2r, i=c.i*d2r;
+  // A comet's node and perihelion turn slowly under the planets' pull (drift, degrees a century
+  // from its first perihelion listed, by perihelion).
+  const dr=c.drift?(tp-c.tps[0])/36525:0;
+  const d2r=Math.PI/180, O=(c.om+(c.drift?c.drift[0]*dr:0)+1.397*(jd-2451545)/36525)*d2r, w=(c.w+(c.drift?c.drift[1]*dr:0))*d2r, i=c.i*d2r;
   const cO=Math.cos(O), sO=Math.sin(O), cw=Math.cos(w), sw=Math.sin(w), ci=Math.cos(i), si=Math.sin(i);
   return [x*(cO*cw-sO*sw*ci)-y*(cO*sw+sO*cw*ci), x*(sO*cw+cO*sw*ci)-y*(sO*sw-cO*cw*ci), x*sw*si+y*cw*si];
 }
@@ -125,8 +132,11 @@ function cometFitM1(c, tp, peak){
   return peak-best;
 }
 // M1 for each real comet from its recorded peak, at the apparition listed first.
+// Halley's node and perihelion advance 1.22° and 1.04° a century: fitted so its 837 passage comes
+// 0.033 AU from Earth on 10 April (Julian), as recorded, its later ones moving by at most 0.03 AU.
+const COMET_DRIFT={'1P/Halley':[1.22, 1.04]};
 const cometReal=COMETS_REAL.map(([name, desig, q, e, i, om, w, tps, peak, rmin])=>{
-  const c={name, desig, q, e, i, om, w, tps, rmin:rmin||0, M1:0, real:true};
+  const c={name, desig, q, e, i, om, w, tps, rmin:rmin||0, M1:0, real:true, drift:COMET_DRIFT[desig]};
   c.M1=cometFitM1(c, tps[0], peak);
   // A periodic comet also returns before its first perihelion listed and after its last, every
   // orbital period (Kepler's third law from q and e), through the years of real comets. Planets
