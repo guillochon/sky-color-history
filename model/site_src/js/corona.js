@@ -47,7 +47,7 @@ function coronaKF(st, r){
   return [st.k*1e-6*(1.425*Math.pow(x, -7)+2.565*Math.pow(x, -17)), st.f*0.0532e-6*Math.pow(r, -2.5)];
 }
 // The share of light from above the air that reaches the ground at true altitude el (day.js
-// EXT_K): Hadean air at 5.8 magnitudes an airmass leaves a two-hundredth of it even at the zenith.
+// extK): Hadean air at 5.8 magnitudes an airmass leaves a two-hundredth of it even at the zenith.
 function coronaThroughAir(key, el){ const k=extK(key); return extinction(el, k)*Math.pow(10, -0.4*k)*absZenith(key); }
 // The drawings keep today's corona and draw an epoch's at radius a as today's at the radius where
 // today's is as bright: CORONA_MAP_N samples from 1 to CORONA_MAP_MAX drawn radii. Below 1, the

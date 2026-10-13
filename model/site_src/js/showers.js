@@ -185,13 +185,17 @@ const showerJNow=byTime(rateCurve(SHOWER_J));
 function showerFactor(key){ return key===EP[dIdx].key?0.75*showerJNow()+0.25*cometRateNow():0.75*(SHOWER_J[key]??1)+0.25*(COMET_RATE[key]??1); }
 // The showers of epoch key: today's list in the modern-era skies, or the epoch's own.
 const SHOWER_SETS={};
+// A stream lasts some tens of thousands of years, so the random set is drawn afresh every
+// STREAM_YEARS from the epoch's own year (the set at that year as it always was).
+const STREAM_YEARS=20000;
+function streamEra(key){ return key===EP[dIdx].key?Math.round((eventTime()-epochAnchor(key))/STREAM_YEARS):0; }
 function showerSet(key){
-  if(COMET_REAL_EPOCHS.has(key)) return showerList();
+  if(showersReal(key)) return showerList();
   // Drawn again when the rate has moved by about a percent.
-  const id=key+'|'+showerFactor(key).toPrecision(3);
+  const era=streamEra(key), id=key+'|'+showerFactor(key).toPrecision(3)+'|'+era;
   if(SHOWER_SETS[id]) return SHOWER_SETS[id];
   if(Object.keys(SHOWER_SETS).length>40) for(const k in SHOWER_SETS) delete SHOWER_SETS[k];
-  const T=showerList(), rng=mulberry32(metHash('showers|'+key)), G=()=>gauss01(rng), out=[];
+  const T=showerList(), rng=mulberry32(metHash('showers|'+key+(era?'|'+era:''))), G=()=>gauss01(rng), out=[];
   const pois=l=>{ if(l>40) return Math.max(0, Math.round(l+Math.sqrt(l)*G())); let n=0, p=Math.exp(-l), s=p; const u=rng(); while(u>s){ n++; p*=l/n; s+=p; } return n; };
   const n=Math.min(pois(T.length*showerFactor(key)), 2500);
   for(let i=0;i<n;i++){
@@ -229,7 +233,7 @@ function stormList(){
 }
 const STORM_YEARS={};
 function stormsOfYear(key, yi){
-  const id=key+'|'+yi;
+  const era=streamEra(key), id=key+'|'+yi+(era?'|'+era:'');
   if(STORM_YEARS[id]) return STORM_YEARS[id];
   const set=showerSet(key), rng=mulberry32(metHash('storms|'+id)), out=[];
   let n=0; const l=0.5*showerFactor(key); let p=Math.exp(-l), s=p; const u=rng(); while(u>s&&n<50){ n++; p*=l/n; s+=p; }
@@ -241,7 +245,7 @@ function stormsOfYear(key, yi){
   return STORM_YEARS[id]=out;
 }
 function stormsNear(key, d, span){
-  if(COMET_REAL_EPOCHS.has(key)) return stormList().filter(s=>Math.abs(s.d-d)<span);
+  if(showersReal(key)) return stormList().filter(s=>Math.abs(s.d-d)<span);
   const yi=Math.floor((d-DN_2000)/TROPICAL_YEAR), out=[];
   for(let y=yi-1;y<=yi+1;y++) for(const s of stormsOfYear(key, y)) if(Math.abs(s.d-d)<span) out.push(s);
   return out;

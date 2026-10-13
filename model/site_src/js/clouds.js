@@ -86,14 +86,14 @@ function cloudWeather(key){
 // Near overcast (75% to 95%), deck ramps up: the cloud shader fills the gaps between clouds, and
 // cumulus flattens into a layer about a kilometre thick.
 function cloudCover(key, w=cloudWeather(key)){
-  const e=CLOUD_ERA[key]||CLOUD_ERA.modern;
+  const e=tableNow(CLOUD_ERA, key, CLOUD_ERA.modern);
   const h=(minutes%DAYMIN)/60, cumulus=e.type>=0.3;
   const daily=cumulus?Math.exp(-(((h-15)/3.5)**2))-0.35:Math.exp(-(((h-7)/3)**2))-0.3;
   const x=Math.log(e.cov/(1-e.cov))+12*e.vary*(w.z+0.6*daily);
   return Math.min(0.99, Math.max(0.005, 1/(1+Math.exp(-x))));
 }
 function cloudField(key){
-  const e=CLOUD_ERA[key]||CLOUD_ERA.modern, w=cloudWeather(key), cov=cloudCover(key, w);
+  const e=tableNow(CLOUD_ERA, key, CLOUD_ERA.modern), w=cloudWeather(key), cov=cloudCover(key, w);
   const deck=smoothstep(0.75, 0.95, cov);
   // The cirrus comes and goes too: none on about a day in ten, up to twice the era's usual.
   const cirrus=Math.min(1, e.cirrus*Math.min(2, Math.max(0, 1+0.8*w.zc)));

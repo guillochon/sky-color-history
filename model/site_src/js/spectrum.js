@@ -46,8 +46,7 @@ const SP_FRAUN_T=Float32Array.from(SP_LAM, l=>SP_FRAUN.reduce((t, [c, d, s])=>t*
 // to 770), O2 B (686.9–694), H2O (718–735).
 const SP_TAU_O2=Float32Array.from(SP_LAM, l=>(l>=759&&l<=770?2.0*(l<762?1:0.25+0.75*(770-l)/8):0)+(l>=686.5&&l<=694?0.55*(l<689?1:(694-l)/5):0));
 const SP_TAU_H2O=Float32Array.from(SP_LAM, l=>0.25*Math.exp(-0.5*((l-725)/5)**2));
-// O2 relative to today's 21%, and the water column relative to today's.
-const SP_O2=aliasEpochs({protoearth455:0, hadean45:0, hadean40:0, archean38:0, archean27thin:0, archean27:0, archean27vthick:0, proterozoic22:0.01, snowball07:0.1, ordovician466:0.81, carbon30:1.57});
+// The water column relative to today's (O2 is the air's, spO2).
 const SP_H2O={hadean45:4, protoearth455:1.5, snowball07:0.2, cryogenian65:0.6};
 // The night's sources, each to unit luminance.
 const SP_SUN5772=spNorm(spPlanck(5772));
@@ -133,8 +132,10 @@ function spAirMarks(marks, o2, h2o){
   if(o2>0.05) marks.push({l:760.5, t:'O₂ A'}, {l:687.5, t:'O₂ B'});
   if(SP_TAU_H2O[345]*h2o>0.15) marks.push({l:725, t:'H₂O'});
 }
-// Whether the epoch's air has the ozone of the Chappuis band.
-function spOzone(key){ return (!(key in SP_O2)||SP_O2[key]>=0.01)&&key!=='proterozoic22'; }
+// Whether the air has enough ozone for the Chappuis band to show: 100 DU and up.
+function spOzone(key){ return airExt(key).o3>=100; }
+// O2 in the air over today's (air_time.js airExt).
+function spO2(key){ return airExt(key).o2; }
 // The model's sky spectra, loaded the first time they are wanted.
 let spData=null, spLoading=null;
 function spLoad(){
@@ -325,7 +326,7 @@ function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null, cr=null, moo
     }
     // The natural night sky and city light, as nightRows draws them.
     const q=6371/6471, sz=Math.sin(vz*Math.PI/180), f=absZenith(key)*(0.4+0.6*extinction(el, extK(key)))/Math.sqrt(1-q*q*sz*sz);
-    const fo=AIRGLOW_O[key]??1, fc=AIRGLOW_CO2[key]||0;
+    const fo=airglowO(key), fc=airglowCO2(key);
     if(air) add('zodiacal light and stars', (1-AIRGLOW_SHARE)*NIGHT_NATURAL*f, SP_SUN5772, true);
     // Debris (debris.js): the extra zodiacal light, the ring, and the ring's light in the air.
     if(air&&skyNow.ecl&&fmtTimes(zodiK(key))!=='1'&&zodiK(key)>1) add(`zodiacal light, ${fmtTimes(zodiK(key))}× today’s`, zodiExtra(key, horizDir(az, el), skyNow.ecl)*absZenith(key)*(0.4+0.6*extinction(el, extK(key))), SP_SUN5772, true);
@@ -366,7 +367,7 @@ function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null, cr=null, moo
     for(const [name, w, shape, sun] of cl.comps) add(name, cl.a*cl.Y*w, shape, sun);
   }
   // Air along the way.
-  const X=air?Math.min(spAirmass(el)+(disk==='sun'?0:(sunSrc.fade>0?spAirmass(90-skyNow.sza)*0.5:0)), 40):0, o2=(SP_O2[key]??1)*X, h2o=(SP_H2O[key]??1)*X;
+  const X=air?Math.min(spAirmass(el)+(disk==='sun'?0:(sunSrc.fade>0?spAirmass(90-skyNow.sza)*0.5:0)), 40):0, o2=spO2(key)*X, h2o=(SP_H2O[key]??1)*X;
   for(let i=0;i<SP_N;i++){ const T=Math.exp(-SP_TAU_O2[i]*o2-SP_TAU_H2O[i]*h2o); S[i]=(S[i]+sunlit[i]*SP_FRAUN_T[i])*T+post[i]; }
   const Y=parts.reduce((s, p)=>s+p[1], 0);
   // What to label: the strongest sources' own features.
@@ -547,7 +548,7 @@ function globeSpectrum(key, lat, h){
   // A tangent path holds about 38 vertical columns of the air above its lowest point (8 km
   // scale height), counted down the Sun's side and up again; the disk, down and back up. Water
   // stays low (2 km scale height).
-  const X=Math.min(h==null?2/mu:76*Math.exp(-h/8), 60), o2=(SP_O2[key]??1)*X, h2o=(SP_H2O[key]??1)*X*(h==null?1:Math.exp(-h/2));
+  const X=Math.min(h==null?2/mu:76*Math.exp(-h/8), 60), o2=spO2(key)*X, h2o=(SP_H2O[key]??1)*X*(h==null?1:Math.exp(-h/2));
   for(let i=0;i<SP_N;i++) S[i]*=SP_FRAUN_T[i]*Math.exp(-SP_TAU_O2[i]*o2-SP_TAU_H2O[i]*h2o);
   const marks=[...SP_SUN_MARKS];
   if(spOzone(key)) marks.unshift({a:500, b:680, t:'O₃ Chappuis', band:true});
@@ -760,7 +761,7 @@ function spAirPerMass(key){
 // With the air off (sunset.js airOff), as it is above it.
 function spThroughAir(S, marks, key, X){
   if(airOff()) return;
-  const air=spAirPerMass(key), o2=(SP_O2[key]??1)*X, h2o=(SP_H2O[key]??1)*X;
+  const air=spAirPerMass(key), o2=spO2(key)*X, h2o=(SP_H2O[key]??1)*X;
   for(let i=0;i<SP_N;i++) S[i]*=Math.pow(air[i], X)*Math.exp(-SP_TAU_O2[i]*o2-SP_TAU_H2O[i]*h2o);
   spAirMarks(marks, o2, h2o);
 }
@@ -788,7 +789,7 @@ function barSpectrumTip(sw, box){
 const NOON_SZA={'Equator':15, 'Mid-latitude':45, 'Polar summer':75};
 function noonSpectrum(key, L, f){
   const sza=NOON_SZA[L], vz=88*Math.max(0, Math.min(1, f)), S=spSky(key, L==='Polar summer'?'Polar':L, sza, vz, 90);
-  const X=Math.min(spAirmass(90-vz)+spAirmass(90-sza)*0.5, 40), o2=(SP_O2[key]??1)*X, h2o=(SP_H2O[key]??1)*X;
+  const X=Math.min(spAirmass(90-vz)+spAirmass(90-sza)*0.5, 40), o2=spO2(key)*X, h2o=(SP_H2O[key]??1)*X;
   for(let i=0;i<SP_N;i++) S[i]*=SP_FRAUN_T[i]*Math.exp(-SP_TAU_O2[i]*o2-SP_TAU_H2O[i]*h2o);
   const marks=[...SP_SUN_MARKS];
   if(spOzone(key)) marks.unshift({a:500, b:680, t:'O₃ Chappuis', band:true});

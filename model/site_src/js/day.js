@@ -171,11 +171,9 @@ const NIGHT_NATURAL=1.71e-4, NIGHT_XY=[0.310, 0.330];
 //     so their luminance is about 15% of today's airglow (band shape: a Gaussian at 450 nm, 45 nm
 //     wide, xy 0.145, 0.120).
 const NIGHT_REST_XY=[0.3265, 0.3361], AIRGLOW_XY=[0.294, 0.324], HERZBERG_XY=[0.145, 0.120], AIRGLOW_SHARE=0.5;
-const AIRGLOW_O=aliasEpochs({protoearth455:0, hadean45:0, proterozoic22:0.3, snowball07:0.8, ordovician466:0.9, archean27thin:0, archean27:0, archean27vthick:0, archean38:0, hadean40:0});
-const AIRGLOW_CO2=aliasEpochs({protoearth455:0.15, hadean45:0.15, archean27thin:0.15, archean27:0.15, archean27vthick:0.15, archean38:0.15, hadean40:0.15});
 // The natural night sky at the zenith outside the air (cd/m², XYZ) for epoch key.
 function nightNatural(key){
-  const fo=AIRGLOW_O[key]??1, fc=AIRGLOW_CO2[key]||0, out=[0,0,0];
+  const fo=airglowO(key), fc=airglowCO2(key), out=[0,0,0];
   for(const [xy, Y] of [[NIGHT_REST_XY, 1-AIRGLOW_SHARE], [AIRGLOW_XY, AIRGLOW_SHARE*fo], [HERZBERG_XY, AIRGLOW_SHARE*fc]]){
     if(!(Y>0)) continue;
     const X=xyY2XYZ([xy[0], xy[1], Y*NIGHT_NATURAL]); out[0]+=X[0]; out[1]+=X[1]; out[2]+=X[2];
@@ -201,19 +199,18 @@ function skyGlowAt(A){
 function skyGlow(key){ return GLOW_TIMED.has(key) && key===EP[dIdx].key?skyGlowAt(eventTime()):SKYGLOW[key]; }
 // Lamplight only: too faint to matter, and drawn as oil lamps.
 function glowIsLamps(g){ return g[0]<1e-5; }
-// Extinction of starlight, magnitudes per airmass in V: about 0.15 from the gas (Rayleigh and
-// ozone) plus 1.086 times each epoch's aerosol or haze optical depth at 550 nm. Clean air is
-// 0.25. The Early Hadean's 30 bar of CO2 scatters so much (Rayleigh optical depth about 5 at 550 nm; 5.8 magnitudes
+// Extinction of starlight, magnitudes per airmass in V: 1.086 times the air's optical depth at
+// 550 nm (air_time.js airExt), about 0.15 from the gas (Rayleigh and ozone) plus the aerosol and
+// haze. Clean air is 0.25, and the reference the excess is taken over. The Early Hadean's 30 bar of CO2 scatters so much (Rayleigh optical depth about 5 at 550 nm; 5.8 magnitudes
 // with its aerosol) that its brightest stars are fourth magnitude overhead, and its 2,000-fold zodiacal glow hides them. Starlight, the Milky Way, and the airglow all come from above the air, so
 // The proto-Earth's guessed 3 bar of CO2 over a bar of N2 has a Rayleigh depth near 0.6, and with
 // its dust 0.85 magnitudes. All three are dimmed at the zenith by the excess over clean air, and more toward the horizon.
 // The soot of the impact winter absorbs what it removes; elsewhere the haze mostly scatters it
 // back into the diffuse sky, so only the soot also darkens the airglow's diffuse glow.
-const EXT_K={hadean45:5.8, protoearth455:0.85, hadean40:0.35, archean27:0.8, archean27vthick:1.8, kpg66:2.3, volcanic:0.7, modernpoll:0.8};
-function extK(key){ return airOff()?0:EXT_K[key]||0.25; }
+function extK(key){ return airOff()?0:airExt(key).k; }
 // Transmission at the zenith relative to clean air, and the part of it lost to absorption.
 function extZenith(key){ return Math.pow(10, -0.4*(extK(key)-0.25)); }
-function absZenith(key){ return key==='kpg66' ? Math.pow(10, -0.4*1.086*1.5) : 1; }
+function absZenith(key){ return Math.exp(-airExt(key).soot); }
 // A star's magnitude through the air at true altitude el, relative to clean air at the zenith.
 function starThroughAir(mag, el, key){ const k=extK(key); return mag-2.5*Math.log10(Math.max(extinction(el, k), 1e-9))+(k-0.25); }
 function nightRows(key, NR){

@@ -55,6 +55,25 @@ function airTarget(){
 let AIR_CUR=null;
 function airFor(key){ return AIR_CUR && AIR_CUR.idx===dIdx && key===EP[dIdx].key?AIR_CUR.key:key; }
 function airNow(){ return AIR_CUR && AIR_CUR.idx===dIdx?AIR_CUR:EP[dIdx]; }
+// What follows from the air besides its colours (airgrid.py air_ext): the starlight's extinction k
+// (magnitudes per airmass), the soot's absorbing optical depth, O2 (PAL) and ozone (DU), for the
+// epoch shown at the time shown and for the others at their own.
+const EXT_OF=Object.fromEntries(EP.map(e=>[e.key, e.ext]));
+function airExt(key){ return key===EP[dIdx].key?airNow().ext:EXT_OF[key]||EXT_OF.modern; }
+// The oxygen airglow's strength over today's, from O2: none without it, 0.3 at 1% of today's,
+// 0.8 at 10%, 0.9 at 81%, today's from today's level up (log-linear between); and the violet O2
+// Herzberg bands an anoxic CO2 air shows instead, fading out between 0.01% and 1% of today's O2.
+const AIRGLOW_O_PTS=[[0.01, 0.3], [0.1, 0.8], [0.81, 0.9], [1, 1]];
+function airglowO(key){
+  const p=airExt(key).o2, P=AIRGLOW_O_PTS;
+  if(!(p>0)) return 0;
+  if(p<=P[0][0]) return P[0][1]*p/P[0][0];
+  if(p>=1) return 1;
+  let i=0; while(p>P[i+1][0]) i++;
+  const u=Math.log(p/P[i][0])/Math.log(P[i+1][0]/P[i][0]);
+  return P[i][1]*(1-u)+P[i+1][1]*u;
+}
+function airglowCO2(key){ const p=airExt(key).o2; return 0.15*Math.max(0, Math.min(1, p>0?1-Math.log10(p/1e-4)/2:1)); }
 function airDrop(){
   if(!AIR_CUR) return;
   const k=AIR_CUR.key;
@@ -77,10 +96,11 @@ function airSync(){
   }
   airDrop();
   const w=t.w, cur={key, idx:dIdx, a:t.a, b:t.b, w, sp:w<0.5?t.a:t.b};
-  if(w===0) Object.assign(cur, {day:A.day, shadow:A.shadow, shaft:A.shaft, sun:A.sun, air:A.air});
+  if(w===0) Object.assign(cur, {day:A.day, shadow:A.shadow, shaft:A.shaft, sun:A.sun, air:A.air, ext:A.ext});
   else Object.assign(cur, {day:airBlendDay(A.day, B.day, w), shadow:airBlendShadow(A.shadow, B.shadow, w), shaft:airBlendShaft(A.shaft, B.shaft, w),
     sun:{k:lerp(A.sun.k, B.sun.k, w), w:A.sun.w.map((v, i)=>lerp(v, B.sun.w[i], w)), t:A.sun.t.map((v, i)=>lerp(v, B.sun.t[i], w))},
-    air:Object.fromEntries(Object.keys(A.air).map(k=>[k, lerp(A.air[k], B.air[k], w)]))});
+    air:Object.fromEntries(Object.keys(A.air).map(k=>[k, lerp(A.air[k], B.air[k], w)])),
+    ext:{k:lerp(A.ext.k, B.ext.k, w), soot:lerp(A.ext.soot, B.ext.soot, w), o2:lerpLog(A.ext.o2, B.ext.o2, w), o3:lerp(A.ext.o3, B.ext.o3, w)}});
   DAY.epochs[key]=cur.day;
   AIR_CUR=cur;
 }
@@ -111,4 +131,23 @@ function airBlendShaft(A, B, w){
   let s='';
   for(let i=0;i<sa.length;i++) s+=String.fromCharCode(Math.round(lerp(sa.charCodeAt(i), sb.charCodeAt(i), w)));
   return {comps, share:btoa(s)};
+}
+// A table of numbers by epoch (or of objects of numbers), followed through time for the epoch
+// shown: linearly by the year between the main epochs (those without an entry take dflt), then
+// toward an event's own entry by the event's level while it is on. Other epochs, the polluted city
+// and an epoch shown away from its own time keep their own entries.
+let tableNowMemo=null;
+function tableNow(T, key, dflt){
+  const own=T[key]||dflt;
+  if(key!==EP[dIdx].key || key in AIR.sc) return own;
+  const A=eventTime();
+  if(epochIndexAt(A)!==dIdx) return own;
+  const m=tableNowMemo;
+  if(m && m.T===T && m.key===key && m.A===A) return m.v;
+  const P=MAIN_EPOCHS.map(k=>[epochAnchor(k), T[k]||dflt]), mix=(a, b, w)=>typeof a==='number'?a*(1-w)+b*w:Object.fromEntries(Object.keys(a).map(f=>[f, a[f]*(1-w)+b[f]*w]));
+  let i=0; while(i<P.length-2 && P[i+1][0]<=A) i++;
+  let v=mix(P[i][1], P[i+1][1], Math.max(0, Math.min(1, (A-P[i][0])/(P[i+1][0]-P[i][0]))));
+  for(const ev of EPOCH_EVENTS){ const l=eventLevel(ev, A); if(l>AIR_LMIN && T[ev.key]) v=mix(v, T[ev.key], l); }
+  tableNowMemo={T, key, A, v};
+  return v;
 }

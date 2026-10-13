@@ -38,6 +38,16 @@ const COMETS_REAL=[
   ['Messier’s Comet', 'C/1769 P1', 0.122755, 0.999249, 40.734, 178.29, 329.12, [2367454.62], 0.0],
 ];
 const COMET_REAL_EPOCHS=new Set(['modern', 'modernpoll', 'ozonehole', 'y1900', 'volcanic', 'y2100']);
+// Those epochs' real comets are the perihelia on record (1578-2127), and their meteor showers
+// today's streams, taken to hold 3,000 years either side of 2000. Past those, even in a modern-era
+// epoch's span (1900's reaches back into the Pleistocene), comets and streams are drawn at random.
+const REAL_COMET_YEARS=[1578, 2127], REAL_SHOWER_SPAN=3000;
+function cometsReal(key){
+  if(!COMET_REAL_EPOCHS.has(key)) return false;
+  if(key!==EP[dIdx].key) return true;
+  const A=eventTime(); return A>=REAL_COMET_YEARS[0] && A<=REAL_COMET_YEARS[1]+1;
+}
+function showersReal(key){ return COMET_REAL_EPOCHS.has(key) && (key!==EP[dIdx].key || Math.abs(eventTime()-2000)<REAL_SHOWER_SPAN); }
 // Random comets for the other epochs: long-period comets with perihelia inside COMET_QMAX AU, each
 // year's drawn from a generator seeded by the epoch and the year, so a date always has the same.
 // Today about one comet a year reaches naked-eye brightness (peak m ≤ 6), 0.4 a year m ≤ 3 and
@@ -69,7 +79,7 @@ const COMET_RATE=aliasEpochs({protoearth455:30, hadean45:30, hadean40:5, archean
 const cometBase=rateCurve(COMET_RATE, ['zetaoph', 'geminga']), COMET_SHOWER={at:epochAnchor('zetaoph'), width:0.55e6};
 function cometRateAt(A){ const b=cometBase(A); return b+(COMET_RATE.zetaoph-b)*Math.exp(-0.5*((A-COMET_SHOWER.at)/COMET_SHOWER.width)**2); }
 const cometRateNow=byTime(cometRateAt);
-function cometRate(key){ return COMET_REAL_EPOCHS.has(key)?0:key===EP[dIdx].key?cometRateNow():(COMET_RATE[key]??1); }
+function cometRate(key){ return cometsReal(key)?0:key===EP[dIdx].key?cometRateNow():(COMET_RATE[key]??1); }
 // Comets a year today with H ≤ 10 and q ≤ 2 AU: 3.2 gives one a year peaking at m ≤ 6 (seen at
 // least 20° from the Sun) and 0.3 a year at m ≤ 3; Hughes's normalisation (0.5 a year per AU
 // of q brighter than H = 6.5) gives 3.7. Comets brighter than 0 come out at a quarter of the
@@ -158,7 +168,7 @@ for(const key in COMETS_FICT) cometFict[key]=COMETS_FICT[key].map(([name, desig,
 function cometsNow(key, lat){
   const d=astroDay(), jd=d+JD_D0, E=earthHelio(d), lst=localSidereal(), list=[];
   const cands=[];
-  if(COMET_REAL_EPOCHS.has(key)){ for(const c of cometReal) for(const tp of c.tps) if(Math.abs(jd-tp)<400) cands.push([c, tp]); }
+  if(cometsReal(key)){ for(const c of cometReal) for(const tp of c.tps) if(Math.abs(jd-tp)<400) cands.push([c, tp]); }
   else{ const b=Math.floor((jd-JD_D0)/365.25); for(let y=b-1;y<=b+1;y++) for(const c of cometYear(key, y)) if(Math.abs(jd-c.tps[0])<400) cands.push([c, c.tps[0]]); }
   // The invented comet, on the same dates every year of the page's calendar.
   for(const c of cometFict[key]||[]){ const Y=pageDate()[0]; for(let y=Y-1;y<=Y+1;y++){ const tp=dayNumber(y, c.md[0], Math.floor(c.md[1]), 24*(c.md[1]%1))+JD_D0; if(Math.abs(jd-tp)<400) cands.push([c, tp]); } }

@@ -56,6 +56,17 @@ def air_atoms(gas):
     return out
 
 
+# What the page derives from the air beside its colours (day.js extK, absZenith, nightNatural;
+# spectrum.js): the starlight's extinction in magnitudes per airmass at 550 nm (1.086 times the
+# vertical optical depth), the soot's absorbing optical depth, O2 in PAL and the mid-latitude
+# ozone column.
+I550 = int(np.argmin(np.abs(LAM-550)))
+def air_ext(air):
+    atm = at.build(air, dc.ALB['Mid-latitude'], 'Mid-latitude')
+    return dict(k=round(1.086*float(sum(c.tau[I550] for c in atm.comps)), 4), soot=round(air['soot'], 4),
+                o2=round(air['gas']['O2']/at.O2_PAL, 5), o3=round(air['ozone']['Mid-latitude'], 1))
+
+
 # The Sun's disk near the horizon (sunset.js, shader_sky.js sunDiskAt). The disk is drawn as
 # twenty images, one per 20 nm band from 375 nm, each refracted by its own amount and dimmed by
 # its own extinction, so the flash at the top of a setting Sun is whatever colour the air lets
@@ -217,7 +228,7 @@ def node_job(args):
     sa = shadow_air or air
     shadow = le.shadow_rec(le.shadow_air(at.build(sa, 0.15), sa, moon_re_at(t)))
     shadow['sp'] = shadow['sp'][::4]
-    head = dict(shadow=shadow, shaft=shaft, sun=sun_bands(air['gas'], atm), air=air_atoms(air['gas']))
+    head = dict(shadow=shadow, shaft=shaft, sun=sun_bands(air['gas'], atm), air=air_atoms(air['gas']), ext=air_ext(air))
     hb = json.dumps(head, separators=(',', ':')).encode()
     hb += b' '*((4+len(hb)) % 2)
     codes = day_codes(rec, lats, len(dc.SZAS), len(dc.VZ), len(dc.AZ))
@@ -225,6 +236,19 @@ def node_job(args):
     import spectra as spx
     (SITE_AIR / f'{nid}.sp.bin').write_bytes(b''.join(spx.encode(S) for block in spec for S in block))
     return nid
+
+
+def add_ext(nid, air):
+    """A node file made before its header had ext gets it, the rest as it was."""
+    p = SITE_AIR / f'{nid}.bin'
+    if not p.exists(): return
+    b = p.read_bytes(); n = struct.unpack('<I', b[:4])[0]
+    head = json.loads(b[4:4+n])
+    if 'ext' in head: return
+    head['ext'] = air_ext(air)
+    hb = json.dumps(head, separators=(',', ':')).encode()
+    hb += b' '*((4+len(hb)) % 2)
+    p.write_bytes(struct.pack('<I', len(hb))+hb+b[4+n:])
 
 
 def bg_fixed():
@@ -261,6 +285,8 @@ def main():
                 if b in bg and a in bg and bg.index(b) == bg.index(a)+1:
                     print(f'  {(2000-a)/1e6:12.6f} -> {(2000-b)/1e6:12.6f} Ma  miss {e:.2f}')
             return
+        for nid, (a, s, t) in nodes.items():
+            add_ext(nid, a)
         todo = [(nid, a, s, t) for nid, (a, s, t) in nodes.items()
                 if not (SITE_AIR / f'{nid}.bin').exists() or not (SITE_AIR / f'{nid}.sp.bin').exists()]
         print(f'{len(nodes)} airs, {len(todo)} to make', flush=True)

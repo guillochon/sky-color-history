@@ -242,7 +242,7 @@ const MET_SPLIT=-1, MET_LOOK=[60, 160, 5400, 5400], MET_BIN=[1, 1, 60, 86400];
 // The faintest meteor worth making, for the darkest sky the epoch has (no Moon, no Sun): its zenith
 // limit for meteors, and the faintest absolute magnitude that could reach it from overhead.
 function metDark(key){
-  const g=skyGlow(key), id=key+'|'+(g?g[0].toPrecision(2):0);
+  const g=skyGlow(key), id=key+'|'+(g?g[0].toPrecision(2):0)+'|'+extK(key).toFixed(3)+'|'+absZenith(key).toFixed(3);
   if(MET.dark[id]) return MET.dark[id];
   const k=extK(key), z=zodiK(key);
   const L=nightNatural(key)[1]*absZenith(key)+(g?g[0]:0)+(z>1?(z-1)*60*S10_CD:0);
