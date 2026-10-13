@@ -150,7 +150,8 @@ function domePixelDirs(geo){
 // over the sky cell c at (tr, ta), under the display curve the way the Milky Way is. The halos,
 // comets and ring share it.
 function domeMixLight(px, o, c, tr, ta, H, rH, L, k){
-  const g=H.rgrid, NC=H.NC, rBg=(g[c]*(1-ta)+g[c+1]*ta)*(1-tr)+(g[c+NC]*(1-ta)+g[c+NC+1]*ta)*tr;
+  // The light under it is the sky's and the Milky Way's and nebulae's added there (H.under, day.js).
+  const g=H.rgrid, NC=H.NC, rBg=(g[c]*(1-ta)+g[c+1]*ta)*(1-tr)+(g[c+NC]*(1-ta)+g[c+NC+1]*ta)*tr+(H.under||0);
   if(rH<rBg*0.003) return;
   const rNew=rBg+rH, tBg=toneAt(H.T, rBg), tNew=toneAt(H.T, rNew), a=tBg>0?(tNew/tBg)*(rBg/rNew):0, b=tNew/rNew*k;
   for(let q=0;q<3;q++) px[o+q]=linToByte(SRGB_LIN[px[o+q]]*a+L[q]*b);

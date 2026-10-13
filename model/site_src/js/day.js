@@ -433,7 +433,8 @@ function renderDay(fast){
   // The Milky Way, the nebulae and galaxies, and the sky under them vary slowly, so the mix is
   // worked out once per 2×2 pixel block: each pixel's linear colour is scaled by mwA and gains
   // mwB (three channels) of their light.
-  const mwA=(mwOn||dsoList.length)&&!fast?new Float32Array(geo.nb):null, mwB=mwA?new Float32Array(geo.nb*3):null;
+  // mwR keeps their light, for what is mixed over them after (the comets, halos and ring).
+  const mwA=(mwOn||dsoList.length)&&!fast?new Float32Array(geo.nb):null, mwB=mwA?new Float32Array(geo.nb*3):null, mwR=mwA?new Float32Array(geo.nb):null;
   if(mwA){
     const lgrid=DOME_LOGR; for(let c=0;c<NG;c++) lgrid[c]=Math.log(rgrid[c]);
     const ext=domeExtinction(geo, ek), extZ=extZenith(ep.key), scale=cdu*Yref, T=toneLUT(k, p), bl=geo.bl, dir=geo.dir;
@@ -463,6 +464,7 @@ function renderDay(fast){
       // A nebula or galaxy over the sky and the Milky Way (color.js toneDso).
       if(rD>0){ const rb=rBg+rMw; tNew=toneDso(rMw>0?toneAt(T, rb):tBg, rb, rNew, tNew, DSO_REF_CD/scale); }
       const g=tNew/rNew;
+      mwR[bi]=rAdd;
       mwA[bi]=tBg>0?(tNew/tBg)*(rBg/rNew):0;
       for(let q=0;q<3;q++) mwB[bi*3+q]=g*((rMw>0?Lm[q]:0)+(rD>0?Ld[q]:0));
     }
@@ -497,10 +499,14 @@ function renderDay(fast){
       const tr=ptr[j], ta=pta[j], c0=c*3;
       for(let q=0;q<3;q++){ const a=colgrid[c0+q]*(1-ta)+colgrid[c0+3+q]*ta, b=colgrid[c0+C2+q]*(1-ta)+colgrid[c0+C2+3+q]*ta; px[o+q]=a*(1-tr)+b*tr; }
       px[o+3]=255;
+      let under=0;
       if(mwA){
         const bi=(y>>1)*W2+(x>>1), a=mwA[bi];
-        if(a>0||mwB[bi*3+1]>0){ for(let q=0;q<3;q++) px[o+q]=linToByte(SRGB_LIN[Math.round(px[o+q])]*a+mwB[bi*3+q]); }
+        if(a>0||mwB[bi*3+1]>0){ for(let q=0;q<3;q++) px[o+q]=linToByte(SRGB_LIN[Math.round(px[o+q])]*a+mwB[bi*3+q]); under=mwR[bi]; }
       }
+      if(rctx) rctx.under=under;
+      if(cctx) cctx.under=under;
+      if(hctx) hctx.under=under;
       if(ringOn) domeRingPixel(px, o, j, c, tr, ta, rctx);
       if(cometOn) domeCometPixel(px, o, j, c, tr, ta, cctx);
       if(haloOn) domeHaloPixel(px, o, j, c, tr, ta, halos, hctx);
