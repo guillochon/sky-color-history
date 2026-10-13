@@ -25,11 +25,11 @@ function parseTime(s){
   return Number.isInteger(n)?n:null;
 }
 // A year on the timeline in words: as we number years from 10,000 years ago on, and before that
-// as an age: years ago, then Ma and Ga, with as many decimals as the year needs.
+// as an age: ka, Ma and Ga, with as many decimals as the year needs.
 function fmtTime(A){
   if(A>-8000) return fmtYear(A);
   const age=2000-A, dec=(x, n)=>x.toFixed(n).replace(/\.?0+$/, '');
-  if(age<1e6) return `${age.toLocaleString('en-US')} years ago`;
+  if(age<1e6) return `${dec(age/1e3, 3)} ka`;
   return age<1e9?`${dec(age/1e6, 6)} Ma`:`${dec(age/1e9, 9)} Ga`;
 }
 // A length of time in words: about 1.7 years, about 1.1 million years.
@@ -145,8 +145,8 @@ function goToYearIn(A, i){
   if(i===dIdx){ setPageDate(A-epochShift(), M, D); return; }
   setEpoch(i, ()=>dateInYear(A-epochShift(EP[i].key), f));
 }
-// A year in words to four figures, for spans: "717 Ma", "2.631 Ga", "1815".
-function fmtTimeRound(A){ if(A>-8000) return fmtYear(Math.round(A)); const a=2000-A; return a<1e6?`${(+a.toPrecision(4)).toLocaleString('en-US')} years ago`:a<1e9?`${+(a/1e6).toPrecision(4)} Ma`:`${+(a/1e9).toPrecision(4)} Ga`; }
+// A year in words to four figures, for labels: "717 Ma", "2.631 Ga", "237.8 ka", "1815".
+function fmtTimeRound(A){ if(A>-8000) return fmtYear(Math.round(A)); const a=2000-A; return a<1e6?`${+(a/1e3).toPrecision(4)} ka`:a<1e9?`${+(a/1e6).toPrecision(4)} Ma`:`${+(a/1e9).toPrecision(4)} Ga`; }
 // The time shown in words for labels: the epoch's own age in its own year, else the year.
 // Whether the year shown is epoch key's own: exactly, or for an epoch a million years old or more
 // within ANCHOR_SLACK years of it (the timeline's steadied frames, globe.js steadyYear, stop there).
