@@ -602,7 +602,7 @@ function metLoop(now){
   if(!(showDome||vrOn)||document.hidden||!skyNow){ MET.last=now; return; }
   metTick(now);
   const scene=metScene(); MET.scene=scene;
-  if(showDome) drawDomeMeteors(scene); else if(metDrawn) drawDomeMeteors([]);
+  if(showDome) drawDomeMeteors(airOff()?[]:scene); else if(metDrawn) drawDomeMeteors([]);
   // VR is drawn again only when the sky's time has moved and something is or was lit.
   const moved=MET.now!==MET.drawnT; MET.drawnT=MET.now;
   if(vrOn&&moved&&(scene.length||MET.vrLit)){ MET.vrLit=scene.length>0; requestVR(); }

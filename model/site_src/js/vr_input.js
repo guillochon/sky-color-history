@@ -129,7 +129,7 @@ function lockLook(){
   const p=document.getElementById('vrc').requestPointerLock(); if(p&&p.catch) p.catch(()=>{});
 }
 function exitVR(){
-  if(!vrOn) return; if(vrAirOff){ vrAirOff=false; if(airClouds!==null){ vrClouds=airClouds; airClouds=null; } } if(momentClouds!==null){ vrClouds=momentClouds; momentClouds=null; } aurActive=false; hideVRLoad(); if(vrGL&&vrGL.note) vrGL.note=''; if(vrInspect) setInspect(false, true); vrFind=null; closeFind(); if(datePop.open) datePop.close(); clearVRPins(); hideVRTip(); clearInterval(vrInspectTimer); vrInspectTimer=0; vrHoldEsc(false); vrOn=false; stopVRMusic(); vrRelock=false; vrLinkKey=''; vrHeld.clear(); endStick(); document.getElementById('sunmark').hidden=true; document.getElementById('moonmark').hidden=true; document.getElementById('snmark').hidden=true; if(vrWalk){ cancelAnimationFrame(vrWalk); vrWalk=0; }
+  if(!vrOn) return; if(momentClouds!==null){ vrClouds=momentClouds; momentClouds=null; } aurActive=false; hideVRLoad(); if(vrGL&&vrGL.note) vrGL.note=''; if(vrInspect) setInspect(false, true); vrFind=null; closeFind(); if(datePop.open) datePop.close(); clearVRPins(); hideVRTip(); clearInterval(vrInspectTimer); vrInspectTimer=0; vrHoldEsc(false); vrOn=false; stopVRMusic(); vrRelock=false; vrLinkKey=''; vrHeld.clear(); endStick(); document.getElementById('sunmark').hidden=true; document.getElementById('moonmark').hidden=true; document.getElementById('snmark').hidden=true; if(vrWalk){ cancelAnimationFrame(vrWalk); vrWalk=0; }
   if(!vrNav) clearVRLink();
   const root=document.getElementById('vr'); root.classList.remove('on','locked'); root.setAttribute('aria-hidden','true');
   document.body.style.overflow='';
@@ -321,7 +321,7 @@ document.addEventListener('keydown',e=>{
   }
   // The page has VR's keys for time and eras: space plays or pauses the day, ← and → step it by
   // five minutes, ↑ and ↓ (or [ and ]) change era, e and t jump to the next eclipse, u and b to the next
-  // lunar one, n to the next meteor shower, f finds something in the sky (find.js), y opens the
+  // lunar one, n to the next meteor shower, v takes the air away or puts it back (setAirOff), f finds something in the sky (find.js), y opens the
   // date picker (calendar.js), and l labels
   // the dome as it does the view (drawDomeLabels). Not while typing, with the date picker open,
   // or on a control that uses the key itself; with a modifier, the browser's own.
@@ -334,7 +334,7 @@ document.addEventListener('keydown',e=>{
     ArrowUp:()=>stepEpoch(1), ']':()=>stepEpoch(1), ArrowDown:()=>stepEpoch(-1), '[':()=>stepEpoch(-1),
     e:()=>{ if(!e.repeat) jumpNextEclipse(false, false, e.shiftKey); }, t:()=>{ if(!e.repeat) jumpNextEclipse(true, false, e.shiftKey); },
     u:()=>{ if(!e.repeat) jumpNextLunarEclipse(false, e.shiftKey); }, b:()=>{ if(!e.repeat) jumpNextLunarEclipse(true, e.shiftKey); }, n:()=>{ if(!e.repeat) jumpNextShower(e.shiftKey); },
-    f:()=>{ if(!e.repeat) openFind(); }, y:()=>{ if(!e.repeat) openDatePop(); }, l:()=>{ if(!e.repeat){ vrLabels=!vrLabels; syncVRPad(); requestRender(); } },
+    v:()=>{ if(!e.repeat) setAirOff(!vrAirOff); }, f:()=>{ if(!e.repeat) openFind(); }, y:()=>{ if(!e.repeat) openDatePop(); }, l:()=>{ if(!e.repeat){ vrLabels=!vrLabels; syncVRPad(); requestRender(); } },
     1:()=>setPlaySpeed('real'), 2:()=>setPlaySpeed('default'), 3:()=>setPlaySpeed('fast')}[k];
   if(act){ e.preventDefault(); act(); }
 });

@@ -3,10 +3,10 @@
 // refractivity. apparentEl and the shader's trueAlt scale today's curve by it.
 // With the air off (airOff), none.
 function refK(){ return airOff()?0:(EP[dIdx]&&airNow().sun)?airNow().sun.k:1; }
-// The walk-around view with its air taken away (the v key), to judge the colors of what lies
-// beyond it: no sky light, no extinction or reddening, no refraction or mirages, no clouds, halos,
-// aurorae or meteors; the Sun as it is above the air. The page's dome always has its air.
-function airOff(){ return vrOn&&vrAirOff; }
+// The sky with its air taken away (the v key, on the dome or in the walk-around view), to judge the
+// colors of what lies beyond it: no sky light, no extinction or reddening, no refraction or mirages,
+// no clouds, halos, aurorae or meteors; the Sun as it is above the air.
+function airOff(){ return vrAirOff; }
 // The disk is drawn as twenty images, one per 20 nm band centred on 385, 405, ... 765 nm. Air
 // bends band b by SUN_DISP[b] times what it bends 550 nm (Edlén 1966). The spread is tiny: at the
 // horizon the 525 and 565 nm images are 6 arcseconds apart. Like the disk, it is enlarged, and

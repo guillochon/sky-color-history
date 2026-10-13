@@ -619,7 +619,7 @@ function domeAurInit(){
 }
 // Called after renderDay draws the dome: take the new dome and sky, then draw.
 function paintDomeAurora(){
-  const st=skyNow&&skyNow.aur, on=!vrOn && st && st.on;
+  const st=skyNow&&skyNow.aur, on=!vrOn && !airOff() && st && st.on;
   const c=document.getElementById('domeAur');
   if(!on){ if(domeAur.shown){ c.style.display='none'; domeAur.shown=false; } return; }
   const gl=domeAurInit(); if(!gl) return;
