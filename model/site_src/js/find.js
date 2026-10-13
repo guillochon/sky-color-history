@@ -178,7 +178,7 @@ function findLook(dx, dy){
 // while lockHeld, the change does not render the sky (renderDay), which is rendered once after,
 // and its paints leave the lock, the follow and the pins as they are (lockVRView), not yet
 // knowing the star again.
-const LOCK_UP_DEG=2, LOCK_WELL_UP_DEG=10, LOCK_CLOCK_DEG=0.25, LOCK_SHIFT_DEG=0.5, LOCK_DAY_STEPS=96;
+const LOCK_UP_DEG=2, LOCK_WELL_UP_DEG=10, LOCK_CLOCK_DEG=1, LOCK_SHIFT_DEG=0.5, LOCK_DAY_STEPS=96;
 let lockHeld=false;
 function lockTarget(){
   if(vrOn&&vrLockPin){
