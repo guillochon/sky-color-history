@@ -188,7 +188,8 @@ function utcDay(Y, M, D){
   const k=Math.abs(Y-2000)>200000?Math.trunc((Y-2000)/400):0, t=new Date(0);
   t.setUTCFullYear(Y-400*k, M-1, D); return t.getTime()/86400000+146097*k;
 }
-function localDate(Y, M0, D, h=0, mi=0, s=0, ms=0){ const t=new Date(2000, 0, 1, h, mi, s, ms); t.setFullYear(Y, M0, D); return t; }
+// The date first, then the time, so 24:00 (the clock's end) rolls over to the next day.
+function localDate(Y, M0, D, h=0, mi=0, s=0, ms=0){ const t=new Date(2000, 0, 1); t.setFullYear(Y, M0, D); t.setHours(h, mi, s, ms); return t; }
 // Days from 2000 Jan 0.0 UT (Schlyter's day number), exact in every century.
 function dayNumber(y,m,D,ut){ return utcDay(y, m, 1)+D-1-10956+ut/24; }
 function localISODate(t){ return fmtDate(t.getFullYear(), t.getMonth()+1, t.getDate()); }

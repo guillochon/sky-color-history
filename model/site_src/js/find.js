@@ -165,15 +165,20 @@ function findLook(dx, dy){
   return true;
 }
 // A change of epoch (stepEpoch) with the view locked on something (a pin's lock, or following
-// something found, in the walk-around view or on the dome) sets the clock to the time of the new
-// epoch's day that puts it nearest where it was, above the horizon; one that never rises leaves
-// the clock alone. It is kept LOCK_WELL_UP_DEG up (or as high as it was) where it can be, so as
-// not to end just over the horizon when higher places are not much farther. The day is tried
-// every 10 minutes, then each minute round the best. A star is found again in the new epoch's
-// list by its name. lockKeep is called before the change and
-// returns what to do after it, or null; while lockHeld, the paints the change makes leave the
-// lock, the follow and the pins as they are (lockVRView), not yet knowing the star again.
-const LOCK_UP_DEG=2, LOCK_WELL_UP_DEG=10;
+// something found, in the walk-around view or on the dome) moves the date and clock to keep it
+// near where it was: first the place in the sky, then the time of day, then the date moved as
+// little as may be, each costing degrees (LOCK_CLOCK_DEG an hour off the clock, LOCK_SHIFT_DEG for
+// half a year off the date). The date can move up to half a year either way: a star comes round
+// to the same place about four minutes earlier each day of today's year, so some day has it there
+// at the same hour. It is kept LOCK_WELL_UP_DEG up (or as high as it was) where it can be, so as
+// not to end just over the horizon when higher places are not much farther, else just above it;
+// one that never rises leaves the date and clock alone. A star is found again in the new epoch's
+// list by its name (and found again after the search, which remakes the list for the years it
+// tries). lockKeep is called before the change and returns what to do after it, or null;
+// while lockHeld, the change does not render the sky (renderDay), which is rendered once after,
+// and its paints leave the lock, the follow and the pins as they are (lockVRView), not yet
+// knowing the star again.
+const LOCK_UP_DEG=2, LOCK_WELL_UP_DEG=10, LOCK_CLOCK_DEG=0.25, LOCK_SHIFT_DEG=0.5, LOCK_DAY_STEPS=96;
 let lockHeld=false;
 function lockTarget(){
   if(vrOn&&vrLockPin){
@@ -197,32 +202,73 @@ function lockRematch(t){
   if(t.k!=='star') return t;
   const key=EP[dIdx].key, P=starPlaces(key, STAR_YEAR[key]||pageDate()[0]), list=P.list.slice(0, P.n);
   if(list.includes(t.star)) return t;
-  const name=t.star[7], s=name&&list.find(x=>x[7]===name);
+  // By name, or one without a name by its place and brightness (the list is remade for each year).
+  const [ra, dec, mag, , , , , name]=t.star, d=horizDir(ra, dec);
+  const s=name?list.find(x=>x[7]===name):list.find(x=>!x[7]&&Math.abs(x[2]-mag)<1&&vdot(d, horizDir(x[0], x[1]))>Math.cos(0.5*Math.PI/180));
   return s?{...t, star:s}:null;
 }
+// v turned by angle a (radians) about unit axis p.
+function lockTurn(v, p, a){ const c=Math.cos(a), sn=Math.sin(a), k=vdot(p, v)*(1-c), x=vcross(p, v); return [0, 1, 2].map(i=>v[i]*c+x[i]*sn+p[i]*k); }
 function lockKeep(){
   const t0=lockTarget(), w0=t0&&lockPlace(t0);
   if(!w0) return null;
   const d0=horizDir(w0.az, w0.el), pin=vrOn&&vrLockPin, f=vrOn?vrFind:domeFind;
   return ()=>{
-    const t=lockRematch(t0);
-    if(vrOn) requestVR();
-    if(!t) return;
-    if(pin){ if(t.k==='star') pin.star=t.star; }
-    else f.t=t;
-    const m0=minutes, near=(m, up)=>{ minutes=m; const w=lockPlace(t); return w&&w.el>up?vdot(d0, horizDir(w.az, w.el)):-2; };
-    let best=m0, bc=-2;
+    let t=lockRematch(t0);
+    if(!t){ renderDay(); return; }
+    const dateEl=document.getElementById('moonDate'), date0=dateEl.value, m0=minutes, k0=epochDayIndex(...pageDate());
+    const Yd=yearDays(), half=Math.floor(Yd/2), S=Math.max(1, Math.round(Yd/LOCK_DAY_STEPS));
+    const pole=horizDir(0, LATDEG[dLat]), spin=2*Math.PI*(1+1/Yd)/DAYMIN, turn=(k, m)=>spin*((k-k0)*DAYMIN+m);
+    const at=(k, m)=>{
+      dateEl.value=fmtDate(...epochDateOf(k)); minutes=m;
+      const tk=lockRematch(t), w=tk&&lockPlace(tk);
+      return w&&horizDir(w.az, w.el);
+    };
+    // Where it is in the sky's own frame (turned back by the sky's turning since midnight of the
+    // date the epoch came in at) on day k: a star, nebula, constellation or supernova the same every
+    // day, worked out once; a planet once a day, at midday; the Sun and the Moon at midnight,
+    // midday and the next midnight, between which each is taken to move evenly. The search tries
+    // every few minutes from these.
+    const sky=(k, m)=>{ const d=at(k, m); return d&&lockTurn(d, pole, turn(k, m)); };
+    const fixed=t.k!=='sun'&&t.k!=='moon'&&t.k!=='body', sky0=fixed&&sky(k0, m0), models=new Map();
+    const model=k=>{
+      if(fixed) return sky0?[sky0, sky0, sky0]:null;
+      if(!models.has(k)){ const s=t.k==='body'?Array(3).fill(sky(k, DAYMIN/2)):[0, DAYMIN/2, DAYMIN].map(m=>sky(k, m)); models.set(k, s.every(Boolean)?s:null); }
+      return models.get(k);
+    };
+    const fromModel=(s, k, m)=>{
+      const u=m/(DAYMIN/2), [a, b]=u<1?[s[0], s[1]]:[s[1], s[2]], w=u<1?u:u-1;
+      return lockTurn(vnorm(a.map((v, i)=>v+(b[i]-v)*w)), pole, -turn(k, m));
+    };
+    const cost=(h, k, m, up)=>{
+      if(!h||Math.asin(Math.max(-1, Math.min(1, h[2])))*180/Math.PI<=up) return Infinity;
+      const dm=Math.abs(m-m0)%DAYMIN, off=Math.min(dm, DAYMIN-dm)/DAYMIN*24;
+      return Math.acos(Math.max(-1, Math.min(1, vdot(d0, h))))*180/Math.PI+LOCK_CLOCK_DEG*off+LOCK_SHIFT_DEG*Math.abs(k-k0)/half;
+    };
+    const scan=(k, ms, up, best)=>{ const s=model(k); if(s) for(const m of ms){ const c=cost(fromModel(s, k, m), k, m, up); if(c<best.c) best={c, k, m}; } return best; };
+    const range=(a, b, d)=>{ const r=[]; for(let m=a;m<=b;m+=d) r.push((m%DAYMIN+DAYMIN)%DAYMIN); return r; };
+    let found=null;
     for(const up of [Math.max(LOCK_UP_DEG, Math.min(LOCK_WELL_UP_DEG, w0.el)), LOCK_UP_DEG]){
-      bc=near(m0, up); best=m0;
-      for(let m=0;m<DAYMIN;m+=10){ const c=near(m, up); if(c>bc){ bc=c; best=m; } }
-      if(bc<=-2) continue;
-      for(let m=best-9;m<=best+9;m++){ const mm=(m+DAYMIN)%DAYMIN, c=near(mm, up); if(c>bc){ bc=c; best=mm; } }
-      break;
+      let best={c:Infinity};
+      const n=Math.floor(half/S), every5=range(0, DAYMIN-5, 5);
+      for(let j=-n;j<=n;j++) best=scan(k0+j*S, every5, up, best);
+      if(best.c===Infinity) continue;
+      const near=range(best.m-30, best.m+30, 1);
+      for(let k=best.k-S;k<=best.k+S;k++) if(Math.abs(k-k0)<=half) best=scan(k, near, up, best);
+      // The last few minutes worked out exactly.
+      let exact={c:Infinity};
+      for(const m of range(best.m-10, best.m+10, 1)){ const c=cost(at(best.k, m), best.k, m, up); if(c<exact.c) exact={c, k:best.k, m}; }
+      if(exact.c<Infinity){ found=exact; break; }
     }
-    minutes=bc>-2?best:m0;
+    dateEl.value=found?fmtDate(...epochDateOf(found.k)):date0;
+    minutes=found?found.m:m0;
+    t=lockRematch(t);
+    if(t){ if(pin){ if(t.k==='star') pin.star=t.star; } else f.t=t; }
     // The planets as the clock now has them, for findWhere until the next render.
-    if(t.k==='body') lockPlace(t);
-    if(minutes!==m0){ hslider.value=minutes; renderDay(); }
+    if(t&&t.k==='body') lockPlace(t);
+    // Rendered again even where nothing moved: the search remade the star list, and the marks a
+    // pin is found among must be from the one t is.
+    hslider.value=minutes; renderDay();
   };
 }
 function findRender(){

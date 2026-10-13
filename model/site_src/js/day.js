@@ -313,6 +313,8 @@ function cityUplight(key, Yref, k, p){
   return new Float32Array(c.map(v=>Math.pow(v/255, 2.2)));
 }
 function renderDay(fast){
+  // Held while an epoch changes with the view locked (find.js lockKeep), which renders after.
+  if(lockHeld) return;
   if(vrOn) perfBeg('sky model');
   // The date shows at once, while an epoch's sky is still loading.
   syncDateUI(); syncTimeline();
