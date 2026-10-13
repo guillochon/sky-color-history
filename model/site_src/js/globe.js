@@ -140,7 +140,7 @@ function slideTo(p){
     if(j!==dIdx){ goToYearIn(A, j); const B=steadyYear(A, ref, A0, dir); if(B!==A) goToYearIn(B, dIdx); }
     else goToYearIn(steadyYear(A, ref, A0, dir), j);
   }
-  tslider.value=String(p); tPos=p; drawGlobeAt(p); tslider.setAttribute('aria-valuetext', shownAge()); epochTimeText(); markTicks();
+  slideYear=pageTime(); tslider.value=String(p); tPos=p; drawGlobeAt(p); tslider.setAttribute('aria-valuetext', shownAge()); epochTimeText(); markTicks();
 }
 // As the timeline moves, a frame's year jumps by as much as millions of years, and the sky's fast
 // cycles land anywhere in their course: the Moon's phase and nodes, and the tilt's and the
@@ -169,7 +169,10 @@ function steadyYear(A, ref, A0, dir){
   const input=document.getElementById('moonDate'), save=input.value, [,M,D]=pageDate(), shift=epochShift();
   const sep=(u, v)=>Math.acos(Math.max(-1, Math.min(1, vdot(u, v))));
   const at=Y=>{ const y=Y-shift; input.value=fmtDate(y, M, Math.min(D, monthLen(y, M))); };
-  const best=(cands, cost)=>{ let b=cands[0], bc=Infinity; for(const Y of cands){ at(Y); const c=cost(); if(c<bc){ bc=c; b=Y; } } return b; };
+  // Only years that show the same epoch: a nudge must not carry the sky out of an event (the impact
+  // winter lasts under two years) or across into the next epoch.
+  const f=yearFraction()[1], key=EP[dIdx].key, keeps=Y=>epochIndexAt(Y+f, key)===dIdx;
+  const best=(cands, cost)=>{ let b=A, bc=Infinity; for(const Y of cands){ if(!keeps(Y)) continue; at(Y); const c=cost(); if(c<bc){ bc=c; b=Y; } } return b; };
   try{
     let B=A;
     // Never more than a hundredth of the age: a jump from the Pleistocene to 1858 stays in 1858.
@@ -199,9 +202,11 @@ function markTicks(){
 }
 tslider.addEventListener('input',()=>{ sliding=true; slideTo(+tslider.value); sliding=false; });
 // The slider and the epoch's time text follow the date, however it was set.
+// A year the timeline set itself (slideTo, steadied off the slider's own year) leaves the slider be.
+let slideYear=null;
 function syncTimeline(){
   const p=posAtTime(pageTime());
-  if(!sliding && Math.abs(p-tPos)>0.004){ tslider.value=String(p); tPos=p; drawGlobeAt(p); }
+  if(!sliding && pageTime()!==slideYear && Math.abs(p-tPos)>0.004){ tslider.value=String(p); tPos=p; drawGlobeAt(p); }
   markTicks();
   tslider.setAttribute('aria-valuetext', shownAge());
   epochTimeText();
