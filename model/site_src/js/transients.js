@@ -20,7 +20,7 @@
 //  Ib/c (Drout et al. 2011): 15 days to peak, 2 mag by day 40, then 2 mag per 100 days.
 //  Classical novae (Strope, Schaefer & Henden 2010): a rise of a day or two, t2 and t3 the days
 //   to fade 2 and 3 magnitudes, then a power-law tail: 4.9 mag down at 3 t3, 7 at 10 t3.
-const TR_TYPES={sn:{label:'supernova', color:'#8cc4ff'}, nova:{label:'nova', color:'#ffd257'}, erupt:{label:'stellar eruption', color:'#ff8a62'}, comet:{label:'comet', color:'#6fe0b8'}};
+const TR_TYPES={sn:{label:'supernova', color:'#8cc4ff'}, nova:{label:'nova', color:'#ffd257'}, erupt:{label:'stellar eruption', color:'#ff8a62'}, comet:{label:'comet', color:'#6fe0b8'}, tde:{label:'tidal disruption', color:'#e98cff'}};
 const TR_GROUPS=[['hist', 'Supernovae in history'], ['pre', 'Supernovae before history'], ['nova', 'Novae'], ['erupt', 'Stellar eruptions'], ['comet', 'Comets'], ['future', 'To come']];
 const TR_CURVE={
   IIP:{k:[[-14, 3], [-10, 1.6], [-6, 0.7], [0, 0], [86, 0.52], [101, 1.52], [116, 2.52]], tail:0.0098},
@@ -28,6 +28,13 @@ const TR_CURVE={
   Ibc:{k:[[-15, 3], [-7, 0.9], [0, 0], [40, 2]], tail:0.02},
   // The Crab's: seen by day for 23 days, then 653 days by night (Song huiyao).
   crab:{k:[[-10, 3], [-3, 0.5], [0, 0], [23, 2]], tail:0.016},
+  // A star torn apart by a 6×10⁵ M☉ black hole: its most bound debris returns after ~32 days
+  // (41 d × (M/10⁶ M☉)^½) and the fallback peaks ~50 days after the disruption at ~140 times the
+  // Eddington rate, then falls as t^(−5/3). The light, held near Eddington, goes as 1 + ln ṁ while
+  // ṁ > 1 (a slim disc) and as ṁ after, ṁ the fallback over Eddington's: down 0.24 mag at twice
+  // the peak time, 1.1 at ten times, 1.9 at nineteen, when ṁ reaches 1 (2.5 years), then 5/3 as fast
+  // as t^(-1) fades. The colour (its temperature) is held.
+  tde:{k:[[-50, 9], [-35, 4], [-20, 1.2], [-8, 0.25], [0, 0], [50, 0.24], [200, 0.65], [450, 1.11], [900, 1.93], [1950, 3.3], [4950, 5.0]], tail:0.0004},
   // SN 1987A (Hamuy & Suntzeff 1990): about 5 on discovery, 4.5 the next day, a slow rise to 2.9 on
   // 20 May as the blue supergiant's compact envelope let the cobalt's heat out, then the tail.
   sn87a:{k:[[-86, 9], [-85.5, 2.4], [-85, 1.9], [-84, 1.6], [-78, 1.8], [-54, 1.0], [-24, 0.35], [0, 0], [16, 0.3], [36, 1.1], [51, 1.7]], tail:0.0098},
@@ -54,6 +61,8 @@ const TR_SPEC={
     text:(T, V)=>`a classical nova near peak: hydrogen burning on a white dwarf throws off a shell at ${V} km/s, ${trA(T)} ${T} K fireball with broad Balmer and Fe II emission`},
   lbv:{T:8000, V:500, lines:[[656.28, 3, 0.4, 'Hα'], [486.13, 1, 0.4, 'Hβ'], [434.05, 0.4, 0.3, 'Hγ'], [587.56, 0.2, 0.2, 'He I']],
     text:(T, V)=>`a luminous blue variable in eruption: ${trA(T)} ${T} K wind at ${V} km/s, its hydrogen in P Cygni lines`},
+  tde:{T:30000, V:10000, lines:[[656.28, 1.0, 0, 'Hα'], [486.13, 0.35, 0, 'Hβ'], [468.6, 0.8, 0, 'He II']],
+    text:(T, V)=>`a star torn apart by a black hole: its debris falling back far faster than the black hole can swallow it, ${trA(T)} ${T} K photosphere with broad hydrogen and He II emission at ${V} km/s`},
   red:{T:4000, V:300, lines:[[656.28, 1, 0, 'Hα'], [589.3, 0, 0.5, 'Na I']],
     text:T=>`a red transient, about ${T} K: an outburst now thought to be two stars merging`},
 };
@@ -161,6 +170,16 @@ const TRANSIENTS=[
 
   // Betelgeuse, a red supergiant 168 pc away (Joyce et al. 2020), due to explode within about
   // 100,000 years: a Type II-P at −10.6. The year is assumed. Its star goes out (stars.js starsAt).
+  // A tidal disruption by the LMC's black hole: 10^5.8 M☉ (Han et al. 2025, from the hypervelocity
+  // stars it has thrown into the Milky Way's halo), at the mean place Chisholm et al. (2026) predict,
+  // RA 80.23°, Dec −69.55°. A Sun-like star's debris returns at ~140 times the Eddington rate, so the
+  // light is near Eddington's: at 3 L_Edd (2.3×10⁴⁴ erg/s) and 3×10⁴ K, as optical TDEs show, at the
+  // LMC's 49.6 kpc (Pietrzyński et al. 2019) through A_V ≈ 0.3, V ≈ −0.6 (−3 to +1 over 1–5 L_Edd and
+  // 2–4×10⁴ K). The LMC has no nuclear star cluster, which in loss-cone models puts the rate near
+  // 10⁻⁶–10⁻⁵ a year (Pfister et al. 2020), but it has thrown out about as many hypervelocity stars as
+  // the Milky Way's centre, whose disruptions run near 10⁻⁴ a year: taken here as 3×10⁻⁵ a year, so
+  // the median wait for the next is about 23,000 years. The day is assumed.
+  {id:'lmctde', name:'A star torn apart by the LMC’s black hole', type:'tde', group:'future', year:25000, md:'12-15', ra:80.23, dec:-69.55, mag:-0.6, curve:'tde', spec:'tde', note:'Predicted: a 6×10⁵ M☉ black hole in the Large Magellanic Cloud disrupting a star, as bright as Canopus for months and visible for decades. Year and day assumed.'},
   {id:'betelgeuse', name:'Betelgeuse’s supernova', type:'sn', group:'future', year:100000, md:'01-10', star:'Betelgeuse', mag:-10.6, curve:'IIP', spec:'IIP', note:'Due within about 100,000 years, 168 pc away; the year is assumed.'},
 ];
 // A date's place on the timeline: the year and how far through it, by the Gregorian calendar.
