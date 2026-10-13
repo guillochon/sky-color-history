@@ -34,6 +34,10 @@ const TR_CURVE={
   // ṁ > 1 (a slim disc) and as ṁ after, ṁ the fallback over Eddington's: down 0.24 mag at twice
   // the peak time, 1.1 at ten times, 1.9 at nineteen, when ṁ reaches 1 (2.5 years), then 5/3 as fast
   // as t^(-1) fades. The colour (its temperature) is held.
+  // M31's (above, with the event): the fallback peaks ~300 days after the disruption, near the
+  // Eddington rate, so the light goes as the fallback, t^(−5/3) from the disruption: 1.25 mag down
+  // at twice the peak time, 2.5 at four times, 4.2 at ten, 5.4 at twenty, then 0.0003 mag a day.
+  tdeM31:{k:[[-300, 9], [-250, 4], [-150, 1.2], [-60, 0.25], [0, 0], [300, 1.25], [900, 2.5], [2700, 4.17], [5700, 5.4]], tail:0.0003},
   tde:{k:[[-50, 9], [-35, 4], [-20, 1.2], [-8, 0.25], [0, 0], [50, 0.24], [200, 0.65], [450, 1.11], [900, 1.93], [1950, 3.3], [4950, 5.0]], tail:0.0004},
   // SN 1987A (Hamuy & Suntzeff 1990): about 5 on discovery, 4.5 the next day, a slow rise to 2.9 on
   // 20 May as the blue supergiant's compact envelope let the cobalt's heat out, then the tail.
@@ -180,6 +184,16 @@ const TRANSIENTS=[
   // the Milky Way's centre, whose disruptions run near 10⁻⁴ a year: taken here as 3×10⁻⁵ a year, so
   // the median wait for the next is about 23,000 years. The day is assumed.
   {id:'lmctde', name:'A star torn apart by the LMC’s black hole', type:'tde', group:'future', year:25000, md:'12-15', ra:80.23, dec:-69.55, mag:-0.6, curve:'tde', spec:'tde', note:'Predicted: a 6×10⁵ M☉ black hole in the Large Magellanic Cloud disrupting a star, as bright as Canopus for months and visible for decades. Year and day assumed.'},
+  // A tidal disruption by M31's black hole, 1.4×10⁸ M☉ (Bender et al. 2005), at its nucleus. A
+  // Sun-like star must pass deep, round a fast-spinning hole, to be torn apart rather than swallowed;
+  // its debris returns over ~300 days at 0.3–1 M☉ a year, near Eddington's rate, and a spin of 0.9 or
+  // more turns 16–32% of it to light: ~10⁴⁶ erg/s, reprocessed at 2–4×10⁴ K as optical TDEs are, at
+  // 765 kpc through A_V ≈ 0.2: V ≈ 1 (−0.7 to 5). It rises over most of a year and fades as the
+  // fallback, t^(−5/3) from the disruption, visible for over a decade. M31's disruptions of
+  // Sun-like stars, needing such deep passages, come perhaps once in 10⁵–10⁶ years: at one in
+  // 3×10⁵ the median wait is about 210,000 years. Andromeda's 110 km/s approach brings it closer by
+  // only 24 pc by then. The day is assumed.
+  {id:'m31tde', name:'A star torn apart by Andromeda’s black hole', type:'tde', group:'future', year:210000, md:'10-15', ra:10.6847, dec:41.269, mag:1.0, curve:'tdeM31', spec:'tde', V:15000, note:'Predicted: M31’s 1.4×10⁸ M☉ black hole tearing apart a star on a deep plunge, a first-magnitude star in Andromeda’s core for most of a year, visible for over a decade. Year and day assumed.'},
   {id:'betelgeuse', name:'Betelgeuse’s supernova', type:'sn', group:'future', year:100000, md:'01-10', star:'Betelgeuse', mag:-10.6, curve:'IIP', spec:'IIP', note:'Due within about 100,000 years, 168 pc away; the year is assumed.'},
 ];
 // A date's place on the timeline: the year and how far through it, by the Gregorian calendar.
@@ -266,7 +280,10 @@ function transientDays(Y, M){
 function eventPlace(ev, lat){ return ev.comet?cometEventPlace(ev, lat):transientPlace(ev, lat); }
 // The clock time on the day shown when ev stands highest in the darkest sky (full night before
 // astronomical twilight, then nautical, civil, day), or null when it never rises at this latitude that day.
-function transientBestMinute(ev, lat){
+function transientBestMinute(ev, lat){ const b=transientBestView(ev, lat); return b?b.m:null; }
+// The same as {m, s}: s scores the view, the height in degrees plus 400 in full night, 200 in
+// astronomical twilight, 100 nautical, 50 civil.
+function transientBestView(ev, lat){
   const keep=minutes, dec=sunEquatorial(astroDay()).Dec;
   let best=null;
   try{
@@ -278,7 +295,18 @@ function transientBestMinute(ev, lat){
       if(!best||s>best.s) best={s, m};
     }
   }finally{ minutes=keep; }
-  return best?best.m:null;
+  return best;
+}
+// The latitude an event is best seen from: of the equator and the two mid-latitudes, where most
+// people live, the one that sees it highest in the darkest sky; the polar ones only when none of
+// those sees it at least 10° up at night (astronomical twilight or darker).
+const TR_LATS=['Mid-latitude', 'Mid-latitude S', 'Equator'], TR_POLAR=['Polar', 'Polar S'];
+function transientBestLat(ev){
+  const pick=names=>names.map(n=>[n, transientBestView(ev, LATDEG[n])]).filter(([, b])=>b).reduce((a, b)=>!a||b[1].s>a[1].s?b:a, null);
+  const near=pick(TR_LATS);
+  if(near && near[1].s>=210) return near[0];
+  const far=pick(TR_POLAR);
+  return far&&(!near||far[1].s>near[1].s)?far[0]:near?near[0]:dLat;
 }
 // Go to ev's day: its epoch's sky (auto-select on) or the one shown, at the hour it shows best. A
 // comet shows only in the skies with real comets, so with auto-select off it still takes its own.
@@ -287,9 +315,12 @@ function goToTransient(ev){
   const i=keep?dIdx:epochIndexAt(ev.A), date=()=>dateInYear(ev.Y-epochShift(EP[i].key), ev.f);
   if(i===dIdx) document.getElementById('moonDate').value=date();
   else setEpoch(i, date);
+  // From the latitude it is best seen from, at that hour.
+  dLat=transientBestLat(ev);
+  document.querySelectorAll('[data-lat]').forEach(x=>x.setAttribute('aria-pressed', x.dataset.lat===dLat?'true':'false'));
   const m=transientBestMinute(ev, LATDEG[dLat]);
   if(m!=null){ minutes=m; hslider.value=String(minutes); }
-  datePopDrawn=''; renderDay();
+  datePopDrawn=''; renderDay(); warm();
 }
 // The note under the days: the day's events, and whether each rises here.
 function transientNote(Y, M, D){
