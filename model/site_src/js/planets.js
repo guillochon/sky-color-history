@@ -194,6 +194,7 @@ function moonAccel(m, t){ const T=MOON_TIDE[m[0]], y=t/365.25; return T&&T.s?T.s
 function moonIn(m, key){ const f=MOON_EPOCHS[m[0]]; return !f||f(key); }
 // Bodies that are hypothetical, or named here: the note their label's spectrum carries.
 const BODY_NOTES={
+  'Chicxulub asteroid':'drawn with Phobos’s map and shape standing in for its unknown face',
   Chrysalis:'hypothetical: Wisdom et al. 2022 (Science) propose it, lost roughly 100–200 Myr ago (about 160 Myr in the case they illustrate) to make the rings',
   Harmonia:'hypothetical, named here: the moon Ćuk et al. 2020 find tilted Deimos’s orbit, one of the generations of Mars’s ring–moon cycle (Hesselbrock & Minton 2017)',
   Kymo:'hypothetical, named here: one of Neptune’s first moons, scattered and destroyed when it captured Triton (Rufu & Canup 2017)',

@@ -165,6 +165,10 @@ function metPath(M, v, radDir, n, E, ctx, src){
 // it strikes or bursts.
 function metCurve(m, x){
   if(x<0||x>1) return 0;
+  // A big asteroid's shocked air shines as the air's density, by its height, an e-fold every
+  // 7.5 km down (the scale height): from about the Sun's brightness at 120 km to its full light
+  // at the ground, some 2.5 magnitudes a second.
+  if(m.big){ const P=metPoint(m, x); return Math.exp(-Math.max(0, Math.hypot(P[0], P[1], P[2]+MET_RE)-MET_RE)/7.5); }
   let f=m.ground||m.burst?Math.pow(Math.min(x, 0.65)/0.65, 1.3)*(1+0.8*Math.max(0, x-0.65)/0.35):Math.pow(x/0.65, 1.3)*Math.pow((1-x)/0.35, 0.7);
   for(const [c, a, w] of m.flares) f+=a*Math.exp(-0.5*((x-c)/w)**2)*Math.pow(x/0.65, 0.5);
   return f;
@@ -341,14 +345,15 @@ function metBin(s, b, store=true){
 //     about 6.5×10⁷ Mt, entering steeply (60°) from the north-east (Collins et al. 2020), striking
 //     200 km away. A carbonaceous chondrite (Kyte 1998), so dark, albedo about 0.05: as it comes in,
 //     sunlit, it shows as a star (placeIncoming) and in its last seconds as a disk. The hour is
-//     assumed, in the evening twilight (the Sun 10° down in the south-west), when the asteroid,
+//     assumed, in the evening twilight (the Sun 9° down in the south-west), when the asteroid,
 //     coming from the north-east, is lit nearly full face against a darkening sky and stays clear of
-//     the Earth's shadow: it shows about 40 minutes before it strikes, just after sunset (by day,
+//     the Earth's shadow until it meets the air: it shows some 40 minutes before it strikes, just
+//     after sunset (by day,
 //     mostly in shadow against a bright sky, only in its last three minutes).
 const MET_DATED=[
   {id:'tunguska', year:1908, md:[6, 30], clock:7*60+3, Y:12, v:15, ang:35, from:115, dist:65, az:340},
   {id:'chelyabinsk', year:2013, md:[2, 15], clock:7*60+24, Y:0.5, v:19.2, ang:18.3, from:103.5, dist:40, az:180},
-  {id:'chicxulub', year:2000-66e6, md:[1, 1], clock:18*60+45, Y:6.5e7, v:20, ang:60, from:30, dist:200, az:45, D:10, albedo:0.05},
+  {id:'chicxulub', year:2000-66e6, md:[1, 1], clock:18*60+38, Y:6.5e7, v:20, ang:60, from:30, dist:200, az:45, D:10, albedo:0.05},
 ];
 // The day number of impact I in the epoch shown (its year counted on the timeline).
 function metDatedDay(I){
@@ -367,6 +372,9 @@ function metDatedMake(I, E, ctx){
     const P=metPoint(m, 1), g=vnorm([P[0], P[1], P[2]+MET_RE]);
     n=vnorm(vadd(n, S, vscale(g, -1)));
   }
+  // An asteroid big enough to see (I.D): drawn as a body to the ground (placeIncoming), its meteor
+  // the glow about it rather than a streak (metScene).
+  if(I.D) m.big=I;
   return m;
 }
 // A ground strike's explosion at sky time t, or null before it or once it has gone. The energy is
@@ -384,9 +392,12 @@ function impactAt(m, t){
   const E=0.5*m.mass*1e-3*(m.v*1e3)**2, Y=E/4.184e15, life=Math.min(5400, 2400*Math.pow(Y, 0.2));
   if(age>life) return null;
   const P=metPoint(m, 1), up=vnorm([P[0], P[1], P[2]+MET_RE]);
-  const tau=Math.min(60, 8*Math.pow(Y, 0.4)), Rf=1000*Math.pow(Y, 0.4), x=age/tau;
-  // The thermal pulse, W: up within the first 15% of it, then down; its shape integrates to 0.425.
-  const L=0.3*E/tau/0.425*(x<0.15?x/0.15:Math.exp(-(x-0.15)/0.35));
+  // The fireball drawn no wider than a quarter of its distance: Chicxulub's, by the scaling 1,300 km,
+  // would hold the observer 200 km away inside it and sit its centre 1,000 km up.
+  const tau=Math.min(60, 8*Math.pow(Y, 0.4)), Rf=Math.min(1000*Math.pow(Y, 0.4), 250*Math.hypot(P[0], P[1])), x=age/tau;
+  // The thermal pulse, W: up within the first 15% of it (or half a second, for the longest), then
+  // down; its shape integrates to about 0.425.
+  const x1=Math.min(0.15, 0.5/tau), L=0.3*E/tau/0.425*(x<x1?x/x1:Math.exp(-(x-x1)/0.35));
   const tTr=Math.pow(1.03*Math.pow(E/1.2, 0.2)/1000, 1/0.6), rs=age<tTr?1.03*Math.pow(E/1.2, 0.2)*Math.pow(age, 0.4):1000*tTr+340*(age-tTr);
   return {age, E, Y, life, base:P.map(v=>v*1000), up, tau, Rf, L, temp:2000+4500*Math.exp(-x/0.6), rs};
 }
@@ -499,7 +510,10 @@ function metScene(){
         // after-image of a meteor trails behind it.
         const xt=Math.max(0, xh-Math.max(m.wake/m.T, 0.32+0.12*Math.min(1, Math.max(0, -m.M)/4)));
         const d=metDisplay(a.mag);
-        out.push({kind:0, m, head:a.dir, tail:metApparent(m, xt, k).dir, xt, xh, px:d.px, amp:d.amp*vis, mag:a.mag, rgb:m.tint});
+        // A big asteroid's meteor: no streak, but the glowing shocked air about the body (drawn under
+        // it, placeIncoming), from just wider than it to several times as wide as it nears the ground.
+        if(m.big){ const P=metPoint(m, xh); out.push({kind:0, m, head:a.dir, tail:a.dir, xt:xh, xh, px:d.px, sig:Math.atan(m.big.D/2*(1.3+4*xh)/Math.hypot(...P)), amp:d.amp*vis, mag:a.mag, rgb:m.tint}); }
+        else out.push({kind:0, m, head:a.dir, tail:metApparent(m, xt, k).dir, xt, xh, px:d.px, amp:d.amp*vis, mag:a.mag, rgb:m.tint});
       }
     }
     if(m.train>0&&x>0.3){
@@ -561,7 +575,7 @@ function drawDomeMeteors(scene){
         mctx.strokeStyle=gr; mctx.lineWidth=Math.max(0.7, s.px*wd*Math.min(2, z));
         mctx.beginPath(); pts.forEach(([x, y], i)=>{ if(i) mctx.lineTo(x, y); else mctx.moveTo(x, y); }); mctx.stroke();
       }
-      const [hx, hy]=domeXY(s.head), r=Math.max(1.2, s.px*1.6);
+      const [hx, hy]=domeXY(s.head), r=s.sig?Math.max(1.2, s.sig*180/Math.PI*R/90*z*1.6):Math.max(1.2, s.px*1.6);
       const gr=mctx.createRadialGradient(hx, hy, 0, hx, hy, r);
       const ch=c.map(v=>v*0.6+255*0.4*Math.min(1, s.amp));
       gr.addColorStop(0, rgba(ch, 1)); gr.addColorStop(0.3, rgba(c, 0.6)); gr.addColorStop(1, rgba(c, 0));
@@ -606,7 +620,7 @@ function metUniforms(){
   const put=(h, t, sig, kind, rgb, amp)=>{ if(n>=MET_GL) return; A.set([h[0], h[1], h[2], Math.max(sig, pix)], n*4); B.set([t[0], t[1], t[2], kind], n*4); C.set([rgb[0]*amp, rgb[1]*amp, rgb[2]*amp, 0], n*4); n++; };
   const sorted=scene.slice().sort((a, b)=>b.amp-a.amp);
   for(const s of sorted){
-    if(s.kind===0){ put(s.head, s.tail, s.px*pxRad, 0, s.rgb, Math.min(1, s.amp)); if(s.mag<-5){ const E=Math.pow(10, -0.4*(s.mag+13.99)); if(E>flash){ flash=E; flashRGB=s.rgb; fire={dir:s.head, mag:s.mag, rgb:s.rgb}; } } }
+    if(s.kind===0){ put(s.head, s.tail, s.sig??s.px*pxRad, 0, s.rgb, Math.min(1, s.amp)); if(s.mag<-5){ const E=Math.pow(10, -0.4*(s.mag+13.99)); if(E>flash){ flash=E; flashRGB=s.rgb; fire={dir:s.head, mag:s.mag, rgb:s.rgb}; } } }
     else if(s.kind===1){ for(let i=0;i<s.pts.length-1;i+=2) put(s.pts[Math.min(i+2, s.pts.length-1)], s.pts[i], s.px*pxRad*0.6, 1, s.rgb, s.amp*0.7); }
     else{ const rad=skyNow.moon.radDeg*DISK_SCALE; if(flashLit(s.f, rad)<=0.1){ const d=flashDir(s.f, rad); put(d, d, s.px*pxRad, 2, s.rgb, s.amp); } }
   }
@@ -740,27 +754,34 @@ function metDatedClock(I, r, t){ return I.clock-(r.ti-t)/60*24/dayHours(); }
 // An incoming asteroid (I.D, km across) before it meets the air, at sky time t: on its meteor's
 // straight path back from where that starts (B), at its speed, sunlit. Its magnitude by the H, G
 // system (Bowell et al. 1989; G 0.15) from its size and albedo, at its distance (the Sun 1 AU off)
-// and phase; sd is the Sun's direction. Null once it is in the air, or without a size; in the
-// Earth's shadow (a cylinder of its radius away from the Sun) it is dark (magnitude 99).
+// and phase; sd is the Sun's direction. On down through the air to the ground (where its meteor's
+// glow surrounds it); null once it has struck, or without a size. Above the air, in the Earth's
+// shadow (a cylinder of its radius away from the Sun), it is dark (magnitude 99); in the air its
+// own glowing shock lights it, far brighter than the Sun would.
 function metAsteroid(I, r, t, sd){
   const m=r.m;
-  if(!I.D||!(t<m.t0)) return null;
-  const s=m.v*(m.t0-t), P=[m.B[0]-m.u[0]*s, m.B[1]-m.u[1]*s, m.B[2]-m.u[2]*s], d=Math.hypot(...P), dir=P.map(c=>c/d);
+  if(!I.D||!(t<r.ti)) return null;
+  const s=m.v*(t-m.t0), P=[m.B[0]+m.u[0]*s, m.B[1]+m.u[1]*s, m.B[2]+m.u[2]*s], d=Math.hypot(...P), dir=P.map(c=>c/d);
   const H=5*Math.log10(1329/(I.D*Math.sqrt(I.albedo))), a=Math.acos(Math.max(-1, Math.min(1, -vdot(sd, dir)))), tq=Math.tan(a/2);
   const ph=0.85*Math.exp(-3.33*Math.pow(tq, 0.63))+0.15*Math.exp(-1.87*Math.pow(tq, 1.22));
-  const C=[P[0], P[1], P[2]+MET_RE], cs=vdot(C, sd), shade=cs<0&&Math.hypot(C[0]-sd[0]*cs, C[1]-sd[1]*cs, C[2]-sd[2]*cs)<MET_RE;
+  const C=[P[0], P[1], P[2]+MET_RE], cs=vdot(C, sd), shade=t<m.t0&&cs<0&&Math.hypot(C[0]-sd[0]*cs, C[1]-sd[1]*cs, C[2]-sd[2]*cs)<MET_RE;
   return {dir, d, el:Math.asin(dir[2])*180/Math.PI, az:(Math.atan2(dir[0], dir[1])*180/Math.PI+360)%360, mag:shade?99:H+5*Math.log10(d/1.496e8)-2.5*Math.log10(Math.max(ph, 1e-6))};
 }
 // The Sun's direction at clock time min on the day shown.
 function metSunDir(lat, min){ const p=sunGeom(lat, min); return horizDir(p.az, 90-p.sza); }
 // The asteroids coming in now (Chicxulub's), drawn as the moons are (planets.js), with Phobos
 // standing in for how one looks: its map, shape and colour on a body I.D km across, lit from the
-// Sun, a point among the stars far off and a cratered, lumpy disk in its last seconds. Its north
-// is up and the face toward us its prime meridian's. Far off it is drawn as a planet's point is
+// Sun, a point among the stars far off and a cratered, lumpy disk in its last seconds. It turns
+// once in 2.4 hours, about as fast as a rubble pile can (Pravec & Harris 2000), about a pole
+// tilted from the vertical, slowly enough to watch through a zoomed view over its approach. Far off it is drawn as a planet's point is
 // (planetDisplay); once its disk is more than an arcminute or two across, as bright as it is: its
 // light spread over its lit part, in cd/m², laid over the sky's under the display curve, so in a
 // daylit sky it is a pale crescent, as the Moon is by day, not a white one.
 const PHOBOS_TINT=PLANET_MOONS.find(m=>m[0]==='Phobos')[7];
+// Its pole, and two directions across it for its meridian to turn through (worked out here, as the
+// vector helpers come later in the page).
+const INCOMING_POLE=vnorm([0.35, -0.2, 0.92]), INCOMING_E1=vnorm([-INCOMING_POLE[2], 0, INCOMING_POLE[0]]),
+  INCOMING_E2=[INCOMING_POLE[1]*INCOMING_E1[2]-INCOMING_POLE[2]*INCOMING_E1[1], INCOMING_POLE[2]*INCOMING_E1[0]-INCOMING_POLE[0]*INCOMING_E1[2], INCOMING_POLE[0]*INCOMING_E1[1]-INCOMING_POLE[1]*INCOMING_E1[0]];
 function incomingRGB(A, rad, lit){
   const pt=planetDisplay(A.mag, PHOBOS_TINT).rgb, w=smooth01(0.5/60, 2/60, rad*180/Math.PI);
   if(!(w>0)||!skyNow) return pt;
@@ -773,11 +794,12 @@ function placeIncoming(lat, marks, bodies){
     if(!I.D) continue;
     const sd=metSunDir(lat, minutes), r=metDatedMeteor(I), A=r&&metAsteroid(I, r, metSec(), sd);
     if(!A||A.el<=0||A.mag>8) continue;
-    const rad=Math.atan(I.D/2/A.d), lit=(1-vdot(sd, A.dir))/2, show={px:planetDisplay(A.mag, PHOBOS_TINT).px, rgb:incomingRGB(A, rad, lit)}, pole=[0, 0, 1], k=-vdot(A.dir, pole);
-    const body={grs:null, meridian:vnorm([-A.dir[0]-pole[0]*k, -A.dir[1]-pole[1]*k, -A.dir[2]-pole[2]*k]), map:'Phobos', dir:A.dir, rad, light:sd, pole,
+    const rad=Math.atan(I.D/2/A.d), lit=(1-vdot(sd, A.dir))/2, show={px:planetDisplay(A.mag, PHOBOS_TINT).px, rgb:incomingRGB(A, rad, lit)};
+    const pole=INCOMING_POLE, w=2*Math.PI*(metSec()-r.ti)/(2.4*3600), meridian=vadd(vscale(INCOMING_E1, Math.cos(w)), vscale(INCOMING_E2, Math.sin(w)), [0, 0, 0]);
+    const body={grs:null, meridian, map:'Phobos', dir:A.dir, rad, light:sd, pole,
       kind:BODY_MOON, flat:BODY_FLAT_OF.Phobos, px:show.px, rgb:show.rgb, mag:A.mag, front:false, shadows:[], rings:false, tint:PHOBOS_TINT, ownRGB:true};
     marks.push({az:A.az, el:A.el, px:show.px, rgb:show.rgb, planet:'Chicxulub asteroid', mag:A.mag, radDeg:rad*180/Math.PI, dist:A.d/1.496e8,
-      lit, body, kind:BODY_MOON, tint:PHOBOS_TINT, ownRGB:true, asteroid:`Chicxulub asteroid · ${Math.round(A.d).toLocaleString('en-US')} km`});
+      lit, body, kind:BODY_MOON, tint:PHOBOS_TINT, ownRGB:true, what:'a carbonaceous asteroid 10 km across, on its way in', asteroid:`Chicxulub asteroid · ${Math.round(A.d).toLocaleString('en-US')} km`});
     bodies.push(body);
   }
 }

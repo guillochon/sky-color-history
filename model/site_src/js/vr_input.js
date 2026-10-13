@@ -694,7 +694,9 @@ function pinVRTip(cx, cy){
   const P=vrProbe(cx, cy, true), s=P.star;
   const onDisk=(b, d)=>({ox:vdot(d, b.east), oy:vdot(d, b.north)});
   let pin;
-  if(P.sn) pin={kind:'sn', id:P.sn.ev.id};
+  // A meteor is followed along its path (metScene), its spectrum read wherever it is.
+  if(P.meteor&&P.meteor.m) pin={kind:'met', m:P.meteor.m};
+  else if(P.sn) pin={kind:'sn', id:P.sn.ev.id};
   else if(s&&(s.star||s.planet)) pin={kind:'mark', star:s.star, planet:s.planet, ra:s.ra, dec:s.dec};
   else if(s) pin={kind:'sat', az:s.az, el:s.el};
   else if(P.disk==='moon') pin={kind:'moon', ...onDisk(moonBasis(skyNow.moon), horizDir(P.az, P.el))};
@@ -756,6 +758,13 @@ function vrPinDir(p){
   if(p.kind==='sun') return {d:fromDisk(vrSunBasis(), false), el:90-skyNow.sza, on:skyNow.sunOn};
   if(p.kind==='moon') return {d:fromDisk(moonBasis(skyNow.moon), true), el:skyNow.moon.el, on:skyNow.moon.on};
   if(p.kind==='sn'){ const sn=(skyNow.sns||[]).find(s=>s.ev.id===p.id); return sn?at(sn.az, sn.el, sn.el>0):null; }
+  if(p.kind==='met'){
+    // Its head, until it is gone (an airburst's cloud faded, a strike's end reached).
+    const m=p.m, x=(MET.now-m.t0)/m.T;
+    if(!(x>=0)||x>(m.burst?1+25*m.burst/m.T:1.05)) return null;
+    const a=metApparent(m, Math.min(x, 1), extK(EP[dIdx].key)), el=Math.asin(Math.max(-1, Math.min(1, a.dir[2])))*180/Math.PI;
+    return at(Math.atan2(a.dir[0], a.dir[1])*180/Math.PI, el, el>0);
+  }
   const marks=skyNow.starMarks||[];
   let m=null;
   if(p.kind==='mark'){

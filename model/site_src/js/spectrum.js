@@ -583,7 +583,7 @@ function starNear(dir, tolDeg, out){
   const el=Math.asin(Math.max(-1, Math.min(1, dir[2])))*180/Math.PI;
   for(const s of skyNow.starMarks){
     const R=s.radDeg!=null?s.radDeg:0, reach=Math.max(tolDeg, R*(s.rings?2.3:1));
-    if(s.comet||s.transient||s.asteroid||Math.abs(s.el-el)>reach||markHidden(s)) continue;
+    if(s.comet||s.transient||Math.abs(s.el-el)>reach||markHidden(s)) continue;
     const sep=Math.acos(Math.max(-1, Math.min(1, vdot(dir, horizDir(s.az, s.el)))))*180/Math.PI;
     if(sep>reach) continue;
     const m=starThroughAir(s.mag, s.el, key), dim=Math.pow(10, -0.2*(m-s.mag));
@@ -630,6 +630,7 @@ const REFL={
   Triton:{n:[[380, 0.8], [450, 0.9], [550, 0.97], [780, 1]], note:'sunlight off nitrogen and methane frosts, faintly pink'},
   Harmonia:{n:[[380, 0.75], [500, 0.85], [600, 0.94], [780, 1]], note:'sunlight off dark rubble like Phobos’s'},
   Phobos:{n:[[380, 0.62], [500, 0.75], [600, 0.88], [780, 1]], note:'sunlight off dark, reddish rubble, like the D-type asteroids’'},
+  'Chicxulub asteroid':{n:[[380, 0.82], [450, 0.94], [550, 0.99], [780, 1]], note:'sunlight off a dark carbonaceous (C-type) asteroid, nearly flat, falling off in the violet'},
   Deimos:{n:[[380, 0.6], [500, 0.74], [600, 0.88], [780, 1]], note:'sunlight off dark, reddish rubble, like the D-type asteroids’'},
   Ceres:{n:[[380, 0.8], [450, 0.92], [550, 0.98], [780, 1]], note:'sunlight off dark ground of clays and carbonates, nearly grey (a C-type surface), with Occator’s bright salts'},
   Pallas:{n:[[380, 1], [500, 1], [650, 0.98], [780, 0.96]], note:'sunlight off dark carbonaceous rock, faintly blue (a B-type surface)'},
