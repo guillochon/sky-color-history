@@ -322,8 +322,9 @@ function goToTransient(ev){
   // From the latitude it is best seen from, at that hour.
   dLat=transientBestLat(ev);
   document.querySelectorAll('[data-lat]').forEach(x=>x.setAttribute('aria-pressed', x.dataset.lat===dLat?'true':'false'));
-  // An impact at its moment, a volcanic sky at dusk, the rest at their best hour.
-  const m=ev.at!=null?ev.at:ev.dusk?duskMinute(LATDEG[dLat]):transientBestMinute(ev, LATDEG[dLat]);
+  // An impact as it comes in, a meteor storm at its peak, a volcanic sky at dusk, the rest at
+  // their best hour.
+  const at=typeof ev.at==='function'?ev.at():ev.at, m=at!=null?at:ev.dusk?duskMinute(LATDEG[dLat]):transientBestMinute(ev, LATDEG[dLat]);
   if(m!=null){ minutes=m; hslider.value=String(minutes); }
   datePopDrawn=''; renderDay(); warm();
 }

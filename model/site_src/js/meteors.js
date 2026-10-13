@@ -326,7 +326,7 @@ function metBin(s, b, store=true){
   return got;
 }
 // Three impacts on record, each placed with its ground point (or, for an airburst, the point under
-// the burst) within 100 km of the observer, at the local time it struck, from its radiant's azimuth
+// the burst) near the observer, at the local time it struck, from its radiant's azimuth
 // (from) and height (ang, the entry angle), at speed v (km/s) with energy Y (Mt of TNT): the
 // meteoroid's magnitude follows from its mass, ½mv² = Y, by metMass, so the bright ones strike
 // the ground (MET_GROUND) and burst there, the others burst in the air.
@@ -339,11 +339,11 @@ function metBin(s, b, store=true){
 //     south of the observer, as it did of Chelyabinsk: brighter than the Sun for a moment.
 //   - Chicxulub, 66 Ma, as the K–Pg event's soot begins (epoch_time.js): a 10 km asteroid at 20 km/s,
 //     about 6.5×10⁷ Mt, entering steeply (60°) from the north-east (Collins et al. 2020), striking
-//     90 km away. The hour is assumed.
+//     300 km away. The hour is assumed.
 const MET_DATED=[
   {id:'tunguska', year:1908, md:[6, 30], clock:7*60+3, Y:12, v:15, ang:35, from:115, dist:65, az:340},
   {id:'chelyabinsk', year:2013, md:[2, 15], clock:7*60+24, Y:0.5, v:19.2, ang:18.3, from:103.5, dist:40, az:180},
-  {id:'chicxulub', year:2000-66e6, md:[1, 1], clock:10*60, Y:6.5e7, v:20, ang:60, from:30, dist:90, az:45},
+  {id:'chicxulub', year:2000-66e6, md:[1, 1], clock:10*60, Y:6.5e7, v:20, ang:60, from:30, dist:300, az:45},
 ];
 // The day number of impact I in the epoch shown (its year counted on the timeline).
 function metDatedDay(I){
@@ -715,10 +715,22 @@ function meteorReadout(){
   const x=fmtTimes(E.F)==='1'?'':` · sporadics ${fmtTimes(E.F)}× today`;
   return rate+x+sh.text+(E.ring&&ringOf(key)?(dLat==='Equator'?' · ring debris overhead':''):'');
 }
-// The impacts on record as events for the date picker (transients.js): 3 seconds before each.
+// The clock time, on the day shown, a second before impact I's meteor first shows (its path
+// starts), from the latitude shown.
+function metDatedStart(I){
+  metSec();
+  const ti=(metDatedDay(I)-MET_ORIGIN)*86400;
+  for(const s of [2, 3]) for(let b=Math.floor((ti-120)/MET_BIN[s]); b<=Math.floor(ti/MET_BIN[s]); b++){
+    const m=metBin(s, b).met.find(q=>q.id.endsWith('|'+I.id));
+    if(m) return I.clock-(ti-m.t0+1)/60;
+  }
+  return I.clock-15/60;
+}
+// The impacts on record as events for the date picker (transients.js): a second before each
+// meteor appears.
 addEvents([['tunguska', 'The Tunguska airburst', 'Mid-latitude', 'A stony body some 50 m across bursts over Siberia with the energy of about 12 Mt, flattening 2,000 km² of forest; seen from 65 km, as from Vanavara.'],
   ['chelyabinsk', 'The Chelyabinsk meteor', 'Mid-latitude', 'A 20 m asteroid bursts 30 km up, brighter than the Sun for a moment, 40 km away as it was from Chelyabinsk, where its shock wave broke windows across the city.'],
-  ['chicxulub', 'The Chicxulub impact', 'Equator', 'A 10 km asteroid strikes the Yucatán shelf, seen from 90 km: the end of the dinosaurs. The hour is assumed.']].map(([id, name, lat, note])=>{
+  ['chicxulub', 'The Chicxulub impact', 'Equator', 'A 10 km asteroid strikes the Yucatán shelf, seen from 300 km: the end of the dinosaurs. The hour is assumed.']].map(([id, name, lat, note])=>{
   const I=MET_DATED.find(x=>x.id===id);
-  return {id, name, note, lat, type:'impact', group:'impact', at:I.clock-3/60, date:fmtDate(I.year, I.md[0], I.md[1])};
+  return {id, name, note, lat, type:'impact', group:'impact', at:()=>metDatedStart(I), date:fmtDate(I.year, I.md[0], I.md[1])};
 }));
