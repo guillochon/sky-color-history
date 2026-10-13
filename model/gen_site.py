@@ -144,6 +144,7 @@ PARTS = [
     'js/sunset.js',
     'js/calendar.js',
     'js/epoch_time.js',
+    'js/transients.js',
     'js/air_time.js',
     'js/sunspots.js',
     'js/stars_catalog.js',

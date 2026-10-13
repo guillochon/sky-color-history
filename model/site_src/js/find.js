@@ -58,8 +58,7 @@ function findCatalog(){
   out.push({name:'Sun', kind:'star', prio:10, t:{k:'sun'}});
   if(!noMoon()) out.push({name:'Moon', kind:'the Earth’s moon', prio:10, t:{k:'moon'}});
   for(const [name, b] of BODY_WHERE) out.push({name, kind:b.host?`moon of ${b.host}`:b.what?b.what.replace(/^an? /, ''):'planet', prio:b.host?4:9, t:{k:'body', name}});
-  const sn=SUPERNOVA[key];
-  if(sn && supernovaMag(sn, astroDay())!=null) out.push({name:sn.name||'Supernova', also:['supernova'], kind:'supernova', prio:9, t:{k:'sn'}});
+  for(const s of transientPlaces(0)) out.push({name:s.name, also:[TR_TYPES[s.ev.type].label], kind:TR_TYPES[s.ev.type].label, prio:9, t:{k:'sn', id:s.ev.id}});
   const P=starPlaces(key, year);
   for(let i=0;i<P.n;i++){ const s=P.list[i]; if(s[7]) out.push({name:s[7], kind:'star', prio:Math.max(0, Math.min(8, 7-s[2])), t:{k:'star', star:s}}); }
   for(const o of DSO.objects){
@@ -82,7 +81,7 @@ function findWhere(t){
   const at=(az, el, diam, disk=0)=>({d:horizDir(az, shaderApparent(el).a), az, el, diam, disk});
   if(t.k==='sun') return at(skyNow.sunAz, 90-skyNow.sza, 2*skyNow.moon.sunRadDeg*DISK_SCALE, skyNow.moon.sunRadDeg);
   if(t.k==='moon') return noMoon()?null:at(skyNow.moon.az, skyNow.moon.el, 2*skyNow.moon.radDeg*DISK_SCALE, skyNow.moon.radDeg);
-  if(t.k==='sn'){ const sn=supernovaPlace(lat); return sn&&at(sn.az, sn.el, 0); }
+  if(t.k==='sn'){ const sn=transientPlaces(lat).find(s=>s.ev.id===t.id); return sn&&at(sn.az, sn.el, 0); }
   if(t.k==='body'){ const b=BODY_WHERE.get(t.name); const k=b&&b.radDeg*(b.rings?2.3:1); return b?at(b.az, b.el, 2*k):null; }
   if(t.k==='star'){
     const P=starPlaces(key, year), i=P.list.indexOf(t.star);

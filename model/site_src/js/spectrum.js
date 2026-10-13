@@ -583,7 +583,7 @@ function starNear(dir, tolDeg, out){
   const el=Math.asin(Math.max(-1, Math.min(1, dir[2])))*180/Math.PI;
   for(const s of skyNow.starMarks){
     const R=s.radDeg!=null?s.radDeg:0, reach=Math.max(tolDeg, R*(s.rings?2.3:1));
-    if(s.comet||Math.abs(s.el-el)>reach||markHidden(s)) continue;
+    if(s.comet||s.transient||Math.abs(s.el-el)>reach||markHidden(s)) continue;
     const sep=Math.acos(Math.max(-1, Math.min(1, vdot(dir, horizDir(s.az, s.el)))))*180/Math.PI;
     if(sep>reach) continue;
     const m=starThroughAir(s.mag, s.el, key), dim=Math.pow(10, -0.2*(m-s.mag));
@@ -695,29 +695,30 @@ function reflectedSpectrum(s){
   const note=`${s.planet?s.planet+(s.host?`, a moon of ${s.host}`:kin?`, ${kin}`:''):'A satellite'}${size} · ${s.planet==='Saturn'&&!s.rings?'sunlight off its yellower haze, with methane bands':r.note}${what}${tide}${ring}${spot}${where} · ${spAirTail(s.mag, m, X)}`;
   return {S, Y:1, parts:[], marks, note};
 }
-// The supernova, if it is up within tolDeg of dir.
+// The nova or supernova (transients.js) up within tolDeg of dir, the nearest.
 function snNear(dir, tolDeg){
-  const sn=skyNow&&skyNow.sn;
-  return sn&&sn.el>0&&vdot(dir, horizDir(sn.az, sn.el))>=Math.cos(tolDeg*Math.PI/180)?sn:null;
+  let best=null, bd=Math.cos(tolDeg*Math.PI/180);
+  for(const sn of (skyNow&&skyNow.sns)||[]){ const d=sn.el>0?vdot(dir, horizDir(sn.az, sn.el)):-2; if(d>=bd){ bd=d; best=sn; } }
+  return best;
 }
-// A Type II-P supernova near its peak: the hot early photosphere, about 11,000 K (its drawn
-// blue-white), with the hydrogen and He I lines in P Cygni profiles, broad emission at rest
-// and absorption blueshifted by the ejecta's 10,000 km/s (Filippenko 1997).
-const SN_T=11000, SN_V=10000;
+// A nova's or supernova's light (transients.js TR_SPEC): a photosphere's blackbody with its
+// lines in P Cygni profiles, broad emission at rest and absorption blueshifted by the ejecta's
+// speed (Filippenko 1997). A Type II-P near its peak is about 11,000 K, its hydrogen and He I
+// lines from ejecta at 10,000 km/s.
 function snSpectrum(sn){
-  const key=EP[dIdx].key, S=spPlanck(SN_T), b=SN_V/2.998e5;
-  const lines=[[656.28, 1.8, 0.3, 'Hα'], [486.13, 0.5, 0.35, 'Hβ'], [434.05, 0.2, 0.3, 'Hγ'], [587.56, 0.25, 0.25, 'He I']];
+  const sp=transientSpec(sn.ev), T=sn.ev.T||sp.T, V=sn.ev.V||sp.V;
+  const key=EP[dIdx].key, S=spPlanck(T), b=V/2.998e5, lines=sp.lines;
   for(let i=0;i<SP_N;i++){
     const l=SP_LAM[i];
     let t=1;
-    for(const [l0, em, ab] of lines){ const s=l0*b*0.5; t*=(1+em*Math.exp(-0.5*((l-l0)/s)**2))*(1-ab*Math.exp(-0.5*((l-l0*(1-b))/(0.5*s))**2)); }
+    // No narrower than the 1 nm steps can show (an eruption's slow wind).
+    for(const [l0, em, ab] of lines){ const s=Math.max(l0*b*0.5, 1.2); t*=(1+em*Math.exp(-0.5*((l-l0)/s)**2))*(1-ab*Math.exp(-0.5*((l-l0*(1-b))/(0.5*s))**2)); }
     S[i]*=t;
   }
   const marks=lines.map(([l, , , t])=>({l, t, em:true})), X=Math.min(spAirmass(sn.el), 40);
   spThroughAir(S, marks, key, X);
   const m=starThroughAir(sn.mag, sn.el, key);
-  const note=`${sn.name||'A supernova'} · a Type II-P near peak: an ${SN_T.toLocaleString('en-US')} K photosphere, its hydrogen and helium in `
-    +`P Cygni lines from ejecta at ${SN_V.toLocaleString('en-US')} km/s · ${spAirTail(sn.mag, m, X)}`;
+  const note=`${sn.name} · ${sp.text(T.toLocaleString('en-US'), V.toLocaleString('en-US'))} · ${spAirTail(sn.mag, m, X)}`;
   return {S, Y:1, parts:[], marks, note};
 }
 const spRamp=(lo, hi, x)=>Math.max(0, Math.min(1, (x-lo)/(hi-lo)));

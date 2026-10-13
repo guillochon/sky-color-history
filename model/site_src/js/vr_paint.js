@@ -554,7 +554,7 @@ function paintVR(){
   gl.uniform1f(u.mtnSnow, tableNow(MTN_SNOW, EP[dIdx].key, 0));
   gl.uniform1f(u.snowCover, tableNow(SNOW_COVER, EP[dIdx].key, 0));
   gl.uniform1f(u.waterT, (performance.now()/1000)%1000);
-  // Night lights: the Moon and, in the Geminga epoch, the supernova. Each lights the scene in
+  // Night lights: the Moon and the brightest nova or supernova. Each lights the scene in
   // proportion to 0.6 times the square root of its brightness relative to the full Moon, a
   // perceptual scale under which the full Moon still outshines the supernova. They only
   // matter once the sky is dark, and the air dims them near the horizon.
@@ -565,7 +565,8 @@ function paintVR(){
     vrGL.snDir=new Float32Array(horizDir(sn.az, Math.max(sn.el, 0)));
     vrGL.snLight=nightLight(sn.rgb, Math.pow(10, -0.4*(sn.mag-MOON_V_FULL)), sn.el, night);
     gl.uniform3fv(u.snDir, vrGL.snDir);
-    gl.uniform3fv(u.snCol, new Float32Array(sn.rgb.map(v=>v*lowAir(sn.el))));
+    // Its glare, which fades out toward the fainter ones, drawn as stars are (transients.js).
+    gl.uniform3fv(u.snCol, new Float32Array(sn.rgb.map(v=>v*lowAir(sn.el)*sn.glare)));
   }else vrGL.snLight=new Float32Array(3);
   gl.uniform3fv(u.snLight, vrGL.snLight);
   const mo=skyNow.moon, moonUp=mo.on && mo.el>-0.5;

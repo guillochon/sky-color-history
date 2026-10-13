@@ -193,7 +193,7 @@ function drawSkyLabels(ctx, W, H, o){
     const off=s.radDeg>0?o.diskPx(s):0;
     pts.push({x:p[0]+off*0.7, y:p[1]-off*0.7, mag:s.mag, text, kind});
   };
-  if(skyNow.sn) add(skyNow.sn, skyNow.sn.name||'Supernova', 'sn');
+  for(const s of skyNow.sns||[]) add(s, s.name, 'sn');
   // Active meteor showers' radiants (showers.js), marked with a small cross.
   for(const r of radiantMarks()){ const p=at(r.el, r.az); if(p) pts.push({x:p[0], y:p[1], mag:-3, text:r.text, kind:'rad'}); }
   // Nebulae and galaxies (dso.js), where the brightest of their light stands out from the sky; a
@@ -205,7 +205,7 @@ function drawSkyLabels(ctx, W, H, o){
     add({el, az:(az+360)%360, mag:2}, (/^(M|NGC )\d/.test(p.o.id)&&p.o.name!==p.o.id?`${p.o.id} ${p.o.name}`:p.o.name)+far, 'dso');
   }
   for(const s of skyNow.starMarks){
-    if((s.mag>lim&&!s.planet)||s.el<=0||markHidden(s)) continue;
+    if((s.mag>lim&&!s.planet)||s.el<=0||markHidden(s)||s.transient) continue;
     // Labelled when it shows: its colour as the sky pass adds it (faded near the naked-eye limit,
     // dimmed by the air), times what the cloud in front lets through. 0.06 is where the drawn
     // point stands out from the sky around it. A planet or moon at its colour as zoomed in

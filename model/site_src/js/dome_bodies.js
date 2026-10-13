@@ -29,6 +29,7 @@ function placeStars(lat){
   }
   placePlanets(lat, marks, bodies, epochKey, year, LST);
   if(epochKey==='y2100') placeSatellites(lat, tex, marks, up);
+  placeTransients(lat, LST, tex, marks, up);
   // The cube cells are for the VR sky shader only.
   const bins=vrOn?starBinsFor(up, tex):{info:null, idx:null, count:0};
   return {tex, marks, bodies, bins:bins.info, idx:bins.idx, idxCount:bins.count};
@@ -89,45 +90,12 @@ const vscale=(a,s)=>[a[0]*s,a[1]*s,a[2]*s];
 const vadd=(a,b,c)=>[a[0]+b[0]+c[0],a[1]+b[1]+c[1],a[2]+b[2]+c[2]];
 const vcross=(a,b)=>[a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
 function vnorm(a){ const m=Math.hypot(a[0],a[1],a[2])||1; return [a[0]/m,a[1]/m,a[2]/m]; }
-// Geminga's supernova, at the birthplace Pellizza et al. (2005) trace the pulsar back to:
-// Galactic l 198°, b -12°, which is J2000 RA 85.25°, Dec +7.44°, in Orion. Peak V about -10.9:
-// a Type II-P supernova (M -16.75, Richardson et al. 2014) at 147 pc, the geometric middle
-// of their 90-240 pc. Early on a II-P is hot, so it is drawn blue-white.
-//
-// The supernova that ejected the runaway zeta Oph and PSR B1706-16, 1.78 Myr ago at 107 pc
-// (Neuhauser et al. 2019). Peak V about -11.6 for a Type II-P at 107 pc. Their abstract gives no
-// position; RA 242.4, Dec -21.0 is where a straight-line trace of zeta Oph's Hipparcos motion
-// (RV -9 to -15 km/s) puts it 1.78 Myr ago, in Scorpius about 7 degrees NW of Antares.
-// mag is each one's peak. They explode on 24 December of the year before their epoch's year 0
-// (t0, day number in the epoch's calendar), so they peak in early January of year 0.
-const SUPERNOVA={
-  geminga:{ra:85.25, dec:7.44, mag:-10.9, rgb:[0.86, 0.92, 1.0], name:'Geminga’s supernova', t0:dayNumber(1999, 12, 24, 0)},
-  zetaoph:{ra:242.4, dec:-21.0, mag:-11.6, rgb:[0.86, 0.92, 1.0], name:'The supernova that launched ζ Oph', t0:dayNumber(1999, 12, 24, 0)},
-};
-// A Type II-P supernova's light (Anderson et al. 2014; Richardson et al. 2014): to peak in two
-// weeks, a plateau falling about half a magnitude over the next 90 days, a drop of 2 magnitudes
-// over a month as it ends, then the tail of cobalt-56 decay at 0.98 magnitudes per 100 days. It
-// fades past the naked eye after four to five years. Null before the explosion and once too faint.
-function supernovaMag(sn, d){
-  const t=d-sn.t0;
-  if(t<0) return null;
-  const m=sn.mag+(t<14?3*(1-t/14)**2:t<100?0.006*(t-14):t<130?0.52+2*smooth01(100, 130, t):2.52+0.0098*(t-130));
-  return m>7?null:m;
-}
-function supernovaPlace(lat){
-  const sn=SUPERNOVA[EP[dIdx].key], mag=sn?supernovaMag(sn, astroDay()):null;
-  if(mag==null) return null;
-  const year=pageDate()[0], LST=localSidereal();
-  const place=starMeanPlace([sn.ra, sn.dec, mag, 0, 0, 0], EP[dIdx].key, year);
-  const p=raDecAltaz(lat, place.ra, place.dec, LST);
-  return {az:p.az, el:p.alt, mag, rgb:sn.rgb, name:sn.name};
-}
 // A point too bright to resolve: a white core and a glare halo, bright enough to show by day.
 function drawSupernovaOnDome(sn){
-  if(!sn||sn.el<0) return;
+  if(!sn||sn.el<0||!(sn.glare>0.01)) return;
   const {cx, cy, R}=domeView();
   const rr=R*(90-sn.el)/90, a=sn.az*Math.PI/180, x=cx+rr*Math.sin(a), y=cy-rr*Math.cos(a);
-  const fade=smooth01(0, 4, sn.el), c=sn.rgb.map(v=>Math.round(v*255)).join(',');
+  const fade=smooth01(0, 4, sn.el)*sn.glare, c=sn.rgb.map(v=>Math.round(v*255)).join(',');
   dctx.save(); dctx.beginPath(); dctx.arc(cx,cy,R,0,Math.PI*2); dctx.clip();
   dctx.globalCompositeOperation='lighter';
   const g=dctx.createRadialGradient(x,y,0,x,y,26);

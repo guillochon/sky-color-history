@@ -694,7 +694,7 @@ function pinVRTip(cx, cy){
   const P=vrProbe(cx, cy, true), s=P.star;
   const onDisk=(b, d)=>({ox:vdot(d, b.east), oy:vdot(d, b.north)});
   let pin;
-  if(P.sn) pin={kind:'sn'};
+  if(P.sn) pin={kind:'sn', id:P.sn.ev.id};
   else if(s&&(s.star||s.planet)) pin={kind:'mark', star:s.star, planet:s.planet, ra:s.ra, dec:s.dec};
   else if(s) pin={kind:'sat', az:s.az, el:s.el};
   else if(P.disk==='moon') pin={kind:'moon', ...onDisk(moonBasis(skyNow.moon), horizDir(P.az, P.el))};
@@ -755,7 +755,7 @@ function vrPinDir(p){
   if(p.kind==='sky') return {d:p.d, el:90, on:true};
   if(p.kind==='sun') return {d:fromDisk(vrSunBasis(), false), el:90-skyNow.sza, on:skyNow.sunOn};
   if(p.kind==='moon') return {d:fromDisk(moonBasis(skyNow.moon), true), el:skyNow.moon.el, on:skyNow.moon.on};
-  if(p.kind==='sn'){ const sn=skyNow.sn; return sn?at(sn.az, sn.el, sn.el>0):null; }
+  if(p.kind==='sn'){ const sn=(skyNow.sns||[]).find(s=>s.ev.id===p.id); return sn?at(sn.az, sn.el, sn.el>0):null; }
   const marks=skyNow.starMarks||[];
   let m=null;
   if(p.kind==='mark'){

@@ -1,7 +1,7 @@
 const STAR_N=STARS.length;
-// The texture holds the stars, then satellites. The planets and their moons are drawn apart
-// (planets.js, the sky shader's bodies).
-const SAT_CAP=2048, DOME_SAT_CAP=6400, STAR_MAP_W=STAR_N+SAT_CAP;
+// The texture holds the stars, then satellites, then the novae and supernovae (transients.js).
+// The planets and their moons are drawn apart (planets.js, the sky shader's bodies).
+const SAT_CAP=2048, DOME_SAT_CAP=6400, STAR_MAP_W=STAR_N+SAT_CAP+TR_CAP;
 // V of the hundredth star. Brighter stars, and every star this bright, keep the
 // sizes from when the dome showed only that hundred.
 const STAR_VANCHOR=STARS[Math.min(99, STARS.length-1)][2];
@@ -155,7 +155,8 @@ function starsAt(A){
   STAR_REAL.forEach((s, i)=>{
     const T=starLineYears(i), w=1-fadeIn(Math.abs(dt)-(T-STAR_FADE));
     if(!(w>0)) return;
-    const {v, dm}=starLine(s, dt), mag=s[2]+dm-2.5*Math.log10(w);
+    // A star that has exploded (transients.js) is gone.
+    const {v, dm}=starLine(s, dt), mag=TR_GONE.has(s[7])&&A>=TR_GONE.get(s[7])?99:s[2]+dm-2.5*Math.log10(w);
     out.push([Math.atan2(v[1], v[0])*180/Math.PI, Math.asin(Math.max(-1, Math.min(1, v[2])))*180/Math.PI, mag, s[3], 0, 0, s[6], s[7], s[8]]);
   });
   // Stand-ins, from when each of today's stars fades on, the passages after one another, the far

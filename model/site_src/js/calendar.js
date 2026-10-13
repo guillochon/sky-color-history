@@ -249,11 +249,17 @@ function drawDatePop(){
     for(const w of ['Su','Mo','Tu','We','Th','Fr','Sa']) html+=`<span class="dp-wd" aria-hidden="true">${w}</span>`;
     for(let i=weekday(Y, M, 1); i>0; i--) html+='<span></span>';
   }
-  for(let d=1, n=monthLen(Y, M); d<=n; d++) html+=`<button type="button" data-d="${d}" aria-pressed="${d===D}">${d}</button>`;
+  // A day with a nova, supernova or eruption (transients.js) has a star in its corner, in the colour of its kind.
+  const evDays=transientDays(Y, M), evLabel=d=>evDays.get(d).map(ev=>ev.name).join(', ');
+  for(let d=1, n=monthLen(Y, M); d<=n; d++){
+    const ev=evDays.get(d);
+    html+=ev?`<button type="button" data-d="${d}" aria-pressed="${d===D}" title="${evLabel(d)}" aria-label="${d}, ${evLabel(d)}">${d}<i class="dp-ev" style="color:${TR_TYPES[ev[0].type].color}" aria-hidden="true">★</i></button>`
+      :`<button type="button" data-d="${d}" aria-pressed="${d===D}">${d}</button>`;
+  }
   dpDays.className='dp-days '+(weeks?'dp-week':'dp-ten'); dpDays.innerHTML=html;
   dpMonthSel.value=String(M);
   const WD=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  dpDaySel.replaceChildren(...Array.from({length:monthLen(Y, M)}, (_, i)=>new Option(weeks?`${i+1} ${WD[weekday(Y, M, i+1)]}`:String(i+1), String(i+1))));
+  dpDaySel.replaceChildren(...Array.from({length:monthLen(Y, M)}, (_, i)=>new Option((weeks?`${i+1} ${WD[weekday(Y, M, i+1)]}`:String(i+1))+(evDays.has(i+1)?' ★':''), String(i+1))));
   dpDaySel.value=String(D);
   const lens=MONTH_NAMES.map((_, i)=>monthLen(Y, i+1)), lo=Math.min(...lens), hi=Math.max(...lens);
   const sh=epochShift(key), [from, to]=epochSpan(key, pageTime()), ep=EP[dIdx];
@@ -263,7 +269,8 @@ function drawDatePop(){
     :`${dayHoursLabel()}-hour days: twelve months of ${lo===hi?lo:lo+'–'+hi} days, ${yearLen(Y)} this year.`)
     +(autoEpoch?(EVENT_KEYS.has(key)?` This sky (${ep.short}, ${ep.age}) is an event: it holds for ${fmtDuration(to-from)} from ${fmtTime(Math.floor(from))}.`
       :` This sky (${ep.short}, ${ep.age}) holds from ${fmtTime(from)} to ${fmtTime(to)}.`)
-      :` This sky (${ep.short}, ${ep.age}) stays at every year while auto-select is off; the Sun, the Moon and the day follow the year.`);
+      :` This sky (${ep.short}, ${ep.age}) stays at every year while auto-select is off; the Sun, the Moon and the day follow the year.`)
+    +(evDays.has(D)?' '+transientNote(Y, M, D):'');
   dpBack.textContent=EPOCH_YEAR[key]==='now'?'Today':`Back to ${ep.age}`;
 }
 function syncDateUI(){ dateBtn.textContent=dateLabel(); if(datePop.open) drawDatePop(); }

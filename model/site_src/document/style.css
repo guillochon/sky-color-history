@@ -232,6 +232,13 @@ p.dp-help{font-size:.72rem;color:var(--ink2);margin:.35rem 0 0;max-width:none}
 .dp-epochs span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dp-epochs button[aria-pressed="true"] b{color:inherit;opacity:.75}
 .dp-epochsel{display:none}
+.dp-events{margin-top:.6rem}
+.dp-evlabel{display:block;font-size:.8rem;color:var(--ink2);margin-bottom:.2rem}
+.dp-events select{width:100%;font-size:.85rem;padding:.25rem .35rem}
+p.dp-evkey{display:flex;flex-wrap:wrap;gap:.25rem .8rem;font-size:.7rem;color:var(--ink2);margin:.3rem 0 0;max-width:none}
+.dp-evkey i,.dp-days i.dp-ev{font-style:normal}
+.dp-days button{position:relative}
+.dp-days i.dp-ev{position:absolute;top:1px;right:3px;font-size:.75rem;line-height:1;pointer-events:none;text-shadow:0 0 2px rgba(0,0,0,.75)}
 #datePop.compact .dp-epochs,#datePop.compact .dp-help{display:none}
 #datePop.compact .dp-epochsel{display:block;width:100%;margin-top:.5rem;font-size:1rem;padding:.35rem .4rem}
 p.dp-note{font-size:.78rem;color:var(--ink2);margin:.65rem 0 0;max-width:none}
@@ -241,7 +248,7 @@ p.dp-note{font-size:.78rem;color:var(--ink2);margin:.65rem 0 0;max-width:none}
 #datePop.compact{width:min(19rem,calc(100vw - 2rem))}
 #datePop.compact .dp-months,#datePop.compact .dp-days,#datePop.compact .dp-note{display:none}
 #datePop.compact .dp-compact{display:flex;gap:.5rem;margin-top:.6rem}
-.dp-compact select{flex:1;font-size:1rem;padding:.35rem .4rem}
+.dp-compact select{flex:1;min-width:0;font-size:1rem;padding:.35rem .4rem}
 #datePop.compact .dp-in{padding:.75rem .85rem .85rem}
 /* In VR the picker sits in the middle, dark like the find box. */
 #vr #datePop{--bg:#0c0f16;--bg2:#1f2430;--ink:#e9ebef;--ink2:#aeb4c0;--rule:#3d4453;--accent:#e9ebef;background:rgba(12,15,22,.9);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border-color:rgba(255,255,255,.2);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.6);cursor:auto;user-select:none}
