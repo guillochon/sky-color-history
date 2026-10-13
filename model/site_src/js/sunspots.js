@@ -217,10 +217,13 @@ function sunspotLib(){
     const cl=Math.cos(lat*Math.PI/180), at=(dx, dy)=>[lat+dy, lon+dx/Math.max(cl, 0.05)];
     const spots=[], P=(x, y, area, kind, i)=>{ if(area>0.4) spots.push(makeSpot(...at(x, y), area, kind, i, R)); };
     if(s>0){
-      // A leader bigger than the largest spots seen (about 4,000 MSH) is a cluster of them.
-      const AL=0.45*A*s, nL=Math.ceil(AL/2500);
+      // A leader bigger than the largest spots seen (about 4,000 MSH) is a cluster of them, as
+      // many as its peak needs, on a ring its peak's size: a count or ring that changed with the
+      // group's age would move them between one day's map and the next's, and the two would show
+      // doubled as they are blended.
+      const AL=0.45*A*s, nL=Math.ceil(0.45*A/2500);
       for(let i=0;i<nL;i++){
-        const r=i?mshRad(AL/nL)*57.3*1.7:0, th=2*Math.PI*(i/(nL-1||1)+R(31));
+        const r=i?mshRad(0.45*A/nL)*57.3*1.7:0, th=2*Math.PI*(i/(nL-1||1)+R(31));
         P(ax*sep/2+r*Math.cos(th), ay*sep/2+r*Math.sin(th), AL/nL, 'lead', 30+i*9);
       }
       const nf=1+Math.floor(R(40)*(A>200?4:A>40?3:2)), fa=0.3*A*s*s;
@@ -228,10 +231,11 @@ function sunspotLib(){
         const w=i===0?0.5+0.3*R(41):(0.5-0.15*R(42+i))/(nf-1||1), r=sep*0.18*Math.sqrt(R(50+i)), th=2*Math.PI*R(60+i);
         P(-ax*sep/2+r*Math.cos(th), -ay*sep/2+r*Math.sin(th), fa*w, 'follow', 70+i*3);
       }
-      const np=Math.min(24, 2+Math.floor(Math.pow(A, 0.35)*s)), pa=0.25*A*Math.max(s, 0.2);
+      // Pores come and go one at a time as the group grows and decays, each fading in its area.
+      const npf=Math.min(24, 2+Math.pow(A, 0.35)*s), np=Math.ceil(npf), pa=0.25*A*Math.max(s, 0.2);
       for(let i=0;i<np;i++){
         const t=R(100+i)-0.5, off=0.22*sep*normal(R(150+i), R(200+i));
-        P(ax*sep*t-ay*off, ay*sep*t+ax*off, pa/np*(0.3+1.4*R(250+i)), 'small', 300+i*3);
+        P(ax*sep*t-ay*off, ay*sep*t+ax*off, pa/npf*(0.3+1.4*R(250+i))*Math.min(1, npf-i), 'small', 300+i*3);
       }
     }
     // The plage: around both polarities and the line between, outlasting the spots.
