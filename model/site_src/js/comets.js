@@ -128,10 +128,19 @@ function cometFitM1(c, tp, peak){
 const cometReal=COMETS_REAL.map(([name, desig, q, e, i, om, w, tps, peak, rmin])=>{
   const c={name, desig, q, e, i, om, w, tps, rmin:rmin||0, M1:0, real:true};
   c.M1=cometFitM1(c, tps[0], peak);
+  // A periodic comet also returns before its first perihelion listed and after its last, every
+  // orbital period (Kepler's third law from q and e), through the years of real comets. Planets
+  // shift its returns by a year or more (Halley's came in 1607, the law puts it in 1606), so the
+  // listed perihelia stay as recorded.
+  if(e<0.98){
+    const P=2*Math.PI/COMET_K*Math.pow(q/(1-e), 1.5), lo=dayNumber(REAL_COMET_YEARS[0], 1, 1, 0)+JD_D0, hi=dayNumber(REAL_COMET_YEARS[1]+1, 1, 1, 0)+JD_D0;
+    for(let t=Math.min(...tps)-P; t>=lo; t-=P) c.tps.push(t);
+    for(let t=Math.max(...tps)+P; t<=hi; t+=P) c.tps.push(t);
+  }
   return c;
 });
-// Each real comet's apparitions as events for the date picker (transients.js), on the day (UT)
-// it stands out most: brightest by the law above against the faintest star that shows at its
+// Each real comet as an event for the date picker (transients.js), at its apparition and on the
+// day (UT) it stands out most: brightest by the law above against the faintest star that shows at its
 // angle from the Sun (roughly: −8 by the Sun, −4 at 5°, 0 at 15°, 3 at 25°, 5 past 40° in a dark
 // sky). A comet near perihelion behind the Sun waits for its evenings; a sungrazer bright enough
 // to see by day keeps its perihelion.
@@ -146,11 +155,11 @@ function cometPeak(c, tp){
   }
   return best;
 }
-addEvents(cometReal.flatMap((c, n)=>c.tps.map((tp, k)=>{
-  const pk=cometPeak(c, tp), t=new Date((pk.jd-2440587.5)*86400000);
-  return {id:`comet${n}-${k}`, name:c.name, type:'comet', group:'comet', comet:c, tp, date:fmtDate(t.getUTCFullYear(), t.getUTCMonth()+1, t.getUTCDate()),
-    note:`At its best, magnitude ${pk.m.toFixed(1).replace('-', '−')}, ${Math.round(pk.el)}° from the Sun and ${pk.D.toFixed(2)} AU from Earth (${c.desig}).`};
-})));
+addEvents(cometReal.map((c, n)=>{
+  const [tp, pk]=c.tps.map(tp=>[tp, cometPeak(c, tp)]).reduce((a, b)=>b[1].s>a[1].s?b:a), t=new Date((pk.jd-2440587.5)*86400000);
+  return {id:`comet${n}`, name:c.name, type:'comet', group:'comet', comet:c, tp, date:fmtDate(t.getUTCFullYear(), t.getUTCMonth()+1, t.getUTCDate()),
+    note:`At its best, magnitude ${pk.m.toFixed(1).replace('-', '−')}, ${Math.round(pk.el)}° from the Sun and ${pk.D.toFixed(2)} AU from Earth (${c.desig}).`, seen:pk.s};
+}));
 // Where an event's comet's head is now, as the picker needs it (transients.js eventPlace).
 function cometEventPlace(ev, lat){
   const d=astroDay(), P=cometHelio(ev.comet, d+JD_D0, ev.tp), h=helioToHoriz(P, earthHelio(d), lat, localSidereal());
