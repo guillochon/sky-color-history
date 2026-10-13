@@ -217,7 +217,10 @@ function drawSkyLabels(ctx, W, H, o){
     if(s.comet){ add(s, s.comet.c.name, 'comet'); continue; }
     add(s, s.planet||(s.star?s.star[7]||starTypeLabel(s.star[8]):'satellite'), s.host?'moon':s.planet?'planet':s.star?(s.star[7]?'star':'stype'):'sat');
   }
-  pts.sort((a, b)=>a.mag-b.mag);
+  // Placed brightest first, a label that would overlap one placed left out; the novae, supernovae
+  // and comets go before everything else, so a star or planet beside one never takes its place.
+  const first=p=>p.kind==='sn'||p.kind==='comet'?0:1;
+  pts.sort((a, b)=>first(a)-first(b)||a.mag-b.mag);
   ctx.textBaseline='middle'; ctx.lineJoin='round';
   const placed=[], STYLE={con:['italic 13px', 'rgba(150,180,235,.7)'], sn:['600 13px', '#dbeaff'], planet:['600 13px', '#ffe2a8'], moon:['11px', 'rgba(255,226,168,.75)'], rad:['600 12px', '#ffd2b8'], star:['12px', 'rgba(220,230,255,.85)'], dso:['italic 12px', 'rgba(235,205,230,.8)'], stype:['italic 11px', 'rgba(205,215,240,.65)'], sat:['11px', 'rgba(180,190,205,.6)'], comet:['600 13px', '#8ff0cc']};
   for(const p of pts){
