@@ -267,7 +267,12 @@ THROUGH_TIME = [
 "over a year, and its soot has cleared about five years after the impact (Bardeen et al. 2017): the site holds it "
 "for a year and clears it with a one-year e-folding time, so its sky shows for about two years over a Late "
 "Cretaceous of today's air. Tambora's sulfate veil spreads through the stratosphere over the months after April "
-"1815, stays through 1816 and clears in 1817, and the ozone-hole sky holds from 1980 to 2000. As an event comes on, "
+"1815, stays through 1816 and clears in 1817, and the ozone-hole sky holds from 1980 to 2000. Three more volcanic "
+"veils come over the modern-era skies as events without epochs of their own, each Tambora's air at its own "
+"veil's depth: Laki's sulfur haze from June 1783, over the Northern Hemisphere only and at Tambora's depth, "
+"though most of it lay in the troposphere (Thordarson &amp; Self 2003), and Krakatoa's of 1883 and Pinatubo's of "
+"1991, about 0.14 and 0.15 at 550 nm at their peaks (Sato et al. 1993), each fading with an e-folding time of "
+"about a year. As an event comes on, "
 "its own parts of the air (the haze and methane, the snowball's ice and clean air, the soot and sulfate, the "
 "ozone column) go from the background's to its own, while the rest stays the background's.",
 "The sky's colors cannot simply be blended between epochs as different as these, so the parts of the sky that are "
@@ -546,7 +551,9 @@ def blocks():
                  'tab:encounters', spec='Yllrrrr'))
     B.append(p(ENC_PROSE[1]))
     B.append(S('The Milky Way, nebulae and galaxies')); B += ps(*rv.MILKY_WAY)
-    B.append(S('Supernovae')); B += ps(*rv.SUPERNOVAE)
+    B.append(S('Events on their dates', 'events')); B += ps(*rv.EVENTS)
+    B.append(S('Supernovae, novae and eruptions', 'supernovae')); B += ps(*rv.SUPERNOVAE)
+    B.append(tab(rv.TRANSIENT_HEAD, rv.transient_rows(), rv.TRANSIENT_CAPTION, 'tab:transients', spec='p{3.6cm}p{1.6cm}lrY', small=True))
     B.append(fig(view('geminga'), "The Geminga supernova 342,000 years ago, near magnitude −11 in Orion, a fifth of the full Moon's light from a single point, among the stars moved back along their measured motions.", 'fig:geminga', wide=False))
 
     B.append(P('The night and what crosses it', 'night'))

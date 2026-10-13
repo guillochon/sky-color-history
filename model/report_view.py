@@ -75,7 +75,8 @@ MOON_FACE = [
 "1,400 K, as bright per area as the sunlit Moon and far redder, magnitude +3 to −1 as seen from the Earth.",
 
 "The Moon of 4.5 Ga is not yet solid. Its magma ocean is open at the top, some ten million years after the "
-"impact (the site draws it so for the first 20 million years, a guess at when a crust closed over it): rafts of dark quench crust and the first pale anorthosite, floating a few hundred meters to a "
+"impact (the site draws it so for the first 20 million years, then cools it into the Moon of 4.0 Ga by 4,450 Ma, "
+"its glow fading and its dark rafts greying as a crust closes over it; the times are a guess): rafts of dark quench crust and the first pale anorthosite, floating a few hundred meters to a "
 "kilometre and a half above the melt, broken by cracks and lava lakes at 1,400 to 1,600 K in four "
 "generations of floes, each a network of cracks within the last. The lava shines about as brightly per "
 "area as the sunlit Moon, so the disk glows orange by day and night alike, also inside the Earth's "
@@ -416,8 +417,46 @@ MILKY_WAY = [
 "unknowable, did.",
 ]
 
+EVENTS = [
+"The timeline also holds the sky's own dated events, which come on their days in whichever epoch's sky holds "
+"that day, and which the date picker lists under Extended events: every supernova, nova and stellar eruption "
+"known to have shone brighter than magnitude 3 ({ref:tab:transients}), the 24 real comets at their best "
+"apparitions, three volcanic veils, three great aurorae, three meteor storms and three impacts, and four events "
+"to come. None is an epoch of its own: each is laid over the sky of its time, the volcanic veils on its air, the "
+"rest among its stars, meteors and aurorae. Going to one sets the clock to the hour it shows best, highest in the "
+"darkest sky (a meteor storm at its peak, a volcanic veil at dusk, an impact as it comes in), and the latitude it "
+"is best seen from: of the equator and the two mid-latitudes, where most people live, the one that sees it "
+"highest in the darkest sky, and a polar one only when none of those sees it 10° up at night.",
+]
+
 SUPERNOVAE = [
-"Two skies are lit by a supernova. Geminga's, about 342,000 years ago by its pulsar's spin-down age "
+"Every supernova, nova and stellar eruption known to have outshone magnitude 3 appears on its date "
+"({ref:tab:transients}): the supernovae of history from SN 185 to SN 1987A; those before history, dated by their "
+"remnants and pulsars, from a hypothetical one about 20 pc away at the end of the Devonian, 359 Ma, which may have "
+"stripped the ozone layer (Fields et al. 2020), through the two whose iron-60 lies in the deep-sea crust (Wallner "
+"et al. 2016; Breitschwerdt et al. 2016), to Vela Jr's a few thousand years ago; fifteen classical novae from 1848 "
+"to 1999 (Duerbeck 1987; Strope, Schaefer &amp; Henden 2010); and three eruptions: P Cygni's of 1600 (de Groot 1969), "
+"CK Vulpeculae's of 1670, perhaps two stars merging (Shara, Moffat &amp; Webbink 1985; Kamiński et al. 2015), and "
+"η Carinae's Great Eruption, second only to Sirius in 1843 (Smith &amp; Frew 2011). A record's date is the day it was "
+"first seen, converted from the Julian calendar; one before history has a day chosen in the year its remnant's or "
+"pulsar's age gives, and where its place in the sky is not known it is assumed, as the table says. The remnants "
+"give the rest: SN 185's is RCW 86, a Type Ia's at 2.5 kpc (Williams et al. 2011), and SN 1181's Pa 30 (Ritter et "
+"al. 2021); the Monogem Ring is about 86,000 years old at 288 pc (Thorsett et al. 2003), the Cygnus Loop 10,000 to "
+"20,000 at 735 pc (Fesen et al. 2018), the Vela pulsar 11,000 at 287 pc (Dodson et al. 2003), Puppis A 4,400 by its "
+"neutron star's motion at 1.3 kpc (Becker et al. 2012), and Vela Jr 2,400 to 5,100 at about 750 pc (Allen et al. "
+"2015). The peaks are the "
+"records', or for a supernova without one a Type II-P's absolute magnitude, −16.75 (Richardson et al. 2014), at "
+"its remnant's distance: SN 1006 reached about −7.5 (Winkler, Gupta &amp; Long 2003), Tycho's −4 (Krause et al. "
+"2008). Each follows a light curve of its kind: a Type II-P's two weeks' rise, three months' plateau and "
+"radioactive tail (Anderson et al. 2014); a Type Ia's quicker rise and fall (Phillips 1993; Leibundgut 2000); a "
+"stripped star's Type Ib/c (Drout et al. 2011); a nova's rise of a day or two, its fall by two and three "
+"magnitudes in its own times and a power-law tail (Strope, Schaefer &amp; Henden 2010), or the measured curve where "
+"it was odd, as RR Pictoris's slow rise and DQ Herculis's plunge into its own dust; and SN 1987A's slow climb to "
+"2.9 (Hamuy &amp; Suntzeff 1990). Each has a spectrum of its kind in the readout, P Cygni lines from a supernova's "
+"ejecta, broad Balmer and Fe II emission for a nova. The fainter are drawn as stars; the bright ones with a glare "
+"that grows from magnitude −2 to −9, and the brightest shown lights the ground.",
+
+"Two epochs are built round a supernova. Geminga's, about 342,000 years ago by its pulsar's spin-down age "
 "(Salvati &amp; Sacco 2008), exploded 90 to 240 pc away toward Orion (Pellizza et al. 2005); a typical "
 "Type II-P peaks near absolute magnitude −16.75 (Richardson et al. 2014), so from 147 pc it reached "
 "about −11, a fifth of the full Moon's light from a single point, bright enough to show by day and cast "
@@ -427,12 +466,59 @@ SUPERNOVAE = [
 "at 107 pc in the Scorpius–Centaurus association (Neuhäuser et al. 2020), unbound its companion, now the "
 "runaway star ζ Oph, and peaked near −11.6, twice as bright. Its spectrum readout is a Type II-P near "
 "peak, with P Cygni profiles from fast ejecta (Filippenko 1997). At these distances neither touches the "
-"sky's colors (Thomas et al. 2016). Betelgeuse is the same event still to come, in the same patch of "
+"sky's colors (Thomas et al. 2016).",
+
+"Four are to come. Betelgeuse's supernova is the same event as Geminga's, in the same patch of "
 "sky: 1.4° from Geminga's star in the sky of 342 ka, a red supergiant of 16.5 to 19 solar masses burning "
 "helium in its core, some 100,000 years from collapse, at 168 pc (Joyce et al. 2020), or 222 pc by radio "
 "astrometry (Harper et al. 2017). A red supergiant ends as a Type II-P, so it should peak at −10 to −10.6, "
-"close to Geminga's −11, and the Geminga sky is a fair picture of Orion's own to come.",
+"close to Geminga's −11, and the Geminga sky is a fair picture of Orion's own to come; the site sets it, "
+"as an assumption, in AD 100,000. The others are tidal disruptions, stars torn apart by a black hole. The Large "
+"Magellanic Cloud's black hole, of about 6×10⁵ solar masses by the hypervelocity stars it has thrown into the "
+"Milky Way's halo (Han et al. 2025), sits where Chisholm et al. (2026) predict; a Sun-like star's debris would "
+"fall back on it at about 140 times the Eddington rate, so the light holds near the Eddington luminosity, and at "
+"the Cloud's 49.6 kpc (Pietrzyński et al. 2019) it peaks near V = −0.6, as bright as Canopus for months, and "
+"stays visible for about thirty years. The rate is uncertain: with no nuclear star cluster the Cloud would see "
+"one in 10⁵ to 10⁶ years (Pfister et al. 2020), but it has thrown out about as many hypervelocity stars as the "
+"Milky Way's centre, whose disruptions run near one in 10⁴; at one in 33,000 years the median wait puts it in "
+"AD 25,000. Andromeda's black hole, 1.4×10⁸ solar masses (Bender et al. 2005), can tear a Sun-like star apart "
+"only on a deep plunge round a fast spin, perhaps once in 10⁵ to 10⁶ years; the debris returns over about 300 "
+"days near the Eddington rate, and at 765 kpc it makes a first-magnitude star in M31's core for most of a year, "
+"visible for over a decade, set at the median wait in AD 210,000. Both are predictions, their dates assumed.",
 ]
+
+# The supernovae, novae, eruptions and the events to come, as the site lists them (transients.js
+# TRANSIENTS): name, when, kind, peak and the site's note.
+_TR_KIND = {'sn': 'supernova', 'nova': 'nova', 'erupt': 'eruption', 'tde': 'tidal disruption'}
+_MONTHS = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split()
+
+
+def transient_rows():
+    js = (Path(__file__).resolve().parent / 'site_src' / 'js' / 'transients.js').read_text(encoding='utf-8')
+    body = js[js.index('const TRANSIENTS=['):js.index('];', js.index('const TRANSIENTS=['))]
+    rows = []
+    for m in re.finditer(r"\{id:'(\w+)'(.*?)note:'((?:[^'\\]|\\.)*)'", body, re.S):
+        f = m.group(2)
+        get = lambda k: (re.search(k + r":'([^']*)'", f) or re.search(k + r':([-\d.e+]+)', f))
+        name, kind, group = get('name').group(1), get('type').group(1), get('group').group(1)
+        mag = float(re.search(r'mag:(-?[\d.]+)', f).group(1))
+        d = re.search(r"date:'(-?\d+)-(\d+)-(\d+)'", f)
+        if d:
+            Y, M, D = map(int, d.groups()); when = f'{D} {_MONTHS[M-1]} {Y}'; A = Y+(M-1)/12
+        else:
+            Y = eval(re.search(r'year:([-\d.e+]+)', f).group(1)); A = Y; a = 2000-Y
+            when = (f'AD {Y:,}' if Y > 2000 else f'{a/1e6:.3g} Ma' if a >= 1e6 else f'{a/1e3:.3g} ka')
+        rows.append((A, [name, when, _TR_KIND[kind], f'{mag:g}'.replace('-', '−'), m.group(3).replace("\\'", "'")]))
+    return [r for _, r in sorted(rows, key=lambda x: x[0])]
+
+
+TRANSIENT_HEAD = ['Event', 'Date', 'Kind', 'Peak V', 'Note']
+TRANSIENT_CAPTION = ("The supernovae, novae and stellar eruptions that outshone magnitude 3, and the events to come, "
+"in time order, as the site lists them under Extended events (<em>transients.js</em>). Dates are Gregorian, "
+"converted from the Julian records; the prehistoric ones are given by their age, and the future ones by an "
+"assumed year. Peaks are as seen from the Earth, from the records or from a Type II-P's absolute magnitude at the "
+"remnant's distance. The real comets, volcanic veils, great aurorae, meteor storms and impacts are listed with "
+"them on the site and described in their own sections.")
 
 # ---------------------------------------------------------------------------------------------------
 # The Sun
@@ -497,6 +583,23 @@ IMPACTS = [
 "that happens to a given place about once in 50,000 years; in the bombardment, constantly. In the bombardment "
 "epochs, impact flashes also show on the closer Moon's night side, at today's measured rate scaled up (Suggs et "
 "al. 2014).",
+
+"Three impacts on record come on their dates, each a meteor with its energy, speed and path, striking or bursting "
+"near the observer: Tunguska, 30 June 1908, about 12 megatons at 15 km/s entering at 35° (Chyba, Thomas &amp; Zahnle "
+"1993; Longo 2007), seen from 65 km as from Vanavara's trading post; Chelyabinsk, 15 February 2013, half a megaton "
+"at 19.2 km/s entering at 18° (Popova et al. 2013), bursting 30 km up 40 km away; and Chicxulub, 66 Ma, a "
+"carbonaceous asteroid (Kyte 1998) 10 km across at 20 km/s, entering steeply, at about 60° from the north-east "
+"(Collins et al. 2020), seen from 200 km. An airburst brightens down into the thicker air, flares as it bursts, "
+"Chelyabinsk to about −25, and leaves a glowing cloud that fades by about four magnitudes a second. Chicxulub's "
+"hour is assumed, in the evening twilight with the Sun 9° down, so that the asteroid, coming from the "
+"north-east, is lit nearly full face against a darkening sky and stays sunlit until it meets the air: by the H, G "
+"magnitude system for its size and an albedo of 0.05 it shows as a star some 40 minutes before it strikes, and in "
+"its last seconds as a cratered, lumpy disk 1.5° across, drawn with Phobos's map and shape standing in for a face "
+"no one knows. In the air its meteor is the glowing shocked air about it, brightening with the air's density "
+"from about the Sun's brightness at 100 km to its full light at the ground, where it strikes in a single flash; the "
+"fireball, the rising cloud and the condensation dome are drawn to fit their distance rather than at the "
+"thousands of kilometres the scalings give. Played faster than real time, the clock slows to real time 30 "
+"seconds before each, so the fall is seen at its own pace.",
 ]
 
 # ---------------------------------------------------------------------------------------------------
@@ -594,7 +697,10 @@ INTRO = [
 "like where the planets stood on a given day four billion years ago, unknowable and drawn at random. The epochs "
 "are fixed points on one timeline: between them the site runs the air, the Sun, the Moon, the planets and the "
 "stars on through every year, and some epochs are events with dates and durations of their own, the haze "
-"episodes, the glaciations, the impact winter, the volcanic year ({ref:method-time}).",
+"episodes, the glaciations, the impact winter, the volcanic year ({ref:method-time}). The sky's own dated "
+"events come on their days too: the supernovae, novae and stellar eruptions that outshone third magnitude, the "
+"real comets, volcanic veils, great aurorae, meteor storms and impacts, and four events still to come "
+"({ref:events}).",
 
 "This is a living document. Much of what it draws rests on questions that are still argued: when the giant "
 "planets went unstable and whether a fifth giant was lost; how far away the Moon was in its first hundred "

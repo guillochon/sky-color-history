@@ -228,7 +228,11 @@ SECTIONS = [
 "37° on the night side at 4.0 Ga and 43° at 3.8 Ga ({ref:tab:phenomena} gives both). The arcs are thin sheets along the field "
 "lines, green below and red above, with field-aligned rays converging overhead on the magnetic zenith; they fold, "
 "drift and break up in two substorms a night near midnight. A storm of the class of September 1859, when aurora stood "
-"overhead near 40° magnetic latitude, brings today's oval down to about 45° and the young Earth's to the equator."]],
+"overhead near 40° magnetic latitude, brings today's oval down to about 45° and the young Earth's to the equator. "
+"Three great storms on record come on their dates in the modern-era skies, each drawn as that class of storm: the "
+"Carrington storms of late August and early September 1859, with aurora overhead in the Caribbean (Green &amp; "
+"Boardsen 2006); the storm of 13 to 15 May 1921, seen to Samoa and Jamaica (Silverman &amp; Cliver 2001); and the "
+"storm of 10 and 11 May 2024, red aurora over Mexico and Florida, the strongest since 2003 (Hayakawa et al. 2025)."]],
 
 ['Meteors', [
 "Each meteor is a meteoroid entering the air along a straight path 80 to 125 km up, with its brightness, size and "
@@ -248,7 +252,9 @@ SECTIONS = [
 "apart from its Antihelion source (Rendtel 2027, Table 5), with their radiants and drift, speeds, population indices and peak rates, rising and falling "
 "about the maximum as Jenniskens (1994) measured them, and their outbursts and storms at the hour they were seen: "
 "the Leonids of 1799 to 2002, the Andromedids of 1872 and 1885, the Draconids of 1933 and 1946 and others "
-"(Jenniskens 1995 and the IMO's analyses), with the Leonid peaks predicted for 2034; today's streams are kept for "
+"(Jenniskens 1995 and the IMO's analyses), with the Leonid peaks predicted for 2034; the Leonid storm of 1833 and "
+"the Andromedid storms of 1872 and 1885 are among the extended events, at their peaks and from the latitude where "
+"the radiant stands highest in the dark. Today's streams are kept for "
 "3,000 years either side of 2000. Showers last thousands of years, so further off, and in the older epochs, the "
 "sky has its own, drawn at random with the geometry, speeds and profiles of today's, a new set every 20,000 years, "
 "and outbursts at today's rate, about 0.5 a year above ZHR 100 and one in 45 years above 10,000. We take their number "
@@ -271,7 +277,13 @@ SECTIONS = [
 "there was one, decays over tens of millions of years (a 20 Myr e-folding time here). Between the epochs the "
 "zodiacal light and the meteor and comet rates run geometrically, as the bombardment declined.",
 "Comets in the modern-era skies are the real ones on their real dates, from JPL's orbits, for the perihelia on "
-"record, 1578 to 2127; elsewhere they are drawn at the rate of their time, about one naked-eye comet a year today, 30 times that at 4.5 Ga while the giant planets "
+"record, 1577 to 2127, and Halley's back to its passage of 837 (Yeomans &amp; Kiang 1981), its node and perihelion "
+"turned 1.22° and 1.04° a century so that the 837 passage comes 0.033 AU from Earth on 10 April (Julian), as "
+"recorded, with a tail of some 50° at magnitude −3.4. The periodic ones also return every orbital period beyond "
+"the perihelia on record, Swift–Tuttle's in 1596 and 1729 and Pons–Brooks's four times from 1599 to 1812. Each of "
+"the 24 is listed among the extended events at the apparition where it stood out most, on the day it was "
+"brightest against the faintest star that shows at its angle from the Sun, so a comet at perihelion behind the "
+"Sun waits for its evenings. Elsewhere comets are drawn at the rate of their time, about one naked-eye comet a year today, 30 times that at 4.5 Ga while the giant planets "
 "eroded and then scattered the comet disk, falling to today's level by about 2 Ga, and about half of today's in the quiet Phanerozoic "
 "epochs, because the present flux of new long-period comets is still about two to two and a half times the tide-only rate "
 "(Kaib &amp; Raymond 2026). After the ζ Ophiuchi star's passage the rate swells to about four times today's at "

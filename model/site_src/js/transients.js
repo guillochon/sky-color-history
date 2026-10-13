@@ -117,11 +117,11 @@ const TRANSIENTS=[
   // of their 90-240 pc. Early on a II-P is hot, so it is drawn blue-white.
   //
   // The supernova that ejected the runaway zeta Oph and PSR B1706-16, 1.78 Myr ago at 107 pc
-  // (Neuhauser et al. 2019). Peak V about -11.6 for a Type II-P at 107 pc. Their abstract gives no
+  // (Neuhauser et al. 2020). Peak V about -11.6 for a Type II-P at 107 pc. Their abstract gives no
   // position; RA 242.4, Dec -21.0 is where a straight-line trace of zeta Oph's Hipparcos motion
   // (RV -9 to -15 km/s) puts it 1.78 Myr ago, in Scorpius about 7 degrees NW of Antares.
   // Each explodes on 24 December of the year before its epoch's year 0, at peak on 7 January.
-  {id:'zetaoph', name:'The supernova that launched ζ Oph', type:'sn', group:'pre', year:2000-1.78e6, md:'01-07', ra:242.4, dec:-21.0, mag:-11.6, rgb:[0.86, 0.92, 1.0], curve:'IIP', spec:'IIP', note:'1.78 Ma, 107 pc away in Scorpius: it flung ζ Oph and a pulsar apart (Neuhäuser et al. 2019).'},
+  {id:'zetaoph', name:'The supernova that launched ζ Oph', type:'sn', group:'pre', year:2000-1.78e6, md:'01-07', ra:242.4, dec:-21.0, mag:-11.6, rgb:[0.86, 0.92, 1.0], curve:'IIP', spec:'IIP', note:'1.78 Ma, 107 pc away in Scorpius: it flung ζ Oph and a pulsar apart (Neuhäuser et al. 2020).'},
   {id:'geminga', name:'Geminga’s supernova', type:'sn', group:'pre', year:2000-342000, md:'01-07', ra:85.25, dec:7.44, mag:-10.9, rgb:[0.86, 0.92, 1.0], curve:'IIP', spec:'IIP', note:'342 ka, about 147 pc away in Orion; it left the Geminga pulsar (Pellizza et al. 2005).'},
   // The Monogem Ring: 86 ka (Thorsett et al. 2003) at PSR B0656+14's 288 pc: −9.5.
   {id:'monogem', name:'The Monogem Ring supernova', type:'sn', group:'pre', year:2000-86000, md:'01-15', ra:104.94, dec:14.35, mag:-9.5, curve:'IIP', spec:'IIP', note:'About 86 ka and 288 pc away in Gemini; its remnant, the Monogem Ring, spans 25° of sky.'},
