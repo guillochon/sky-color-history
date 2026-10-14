@@ -753,26 +753,6 @@ METHOD_VIEW = [
 "scenery and the clouds are drawn, not modeled; the sky is the model.",
 ]
 
-TEN_THINGS = [
-"Under the 30-bar CO₂ of the early Hadean the sky was a shadowless peach-white glow with no visible Sun, and the "
-"molten newborn Moon, 4° across and 8 Earth radii away, glowed orange through it, rising and setting several times "
-"in a 6-hour day.",
-"During the Neoarchean's haze episodes, each about a million and a half years long, the whole dome was cream "
-"to apricot, with almost no difference between zenith and horizon.",
-"Before the Great Oxidation every twilight ended in a cream zenith; the first ozone turned it pale blue, and the "
-"deep blue dusk needs a near-modern column.",
-"Snowball Earth had the bluest mid-latitude sky in Earth's history; the K–Pg impact winter had no sunsets at all.",
-"The eclipsed Moon is copper today, orange-rimmed before there was ozone, dark-cored when the Moon was close, and "
-"gone under the K–Pg soot, the thick Archean haze or a Tambora veil.",
-"Before the Great Oxidation the nights were darker and violet: no oxygen airglow, nitrogen aurorae reaching the "
-"mid-latitudes, and meteors with no glowing trains.",
-"The young Sun was smaller, redder and dimmer, and so heavily spotted that a spot could be seen on it every day.",
-"The Moon's face was not always today's: at 3.8 Ga the maria were still flooding, and at 4.0 Ga the near side was "
-"bright highland from limb to limb.",
-"Saturn had no rings before roughly 100 to 200 million years ago, and θ Columbae, now a faint fifth-magnitude star, shone "
-"as bright as Venus 4.7 million years ago.",
-"In 2100 thousands of orbital datacenters may outshine nearly every star at dusk, in a bright band along the terminator.",
-]
 
 # The Moon's distance and the day at any year, as the site works them out (moon.js moonDistAt,
 # dayHoursAt): the distance along the Moon's history (moon_history.js), and the day between the main

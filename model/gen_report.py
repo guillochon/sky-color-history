@@ -468,8 +468,6 @@ BIB = R.BIB
 def blocks():
     P, S, p, ps, fig, tab = D.part, D.sec, D.p, D.ps, D.figure, D.table
     B = []
-    B.append(D.box('Ten things the view did', rv.TEN_THINGS))
-
     B.append(P('Introduction', 'intro'))
     B += ps(*rv.INTRO)
     B.append(tab(rv.EPOCH_HEAD, rv.epoch_rows(order, ages, byk), rv.EPOCH_CAPTION, 'tab:epochlist', spec='llrrrrY', small=True))
@@ -718,7 +716,7 @@ def render_html(B, nums):
 <p class="byline">James Guillochon · <a href="mailto:guillochon@gmail.com">guillochon@gmail.com</a> · October 2026</p>
 <p class="byline">Interactive experience at <a href="https://earthsky.astrocrash.net">earthsky.astrocrash.net</a></p>
 <div class="hero">{hero}</div>
-<p class="hero-caption"><b>Figure 1.</b> Mid-latitude noon sky at the epochs with their own air, zenith (top) to horizon (bottom), oldest at left. Brightness is shown relative to today's clean sky. Tap a column to jump to that epoch.</p>
+<p class="hero-caption"><b>Figure 1.</b> Mid-latitude noon sky at the epochs with their own air, zenith (top) to horizon (bottom), oldest at left. Brightness is shown relative to today's clean sky. Before the Moon-forming impact the proto-Earth's dusty air is pale white overhead and peach toward the horizon, and the 30-bar CO₂ of the early Hadean turns the whole dome orange. Once the air thins the sky is blue overhead and white at the horizon, as today, unless something is added to it: the Neoarchean's organic haze turns it milky, then cream, then apricot as it thickens, the soot of the K–Pg impact winter turns it beige, and Tambora's sulfate veil and a polluted city's haze whiten it. Snowball Earth's is the deepest blue. Tap a column to jump to that epoch.</p>
 {toc_html}
 {body}
 <h2 class="part" id="references">References</h2>
@@ -775,7 +773,7 @@ def render_tex(B):
 {\small\color{gray} Interactive experience at \href{https://earthsky.astrocrash.net}{earthsky.astrocrash.net}\par}
 \vspace{8pt}
 {\includegraphics[width=\linewidth]{figures/fig01_timeline.png}}
-{\footnotesize\sffamily\textbf{\color{sky}Figure 1.} Mid-latitude noon sky at the epochs, zenith (top) to horizon (bottom), oldest at left. Brightness shown relative to today's clean sky.\par}
+{\footnotesize\sffamily\textbf{\color{sky}Figure 1.} Mid-latitude noon sky at the epochs, zenith (top) to horizon (bottom), oldest at left. Brightness shown relative to today's clean sky. Before the Moon-forming impact the proto-Earth's dusty air is pale white overhead and peach toward the horizon, and the 30-bar CO$_2$ of the early Hadean turns the whole dome orange. Once the air thins the sky is blue overhead and white at the horizon, as today, unless something is added to it: the Neoarchean's organic haze turns it milky, then cream, then apricot as it thickens, the soot of the K--Pg impact winter turns it beige, and Tambora's sulfate veil and a polluted city's haze whiten it. Snowball Earth's is the deepest blue.\par}
 \vspace{10pt}
 \end{@twocolumnfalse}
 ]
