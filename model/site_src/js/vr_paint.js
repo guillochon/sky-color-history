@@ -605,9 +605,11 @@ function paintVR(){
   }
   if(vrGL.weather){
     vrGL.field=cloudField(EP[dIdx].key);
-    if(vrFigGain.cloud<1){ const f=vrGL.field, g=vrFigGain.cloud; f.cov=Math.max(1e-4, f.cov*g); f.deck*=g; f.cirrus*=g; }
+    if(vrFigGain.cloud<1){ const f=vrGL.field, g=vrFigGain.cloud; f.cov=Math.max(1e-4, f.cov*g); f.deck*=g; f.cirrus*=g; f.rain={...f.rain, strat:f.rain.strat*g, conv:f.rain.conv*g, driz:f.rain.driz*g}; }
     gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, vrGL.weather);
     vrGL.field.covGL=cloudCovHere(vrGL.field, vrX, vrY);
+    // What is falling on the eye (clouds.js rainHere), for the drops close by and the clock line.
+    vrGL.field.here=rainHere(vrGL.field, vrX, vrY, ez);
     gl.uniform1f(u.cloudCov, vrGL.field.covGL); gl.uniform1f(u.cloudScale, vrGL.field.scale); gl.uniform1f(u.cloudDrift, vrGL.field.drift); gl.uniform1f(u.cloudOn, vrClouds?1:0);
     gl.activeTexture(gl.TEXTURE0);
   }
@@ -842,6 +844,12 @@ function paintVR(){
     gl.uniform1f(pu.seaR, sc.sea||0); gl.uniform1f(pu.waterT, (performance.now()/1000)%1000);
     if(vrGL.skyNa){ gl.uniform1f(pu.nr, vrGL.skyNa[0]); gl.uniform1f(pu.na, vrGL.skyNa[1]); }
     gl.uniform4fv(pu.obj, sc.o); gl.uniform1fv(pu.kind, sc.k);
+    // The rain and snow (shader_present.js RAIN_GLSL), lit as the clouds are.
+    const rn=field.rain;
+    gl.uniform1f(pu.cloudCov, field.covGL); gl.uniform1f(pu.cloudScale, field.scale); gl.uniform1f(pu.cloudDrift, field.drift); gl.uniform1f(pu.cloudBase, field.base);
+    gl.uniform1f(pu.sunAz, skyNow.sunAz); gl.uniform1f(pu.sunEl, 90-skyNow.sza); gl.uniform1f(pu.sunVis, skyNow.sunVis==null?1:skyNow.sunVis);
+    gl.uniform3fv(pu.sunCol, sunCol); gl.uniform3fv(pu.groundCol, ground);
+    gl.uniform4f(pu.rainP, rn.strat, rn.conv, rn.driz, rn.snow); gl.uniform4f(pu.rainQ, rn.virgaH, rn.tilt, field.here, 0);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     perfPassEnd('composite');
     gl.disable(gl.BLEND);
@@ -867,7 +875,7 @@ function paintVR(){
   const hud=vrGL.hud||(vrGL.hud={place:document.getElementById('vrplace'), note:document.querySelector('.vrnote'), clock:document.getElementById('vrclock')});
   setText(hud.place, EP[dIdx].name+(atAnchor()?'':' · '+shownAge())+' · '+lat);
   setText(hud.note, vrCaption());
-  setText(hud.clock, dateLabel()+' · '+hh+':'+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0')+' · '+(dayPlaying?'playing':'paused')+' · '+speedLabel()+(Math.abs(vrFov-60)>0.5?' · '+fovLabel(vrFov)+' view':'')+(skyNow.eclipse?' · '+skyNow.eclipse:'')+(vrClouds&&vrGL.field?' · clouds '+Math.round(vrGL.field.cov*100)+'%':'')+(vrNote?' · '+vrNote:''));
+  setText(hud.clock, dateLabel()+' · '+hh+':'+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0')+' · '+(dayPlaying?'playing':'paused')+' · '+speedLabel()+(Math.abs(vrFov-60)>0.5?' · '+fovLabel(vrFov)+' view':'')+(skyNow.eclipse?' · '+skyNow.eclipse:'')+(vrClouds&&vrGL.field?' · clouds '+Math.round(vrGL.field.cov*100)+'%'+rainLabel(vrGL.field, vrX, vrY, eyeZ()):'')+(vrNote?' · '+vrNote:''));
   placeBodyMarks();
   drawVRLabels();
   followVRPin();
@@ -877,6 +885,8 @@ function paintVR(){
   if(!vrGL.poolTimer && movingPoolInView()) vrGL.poolTimer=setTimeout(()=>{ vrGL.poolTimer=0; requestVR(); }, 33);
   // So does the aurora.
   if(!vrGL.aurTimer && aurOn) vrGL.aurTimer=setTimeout(()=>{ vrGL.aurTimer=0; requestVR(); }, 33);
+  // And the rain or snow falling on the eye.
+  if(!vrGL.rainTimer && vrClouds && vrGL.field && vrGL.field.here>=0.02) vrGL.rainTimer=setTimeout(()=>{ vrGL.rainTimer=0; requestVR(); }, 33);
 }
 // The crepuscular rays' tables for the epoch (shafts.py, shader_clouds.js shaftLayer): its share
 // texture on unit 17, made when the air changes, and its parts of the air.

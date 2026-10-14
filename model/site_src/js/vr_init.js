@@ -354,8 +354,9 @@ function setupCloudProgs(gl, cp, pp, tp, np){
   gl.uniform1i(gl.getUniformLocation(cp,'shPad'), 0);
   gl.uniform1f(cu.fov, vrFov*Math.PI/180);
   gl.uniform1f(cu.useHDR, hdr?1:0);
-  const compU=uniformLocs(gl, pp, ['res','yaw','pitch','fov','showScn','eye','obj[0]','kind[0]','seaR','waterT','nr','na']);
-  gl.useProgram(pp); bindSamplers(gl, pp, [['cloudTex',2],['hitInfo',10],['sky',0]]); gl.uniform1f(compU.fov, vrFov*Math.PI/180);
+  const compU=uniformLocs(gl, pp, ['res','yaw','pitch','fov','showScn','eye','obj[0]','kind[0]','seaR','waterT','nr','na',
+    'cloudCov','cloudScale','cloudDrift','cloudBase','sunAz','sunEl','sunVis','sunCol','groundCol','rainP','rainQ']);
+  gl.useProgram(pp); bindSamplers(gl, pp, [['cloudTex',2],['hitInfo',10],['sky',0],['weather',7]]); gl.uniform1f(compU.fov, vrFov*Math.PI/180);
   let tu=null;
   if(tp){
     tu=uniformLocs(gl, tp, ['res','yaw','pitch','prevYaw','prevPitch','fov','histValid','histW','eye','prevEye','cbOn','cbPar']);

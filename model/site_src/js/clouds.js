@@ -67,6 +67,24 @@ const CLOUD_ERA={
   ozonehole:{cov:0.50,vary:0.25,type:0.50,base:1600,top:0.55,cirrus:0.55},
   y2100:{cov:0.50,vary:0.25,type:0.50,base:1600,top:0.55,cirrus:0.55}
 };
+// The surface air temperature by era (°C), for whether what falls is rain or snow, how much of it
+// evaporates on the way down, and how hard it falls: eq, the annual mean at the Equator; grad, how
+// much colder the poles run (the mean falls as sin² of the latitude); amp, the seasonal swing at
+// the pole (half the range from the coldest month to the warmest), falling as |sin| of the latitude
+// toward the Equator. Today's are fitted to the zonal means; the deep past's follow the report's
+// climate for each epoch: the steaming sea after the Moon-forming impact, the warm Archean, the
+// Snowball's frozen Equator, the impact winter after Chicxulub (Brugger et al. 2017, 26 °C or more
+// colder for years), the hothouse Cretaceous.
+const SURF_T_ERA={
+  protoearth455:{eq:95,grad:10,amp:2}, hadean45:{eq:90,grad:10,amp:2}, hadean40:{eq:45,grad:15,amp:4},
+  archean38:{eq:35,grad:20,amp:6}, archean27clear:{eq:30,grad:25,amp:8}, archean27thin:{eq:30,grad:25,amp:8},
+  archean27:{eq:30,grad:25,amp:8}, archean27vthick:{eq:32,grad:22,amp:7}, proterozoic22:{eq:25,grad:35,amp:12},
+  snowball07:{eq:-20,grad:30,amp:10}, cryogenian65:{eq:22,grad:40,amp:14}, ordovician466:{eq:32,grad:30,amp:12},
+  carbon30:{eq:28,grad:40,amp:15}, cretaceous66:{eq:31,grad:25,amp:9}, kpg66:{eq:2,grad:25,amp:9},
+  zetaoph:{eq:27,grad:40,amp:15}, geminga:{eq:25,grad:44,amp:16}, volcanic:{eq:26.3,grad:40,amp:15},
+  modern:{eq:27,grad:40,amp:15}, modernpoll:{eq:27.5,grad:39,amp:15}, ozonehole:{eq:27.3,grad:39.5,amp:15},
+  y2100:{eq:29.5,grad:37,amp:14}
+};
 // The date as a whole day number (k) and the minutes into it (m).
 function cloudDate(){
   const d=/^(-?\d+)-(\d+)-(\d+)$/.exec(document.getElementById('moonDate').value||'');
@@ -140,7 +158,65 @@ function cloudField(key){
   // The cirrus comes and goes too: none on about a day in ten, up to twice the era's usual, and
   // thickening ahead of a front.
   const cirrus=Math.min(1, e.cirrus*Math.min(2, Math.max(0, 1+0.8*w.zc+0.4*w.front)));
-  return {cov, deck, type:g.type>0.2?g.type+(0.2-g.type)*deck:g.type, base:g.base, top:g.top, cirrus, scale, ...cloudClock(scale)};
+  const type=g.type>0.2?g.type+(0.2-g.type)*deck:g.type, T=surfaceTemp(key, w, cov);
+  return {cov, deck, type, base:g.base, top:g.top, cirrus, scale, T, rain:cloudPrecip(w, {cov, deck, type, base:g.base}, T), ...cloudClock(scale)};
+}
+// The air at the ground here and now (°C): the era's mean for the latitude, the season (warmest
+// late in July in the north, January in the south), the day (warmest at 15:00, less so under
+// cloud), and the weather (warm ahead of a front and in damp air, cold behind one).
+function surfaceTemp(key, w, cov){
+  const s=tableNow(SURF_T_ERA, key, SURF_T_ERA.modern), lat=(LATDEG[dLat]??45)*Math.PI/180, sn=Math.sin(lat);
+  const f=yearFraction()[1], h=(minutes%DAYMIN)/60;
+  const season=s.amp*Math.abs(sn)*Math.cos(2*Math.PI*(f-(lat<0?0.05:0.55)));
+  return s.eq-s.grad*sn*sn+season+5*(1-0.7*cov)*Math.cos(2*Math.PI*(h-15)/24)+2*w.front+1.5*w.damp;
+}
+// What falls from the clouds, in mm of water an hour, from the same weather that makes them, so
+// rain comes from the cloud drawn above it. Three kinds:
+//   - strat, steady and widespread, from heavy cover when the systems run wet (w.z high, a
+//     front coming, damp air): 1-5 mm/h, in bands under the thicker half of the cloud. Fronts belong to
+//     the mid-latitudes' storm tracks, so it is a third as common at the Equator and half at 75°;
+//   - conv, showers from the towers on an unstable day, strongest in the afternoon: 10-40 mm/h
+//     under the thickest cells (shader_present.js rainMap), and only where the ground is warm
+//     enough for the air to overturn. In the warm tropical air even modest cumulus rains;
+//   - driz, drizzle from a low damp deck that isn't raining: 0.1-0.3 mm/h.
+// Showers follow Clausius-Clapeyron, 6% a degree about 15 °C, and the steady rain about half
+// that, as the mean precipitation does, so warm epochs pour and the Snowball barely snows.
+// Calibrated so today's comes to about 1,800 mm a year at the Equator, 850 at 45° and 200 at 75°,
+// falling in 5-8% of the hours (clouds.js alone, run over eight years). snow is the share falling
+// as snow (it melts from 0 to 2.5 °C). virgaH is the height (m) where it has all evaporated, in
+// dry air under a high base or over a hot surface; 0 when it reaches the ground. tilt is how far the shafts lean per metre of fall, in the wind's
+// shear: rain falls at 7 m/s, snow at 1 m/s and leans more.
+function cloudPrecip(w, c, T){
+  const h=(minutes%DAYMIN)/60, cc=Math.min(3, Math.max(0.08, Math.exp(0.06*(T-15)))), cs=Math.min(2.5, Math.max(0.2, Math.exp(0.035*(T-15))));
+  const s=w.z+0.5*Math.max(0, w.front)+0.3*w.damp;
+  const wet=smoothstep(0.5, 1.3, s), sheet=smoothstep(0.55, 0.85, c.cov);
+  const lat=(LATDEG[dLat]??45)*Math.PI/180, storms=0.35+0.65*Math.sin(2*lat)**2;
+  const strat=sheet*wet*1.9*Math.exp(0.6*Math.max(0, s-1.3))*cs*storms;
+  const driz=sheet*(1-wet)*smoothstep(0.3, 1.2, w.damp)*(1-smoothstep(900, 1400, c.base))*0.25*cs;
+  const after=0.25+0.75*Math.exp(-(((h-16)/3)**2));
+  const lo=0.5-0.2*smoothstep(15, 27, T);
+  const conv=smoothstep(lo, lo+0.3, c.type)*after*smoothstep(-5, 15, T)*22*cc;
+  const snow=1-smoothstep(-0.5, 2.5, T);
+  // The air under steady rain is saturated, so only showers and light rain dry out on the way.
+  const dry=1-smoothstep(0.3, 1.2, strat);
+  const vf=Math.min(0.97, (0.6*smoothstep(1700, 3000, c.base)+0.3*Math.min(1, Math.max(0, -0.7*w.damp)))*dry+smoothstep(35, 80, T));
+  return {strat, conv, driz, snow, virgaH:vf*c.base, tilt:0.25+0.65*snow};
+}
+// The rain and snow at (x, y) (mm/h, as shader_present.js rainMap has them, there at the cloud
+// base), and its cover and thickness there: rain, driz, cov, th.
+function rainMapAt(f, x, y){
+  const W=weatherData(), n=256, k=f.scale*0.33*n, wr=i=>((i%n)+n)%n;
+  const o=(wr(Math.floor((y+0.42*f.drift)*k))*n+wr(Math.floor((x+f.drift)*k)))*4;
+  const cov=1/(1+Math.exp(-(Math.log(f.covGL/(1-f.covGL))+(W[o]/255-0.56)/0.09*1.05))), th=Math.min(1, Math.max(0, (W[o+2]/255-0.30)/0.38));
+  const r=f.rain, sheet=smoothstep(0.55, 0.9, cov)*smoothstep(0.35, 0.75, th);
+  return {rain:r.strat*sheet+r.conv*smoothstep(0.55, 0.85, th)*smoothstep(0.3, 0.6, cov), driz:r.driz*sheet, cov, th};
+}
+// What is falling on the eye at (x, y, z), mm/h: the map where the shaft that reaches it left the
+// cloud base, upwind in the shear, and nothing if it evaporates above.
+function rainHere(f, x, y, z){
+  const r=f.rain, d=Math.max(0, f.base-z)*r.tilt, m=rainMapAt(f, x+0.92*d, y+0.39*d);
+  const fall=Math.min(1, Math.max(0, (z-r.virgaH)/Math.max(200, 0.3*(f.base-r.virgaH))));
+  return r.virgaH>0?(m.rain+m.driz)*fall:m.rain+m.driz;
 }
 // The cover the shaders take (cloudCov) for the view from (x, y): the weather map moves the cover
 // about it, more here and less there, and is centred on its mean within 40 km of the eye, where
@@ -151,6 +227,18 @@ function cloudCovHere(f, x, y){
   for(let i=-4;i<=4;i++) for(let j=-4;j<=4;j++) s+=W[(wr(Math.floor((y+0.42*f.drift+j*1.0e4)*k))*n+wr(Math.floor((x+f.drift+i*1.0e4)*k)))*4];
   const mid=s/81/255, x0=Math.log(f.cov/(1-f.cov))+(0.56-mid)/0.09*1.05;
   return 1/(1+Math.exp(-x0));
+}
+// For the clock line: what is falling on the eye at (x, y, z), as ' · rain 3.2 mm/h' and the like,
+// or ' · virga' when it leaves the cloud over the eye and dries out before it gets down.
+function rainLabel(f, x, y, z){
+  const R=f.here||0, r=f.rain;
+  if(R<0.05){
+    if(!(r.virgaH>z)) return '';
+    const d=Math.max(0, f.base-r.virgaH)*r.tilt, m=rainMapAt(f, x+0.92*d, y+0.39*d);
+    return m.rain+m.driz>0.1?' · virga':'';
+  }
+  const kind=r.snow>0.5?'snow':r.driz>r.strat+r.conv?'drizzle':r.conv>r.strat?'showers':'rain';
+  return ' · '+kind+' '+(R<10?R.toFixed(1):Math.round(R))+' mm/h';
 }
 function vrCaption(){
   if(vrAirOff) return (vrScenery?'The ground and the shapes are scenery. ':'')+'The air is off: no sky, extinction or refraction.';
