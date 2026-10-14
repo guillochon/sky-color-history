@@ -195,7 +195,9 @@ function cloudPrecip(w, c, T){
   const driz=sheet*(1-wet)*smoothstep(0.3, 1.2, w.damp)*(1-smoothstep(900, 1400, c.base))*0.25*cs;
   const after=0.25+0.75*Math.exp(-(((h-16)/3)**2));
   const lo=0.5-0.2*smoothstep(15, 27, T);
-  const conv=smoothstep(lo, lo+0.3, c.type)*after*smoothstep(-5, 15, T)*22*cc;
+  // A shower needs a deep cell, and a day of a few small cumulus has none: the towers that rain
+  // come with the cover they spread (a tenth of the sky or less never showers, a third may).
+  const conv=smoothstep(lo, lo+0.3, c.type)*smoothstep(0.1, 0.3, c.cov)*after*smoothstep(-5, 15, T)*22*cc;
   const snow=1-smoothstep(-0.5, 2.5, T);
   // The air under steady rain is saturated, so only showers and light rain dry out on the way.
   const dry=1-smoothstep(0.3, 1.2, strat);
