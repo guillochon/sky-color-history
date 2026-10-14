@@ -3,8 +3,9 @@
 // drops and flakes falling close by. rainP is the rate from the cloud (mm/h): x steady, y showers,
 // z drizzle, and w the share falling as snow. rainQ: x the height where it has all evaporated (0
 // when it reaches the ground), y the shafts' lean per metre of fall, z the rate on the eye.
+// bowTex: the drops' phase function by angle and drop size, with the rainbows (rainbow.js).
 const RAIN_GLSL=`
-uniform sampler2D weather;
+uniform sampler2D weather, bowTex;
 uniform float cloudCov, cloudScale, cloudDrift, cloudBase, sunAz, sunEl, sunVis;
 uniform vec3 sunCol, groundCol;
 uniform vec4 rainP, rainQ;
@@ -40,14 +41,24 @@ void rainLight(out vec3 amb, out vec3 sunB, out vec3 sd){
 // tenth or less, and its shaft hangs dark against the sky). Light through cloud is grey, not blue.
 float rainShade(vec4 m){ return (1.0-m.z*mix(0.55, 0.92, m.w))*exp(-m.x/6.0); }
 vec3 rainAmb(vec3 amb, vec4 m){ return mix(amb, vec3(dot(amb, vec3(0.2126, 0.7152, 0.0722))), sqrt(m.z))*rainShade(m); }
-// Drops scatter mostly forward (per steradian, as the clouds' phase).
+// Snow scatters mostly forward (per steradian, as the clouds' phase).
 float rainPhase(float c){ float g=0.7; return mix((1.0-g*g)/(12.566*pow(1.0+g*g-2.0*g*c, 1.5)), 0.0796, 0.4); }
+// Drops, at the angle u (0 forward, 1 back, as a share of 180°) for the rain m (rainMap): the
+// table's row for the drops falling there (rainbow.js BOW_D, 0.1 to 1 mm, log-spaced). Steady rain
+// and showers by their median drop, 0.89 R^0.21 mm (Marshall & Palmer 1948), held to 1 mm, past
+// which drops flatten and their bows break up; drizzle 0.15 mm, whose bow is broad and pale. A
+// quarter of the light is spread evenly, for what has scattered more than once.
+vec3 rainDropPhase(float u, vec4 m){
+  float R=max(m.x, 1.0e-3), D=(min(1.0, 0.89*pow(R, 0.21))*R+0.15*m.y)/(R+m.y);
+  float row=clamp(log(D/0.1)/2.302585*5.0, 0.0, 5.0);
+  return 0.75*texture(bowTex, vec2((u*2047.0+0.5)/2048.0, (row+0.5)/6.0)).rgb+0.25*0.0796;
+}
 // The rain between ro and tEnd along rd, in front of skyC: premultiplied linear colour, opacity.
 // Twenty steps, closer together near the eye, without jitter (this pass keeps no history).
 vec4 rainVeil(vec3 ro, vec3 rd, float tEnd, vec3 skyC){
   vec3 amb, sunB, sd;
   rainLight(amb, sunB, sd);
-  float ph=rainPhase(dot(rd, sd)), T=1.0, tPrev=0.0, fade=max(200.0, 0.3*(cloudBase-rainQ.x));
+  float cs=dot(rd, sd), ph=rainPhase(cs), ub=acos(clamp(cs, -1.0, 1.0))/3.14159265, T=1.0, tPrev=0.0, fade=max(200.0, 0.3*(cloudBase-rainQ.x));
   vec3 col=vec3(0.0);
   for(int i=0;i<20;i++){
     float u=(float(i)+1.0)/20.0, t=tEnd*u*u, dt=t-tPrev, tm=t-0.5*dt;
@@ -70,7 +81,7 @@ vec4 rainVeil(vec3 ro, vec3 rd, float tEnd, vec3 skyC){
       // deck, none under a shower's tower.
       vec4 ms=rainMap(p.xy+sd.xy*(below/max(sd.z, 0.03)));
       float gap=1.0-ms.z;
-      L+=sunB*ph*gap*gap*exp(-ms.x/4.0);
+      L+=sunB*mix(rainDropPhase(ub, m), vec3(ph), rainP.w)*gap*gap*exp(-ms.x/4.0);
     }
     // Far rain takes on the sky behind it, as the clouds do.
     L=mix(L, skyC, (1.0-exp(-tm/38000.0))*0.85);

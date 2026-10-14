@@ -163,6 +163,7 @@ PARTS = [
     'js/debris.js',
     'js/corona.js',
     'js/spectrum.js',
+    'js/rainbow.js',
     'js/meteors.js',
     'js/showers.js',
     'js/contrails.js',

@@ -850,6 +850,7 @@ function paintVR(){
     gl.uniform1f(pu.sunAz, skyNow.sunAz); gl.uniform1f(pu.sunEl, 90-skyNow.sza); gl.uniform1f(pu.sunVis, skyNow.sunVis==null?1:skyNow.sunVis);
     gl.uniform3fv(pu.sunCol, sunCol); gl.uniform3fv(pu.groundCol, ground);
     gl.uniform4f(pu.rainP, rn.strat, rn.conv, rn.driz, rn.snow); gl.uniform4f(pu.rainQ, rn.virgaH, rn.tilt, field.here, 0);
+    bindRainbow(gl, rn.strat+rn.conv+rn.driz>0 && rn.snow<1 ? rainbowNow(EP[dIdx].key, field.T) : null);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     perfPassEnd('composite');
     gl.disable(gl.BLEND);
