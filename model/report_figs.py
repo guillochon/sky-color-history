@@ -290,13 +290,20 @@ async def run(base, names):
                 # The dome alone is shot, its canvases drawn at twice the pixels.
                 sz = SHOTS[name].get('size'); w, h = SHOTS[name].get('wh') or (sz or W, sz or H)
                 await call('Emulation.setDeviceMetricsOverride', width=w, height=h, deviceScaleFactor=2 if SHOTS[name].get('dome') else 1, mobile=False)
-                await call('Page.navigate', url=f'{base}/?cb={time.time()}')
-                await asyncio.sleep(3)
+                # A shot that comes back without its view (the walk-around view not entered, or a
+                # Jupiter shot without Jupiter) is taken again, and stops the run on the third try
+                # rather than saving the page behind it.
+                for attempt in range(3):
+                    await call('Page.navigate', url=f'{base}/?cb={time.time()}')
+                    await asyncio.sleep(3)
+                    await call('Runtime.evaluate', expression=JS_HIDE, returnByValue=True)
+                    r = await call('Runtime.evaluate', expression=js_shot(SHOTS[name]), awaitPromise=True, returnByValue=True, timeout=120000)
+                    v = r.get('result', {}).get('result', {}).get('value')
+                    print(name, v if v is not None else r)
+                    if isinstance(v, dict) and (v.get('clip') or v.get('fov')) and (v.get('jup') or not SHOTS[name].get('jup')): break
+                else:
+                    raise SystemExit(f'{name}: no view after 3 tries')
                 await call('Runtime.evaluate', expression=JS_HIDE, returnByValue=True)
-                r = await call('Runtime.evaluate', expression=js_shot(SHOTS[name]), awaitPromise=True, returnByValue=True, timeout=120000)
-                print(name, r.get('result', {}).get('result', {}).get('value', r))
-                await call('Runtime.evaluate', expression=JS_HIDE, returnByValue=True)
-                v = r.get('result', {}).get('result', {}).get('value')
                 clip = v.get('clip') if isinstance(v, dict) else None
                 shot = await call('Page.captureScreenshot', format='jpeg', quality=90, **({'clip': clip} if clip else {}))
                 (OUT / f'view_{name}.jpg').write_bytes(base64.b64decode(shot['result']['data']))
