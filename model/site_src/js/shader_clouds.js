@@ -47,6 +47,10 @@ float remap(float v, float lo, float hi, float a, float b){
 }
 float sat(float x){ return clamp(x, 0.0, 1.0); }
 vec3 toLin(vec3 c){ return pow(max(c, vec3(0.0)), vec3(2.2)); }
+// A rotation taking the level to a slice of the noise's lattice with no short lattice step in it:
+// within 2.5 tiles every step leaves the slice by 0.07 tiles or more. Its third column is the
+// slice's normal.
+const mat3 NOISE_ROT=mat3(0.8328, -0.1109, -0.5424, 0.0, 0.9797, -0.2003, 0.5536, 0.1668, 0.8159);
 uniform float sunVis;
 uniform vec3 cityUp;
 // The tallest column this era grows, from flat stratus to towering cumulus. main sets it first.
@@ -83,7 +87,9 @@ float cloudShape(vec3 p, out float hOut, out vec3 q, out vec2 ng){
   float cumulus=smoothstep(0.0, 0.05, h)*smoothstep(1.0, 0.18, h);
   float profile=mix(stratus, cumulus, cu)*cov;
   vec2 shear=vec2(0.92, 0.39)*h0*0.35;
-  q=vec3(pl+shear, alt*1.15)/9000.0+vec3(0.0, 0.0, cloudTime/90000.0);
+  // The noise repeats every 9 km, so it is read on a slanted slice through it (NOISE_ROT), which
+  // no repeat lies in, and each part of the weather map reads a slice of its own along the slant.
+  q=NOISE_ROT*(vec3(pl+shear, alt*1.15)/9000.0)+NOISE_ROT[2]*(cloudTime/90000.0+(w.a-0.55)*2.5);
   vec4 n=texture(noiseBase, q);
   ng=n.gb;
   // Both channels come out of the generator in a narrow band (Perlin-Worley
@@ -447,8 +453,10 @@ void main(){
       vec2 cpl=(pc.xy+vec2(cloudDrift, cloudDrift*0.42)*1.6);
       vec2 r=vec2(dot(cpl, vec2(0.92, 0.39)), dot(cpl, vec2(-0.39, 0.92)));
       float big=texture(weather, cpl*cloudScale*0.12+0.37).a;
-      float s1=texture(noiseBase, vec3(r.x/42000.0, r.y/9000.0, 0.31)).g;
-      float s2=texture(noiseDetail, vec3(r.x/9000.0, r.y/1600.0, 0.57)).r;
+      // Read on slanted slices too, so the streaks do not repeat every 42 km by 9 km.
+      vec2 cs=vec2(r.x/42000.0, r.y/9000.0), cd=vec2(r.x/9000.0, r.y/1600.0);
+      float s1=texture(noiseBase, vec3(cs, 0.31+dot(cs, vec2(0.4142, 0.2361)))).g;
+      float s2=texture(noiseDetail, vec3(cd, 0.57+dot(cd, vec2(0.4142, 0.2361)))).r;
       float cir=smoothstep(0.50, 0.85, s1*0.75+s2*0.35)*smoothstep(0.45, 0.65, big+cloudCirrus*0.25)*cloudCirrus;
       cir*=smoothstep(0.0, 0.06, rd.z)*keep;
       if(cir>0.002){

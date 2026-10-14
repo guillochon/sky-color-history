@@ -604,12 +604,11 @@ function paintVR(){
     vrGL.starUploaded=skyNow.gen;
   }
   if(vrGL.weather){
-    if(cloudMinPrev==null) cloudMinPrev=minutes;
-    else { let dm=minutes-cloudMinPrev; if(dm<-DAYMIN/2) dm+=DAYMIN; cloudMinPrev=minutes; cloudScroll+=dm*88; vrGL.cloudTime=(vrGL.cloudTime||0)+dm*35; }
     vrGL.field=cloudField(EP[dIdx].key);
     if(vrFigGain.cloud<1){ const f=vrGL.field, g=vrFigGain.cloud; f.cov=Math.max(1e-4, f.cov*g); f.deck*=g; f.cirrus*=g; }
     gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, vrGL.weather);
-    gl.uniform1f(u.cloudCov, vrGL.field.cov); gl.uniform1f(u.cloudScale, vrGL.field.scale); gl.uniform1f(u.cloudDrift, cloudScroll); gl.uniform1f(u.cloudOn, vrClouds?1:0);
+    vrGL.field.covGL=cloudCovHere(vrGL.field, vrX, vrY);
+    gl.uniform1f(u.cloudCov, vrGL.field.covGL); gl.uniform1f(u.cloudScale, vrGL.field.scale); gl.uniform1f(u.cloudDrift, vrGL.field.drift); gl.uniform1f(u.cloudOn, vrClouds?1:0);
     gl.activeTexture(gl.TEXTURE0);
   }
   perfEnd('setup');
@@ -748,6 +747,9 @@ function paintVR(){
     if(vrGL.histKey!==EP[dIdx].key){ vrGL.histOk=false; vrGL.histKey=EP[dIdx].key; }
     const cw=Math.max(2,Math.round(c.width/2)), ch=Math.max(2,Math.round(c.height/2));
     const field=vrGL.field, cu=vrGL.cu;
+    // A new date puts the clouds somewhere else: start their history afresh.
+    if(Math.abs(field.drift-(vrGL.histDrift??field.drift))>5000) vrGL.histOk=false;
+    vrGL.histDrift=field.drift;
     // A checkerboard needs the temporal pass to fill in the pixels a frame leaves out.
     ensureCloudTarget(cw, ch, !!vrGL.tempProg);
     const cb=vrGL.cloudCB, par=vrGL.cloudFrame&1;
@@ -769,8 +771,8 @@ function paintVR(){
     gl.uniform3fv(cu.groundCol, ground);
     gl.uniform1f(cu.nr, skyNow.nr); gl.uniform1f(cu.na, skyNow.na);
     gl.uniform1f(cu.showScn, vrScenery?1:0);
-    gl.uniform1f(cu.cloudCov, field.cov); gl.uniform1f(cu.cloudScale, field.scale); gl.uniform1f(cu.cloudDrift, cloudScroll);
-    gl.uniform1f(cu.cloudTime, vrGL.cloudTime||0); gl.uniform1f(cu.cloudFrame, vrGL.cloudFrame||0);
+    gl.uniform1f(cu.cloudCov, field.covGL); gl.uniform1f(cu.cloudScale, field.scale); gl.uniform1f(cu.cloudDrift, field.drift);
+    gl.uniform1f(cu.cloudTime, field.time); gl.uniform1f(cu.cloudFrame, vrGL.cloudFrame||0);
     gl.uniform1f(cu.cloudType, field.type); gl.uniform1f(cu.cloudDeck, field.deck);
     gl.uniform3fv(cu.snLight, vrGL.snLight||new Float32Array(3)); if(vrGL.snDir) gl.uniform3fv(cu.snDir, vrGL.snDir);
     gl.uniform3fv(cu.mlLight, vrGL.mlLight||new Float32Array(3)); if(vrGL.mlDir) gl.uniform3fv(cu.mlDir, vrGL.mlDir);

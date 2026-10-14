@@ -298,8 +298,12 @@ SECTIONS = [
 "the haze thickens (from 48% at 3.8 Ga to 16% under the thickest haze), sparse thin cloud over the frozen Snowball "
 "(22%), towering convection in the warm Carboniferous (82%), almost none in the impact winter (8%), and more cirrus "
 "in the volcanic year. Between the epochs the regime runs from one epoch's to the next's with the year, and toward "
-"an event's own with its strength. The weather changes over days and the clouds through each day: cumulus eras build to an "
-"afternoon peak and stratiform ones burn off by midday. After sunset the clouds stay lit from below until the "
+"an event's own with its strength. The weather changes over days and the clouds through each day: cumulus days build to an "
+"afternoon peak and stratiform ones burn off by midday. The kind of cloud changes from day to day as well as the amount: "
+"ahead of a front the cloud spreads into sheets and the cirrus thickens, behind it the cold air builds cumulus, an "
+"unstable day grows taller towers than a stable one, and the base sits lower on a damp day than a dry one, each about "
+"the era's own regime. Each date has its own clouds, and the noise they are drawn from is read on a slanted slice "
+"so its 9 km tile does not repeat across the sky. After sunset the clouds stay lit from below until the "
 "Earth's shadow climbs past them."]],
 ]
 

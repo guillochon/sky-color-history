@@ -67,37 +67,75 @@ const CLOUD_ERA={
   ozonehole:{cov:0.50,vary:0.25,type:0.50,base:1600,top:0.55,cirrus:0.55},
   y2100:{cov:0.50,vary:0.25,type:0.50,base:1600,top:0.55,cirrus:0.55}
 };
-// The weather over simulated time: standard normal values, one for the systems that come and go
-// every few days (two timescales) and one for the high cirrus, partly tied to it. Everything is
-// derived from the date and time, so a given moment always looks the same.
-function cloudWeather(key){
+// The date and time as a day number, 24:00 the same as the next day's 00:00.
+function cloudDay(){
   const m=/^(-?\d+)-(\d+)-(\d+)$/.exec(document.getElementById('moonDate').value||'');
-  const day=(m?utcDay(+m[1], +m[2], +m[3]):Date.now()/86400000)+(minutes%DAYMIN)/DAYMIN;
-  const seed=(metHash(key)%1000)*0.731;
+  return (m?utcDay(+m[1], +m[2], +m[3]):Date.now()/86400000)+minutes/DAYMIN;
+}
+// The weather over simulated time: standard normal values, one for the systems that come and go
+// every few days (two timescales) and one for the high cirrus, partly tied to it; front, how fast
+// the slower systems are building (+, a front coming) or clearing (−, one gone by); stab, how
+// readily the air overturns; damp, how humid the low air is. Everything is derived from the date
+// and time, so a given moment always looks the same.
+function cloudWeather(key){
+  const day=cloudDay(), seed=(metHash(key)%1000)*0.731;
   // Normal values at whole periods, eased between and rescaled so the blend stays standard normal.
   const wave=(t, period, s)=>{ const x=t/period, i=Math.floor(x), f=x-i, u=f*f*(3-2*f), g=j=>probit(Math.min(0.999, Math.max(0.001, h12xy(j, seed+s))));
     return (g(i)*(1-u)+g(i+1)*u)/Math.hypot(1-u, u); };
-  const z=0.85*wave(day, 3.8, 0.0)+0.53*wave(day, 1.3, 5.0);
-  return {z, zc:0.5*z+0.87*wave(day, 2.2, 9.0)};
+  const slow=t=>wave(t, 3.8, 0.0), z=0.85*slow(day)+0.53*wave(day, 1.3, 5.0);
+  // slow's rate of change has a standard deviation of 0.48 a day.
+  const front=Math.min(2.5, Math.max(-2.5, (slow(day+0.125)-slow(day-0.125))/0.25/0.48));
+  return {z, zc:0.5*z+0.87*wave(day, 2.2, 9.0), front, stab:wave(day, 3.1, 13.0), damp:wave(day, 2.7, 17.0)};
+}
+// The day's kind of cloud, about the era's: the air's stability and the fronts move the type
+// (ahead of a front the cloud spreads into sheets, behind it the cold air builds cumulus, and an
+// unstable day grows towers by afternoon while a stable one lies flat under its inversion) and
+// how tall the tops run; the humidity moves the base, low on a damp day or under a front's cloud
+// and high in dry air. An era whose weather varies less (vary under 0.25) varies less in kind too.
+function cloudRegime(e, w){
+  const r=Math.min(1, e.vary/0.25), s=0.75*w.stab-0.45*w.front;
+  return {
+    type:Math.min(0.95, Math.max(0.02, e.type+0.2*r*s)),
+    base:Math.min(3200, Math.max(450, e.base*Math.exp(r*(0.1*s-0.28*w.damp-0.12*w.z)))),
+    top:Math.min(1, Math.max(0.1, e.top+0.18*r*s))
+  };
 }
 // Coverage: the era's typical cover, moved in log-odds by the weather systems and a daily cycle, so
-// clear days and overcast ones both come, as often as the era's vary allows. Cumulus eras (type 0.3
-// and up) build clouds through the afternoon; stratiform eras start overcast and burn off by midday.
+// clear days and overcast ones both come, as often as the era's vary allows. Cumulus days (type 0.3
+// and up) build clouds through the afternoon; stratiform ones start overcast and burn off by midday.
 // Near overcast (75% to 95%), deck ramps up: the cloud shader fills the gaps between clouds, and
 // cumulus flattens into a layer about a kilometre thick.
-function cloudCover(key, w=cloudWeather(key)){
-  const e=tableNow(CLOUD_ERA, key, CLOUD_ERA.modern);
-  const h=(minutes%DAYMIN)/60, cumulus=e.type>=0.3;
-  const daily=cumulus?Math.exp(-(((h-15)/3.5)**2))-0.35:Math.exp(-(((h-7)/3)**2))-0.3;
+function cloudCover(e, w, g){
+  const h=(minutes%DAYMIN)/60, cu=smoothstep(0.22, 0.38, g.type);
+  const daily=cu*(Math.exp(-(((h-15)/3.5)**2))-0.35)+(1-cu)*(Math.exp(-(((h-7)/3)**2))-0.3);
   const x=Math.log(e.cov/(1-e.cov))+12*e.vary*(w.z+0.6*daily);
   return Math.min(0.99, Math.max(0.005, 1/(1+Math.exp(-x))));
 }
+// Where the clouds are: the wind carries them 88 m a clock minute toward −(1, 0.42) (drift, m) and
+// they change shape as they go (time, 35 m a minute through the noise). Both count from the start
+// of a 32-day stretch, each stretch starting at a place of its own, so every date has its own
+// clouds, a played clock moves them smoothly, and the numbers stay small for the shader's floats.
+function cloudClock(){
+  const P=32, day=cloudDay(), k=Math.floor(day/P), m=(day-k*P)*DAYMIN;
+  return {drift:88*m+1.0e6*h12xy(k, 2.7), time:35*m+9.0e4*h12xy(k, 5.3)};
+}
 function cloudField(key){
-  const e=tableNow(CLOUD_ERA, key, CLOUD_ERA.modern), w=cloudWeather(key), cov=cloudCover(key, w);
+  const e=tableNow(CLOUD_ERA, key, CLOUD_ERA.modern), w=cloudWeather(key), g=cloudRegime(e, w), cov=cloudCover(e, w, g), clock=cloudClock();
   const deck=smoothstep(0.75, 0.95, cov);
-  // The cirrus comes and goes too: none on about a day in ten, up to twice the era's usual.
-  const cirrus=Math.min(1, e.cirrus*Math.min(2, Math.max(0, 1+0.8*w.zc)));
-  return {cov, deck, type:e.type>0.2?e.type+(0.2-e.type)*deck:e.type, base:e.base, top:e.top, cirrus, scale:1/32000};
+  // The cirrus comes and goes too: none on about a day in ten, up to twice the era's usual, and
+  // thickening ahead of a front.
+  const cirrus=Math.min(1, e.cirrus*Math.min(2, Math.max(0, 1+0.8*w.zc+0.4*w.front)));
+  return {cov, deck, type:g.type>0.2?g.type+(0.2-g.type)*deck:g.type, base:g.base, top:g.top, cirrus, scale:1/32000, drift:clock.drift, time:clock.time};
+}
+// The cover the shaders take (cloudCov) for the view from (x, y): the weather map moves the cover
+// about it, more here and less there, and is centred on its mean within 40 km of the eye, where
+// the clouds are seen, so the sky in view comes to the day's cover wherever the wind has taken the map.
+function cloudCovHere(f, x, y){
+  const W=weatherData(), n=256, k=f.scale*0.33*n, wr=i=>((i%n)+n)%n;
+  let s=0;
+  for(let i=-4;i<=4;i++) for(let j=-4;j<=4;j++) s+=W[(wr(Math.floor((y+0.42*f.drift+j*1.0e4)*k))*n+wr(Math.floor((x+f.drift+i*1.0e4)*k)))*4];
+  const mid=s/81/255, x0=Math.log(f.cov/(1-f.cov))+(0.56-mid)/0.09*1.05;
+  return 1/(1+Math.exp(-x0));
 }
 function vrCaption(){
   if(vrAirOff) return (vrScenery?'The ground and the shapes are scenery. ':'')+'The air is off: no sky, extinction or refraction.';

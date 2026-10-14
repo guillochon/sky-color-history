@@ -366,5 +366,5 @@ function setupCloudProgs(gl, cp, pp, tp, np){
   vrGL.cloudProg=cp; vrGL.compProg=pp; vrGL.tempProg=tp; vrGL.cu=cu; vrGL.compU=compU; vrGL.tu=tu;
   vrGL.noise=vols.base; vrGL.noiseDetail=vols.detail; vrGL.weather=weather;
   vrGL.cloudHDR=hdr; vrGL.cloudFbo=gl.createFramebuffer(); vrGL.accumFbo=gl.createFramebuffer(); vrGL.histFbo=gl.createFramebuffer();
-  vrGL.cloudTex=null; vrGL.metaTex=null; vrGL.accumTex=null; vrGL.histTex=null; vrGL.cw=0; vrGL.ch=0; vrGL.histOk=false; vrGL.cloudTime=0; vrGL.cloudFrame=0; vrGL.cloudMRT=false;
+  vrGL.cloudTex=null; vrGL.metaTex=null; vrGL.accumTex=null; vrGL.histTex=null; vrGL.cw=0; vrGL.ch=0; vrGL.histOk=false; vrGL.cloudFrame=0; vrGL.cloudMRT=false;
 }

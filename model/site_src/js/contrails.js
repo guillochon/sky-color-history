@@ -34,7 +34,7 @@ const CT_ISSR={'Equator':0.10, 'Mid-latitude':0.15, 'Polar':0.12, 'Mid-latitude 
 const CT_BOLIDE=-15;                             // meteors this bright or brighter leave a dust trail
 const CT={flights:new Map(), key:'', n:0, T:0, data:null, tex:null, uploaded:''};
 // Drift since a trail was made, in metres east and north, for a parcel z metres up, over dt seconds
-// of sky time. The clouds move 88 m per clock minute toward −(1, 0.42) (vr_paint.js cloudScroll),
+// of sky time. The clouds move 88 m per clock minute toward −(1, 0.42) (clouds.js cloudClock),
 // the cirrus 1.6 times as fast (shader_clouds.js); air at jet heights moves with the cirrus. Above
 // the tropopause the wind turns and changes speed with height, differently from day to day.
 function ctDrift(z, dt){
