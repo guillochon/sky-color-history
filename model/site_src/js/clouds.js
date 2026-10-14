@@ -67,11 +67,13 @@ const CLOUD_ERA={
   ozonehole:{cov:0.50,vary:0.25,type:0.50,base:1600,top:0.55,cirrus:0.55},
   y2100:{cov:0.50,vary:0.25,type:0.50,base:1600,top:0.55,cirrus:0.55}
 };
-// The date and time as a day number, 24:00 the same as the next day's 00:00.
-function cloudDay(){
-  const m=/^(-?\d+)-(\d+)-(\d+)$/.exec(document.getElementById('moonDate').value||'');
-  return (m?utcDay(+m[1], +m[2], +m[3]):Date.now()/86400000)+minutes/DAYMIN;
+// The date as a whole day number (k) and the minutes into it (m).
+function cloudDate(){
+  const d=/^(-?\d+)-(\d+)-(\d+)$/.exec(document.getElementById('moonDate').value||'');
+  return {k:Math.floor(d?utcDay(+d[1], +d[2], +d[3]):Date.now()/86400000), m:minutes};
 }
+// The date and time as a day number, 24:00 the same as the next day's 00:00.
+function cloudDay(){ const t=cloudDate(); return t.k+t.m/DAYMIN; }
 // The weather over simulated time: standard normal values, one for the systems that come and go
 // every few days (two timescales) and one for the high cirrus, partly tied to it; front, how fast
 // the slower systems are building (+, a front coming) or clearing (−, one gone by); stab, how
@@ -111,21 +113,34 @@ function cloudCover(e, w, g){
   const x=Math.log(e.cov/(1-e.cov))+12*e.vary*(w.z+0.6*daily);
   return Math.min(0.99, Math.max(0.005, 1/(1+Math.exp(-x))));
 }
-// Where the clouds are: the wind carries them 88 m a clock minute toward −(1, 0.42) (drift, m) and
-// they change shape as they go (time, 35 m a minute through the noise). Both count from the start
-// of a 32-day stretch, each stretch starting at a place of its own, so every date has its own
-// clouds, a played clock moves them smoothly, and the numbers stay small for the shader's floats.
-function cloudClock(){
-  const P=32, day=cloudDay(), k=Math.floor(day/P), m=(day-k*P)*DAYMIN;
-  return {drift:88*m+1.0e6*h12xy(k, 2.7), time:35*m+9.0e4*h12xy(k, 5.3)};
+// Where the clouds are: the wind has carried them 88 m a clock minute toward −(1, 0.42) since
+// day 0, and they change shape as they go, 35 m a minute through the noise along its slice's
+// normal, so every date has its own clouds and a played clock moves them smoothly. The distances
+// outgrow the shader's floats, so each lookup's place within its texture's tile is worked out here,
+// from the whole days and the minutes apart: drift, the low clouds' weather map's (the shaders take
+// vec2(1, 0.42)·drift, and it repeats after 50 of its tiles along x, 21 along y); noiseOff and
+// detOff, the noise's and its detail's; cirW, cirS and cirD, the cirrus's (shader_clouds.js).
+// minAbs, the minutes since day 0, tells a jump from the clock's own steps.
+function cloudClock(scale){
+  const {k, m}=cloudDate(), fr=x=>x-Math.floor(x), k1=Math.floor(k/65536), k0=k-k1*65536;
+  // Turns of a lookup that moves c a metre, at rate metres a minute.
+  const at=(c, rate)=>{ const d=c*rate*DAYMIN; return fr(fr(fr(d*65536)*k1)+fr(d*k0)+c*rate*m); };
+  const R=NOISE_ROT, wind=[0, 1, 2].map(i=>(R[i]+0.42*R[3+i])/9000), shape=[0, 1, 2].map(i=>R[6+i]/90000);
+  const lowOff=s=>wind.map((c, i)=>fr(at(c*s, 88)+at(shape[i]*s, 35)));
+  const Dw=50/(scale*0.33);
+  // The cirrus's place, rotated into its streaks' frame, per metre of the low clouds' drift.
+  const ra=1.6*(0.92+0.39*0.42), rb=1.6*(-0.39+0.92*0.42), sl=CIRRUS_SLANT;
+  const cirOff=(sx, sy)=>[at(ra/sx, 88), at(rb/sy, 88), at(ra/sx*sl[0]+rb/sy*sl[1], 88)];
+  return {drift:Dw*at(1/Dw, 88), noiseOff:lowOff(1), detOff:lowOff(6.5), cirW:[at(1.6*scale*0.12, 88), at(1.6*0.42*scale*0.12, 88)],
+    cirS:cirOff(42000, 9000), cirD:cirOff(9000, 1600), minAbs:k*DAYMIN+m};
 }
 function cloudField(key){
-  const e=tableNow(CLOUD_ERA, key, CLOUD_ERA.modern), w=cloudWeather(key), g=cloudRegime(e, w), cov=cloudCover(e, w, g), clock=cloudClock();
+  const e=tableNow(CLOUD_ERA, key, CLOUD_ERA.modern), w=cloudWeather(key), g=cloudRegime(e, w), cov=cloudCover(e, w, g), scale=1/32000;
   const deck=smoothstep(0.75, 0.95, cov);
   // The cirrus comes and goes too: none on about a day in ten, up to twice the era's usual, and
   // thickening ahead of a front.
   const cirrus=Math.min(1, e.cirrus*Math.min(2, Math.max(0, 1+0.8*w.zc+0.4*w.front)));
-  return {cov, deck, type:g.type>0.2?g.type+(0.2-g.type)*deck:g.type, base:g.base, top:g.top, cirrus, scale:1/32000, drift:clock.drift, time:clock.time};
+  return {cov, deck, type:g.type>0.2?g.type+(0.2-g.type)*deck:g.type, base:g.base, top:g.top, cirrus, scale, ...cloudClock(scale)};
 }
 // The cover the shaders take (cloudCov) for the view from (x, y): the weather map moves the cover
 // about it, more here and less there, and is centred on its mean within 40 km of the eye, where

@@ -748,8 +748,8 @@ function paintVR(){
     const cw=Math.max(2,Math.round(c.width/2)), ch=Math.max(2,Math.round(c.height/2));
     const field=vrGL.field, cu=vrGL.cu;
     // A new date puts the clouds somewhere else: start their history afresh.
-    if(Math.abs(field.drift-(vrGL.histDrift??field.drift))>5000) vrGL.histOk=false;
-    vrGL.histDrift=field.drift;
+    if(Math.abs(field.minAbs-(vrGL.histMin??field.minAbs))>60) vrGL.histOk=false;
+    vrGL.histMin=field.minAbs;
     // A checkerboard needs the temporal pass to fill in the pixels a frame leaves out.
     ensureCloudTarget(cw, ch, !!vrGL.tempProg);
     const cb=vrGL.cloudCB, par=vrGL.cloudFrame&1;
@@ -772,7 +772,9 @@ function paintVR(){
     gl.uniform1f(cu.nr, skyNow.nr); gl.uniform1f(cu.na, skyNow.na);
     gl.uniform1f(cu.showScn, vrScenery?1:0);
     gl.uniform1f(cu.cloudCov, field.covGL); gl.uniform1f(cu.cloudScale, field.scale); gl.uniform1f(cu.cloudDrift, field.drift);
-    gl.uniform1f(cu.cloudTime, field.time); gl.uniform1f(cu.cloudFrame, vrGL.cloudFrame||0);
+    gl.uniform3fv(cu.noiseOff, field.noiseOff); gl.uniform3fv(cu.detOff, field.detOff);
+    gl.uniform2fv(cu.cirW, field.cirW); gl.uniform3fv(cu.cirS, field.cirS); gl.uniform3fv(cu.cirD, field.cirD);
+    gl.uniform1f(cu.cloudFrame, vrGL.cloudFrame||0);
     gl.uniform1f(cu.cloudType, field.type); gl.uniform1f(cu.cloudDeck, field.deck);
     gl.uniform3fv(cu.snLight, vrGL.snLight||new Float32Array(3)); if(vrGL.snDir) gl.uniform3fv(cu.snDir, vrGL.snDir);
     gl.uniform3fv(cu.mlLight, vrGL.mlLight||new Float32Array(3)); if(vrGL.mlDir) gl.uniform3fv(cu.mlDir, vrGL.mlDir);
