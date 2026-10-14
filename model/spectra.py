@@ -20,7 +20,6 @@ The spectra come from daycycle.py's and limb_grid.py's caches (spectra_cache.npz
 limb_spectra.npz). Anything missing there is integrated here and added to them.
 """
 import json, struct, sys, time
-from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 import numpy as np
@@ -30,7 +29,7 @@ sys.path.insert(0, str(HERE))
 import daycycle as dc
 import limb_grid as lg
 import speccache
-from skymodel import LAM
+from skymodel import LAM, worker_pool
 
 VZ, AZ = dc.SPEC_VZ, dc.SPEC_AZ
 LO = -4.0
@@ -59,7 +58,7 @@ def main():
     epochs = [e for e in dc.EPOCHS if e['key'] != 'y2100']
     lats = list(dc.ALB)
     t0 = time.time()
-    sky = speccache.load(dc.SPEC_CACHE, dc.OZONE_STAMP)
+    sky = speccache.load(dc.SPEC_CACHE, dc.SKY_STAMP)
     limb = speccache.load(lg.SPEC_CACHE, lg.SPEC_STAMP)
     jobs = []
     for e in epochs:
@@ -70,12 +69,12 @@ def main():
     limb_missing = [k for k in lg.PICK if k not in limb]
     print(len(jobs), 'sky jobs and', len(limb_missing), 'limb epochs not cached', flush=True)
     if jobs or limb_missing:
-        with ProcessPoolExecutor(max_workers=6) as pool:
+        with worker_pool() as pool:
             for got in pool.map(job, jobs):
                 sky.update(got)
             limb.update(zip(limb_missing, pool.map(lg.epoch_spectra, limb_missing)))
         if jobs:
-            speccache.save(dc.SPEC_CACHE, sky, dc.OZONE_STAMP)
+            speccache.save(dc.SPEC_CACHE, sky, dc.SKY_STAMP)
         if limb_missing:
             speccache.save(lg.SPEC_CACHE, limb, lg.SPEC_STAMP)
     header = json.dumps({'lam': [float(x) for x in LAM], 'szas': dc.SZAS, 'vz': VZ, 'az': AZ, 'lo': LO,

@@ -14,10 +14,9 @@ spread over the shadowed and lit stretches of its ray. And the air's parts, for 
   comps   per part of the air: kind (0 Rayleigh, 1 exponential of scale height p, 2 a layer
           at p km, q km wide), p, q, HG g, extinction optical depth (r, g, b), scattering (r, g, b)
 
--> shafts.json (about a minute on 14 cores).
+-> shafts.json (about ten minutes on 14 cores, most of it each epoch's multiple-scattering table).
 """
 import json, math
-from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 import numpy as np
@@ -43,11 +42,13 @@ def rgb(S):
     return sm.M_XYZ2RGB @ sm.spec_to_XYZ(S)
 
 
-def shares(atm, sun_el):
-    """The share of each grid direction's light scattered once below ZMAX, for the Sun at sun_el."""
+def shares(atm, sun_el, ms_atm=None):
+    """The share of each grid direction's light scattered once below ZMAX, for the Sun at sun_el.
+    The light scattered more than once in each direction comes from ms_atm (default atm), so a
+    caller that has built one atmosphere's multiple-scattering table can lend it."""
     sza = 90.0 - sun_el
     zs = math.radians(sza)
-    I_ms = atm.multiple_scatter(sza)
+    ms_atm = ms_atm or atm
     out = np.zeros((NV, NA, 3))
     for i, el in enumerate(VIEW_EL):
         zv = math.radians(90.0 - max(el, 0.3))
@@ -62,6 +63,7 @@ def shares(atm, sun_el):
             sun = np.array([math.sin(zs)*math.cos(a), math.sin(zs)*math.sin(a), math.cos(zs)])
             cols = sm.path_columns([c.profile for c in atm.comps], r, vert @ sun)
             I_all, I_low = single_scatter_split(atm, s, h, cols, cosT, low)
+            I_ms = ms_atm.radiance(90.0 - max(el, 0.3), az, sza, ms='only')
             tot, near = rgb(I_all + I_ms), rgb(I_low)
             out[i, j] = np.clip(near/np.maximum(tot, 1e-30), 0.0, 1.0)
     return out
@@ -99,7 +101,7 @@ def run(key):
 
 
 if __name__ == '__main__':
-    with ProcessPoolExecutor() as pool:
+    with sm.worker_pool() as pool:
         res = dict(pool.map(run, [e['key'] for e in _ep.EPOCHS]))
     (HERE / 'shafts.json').write_text(json.dumps(dict(zmax=ZMAX, nv=NV, na=NA, ns=NS, sunMin=float(_S[0]), sunMax=float(_S[-1]),
                                                       epochs=res), separators=(',', ':')), encoding='utf-8')

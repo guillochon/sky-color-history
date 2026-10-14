@@ -9,20 +9,23 @@ Sun) are kept in spectra_cache.npz, so the tooltip spectra come from the same
 integration as the colors.
 """
 import json, sys, time
-from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 import numpy as np
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from skymodel import LAM, spec_to_XYZ, column_ozone
+from skymodel import LAM, spec_to_XYZ, column_ozone, worker_pool
 from epochs import EPOCHS, build
 import speccache
 
 # Bump when the ozone spectrum, profile, or columns change, so cached
 # day-cycle colors for oxygenated epochs are recomputed.
 OZONE_STAMP = 'serdyuchenko-223k-v1'
+# Bump when the multiple scattering (skymodel.ms_table) changes: every epoch is recomputed.
+MS_STAMP = 'ms-table-v2'
+# What the cached spectra and the airs (airgrid.py) depend on.
+SKY_STAMP = OZONE_STAMP + '|' + MS_STAMP
 
 # Daytime spacing is unchanged. From the horizon (90) through 20 degrees
 # below it (110), sample every degree.
@@ -65,9 +68,6 @@ def dome(atm, sz, vzs, azs):
 def sample_dome(atm, sz):
     """The dome's packed colors, the Sun's, and the spectra of the SPEC_VZ x SPEC_AZ
     directions followed by the Sun's."""
-    # Keep the model's multiple-scattering fade below the horizon. Single
-    # scattering alone goes exactly to zero over more of the dome each degree,
-    # and those holes read as bands.
     S = dome(atm, sz, VZ, AZ)
     grid = [[pack(spec_to_XYZ(s)) for s in row] for row in S]
     S_sun = sun_spectrum(atm, sz)
@@ -95,13 +95,14 @@ def main():
     old_sz = [int(z) for z in out.get('szas', [])]
     missing_global = [z for z in SZAS if z not in old_sz]
     stamp_ok = out.get('ozone_stamp') == OZONE_STAMP
+    ms_ok = out.get('ms_stamp') == MS_STAMP
     existed = set(out['epochs'])
     jobs = []
     rebuild_keys = set()
     for e in EPOCHS:
         # Oxygenated epochs are stale when the ozone treatment changes.
         # A new epoch, or one with no stored dome, is computed in full.
-        rebuild = (e['key'] not in existed) or (not stamp_ok and column_ozone(e, 'Mid-latitude') > 0)
+        rebuild = (e['key'] not in existed) or not ms_ok or (not stamp_ok and column_ozone(e, 'Mid-latitude') > 0)
         if rebuild:
             rebuild_keys.add(e['key'])
         rec = out['epochs'].setdefault(e['key'], {})
@@ -112,19 +113,18 @@ def main():
                 jobs.append((e, lname, alb, missing))
     print('have', len(old_sz), 'want', len(SZAS), 'rebuild', sorted(rebuild_keys),
           'jobs', len(jobs), flush=True)
-    if not jobs and old_sz == SZAS and stamp_ok:
+    if not jobs and old_sz == SZAS and stamp_ok and ms_ok:
         print('already complete')
         return
     extra = {}
-    cache = speccache.load(SPEC_CACHE, OZONE_STAMP)
-    # A handful of processes: each atmosphere is independent, and a single
-    # twilight dome is the slow part.
-    with ProcessPoolExecutor(max_workers=6) as pool:
+    cache = speccache.load(SPEC_CACHE, SKY_STAMP)
+    # Each atmosphere is independent; the pool shares the GPU for their multiple-scattering tables.
+    with worker_pool() as pool:
         for key, lname, got, spec, dt in pool.map(compute_job, jobs):
             extra.setdefault(key, {})[lname] = got
             cache.update(spec)
             print(f'{key} {lname} {dt:.1f}s', flush=True)
-    speccache.save(SPEC_CACHE, cache, OZONE_STAMP)
+    speccache.save(SPEC_CACHE, cache, SKY_STAMP)
     for e in EPOCHS:
         rec = out['epochs'][e['key']]
         for lname in ALB:
@@ -143,6 +143,7 @@ def main():
     out['vz'] = VZ
     out['az'] = AZ
     out['ozone_stamp'] = OZONE_STAMP
+    out['ms_stamp'] = MS_STAMP
     OUT.write_text(json.dumps(out, separators=(',', ':')), encoding='utf-8')
     print('wrote', OUT, 'n_sza', len(SZAS), flush=True)
 

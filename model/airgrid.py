@@ -9,7 +9,8 @@ The set is uneven:
     Moon-forming impact, the Great Oxidation Event, the Neoproterozoic rise, the Cambrian, the
     Ordovician dust), then more wherever blending two neighbours misses the air between them.
     Each interval is tried at its quarter points with a quick sky (PROBE_SZA x PROBE_DIR at
-    mid-latitude): where the blend the page would draw is off by more than TOL_LOG in log10
+    mid-latitude, its multiple scattering the fast two-stream term rather than the table the
+    airs are made with, which would take minutes per probe): where the blend the page would draw is off by more than TOL_LOG in log10
     luminance or TOL_XY in chromaticity anywhere, the interval is halved, down to MIN_YEARS.
   - Each event instance: airs at levels from 0 (its background) to 1 (full strength), halved
     the same way down to MIN_LEVEL; the page blends them by the event's level.
@@ -22,7 +23,6 @@ coding). Its spectra file: the sky spectra as spectra.py codes them, in the orde
 zenith angle, slot (the view directions, then the Sun), wavelength.
 """
 import base64, hashlib, json, math, struct, sys, time
-from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 import numpy as np
@@ -38,12 +38,11 @@ from skymodel import LAM
 
 SITE_AIR = HERE.parent / 'site' / 'air'
 OUT = HERE / 'air_nodes.json'
-STAMP = 'air-v1|' + dc.OZONE_STAMP
+STAMP = 'air-v1|' + dc.SKY_STAMP
 PROBE_SZA = [0, 40, 70, 85, 89, 91, 94, 98]
 PROBE_DIR = [(0, 0), (60, 0), (84, 0), (84, 90), (84, 180), (60, 180)]
 TOL_LOG, TOL_XY = 0.02, 0.002
 MIN_YEARS, MIN_LEVEL = 1000.0, 1/32
-WORKERS = 6
 
 
 # ---------- what the page is given for each air (gen_site.py uses these too) ----------
@@ -150,7 +149,7 @@ def probe(air):
     out = []
     for sz in PROBE_SZA:
         for vz, az in PROBE_DIR:
-            out.append(sm.spec_to_XYZ(atm.radiance(vz, az, sz)))
+            out.append(sm.spec_to_XYZ(atm.radiance(vz, az, sz, ms='two_stream')))
         out.append(sm.spec_to_XYZ(atm.direct_sun(sz)) if sz < 90 else np.zeros(3))
     X = np.array(out)
     S = X.sum(1)
@@ -217,13 +216,15 @@ def node_job(args):
     rec, spec = {}, []
     for lname, alb in dc.ALB.items():
         atm = at.build(air, alb, lname)
+        if lname == 'Mid-latitude':
+            atm_mid = atm      # its multiple scattering serves the shafts too
         dome, sun = [], []
         for sz in dc.SZAS:
             g, s, S = dc.sample_dome(atm, sz)
             dome.append(g); sun.append(s); spec.append(S)
         rec[lname] = dict(dome=dome, sun=sun)
     atm = at.build(air, 0.15)
-    share = np.stack([sh.shares(atm, e) for e in sh.SUN_EL])
+    share = np.stack([sh.shares(atm, e, atm_mid) for e in sh.SUN_EL])
     shaft = dict(comps=sh.comps(atm), share=base64.b64encode(bytes(np.rint(share*255).astype(np.uint8).ravel())).decode())
     sa = shadow_air or air
     shadow = le.shadow_rec(le.shadow_air(at.build(sa, 0.15), sa, moon_re_at(t)))
@@ -267,7 +268,7 @@ def main():
         nid = air_id(air, shadow_air)
         nodes.setdefault(nid, (air, shadow_air, t))
         return nid
-    with ProcessPoolExecutor(max_workers=WORKERS) as pool:
+    with sm.worker_pool() as pool:
         xs = bg_fixed()
         bg, worst = refine(pool, 'bg', xs, fixed_steps={(at.T_IMPACT-1, at.T_IMPACT)})
         print(f'background: {len(xs)} fixed, {len(bg)} in all ({time.time()-t0:.0f}s)', flush=True)

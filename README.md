@@ -16,10 +16,13 @@ moons, the stars and the Galaxy, meteors, comets, aurorae, airglow, halos, cloud
 
 ## The model (`model/`)
 
-- `skymodel.py` - spherical-shell single scattering along the line of sight with a delta-Eddington
-  two-stream multiple-scattering correction; Rayleigh gas mix, ozone Chappuis band, tropospheric
-  aerosol, stratospheric sulfate, tholin-like organic haze, soot, dust; limb and planetary-disk
-  radiance; CIE 1931 color conversion. Needs only numpy and scipy.
+- `skymodel.py` - spherical-shell single scattering along the line of sight, with multiple scattering
+  from a table over altitude and the Sun's local elevation (after Hillaire 2020), its orders solved
+  exactly and the first four kept directional, built on the GPU with PyTorch; Rayleigh gas mix, ozone
+  Chappuis band, tropospheric aerosol, stratospheric sulfate, tholin-like organic haze, soot, dust;
+  limb and planetary-disk radiance; CIE 1931 color conversion. Needs numpy, scipy and torch.
+- `calcmysky_check.py` - checks the multiple scattering against CalcMySky (Kabatsayev), run on the
+  same atmospheres
 - `epochs.py` - the epoch atmospheres, shared by the scripts below
 - `run_epochs.py` - computes noon, sunset and twilight
   colors -> `skycolors.json`
@@ -82,7 +85,8 @@ page's script with terser (fetched by `npx`); without it the script is left as i
 Each epoch's atmosphere is built from components with their own vertical profile and spectral
 optical depth. Sky radiance is integrated numerically along each line of sight through a
 spherical-shell atmosphere, so grazing sunlight at twilight is handled properly, with multiple
-scattering and surface reflection added from a two-stream solution. The young Sun is a blackbody
+scattering and surface reflection solved on a table of altitudes and Sun heights and checked against
+CalcMySky. The young Sun is a blackbody
 following standard solar-evolution tracks (5,560 K and 70% luminosity at 4.4 Ga). Spectra from
 380-780 nm are converted to CIE XYZ and shown as sRGB without chromatic adaptation. The model
 reproduces measured modern skies (zenith 10,000-20,000 K, horizon 6,000-8,500 K, setting Sun
