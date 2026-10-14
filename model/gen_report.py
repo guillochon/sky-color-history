@@ -499,6 +499,7 @@ def blocks():
     B.append(S('Clouds')); B += ps(*RS['Clouds'])
     B.append(fig(view('archean'), "An afternoon at 2.52 Ga under the thick organic haze, as the site's first-person view draws it: a pale orange dome with almost no difference between zenith and horizon, the Sun a soft glow behind broken cumulus lit gold by its haze-reddened light.", 'fig:archean', wide=False))
     B.append(S('Crepuscular rays')); B += ps(*rv.SHAFTS)
+    B.append(S('Rainbows')); B += ps(*RS['Rainbows'])
     B.append(S('Ice halos')); B += ps(*RS['Ice halos'])
     B.append(fig(view('halos'), "A morning on Snowball Earth at 700 Ma, from mid-latitudes, the Sun 22° up through clear air full of "
                  "diamond dust: the 22° halo with its tangent arcs hugging its top and bottom, the sun dogs just outside it, the faint "

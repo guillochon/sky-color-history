@@ -182,6 +182,30 @@ SECTIONS = [
 "and the diffraction aureole. The Moon makes the same, faintly. Their brightness, set against the clean noon sky, "
 "is an estimate of a good display; the air in front of them is each epoch's."]],
 
+['Rainbows', [
+"Rain falls from the clouds drawn above it, from the same day-to-day weather: steady rain under the thicker parts of a "
+"deck when a front comes, showers under the tallest cells on an unstable afternoon, drizzle from a low damp deck, and "
+"snow when the ground is near freezing or below. Where sunlight reaches the falling rain through gaps in the cloud, "
+"the drops scatter it as water spheres do, so a shower with the Sun behind the eye shows its rainbows: the primary "
+"42° from the point opposite the Sun, red on the outside, with the sky inside it brighter; Alexander's dark band "
+"beyond it; and the fainter secondary at 51°, its colors reversed. The drops' scattering is worked out by "
+"geometric optics for each number of reflections inside the drop, with the Fresnel share of each polarization, and "
+"by Airy theory about the primary and secondary bows (Airy 1838), which sets their widths and the supernumerary "
+"bands inside them. It is spread over a range of drop sizes and blurred by the Sun's disk, and colored through the "
+"solar spectrum; against Lorenz–Mie theory for drops of 0.1 and 0.3 mm the primary's peak falls within 0.05° and "
+"its height within 4%, while the secondary comes out 15–30% faint. The drop size comes from what is falling: steady "
+"rain and showers by the Marshall–Palmer median drop (Marshall &amp; Palmer 1948), up to 1 mm, past which drops flatten "
+"and their bows break up; drizzle, of 0.15 mm, gives a broad, pale bow. Snow makes none.",
+"The bows move with the epoch, because their radii depend on how much more strongly water bends light than the air "
+"around it. Water's refractive index is taken at the rain's temperature (Harvey et al. 1998), and the air's from each "
+"epoch's gases at their pressures. Hot water bends light less, and so does dense air. In the Early Hadean, under 30 "
+"bars of CO₂ with rain near 85 °C, the primary widens to 45.6° and the secondary narrows to 44.6°, so the two cross "
+"and the dark band between them is gone. In the proto-Earth's guessed 4 bars at 90 °C the band narrows from today's 9.7° to "
+"3.7°, and in the Late Hadean the primary sits at 42.2°. In every later epoch the bows lie within 0.3° of today's "
+"41.8° and 51.5°. The Hadean's bows would rarely be seen: in that heat nearly all the rain evaporates before it "
+"lands, and little direct sunlight gets through the air. The bow's brightness rests on how much sunlight the drawn "
+"clouds let under them, so it is an estimate; the Moon's faint bow is not drawn."]],
+
 ['Twilight and the night sky', [
 "Because the photometric scale of {ref:method} is absolute, the night is drawn on the same scale as the day. The sky is "
 "computed for Sun heights down to 20° below the horizon; past 9° below, where the model's twilight fades too "

@@ -681,7 +681,7 @@ INTRO = [
 "years between them, from a proto-Earth 17 million years after the first solids to the year 2100: the color of the sky by day and at dusk, "
 "computed with a spectral radiative-transfer model of each epoch's air, and on that sky everything else that "
 "could be seen from the ground: the Sun and its spots, the Moon's size, face and eclipses, the planets and their "
-"moons, the stars and the Galaxy as they then lay, meteors, comets, aurorae, airglow, halos and clouds, and in "
+"moons, the stars and the Galaxy as they then lay, meteors, comets, aurorae, airglow, halos, clouds and rainbows, and in "
 "the latest epochs the light people added. It began as a study of the sky's color, which remains its "
 "quantitative core, and grew with the interactive site built on the model, which draws each of these and is the "
 "source of every number quoted here outside the color tables.",

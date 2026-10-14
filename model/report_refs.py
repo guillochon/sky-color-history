@@ -201,6 +201,9 @@ BIB += r"""
 @article{genzel2015, author={Genzel, R. and Tacconi, L. J. and Lutz, D. and others}, title={Combined {CO} and dust scaling relations of depletion time and molecular gas fractions with cosmic time, specific star-formation rate, and stellar mass}, journal={Astrophysical Journal}, volume={800}, pages={20}, year={2015}, doi={10.1088/0004-637X/800/1/20}}
 @article{cardelli1989, author={Cardelli, Jason A. and Clayton, Geoffrey C. and Mathis, John S.}, title={The relationship between infrared, optical, and ultraviolet extinction}, journal={Astrophysical Journal}, volume={345}, pages={245--256}, year={1989}, doi={10.1086/167900}}
 @article{gough1981, author={Gough, Douglas O.}, title={Solar interior structure and luminosity variations}, journal={Solar Physics}, volume={74}, pages={21--34}, year={1981}, doi={10.1007/BF00151270}}
+@article{airy1838, author={Airy, George Biddell}, title={On the intensity of light in the neighbourhood of a caustic}, journal={Transactions of the Cambridge Philosophical Society}, volume={6}, pages={379--402}, year={1838}}
+@article{harvey1998, author={Harvey, Allan H. and Gallagher, John S. and Levelt Sengers, J. M. H.}, title={Revised formulation for the refractive index of water and steam as a function of wavelength, temperature and density}, journal={Journal of Physical and Chemical Reference Data}, volume={27}, pages={761--774}, year={1998}, doi={10.1063/1.556029}}
+@article{marshall1948, author={Marshall, J. S. and Palmer, W. McK.}, title={The distribution of raindrops with size}, journal={Journal of Meteorology}, volume={5}, pages={165--166}, year={1948}}
 """
 
 ACCENTS = {"'": '\u0301', '"': '\u0308', '~': '\u0303', 'v': '\u030c', '`': '\u0300', '^': '\u0302', 'c': '\u0327',
