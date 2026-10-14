@@ -275,7 +275,11 @@ float shCloudTau(vec3 p, float alt0, vec3 sd){
     // At the path's height, as cloudShape reckons height on its smaller sphere.
     vec2 dh=q.xy-eye.xy;
     q.z=alt0+x*(b+a*x)-dot(dh, dh)/(2.0*833333.0);
-    tau+=cloudShape(q, hd, qn, ng)*dx;
+    // The cloud as drawn, not its coarse shape: the detail erodes the shape by 0.65 of its noise,
+    // a third on average (cloudDetail), and thins it toward the base. Without that a sky of a few
+    // wisps cast the shadows of the whole puffs they were cut from.
+    float d=cloudShape(q, hd, qn, ng);
+    tau+=clamp((d-0.33)/0.67, 0.0, 1.0)*baseFade(hd)*dx;
   }
   return tau*0.05;
 }
