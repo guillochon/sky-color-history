@@ -41,12 +41,12 @@ SHOTS = {
     # up or more, the time its Red Spot best faces us with Jupiter high; the frame's height span of
     # Jupiter's drawn radii, at aim
     # 0 on its centre or 1 on the Red Spot. The shot is turned so the equator lies level and cropped
-    # (crop: its aspect; at: where across it the aim falls), in a square frame of size pixels that
-    # leaves room for the turn.
+    # (crop: its aspect; at: where across it the aim falls; fixed: the crop the same whatever the turn,
+    # so the two disks match), in a square frame of size pixels that leaves room for the turn.
     # jupiter_montage() puts them together as view_jupiter.jpg: the spot at its largest (1879, as
     # long as the record gives it and at its reddest) and today, and today's spot close up.
-    'jupiter_1879': dict(epoch='modern', date='1879-08-31', jup=dict(span=3.1, aim=0, nights=10), crop=1, size=2000, clouds=False, scenery=False, wait=8000),
-    'jupiter_2026': dict(epoch='modern', date='2026-10-11', jup=dict(span=3.1, aim=0, nights=10), crop=1, size=2000, clouds=False, scenery=False, wait=8000),
+    'jupiter_1879': dict(epoch='modern', date='1879-08-31', jup=dict(span=3.1, aim=0, nights=10), crop=1, fixed=True, size=2000, clouds=False, scenery=False, wait=8000),
+    'jupiter_2026': dict(epoch='modern', date='2026-10-11', jup=dict(span=3.1, aim=0, nights=10), crop=1, fixed=True, size=2000, clouds=False, scenery=False, wait=8000),
     'jupiter_grs':  dict(epoch='modern', date='2026-10-11', jup=dict(span=1.3, aim=1, nights=10), crop=2, at=1/3, size=2600, clouds=False, scenery=False, wait=8000),
     # The proto-Earth's meteors: the whole sky at midnight on the page's fisheye dome (dome: the dome
     # alone, at twice the pixels), and the first ground strike after the date of magnitude −26 or
@@ -229,14 +229,16 @@ def proto_montage():
     sheet.save(OUT / 'view_proto_meteors.jpg', quality=90)
     print(OUT / 'view_proto_meteors.jpg', sheet.size)
 
-def level_crop(path, roll, aspect, at=0.5):
+def level_crop(path, roll, aspect, at=0.5, fixed=False):
     """A Jupiter shot turned by roll degrees so its pole points up and its equator lies level, cropped
     to the given aspect (width over height) with the frame's middle at the fraction at of the way
-    across, as large as the turned frame leaves whole."""
+    across, as large as the turned frame leaves whole. fixed sizes the crop for the worst turn, 45°,
+    whatever the roll, so shots of one span show Jupiter at one size."""
     import math
     from PIL import Image
     im = Image.open(path).rotate(roll, resample=Image.BICUBIC)
-    a, c, s = im.width, abs(math.cos(math.radians(roll))), math.sin(math.radians(roll))
+    r = 45 if fixed else roll
+    a, c, s = im.width, abs(math.cos(math.radians(r))), abs(math.sin(math.radians(r)))
     def fits(w):
         h, x0 = w / aspect, -at * w
         # Each corner, turned back into the shot's own frame, must lie inside it.
@@ -307,7 +309,7 @@ async def run(base, names):
                 clip = v.get('clip') if isinstance(v, dict) else None
                 shot = await call('Page.captureScreenshot', format='jpeg', quality=90, **({'clip': clip} if clip else {}))
                 (OUT / f'view_{name}.jpg').write_bytes(base64.b64decode(shot['result']['data']))
-                if isinstance(v, dict) and v.get('jup'): level_crop(OUT / f'view_{name}.jpg', v['jup']['roll'], SHOTS[name]['crop'], SHOTS[name].get('at', 0.5))
+                if isinstance(v, dict) and v.get('jup'): level_crop(OUT / f'view_{name}.jpg', v['jup']['roll'], SHOTS[name]['crop'], SHOTS[name].get('at', 0.5), SHOTS[name].get('fixed', False))
     finally:
         p.kill()
 
