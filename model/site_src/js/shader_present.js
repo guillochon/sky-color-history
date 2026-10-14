@@ -92,9 +92,11 @@ vec4 rainVeil(vec3 ro, vec3 rd, float tEnd, vec3 skyC){
   return vec4(col, 1.0-T);
 }
 // The drops or flakes falling within a few metres, on four cylinders about the eye 1.5, 3, 6 and
-// 12 m out, nearest first: in each cell of a cylinder at most one, falling at 7 m/s (rain) or
-// 1 m/s (snow) in real time. A drop is a streak, as an eye or a camera sees one move in a 30th
-// of a second; a flake a soft dot, swaying. pa is a pixel's size in radians, tHit what is nearer.
+// 12 m out, nearest first, falling at 7 m/s (rain) or 1 m/s (snow) in real time. How many there
+// are follows the rate: density D drops to a cell, one per cell at 3 mm/h of rain or 0.25 mm/h of
+// snow (melted), up to six at 18 mm/h or 1.5 mm/h and more, each layer its own drops in the same cells. A
+// drop is a streak, as an eye or a camera sees one move in a 30th of a second; a flake a soft
+// dot, swaying. pa is a pixel's size in radians, tHit what is nearer.
 vec4 rainNear(vec3 rd, float tHit, float pa, vec3 L){
   float R=rainQ.z;
   if(R<0.02) return vec4(0.0);
@@ -103,31 +105,35 @@ vec4 rainNear(vec3 rd, float tHit, float pa, vec3 L){
   float keep=1.0-smoothstep(1.0, 1.3, abs(el));
   if(keep<=0.0) return vec4(0.0);
   float cw=snow?0.3:0.12, ch=snow?0.3:1.2, v=snow?1.0:7.0;
-  float p=snow?clamp(0.2+R*2.0, 0.0, 1.0):clamp(0.15+R/6.0, 0.0, 1.0);
+  float D=snow?clamp(R/0.25, 0.08, 6.0):clamp(R/3.0, 0.06, 6.0);
   vec4 acc=vec4(0.0);
   for(int k=0;k<4;k++){
     float r=1.5*exp2(float(k));
     if(r>tHit) break;
-    float N=floor(6.2831853*r/cw), X=az/6.2831853*N, ci=floor(X);
-    float Z=r*tan(el)/ch+v*waterT/ch+stH(vec2(ci, 7.0+float(k)));
-    float cj=floor(Z), fx=fract(X), fz=fract(Z);
-    vec2 id=vec2(ci, cj)+float(k)*vec2(13.1, 71.7);
-    if(stH(id)>p) continue;
-    float px=pa*r, a;
-    if(snow){
-      // A flake 8 mm across, swaying about its column as it falls.
-      float x0=0.2+0.6*stH(id+3.1)+0.12*sin(waterT*1.7+stH(id+5.3)*6.28), z0=0.2+0.6*stH(id+9.7);
-      vec2 d=vec2((fx-x0)*cw, (fz-z0)*ch);
-      float rad=max(0.004, px*0.7);
-      a=0.9*exp(-dot(d, d)/(rad*rad))*min(1.0, 0.004/rad);
-    }else{
-      // A streak 25 cm long and a 2 mm drop wide, or a pixel, dimmed for the share it fills.
-      float x0=0.1+0.8*stH(id+3.1), z0=0.1+0.6*stH(id+9.7), len=0.25/ch;
-      float dx=(fx-x0)*cw, wd=max(0.002, px*0.7);
-      a=0.3*exp(-dx*dx/(wd*wd))*smoothstep(z0, z0+0.03, fz)*smoothstep(z0+len, z0+len-0.03, fz)*min(1.0, 0.002/wd);
+    float N=floor(6.2831853*r/cw), X=az/6.2831853*N, ci=floor(X), fx=fract(X), px=pa*r;
+    for(int l=0;l<6;l++){
+      float p=clamp(D-float(l), 0.0, 1.0);
+      if(p<=0.0) break;
+      float Z=r*tan(el)/ch+v*waterT/ch+stH(vec2(ci, 7.0+float(k)+19.0*float(l)));
+      float cj=floor(Z), fz=fract(Z);
+      vec2 id=vec2(ci, cj)+float(k)*vec2(13.1, 71.7)+float(l)*vec2(37.3, 11.9);
+      if(stH(id)>p) continue;
+      float a;
+      if(snow){
+        // A flake 8 mm across, swaying about its column as it falls.
+        float x0=0.2+0.6*stH(id+3.1)+0.12*sin(waterT*1.7+stH(id+5.3)*6.28), z0=0.2+0.6*stH(id+9.7);
+        vec2 d=vec2((fx-x0)*cw, (fz-z0)*ch);
+        float rad=max(0.004, px*0.7);
+        a=0.9*exp(-dot(d, d)/(rad*rad))*min(1.0, 0.004/rad);
+      }else{
+        // A streak 25 cm long and a 2 mm drop wide, or a pixel, dimmed for the share it fills.
+        float x0=0.1+0.8*stH(id+3.1), z0=0.1+0.6*stH(id+9.7), len=0.25/ch;
+        float dx=(fx-x0)*cw, wd=max(0.002, px*0.7);
+        a=0.3*exp(-dx*dx/(wd*wd))*smoothstep(z0, z0+0.03, fz)*smoothstep(z0+len, z0+len-0.03, fz)*min(1.0, 0.002/wd);
+      }
+      a*=keep;
+      acc+=vec4(L*a, a)*(1.0-acc.a);
     }
-    a*=keep;
-    acc+=vec4(L*a, a)*(1.0-acc.a);
   }
   return acc;
 }

@@ -85,8 +85,12 @@ const SURF_T_ERA={
   modern:{eq:27,grad:40,amp:15}, modernpoll:{eq:27.5,grad:39,amp:15}, ozonehole:{eq:27.3,grad:39.5,amp:15},
   y2100:{eq:29.5,grad:37,amp:14}
 };
-// The date as a whole day number (k) and the minutes into it (m).
+// The date as a whole day number (k) and the minutes into it (m). cloudAt, when set, stands in for
+// the page's date and clock, so the weather of another hour can be worked out (snowOnGround, the
+// calendar's dayWeather); dk is its whole days from the page's date, for the season.
+let cloudAt=null;
 function cloudDate(){
+  if(cloudAt) return cloudAt;
   const d=/^(-?\d+)-(\d+)-(\d+)$/.exec(document.getElementById('moonDate').value||'');
   return {k:Math.floor(d?utcDay(+d[1], +d[2], +d[3]):Date.now()/86400000), m:minutes};
 }
@@ -126,7 +130,7 @@ function cloudRegime(e, w){
 // Near overcast (75% to 95%), deck ramps up: the cloud shader fills the gaps between clouds, and
 // cumulus flattens into a layer about a kilometre thick.
 function cloudCover(e, w, g){
-  const h=(minutes%DAYMIN)/60, cu=smoothstep(0.22, 0.38, g.type);
+  const h=(cloudDate().m%DAYMIN)/60, cu=smoothstep(0.22, 0.38, g.type);
   const daily=cu*(Math.exp(-(((h-15)/3.5)**2))-0.35)+(1-cu)*(Math.exp(-(((h-7)/3)**2))-0.3);
   const x=Math.log(e.cov/(1-e.cov))+12*e.vary*(w.z+0.6*daily);
   return Math.min(0.99, Math.max(0.005, 1/(1+Math.exp(-x))));
@@ -166,7 +170,7 @@ function cloudField(key){
 // cloud), and the weather (warm ahead of a front and in damp air, cold behind one).
 function surfaceTemp(key, w, cov){
   const s=tableNow(SURF_T_ERA, key, SURF_T_ERA.modern), lat=(LATDEG[dLat]??45)*Math.PI/180, sn=Math.sin(lat);
-  const f=yearFraction()[1], h=(minutes%DAYMIN)/60;
+  const f=yearFraction()[1]+(cloudAt?cloudAt.dk/365.2422:0), h=(cloudDate().m%DAYMIN)/60;
   const season=s.amp*Math.abs(sn)*Math.cos(2*Math.PI*(f-(lat<0?0.05:0.55)));
   return s.eq-s.grad*sn*sn+season+5*(1-0.7*cov)*Math.cos(2*Math.PI*(h-15)/24)+2*w.front+1.5*w.damp;
 }
@@ -187,7 +191,7 @@ function surfaceTemp(key, w, cov){
 // dry air under a high base or over a hot surface; 0 when it reaches the ground. tilt is how far the shafts lean per metre of fall, in the wind's
 // shear: rain falls at 7 m/s, snow at 1 m/s and leans more.
 function cloudPrecip(w, c, T){
-  const h=(minutes%DAYMIN)/60, cc=Math.min(3, Math.max(0.08, Math.exp(0.06*(T-15)))), cs=Math.min(2.5, Math.max(0.2, Math.exp(0.035*(T-15))));
+  const h=(cloudDate().m%DAYMIN)/60, cc=Math.min(3, Math.max(0.08, Math.exp(0.06*(T-15)))), cs=Math.min(2.5, Math.max(0.2, Math.exp(0.035*(T-15))));
   const s=w.z+0.5*Math.max(0, w.front)+0.3*w.damp;
   const wet=smoothstep(0.5, 1.3, s), sheet=smoothstep(0.55, 0.85, c.cov);
   const lat=(LATDEG[dLat]??45)*Math.PI/180, storms=0.35+0.65*Math.sin(2*lat)**2;
@@ -242,12 +246,51 @@ function rainLabel(f, x, y, z){
   const kind=r.snow>0.5?'snow':r.driz>r.strat+r.conv?'drizzle':r.conv>r.strat?'showers':'rain';
   return ' · '+kind+' '+(R<10?R.toFixed(1):Math.round(R))+' mm/h';
 }
-function vrCaption(){
-  if(vrAirOff) return (vrScenery?'The ground and the shapes are scenery. ':'')+'The air is off: no sky, extinction or refraction.';
-  if(vrScenery&&vrClouds) return 'The ground, the shapes, and the clouds are scenery. The sky is the model.';
-  if(vrScenery) return 'Clouds are hidden. The ground and the shapes are scenery. The sky is the model.';
-  if(vrClouds) return 'The shapes are hidden. The clouds are scenery. The sky is the model.';
-  return 'Scenery and clouds are hidden. The sky is the model.';
+// The air's temperature for the clock line: '17 °C'.
+function tempLabel(T){ const t=Math.round(T); return (t<0?'−':'')+Math.abs(t)+' °C'; }
+// The weather at hour h (whole hours since day 0) where the eye starts: its clouds (cloudField),
+// with cloudAt standing in for the page's clock, and the rain or snow falling there (mm/h).
+function weatherAtHour(key, h, k0){
+  const k=Math.floor(h/24);
+  cloudAt={k, m:(h-k*24)*60+30, dk:k-k0};
+  try{ const f=cloudField(key); f.covGL=cloudCovHere(f, 0, 0); return {f, R:rainHere(f, 0, 0, 2)}; }
+  finally{ cloudAt=null; }
+}
+// The snow lying on the ground: what has fallen over the last SNOW_DAYS days where the eye starts,
+// less what has melted (0.2 mm of water an hour for each degree above freezing, a
+// degree-day factor of about 5 mm a day), as mm of water. The ground's cover is 1−e^(−swe/3):
+// 3 mm of water, some 3 cm of fresh snow, hides two thirds of it. Each hour's value is kept, so
+// a clock playing forward adds an hour at a time.
+const SNOW_DAYS=30;
+let snowMemo=null;
+function snowOnGround(key){
+  if(vrAirOff) return 0;
+  const {k, m}=cloudDate(), H=k*24+Math.floor(m/60), id=key+'|'+dLat+'|'+dIdx;
+  const S=snowMemo;
+  if(S && S.id===id && S.H===H) return S.cover;
+  let h=H-SNOW_DAYS*24, swe=0;
+  if(S && S.id===id && S.H<H && H-S.H<SNOW_DAYS*24){ h=S.H; swe=S.swe; }
+  for(h++; h<=H; h++){
+    const {f, R}=weatherAtHour(key, h, k);
+    swe=Math.max(0, swe+R*f.rain.snow-(f.T>0?0.2*f.T:0));
+  }
+  snowMemo={id, H, swe, cover:1-Math.exp(-swe/3)};
+  return snowMemo.cover;
+}
+// A day's weather for the calendar, where the eye starts, from every third hour: its rain and
+// its snow (mm of water) and its daytime cover. kind is 'snow' or 'rain' with a millimetre or
+// more, else 'clear', 'partly' or 'cloudy' by the cover from 09:00 to 18:00.
+function dayWeather(key, Y, M, D){
+  const k=utcDay(Y, M, D), k0=cloudDate().k;
+  let rain=0, snow=0, cov=0, n=0;
+  for(let hh=0; hh<24; hh+=3){
+    const {f, R}=weatherAtHour(key, k*24+hh, k0);
+    rain+=3*R*(1-f.rain.snow); snow+=3*R*f.rain.snow;
+    if(hh>=9&&hh<=18){ cov+=f.cov; n++; }
+  }
+  cov/=n;
+  const kind=rain+snow>=1?(snow>rain?'snow':'rain'):cov<0.25?'clear':cov<0.6?'partly':'cloudy';
+  return {kind, rain, snow, cov};
 }
 function allocCloudTex(gl, w, h, hdr){
   const tex=gl.createTexture();

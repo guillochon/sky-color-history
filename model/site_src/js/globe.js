@@ -158,7 +158,8 @@ const STEADY_KYR=20, STEADY_YEARS=400, STEADY_TRY=24, STEADY_METON=19;
 function sunDirNow(){ const s=sunGeom(LATDEG[dLat], minutes); return horizDir(s.az, 90-s.sza); }
 function moonDirNow(){ const m=lunarPlace(LATDEG[dLat]); return horizDir(m.az, m.el); }
 // The Moon's elongation east of the Sun, as a fraction of a turn, where the sky places them.
-function moonPhaseNow(){ const g=geoPair(astroDay()), c=vcross(g.s, g.m), x=Math.atan2(Math.hypot(...c)*Math.sign(c[2]||1), vdot(g.s, g.m))/(2*Math.PI); return x-Math.floor(x); }
+function moonPhaseNow(){ return moonPhaseAt(astroDay()); }
+function moonPhaseAt(d){ const g=geoPair(d), c=vcross(g.s, g.m), x=Math.atan2(Math.hypot(...c)*Math.sign(c[2]||1), vdot(g.s, g.m))/(2*Math.PI); return x-Math.floor(x); }
 function skyRef(){ return {sun:sunDirNow(), moon:noMoon()?null:moonDirNow(), phase:moonPhaseNow()}; }
 // dir is the way the timeline moves (+1 later, -1 earlier).
 function steadyYear(A, ref, A0, dir){

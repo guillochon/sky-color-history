@@ -259,8 +259,10 @@ function settleVR(){
   }
 }
 // The ground's colour under the sky's light and sunlight mu (sunMu in paintVR).
-function groundRGB(mu){
-  const alb=tableNow(LAND, EP[dIdx].key, [.2, .18, .14]), cg=skyNow.colgrid, NR=skyNow.nr, NA=skyNow.na;
+// Fresh snow's albedo, for the snow the weather leaves on the ground (clouds.js snowOnGround).
+const SNOW_ALB=[.80, .83, .88];
+function groundRGB(mu, albedo=null){
+  const alb=albedo||tableNow(LAND, EP[dIdx].key, [.2, .18, .14]), cg=skyNow.colgrid, NR=skyNow.nr, NA=skyNow.na;
   let ar=0,ag=0,ab=0,n=0; const ir=Math.round(NR*0.45);
   for(let ia=0; ia<=NA; ia+=8){ const c=(ir*(NA+1)+ia)*3; ar+=cg[c]; ag+=cg[c+1]; ab+=cg[c+2]; n++; }
   ar=ar/n*0.65+cg[0]*0.35; ag=ag/n*0.65+cg[1]*0.35; ab=ab/n*0.65+cg[2]*0.35;
@@ -529,6 +531,10 @@ function paintVR(){
   // The Sun's light on the ground and the ground's colour, for the sky and cloud passes.
   const sinApp=Math.max(0, Math.sin(app*Math.PI/180)), sunMu=sinApp*(skyNow.sunVis==null?1:skyNow.sunVis);
   const sunCol=new Float32Array(skyNow.sunRGB.map(v=>v/255)), ground=groundRGB(sunMu);
+  // The snow lying from the weather: patches of groundSnow over the plain (shader_sky.js), the
+  // slopes buried, and the ground the clouds and the rain are lit by brightened to match.
+  const snowLie=vrScenery?snowOnGround(EP[dIdx].key):0, groundSnow=groundRGB(sunMu, SNOW_ALB);
+  const groundSeen=ground.map((g, i)=>g+(groundSnow[i]-g)*snowLie);
   gl.uniform1f(u.sunMu, sunMu);
   // Blinding above a few hundredths of the Sun's brightness above the air (a Sun a few degrees
   // up), none below a twenty-thousandth (one setting through thick air, or a total eclipse's
@@ -552,7 +558,8 @@ function paintVR(){
   gl.uniform3fv(u.ground, ground);
   gl.uniform1f(u.showScn, vrScenery?1:0);
   gl.uniform1f(u.mtnSnow, tableNow(MTN_SNOW, EP[dIdx].key, 0));
-  gl.uniform1f(u.snowCover, tableNow(SNOW_COVER, EP[dIdx].key, 0));
+  gl.uniform1f(u.snowCover, Math.max(tableNow(SNOW_COVER, EP[dIdx].key, 0), snowLie));
+  gl.uniform1f(u.snowLie, snowLie); gl.uniform3fv(u.groundSnow, groundSnow);
   gl.uniform1f(u.waterT, (performance.now()/1000)%1000);
   // Night lights: the Moon and the brightest nova or supernova. Each lights the scene in
   // proportion to 0.6 times the square root of its brightness relative to the full Moon, a
@@ -770,7 +777,7 @@ function paintVR(){
     gl.uniform1f(cu.sunAz, skyNow.sunAz); gl.uniform1f(cu.sunEl, 90-skyNow.sza);
     gl.uniform1f(cu.sunMu, sunMu);
     gl.uniform3fv(cu.sunCol, sunCol);
-    gl.uniform3fv(cu.groundCol, ground);
+    gl.uniform3fv(cu.groundCol, groundSeen);
     gl.uniform1f(cu.nr, skyNow.nr); gl.uniform1f(cu.na, skyNow.na);
     gl.uniform1f(cu.showScn, vrScenery?1:0);
     gl.uniform1f(cu.cloudCov, field.covGL); gl.uniform1f(cu.cloudScale, field.scale); gl.uniform1f(cu.cloudDrift, field.drift);
@@ -848,7 +855,7 @@ function paintVR(){
     const rn=field.rain;
     gl.uniform1f(pu.cloudCov, field.covGL); gl.uniform1f(pu.cloudScale, field.scale); gl.uniform1f(pu.cloudDrift, field.drift); gl.uniform1f(pu.cloudBase, field.base);
     gl.uniform1f(pu.sunAz, skyNow.sunAz); gl.uniform1f(pu.sunEl, 90-skyNow.sza); gl.uniform1f(pu.sunVis, skyNow.sunVis==null?1:skyNow.sunVis);
-    gl.uniform3fv(pu.sunCol, sunCol); gl.uniform3fv(pu.groundCol, ground);
+    gl.uniform3fv(pu.sunCol, sunCol); gl.uniform3fv(pu.groundCol, groundSeen);
     gl.uniform4f(pu.rainP, rn.strat, rn.conv, rn.driz, rn.snow); gl.uniform4f(pu.rainQ, rn.virgaH, rn.tilt, field.here, 0);
     bindRainbow(gl, rn.strat+rn.conv+rn.driz>0 && rn.snow<1 ? rainbowNow(EP[dIdx].key, field.T) : null);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
@@ -873,10 +880,9 @@ function paintVR(){
   }
   const [hh, mm, ss]=clockParts(minutes);
   const lat=latLabel();
-  const hud=vrGL.hud||(vrGL.hud={place:document.getElementById('vrplace'), note:document.querySelector('.vrnote'), clock:document.getElementById('vrclock')});
+  const hud=vrGL.hud||(vrGL.hud={place:document.getElementById('vrplace'), clock:document.getElementById('vrclock')});
   setText(hud.place, EP[dIdx].name+(atAnchor()?'':' · '+shownAge())+' · '+lat);
-  setText(hud.note, vrCaption());
-  setText(hud.clock, dateLabel()+' · '+hh+':'+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0')+' · '+(dayPlaying?'playing':'paused')+' · '+speedLabel()+(Math.abs(vrFov-60)>0.5?' · '+fovLabel(vrFov)+' view':'')+(skyNow.eclipse?' · '+skyNow.eclipse:'')+(vrClouds&&vrGL.field?' · clouds '+Math.round(vrGL.field.cov*100)+'%'+rainLabel(vrGL.field, vrX, vrY, eyeZ()):'')+(vrNote?' · '+vrNote:''));
+  setText(hud.clock, dateLabel()+' · '+hh+':'+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0')+' · '+(dayPlaying?'playing':'paused')+' · '+speedLabel()+(Math.abs(vrFov-60)>0.5?' · '+fovLabel(vrFov)+' view':'')+(skyNow.eclipse?' · '+skyNow.eclipse:'')+(vrGL.field?' · '+tempLabel(vrGL.field.T):'')+(vrClouds&&vrGL.field?' · clouds '+Math.round(vrGL.field.cov*100)+'%'+rainLabel(vrGL.field, vrX, vrY, eyeZ()):'')+(vrNote?' · '+vrNote:''));
   placeBodyMarks();
   drawVRLabels();
   followVRPin();

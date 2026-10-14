@@ -235,8 +235,32 @@ function setPageDate(Y, M, D){
   el.value=fmtDate(Y, M, 1); el.value=fmtDate(Y, M, Math.max(1, Math.min(D, monthLen(Y, M)))); autoEpochCheck(); renderDay();
 }
 let datePopDrawn='';
+// The calendar's small icons: each day's weather where the eye starts (clouds.js dayWeather), in
+// its top-left corner, and the Moon's phase at noon in its bottom-left.
+const DP_WX={
+  clear:'<circle cx="8" cy="8" r="3.2"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4"/>',
+  partly:'<circle cx="6" cy="6" r="2.6"/><path d="M6 1v1.4M1 6h1.4M2.5 2.5l1 1M9.5 2.5l-1 1"/><path class="f" d="M5.5 14h7a2.6 2.6 0 0 0 0-5.2 3.6 3.6 0 0 0-6.9 1A2.1 2.1 0 0 0 5.5 14z"/>',
+  cloudy:'<path class="f" d="M4.5 13h8a3 3 0 0 0 0-6 4 4 0 0 0-7.7 1.2A2.4 2.4 0 0 0 4.5 13z"/>',
+  rain:'<path class="f" d="M4.5 9.5h8a2.8 2.8 0 0 0 0-5.6 3.8 3.8 0 0 0-7.3 1.1A2.25 2.25 0 0 0 4.5 9.5z"/><path d="M5.5 11.5l-1 3M8.5 11.5l-1 3M11.5 11.5l-1 3"/>',
+  snow:'<path class="f" d="M4.5 9.5h8a2.8 2.8 0 0 0 0-5.6 3.8 3.8 0 0 0-7.3 1.1A2.25 2.25 0 0 0 4.5 9.5z"/><circle class="f" cx="5" cy="12.5" r=".9"/><circle class="f" cx="8.5" cy="14" r=".9"/><circle class="f" cx="12" cy="12.5" r=".9"/>'
+};
+const DP_WX_NAME={clear:'clear', partly:'partly cloudy', cloudy:'cloudy', rain:'rain', snow:'snow'};
+// The Moon lit at phase x (0 new, 0.5 full), waxing on the right as seen from the north and on the
+// left from the south.
+function dpMoonSVG(x){
+  const c=Math.cos(2*Math.PI*x), r=6, ex=Math.abs(c)*r, wax=x<0.5;
+  // The lit limb is a half circle on the sunward side; the terminator an ellipse of half-width ex.
+  const limb=wax?1:0, term=(x<0.25||x>=0.75)?(wax?0:1):(wax?1:0);
+  const d=`M8 2A${r} ${r} 0 0 ${limb} 8 14A${ex.toFixed(2)} ${r} 0 0 ${term} 8 2z`;
+  const flip=(LATDEG[dLat]??45)<0?' transform="matrix(-1 0 0 1 16 0)"':'';
+  return `<svg viewBox="0 0 16 16" aria-hidden="true"><circle class="dk" cx="8" cy="8" r="${r}"/><path class="f" d="${d}"${flip}/></svg>`;
+}
+function dpPhaseName(x){
+  const n=['new Moon', 'waxing crescent', 'first quarter', 'waxing gibbous', 'full Moon', 'waning gibbous', 'last quarter', 'waning crescent'];
+  return n[Math.round(x*8)%8];
+}
 function drawDatePop(){
-  const [Y,M,D]=pageDate(), key=EP[dIdx].key, z=yearZero(), greg=gregorian(Y), weeks=gregMonths(), id=[key, Y, M, D].join('|');
+  const [Y,M,D]=pageDate(), key=EP[dIdx].key, z=yearZero(), greg=gregorian(Y), weeks=gregMonths(), id=[key, Y, M, D, dLat].join('|');
   dpAuto.checked=autoEpoch;
   if(document.activeElement!==dpYear){ dpYear.value=fmtTime(pageTime()); dpYear.removeAttribute('aria-invalid'); }
   if(id===datePopDrawn) return;
@@ -251,10 +275,16 @@ function drawDatePop(){
   }
   // A day with a nova, supernova or eruption (transients.js) has a star in its corner, in the colour of its kind.
   const evDays=transientDays(Y, M), evLabel=d=>evDays.get(d).map(ev=>ev.name).join(', ');
+  // Noon of day d as a day number, from the page's own instant.
+  const k0=epochDayIndex(Y, M, D), dNoon=d=>astroDay()+(epochDayIndex(Y, M, d)-k0+(DAYMIN/2-minutes)/DAYMIN)*dayHours()/24;
+  const moon=!noMoon();
   for(let d=1, n=monthLen(Y, M); d<=n; d++){
-    const ev=evDays.get(d);
-    html+=ev?`<button type="button" data-d="${d}" aria-pressed="${d===D}" title="${evLabel(d)}" aria-label="${d}, ${evLabel(d)}">${d}<i class="dp-ev" style="color:${TR_TYPES[ev[0].type].color}" aria-hidden="true">★</i></button>`
-      :`<button type="button" data-d="${d}" aria-pressed="${d===D}">${d}</button>`;
+    const ev=evDays.get(d), wx=dayWeather(key, Y, M, d), ph=moon?moonPhaseAt(dNoon(d)):null;
+    const mm=v=>v<10?v.toFixed(1):Math.round(v);
+    const said=[DP_WX_NAME[wx.kind]+(wx.kind==='rain'?' '+mm(wx.rain)+' mm':wx.kind==='snow'?' '+mm(wx.snow)+' mm':''), ph===null?'':dpPhaseName(ph), ev?evLabel(d):''].filter(Boolean).join(', ');
+    const icons=`<i class="dp-wx dp-wx-${wx.kind}" aria-hidden="true"><svg viewBox="0 0 16 16">${DP_WX[wx.kind]}</svg></i>`+(ph===null?'':`<i class="dp-moon" aria-hidden="true">${dpMoonSVG(ph)}</i>`)
+      +(ev?`<i class="dp-ev" style="color:${TR_TYPES[ev[0].type].color}" aria-hidden="true">★</i>`:'');
+    html+=`<button type="button" data-d="${d}" aria-pressed="${d===D}" title="${said}" aria-label="${d}, ${said}">${d}${icons}</button>`;
   }
   dpDays.className='dp-days '+(weeks?'dp-week':'dp-ten'); dpDays.innerHTML=html;
   dpMonthSel.value=String(M);

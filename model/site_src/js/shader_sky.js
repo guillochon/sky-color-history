@@ -64,6 +64,9 @@ uniform vec3 snDir,snCol,snLight,mlDir,mlLight;
 uniform vec3 fbDir,fbLight,fbSun;
 // The ground's colour in full daylight, which a fireball as bright as the Sun gives it.
 uniform vec3 groundDay;
+// The snow the weather has left (vr_paint.js): the share of the plain it hides, and its colour.
+uniform float snowLie;
+uniform vec3 groundSnow;
 uniform vec3 sunCol,ground,eye;
 // How blinding the Sun is (vr_paint.js): 1 for a Sun near full daylight brightness, falling to 0
 // as the air or the Moon dims it toward what the eye can look at, times the share of its disk
@@ -655,6 +658,13 @@ void main(){
     gcol*=mix(vec3(1.0), mix(vec3(0.88, 1.04, 0.94), vec3(1.24, 1.06, 0.72), patchy), colourful);
     gcol*=1.0+groundMottle(gp, foot)*mix(0.3, 0.8, colourful);
     gcol*=1.0+clamp(relief.z*0.18, -0.14, 0.08);
+    // Snow from the weather, in patches that shrink as it melts (the hollows last), the roads
+    // kept clear.
+    if(snowLie>0.0 && tLand<0.0 && kBest<0.5){
+      float n=vN(gp/60.0+1.3)*0.6+vN(gp/12.0+4.1)*0.4+relief.z*0.08;
+      float sl=smoothstep(n-0.06, n+0.06, snowLie*1.25-0.15);
+      gcol=mix(gcol, groundSnow*mix(0.94, 1.04, vN(gp*0.00115+3.0))*(1.0+groundMottle(gp, foot)*0.12), sl);
+    }
     // Asphalt, a little worn, and white dashes down the middle of the roads between towns.
     // Far off, where a road is narrower than a pixel, it fades to its share of the pixel.
     if(tLand<0.0 && kBest<0.5){
