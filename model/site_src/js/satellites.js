@@ -8,10 +8,13 @@ const SAT_SHELLS=[[7178,30,328],[7178,40,334],[7178,53,345],[2000,96.9,360],[199
 const SAT_RE=6371, SAT_GM=398600.4418, SAT_AU=149597870.7, SAT_MSUN=-26.77;
 const SAT_PREF=(2/(3*Math.PI*Math.PI))*(0.8/((SAT_AU*1000)*(SAT_AU*1000)));
 // Boley, Lawler & Rein 2026, arXiv:2608.02757. Blue Origin's Sunrise (51,600),
-// the paper's conservative 800 m² panels at albedo 0.2, and the relaxed nodal
-// spread, ±10° of the terminator, rather than the tight ring. Not the
-// million-satellite SpaceX filing, and not panels of several thousand square meters.
-const ODC_PREF=SAT_PREF*(160/0.8);   // 800 m² at albedo 0.2: 160 m² of effective area
+// the paper's conservative 800 m² panels, and the relaxed nodal spread, ±10° of the
+// terminator, rather than the tight ring. Not the million-satellite SpaceX filing, and
+// not panels of several thousand square meters. Their brightness is not the paper's
+// sphere at albedo 0.2 but the drawn shape's, its wings turned to the Sun (odcLight):
+// at dusk and dawn, seeing the sunlit faces, about a magnitude fainter at the bright
+// end; through the night, seeing only the wings' backs over a dark Earth, too faint
+// to see, where the sphere showed hundreds of 3rd to 5th magnitude.
 function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15, 1|a); t=t+Math.imul(t^t>>>7, 61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
 function gauss01(rng){ let u=0, v=0; while(u===0) u=rng(); while(v===0) v=rng(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
 function ssoInc(aKm){
@@ -52,6 +55,21 @@ const ODC_RATE=new Float64Array(ODC_N);
     }
   }
 })();
+// The light a datacenter sends toward o (unit, from it to the observer), as its intensity per unit
+// of sunlight (m²/sr), from the shape drawDatacentersVR draws: its wings and bus square to the Sun,
+// which is along −x in this frame, its radiators edge-on to it, square to its way along the orbit
+// (0, ay, az); U is its own up. Each face is Lambertian, lit by the Sun if it faces it and by the
+// Earth below (as ODCFS lights it), seen in proportion to its area turned to the observer:
+//   wings, 800 m², cells 0.06 (dark blue, with the grid between) and white backs 0.6;
+//   the bus's two broad faces, 24 m², 0.55; the radiators, 288 m² a face, 0.82.
+// Shadows of one part on another are left out.
+function odcLight(ox, oy, oz, ux, uy, uz, ay, az){
+  const No=-ox, NU=-ux, Ao=ay*oy+az*oz, AU=ay*uy+az*uz;
+  const earth=0.25*Math.min(1, Math.max(0, 0.5+0.6*NU)), P=Math.max;
+  const front=(1+earth*P(-NU, 0))*P(No, 0), back=earth*P(NU, 0)*P(-No, 0);
+  const I=800*(0.06*front+0.6*back)+24*0.55*(front+back)+288*0.82*earth*(P(-AU, 0)*P(Ao, 0)+P(AU, 0)*P(-Ao, 0));
+  return I/Math.PI;
+}
 function placeSatellites(latDeg, tex, marks, up){
   const lat=latDeg*Math.PI/180, ang=minutes/1440*Math.PI*2, cl=Math.cos(lat), sl=Math.sin(lat);
   const ox=SAT_RE*cl*Math.cos(ang), oy=SAT_RE*cl*Math.sin(ang), oz=SAT_RE*sl;
@@ -80,18 +98,23 @@ function placeSatellites(latDeg, tex, marks, up){
       if(phase<=1e-8) continue;
       const el=Math.asin(sel)*180/Math.PI;
       const air=airmass(el);
-      const mag=SAT_MSUN-2.5*Math.log10(pref*phase)+5*Math.log10(dist/SAT_AU)+(scatter?DV[i]:0)+0.15*(air-1);
+      // A datacenter's light is its shape's (odcLight), turned to the Sun along its orbit; the
+      // others' a Lambertian sphere's.
+      const vx=-co*su-so*cu*ci, vy=-so*su+co*cu*ci, vz=cu*si, va=Math.hypot(vy, vz)||1;
+      const lit=odc?odcLight(-shx, -shy, -shz, x/r, y/r, z/r, vy/va, vz/va)/(dist*dist*1e6):pref*phase/((dist/SAT_AU)*(dist/SAT_AU));
+      if(!(lit>0)) continue;
+      const mag=SAT_MSUN-2.5*Math.log10(lit)+(scatter?DV[i]:0)+0.15*(air-1);
       if(mag>6.5) continue;
       const az=Math.atan2(shx*ex+shy*ey, shx*nx+shy*ny+shz*nz)*180/Math.PI;
       const h={mag, az:(az%360+360)%360, el};
       // A datacenter keeps what its drawn shape needs (drawDatacentersVR): its distance (km), its
       // way along its orbit, the Sun's way from it and its own up, in the observer's frame.
-      if(odc) h.odc={dist, F:enu(-co*su-so*cu*ci, -so*su+co*cu*ci, cu*si), S:enu(-1, 0, 0), U:enu(x/r, y/r, z/r)};
+      if(odc) h.odc={dist, F:enu(vx, vy, vz), S:enu(-1, 0, 0), U:enu(x/r, y/r, z/r)};
       hit.push(h);
     }
   };
   scan(SAT_N, SAT_PREF, true, SAT_A, SAT_CI, SAT_SI, SAT_CO, SAT_SO, SAT_M0, SAT_RATE, SAT_DV);
-  scan(ODC_N, ODC_PREF, false, ODC_A, ODC_CI, ODC_SI, ODC_CO, ODC_SO, ODC_M0, ODC_RATE, null, true);
+  scan(ODC_N, 0, false, ODC_A, ODC_CI, ODC_SI, ODC_CO, ODC_SO, ODC_M0, ODC_RATE, null, true);
   if(hit.length>SAT_CAP) hit.sort((a,b)=>a.mag-b.mag);
   const nDome=Math.min(hit.length, DOME_SAT_CAP), nTex=Math.min(hit.length, SAT_CAP);
   for(let k=0;k<nDome;k++){

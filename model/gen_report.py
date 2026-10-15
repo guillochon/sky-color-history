@@ -88,7 +88,7 @@ PROSE = {
 'modern': "Today's clean air is the baseline the other skies are measured against. The zenith is ~8,300 K at the equator, ~13,800 K at mid-latitudes and ~17,800 K in polar summer, and the horizons, at 6,300–7,200 K, are essentially white. The setting Sun is ~1,700 K, with the solar horizon orange and the antisolar horizon a pale pink-lavender.",
 'modernpoll': "Aerosol optical depth 0.6 flattens the sky to a pale gray-blue zenith (6,400–8,800 K), brighter and whiter than a clean sky, over a warm white horizon (5,400–6,000 K). The Sun disappears into gray murk well before it reaches the horizon.",
 'ozonehole': "Antarctic spring in the ozone-hole years, with the column cut to 130 DU and the layer lowered toward 18 km. Noon stays blue. Twilight is where the hole shows: with the Sun 4° down the zenith is a pale blue (~9,900 K) instead of the deep blue (~24,000 K) of a 300 DU sky. It is the same direction as the thin post-oxidation column, and still well short of the grey (~6,700 K) of a sky with no ozone at all.",
-'y2100': "The air is today's. What changes is the traffic. Lawler, Boley, and Rein (2022) put every filed megaconstellation on orbit, about 65,000 satellites, and found the worst naked-eye light pollution near 50° latitude. Each of those is their diffuse sphere, effective area 0.8 m², so its magnitude is on the same scale as the stars. At the equinox a mid-latitude sky has a few hundred of them above naked-eye brightness in the hour after sunset, and Earth's shadow takes them by midnight. On top of that fleet, Boley, Lawler, and Rein (2026) model orbital datacenters. Of the three filed designs, we take Blue Origin's Sunrise and the relaxed one of their two node spreads: 51,600 Sun-synchronous satellites from 500 to 1,800 km, in a dawn-dusk cross of rings whose nodes wander 10° to either side of the terminator. Each is a diffuse sphere of 800 m² at albedo 0.2, the size the paper calls conservative next to panels several times larger, and two hundred times the reflecting area of a communications satellite. An hour after sunset at mid-latitudes, thousands of them are above naked-eye brightness, a bright band along the terminator. The paper's all-night winter rings belong to the December solstice, which this equinox clock does not show. A low orbit crosses the dome in minutes.",
+'y2100': "The air is today's. What changes is the traffic. Lawler, Boley, and Rein (2022) put every filed megaconstellation on orbit, about 65,000 satellites, and found the worst naked-eye light pollution near 50° latitude. Each of those is their diffuse sphere, effective area 0.8 m², so its magnitude is on the same scale as the stars. At the equinox a mid-latitude sky has a few hundred of them above naked-eye brightness in the hour after sunset, and Earth's shadow takes them by midnight. On top of that fleet, Boley, Lawler, and Rein (2026) model orbital datacenters. Of the three filed designs, we take Blue Origin's Sunrise and the relaxed one of their two node spreads: 51,600 Sun-synchronous satellites from 500 to 1,800 km, in a dawn-dusk cross of rings whose nodes wander 10° to either side of the terminator. Each carries the 800 m² of panels the paper calls conservative next to panels several times larger, held square to the Sun, so its brightness is that of its shape rather than of the paper's sphere. An hour after sunset at mid-latitudes some 1,800 are brighter than fifth magnitude, a band along the terminator; from the night side only their panels' backs face the ground, and two and a half hours after sunset none is left to see. The paper's all-night winter rings belong to the December solstice, which this equinox clock does not show. A low orbit crosses the dome in minutes.",
 }
 
 
@@ -332,7 +332,7 @@ SUMMARY = [
 ['1980–2000, ozone-hole spring', 'Blue, still', 'White', 'Pale blue dusk zenith, ~9,900 K'],
 ['Today, clean', 'Blue, 13,800 K', 'White, 7,000 K', 'Orange horizon, pink-lavender antisolar; twilight zenith ~24,000 K'],
 ['Today, polluted city', 'Pale gray-blue, 7,700 K', 'Warm white, 5,800 K', 'Sun lost in gray murk before the horizon'],
-['2100, megaconstellation', 'Same blue as today', 'White', 'Thousands of bright datacenters along the dusk terminator, plus a few hundred communications satellites'],
+['2100, megaconstellation', 'Same blue as today', 'White', 'About two thousand datacenters along the dusk terminator, plus a few hundred communications satellites'],
 ]
 
 LIMB_TEXT = ("To show latitude and altitude at once, these renderings look at Earth from space with the Sun behind the viewer at "
@@ -404,8 +404,8 @@ def sky_fig(k): return 'modern' if k in SAME_AIR else k
 # The site, which has no such sections, keeps PROSE.
 PAPER_PROSE = {
 'y2100': "The air is today's. What changes is the traffic: the filed megaconstellations and, above them, the Sunrise "
-"orbital datacenters, thousands of them above naked-eye brightness an hour after sunset in a bright band along the "
-"terminator (Satellites, {ref:people}).",
+"orbital datacenters, some 1,800 brighter than fifth magnitude an hour after sunset in a band along the "
+"terminator, gone from view two and a half hours after it (Satellites, {ref:people}).",
 }
 def paper_prose(k): return PAPER_PROSE.get(k, PROSE[k])
 def epoch_panel(k):
