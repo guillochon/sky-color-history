@@ -150,7 +150,7 @@ const ODCFS=`#version 300 es
 precision highp float;
 uniform sampler2D cloudTex, hitInfo;
 uniform vec2 res;
-uniform float yaw, pitch, fov, showScn, trans;
+uniform float yaw, pitch, fov, showScn, cloudOn, trans;
 uniform vec3 rel, axA, axB, axN, sunL, upS;
 out vec4 fragColor;
 ${VIEW_RAY_GLSL}
@@ -218,7 +218,9 @@ void main(){
   vec3 c=col/(cov*4.0)*trans;
   c=mix(c, 0.6+0.4*(1.0-exp(-(c-0.6)/0.4)), step(0.6, c));
   c=pow(c, vec3(1.0/2.2));
-  float occ=1.0-texture(cloudTex, fc/res).a;
+  // Behind the clouds by their opacity, only while they are drawn: hidden, their layer keeps an
+  // old frame's clouds, which would cut holes in it.
+  float occ=cloudOn>0.5?1.0-texture(cloudTex, fc/res).a:1.0;
   if(showScn>0.5){ vec4 h=texture(hitInfo, fc/res); if(h.g>0.5 && h.r>0.0) occ=0.0; }
   fragColor=vec4(c*cov*occ, cov*occ);
 }`;
@@ -235,7 +237,7 @@ function drawDatacentersVR(gl, c, ez){
     ODCV.job=glProgramAsync(gl, vrGL.vs, ODCFS);
     whenLinked(gl, [ODCV.job], p=>{
       if(!p) return;
-      ODCV.u=uniformLocs(gl, p, ['res', 'yaw', 'pitch', 'fov', 'showScn', 'trans', 'rel', 'axA', 'axB', 'axN', 'sunL', 'upS']);
+      ODCV.u=uniformLocs(gl, p, ['res', 'yaw', 'pitch', 'fov', 'showScn', 'cloudOn', 'trans', 'rel', 'axA', 'axB', 'axN', 'sunL', 'upS']);
       gl.useProgram(p); bindSamplers(gl, p, [['cloudTex', 2], ['hitInfo', 10]]); gl.useProgram(vrGL.prog);
       ODCV.prog=p; requestVR();
     });
@@ -258,6 +260,7 @@ function drawDatacentersVR(gl, c, ez){
       gl.useProgram(ODCV.prog); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); gl.enable(gl.SCISSOR_TEST);
       gl.uniform2f(u.res, W, H); gl.uniform1f(u.yaw, yaw); gl.uniform1f(u.pitch, pitch); gl.uniform1f(u.fov, fovR);
       gl.uniform1f(u.showScn, vrScenery&&vrGL.hitInfo?1:0);
+      gl.uniform1f(u.cloudOn, vrClouds&&vrGL.cloudProg&&vrGL.noise?1:0);
       // The Sun above the air, as bright on a white face as on the airliners' sunlit sides.
       const mx=Math.max(...POINT_TINT), s=POINT_TINT.map(v=>Math.pow(v/mx, 2.2)*3.2);
       gl.uniform3f(u.sunL, s[0], s[1], s[2]);
