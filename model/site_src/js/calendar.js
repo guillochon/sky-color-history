@@ -321,6 +321,7 @@ function openDatePop(){
 dateBtn.addEventListener('click', openDatePop);
 datePop.addEventListener('close', ()=>{
   if(!vrOn) return;
+  vrModalShut=performance.now();
   document.getElementById('vr').focus();
   if(!vrInspect){ vrRelock=true; lockLook(); setTimeout(()=>{ vrRelock=false; }, 400); }
 });
@@ -351,3 +352,10 @@ dpAuto.addEventListener('change', ()=>{
   datePopDrawn=''; drawDatePop();
 });
 document.getElementById('dpDone').addEventListener('click', ()=>datePop.close());
+// y, which opened it, closes it (and goes no further, or the page's y would open it again), and so
+// does Enter, but in the year box Enter takes the year typed.
+datePop.addEventListener('keydown', e=>{
+  if(e.ctrlKey||e.metaKey||e.altKey||e.repeat) return;
+  const typing=e.target===dpYear;
+  if((e.key==='Enter'&&!typing)||(!typing&&e.key.toLowerCase()==='y')){ e.preventDefault(); e.stopPropagation(); datePop.close(); }
+});

@@ -313,6 +313,7 @@ function openFind(){
 function closeFind(){
   if(findBox.hidden) return;
   findBox.hidden=true;
+  if(vrOn) vrModalShut=performance.now();
   if(document.activeElement===findQ) findQ.blur();
   if(vrOn) document.getElementById('vr').focus();
 }
@@ -330,7 +331,7 @@ findQ.addEventListener('keydown', e=>{
     const n=findHits.length, step=e.key==='ArrowDown'?1:n-1;
     if(findSel>=0){ let i=findSel; do i=(i+step)%n; while(!findUp[i]); findSel=i; findMark(); }
   }
-  else if(e.key==='Enter'){ e.preventDefault(); const c=findSel>=0&&findHits[findSel]; if(c) findGo(c); }
+  else if(e.key==='Enter'){ e.preventDefault(); if(!findQ.value.trim()){ closeFind(); return; } const c=findSel>=0&&findHits[findSel]; if(c) findGo(c); }
 });
 findQ.addEventListener('keyup', e=>e.stopPropagation());
 findQ.addEventListener('blur', ()=>setTimeout(()=>{ if(document.activeElement!==findQ) closeFind(); }, 0));

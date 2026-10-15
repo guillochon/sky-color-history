@@ -249,9 +249,14 @@ const vrOSKey=e=>e.key==='Meta'||e.key==='OS'||e.key==='PrintScreen'||e.code==='
 window.addEventListener('blur', vrAway);
 document.addEventListener('keydown', e=>{ if(vrOSKey(e)) vrAway(); }, true);
 document.addEventListener('keyup', e=>{ if(vrOSKey(e)) vrAway(); }, true);
+// Esc in the date picker or the find box closes that and stays in VR, though the same press lets go
+// of the look (and, where the page can't hold Esc, of the full screen): the next click takes them back.
+let vrModalShut=-1e9;
+const vrModalUp=()=>datePop.open||!findBox.hidden||performance.now()-vrModalShut<1000;
+document.addEventListener('keydown', e=>{ if(vrOn&&e.key==='Escape'&&(datePop.open||!findBox.hidden)) vrModalShut=performance.now(); }, true);
 function vrLeaveUnlessAway(stillLost){
   setTimeout(()=>{
-    if(!vrOn||!stillLost()) return;
+    if(!vrOn||!stillLost()||vrModalUp()) return;
     if(!document.hasFocus()||performance.now()-vrAwayAt<1500) return;
     exitVR();
   }, 250);
