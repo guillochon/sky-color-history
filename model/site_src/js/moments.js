@@ -30,10 +30,10 @@ const MOMENTS=[
   {epoch:'modern', date:null, t:0, storm:true, clear:true, title:'A Leonid meteor storm', sub:'Over a thousand an hour from one point in Leo, even through city glow', art:'storm'},
   {epoch:'modern', date:null, eclipse:true, clear:true, title:'The next total eclipse', sub:'The corona, Baily’s beads, and a sunset all round the horizon', art:'eclipse'},
   {epoch:'modern', date:null, lunar:true, look:'moon', clear:true, title:'The next total lunar eclipse', sub:'A copper Moon, lit by every sunrise and sunset on Earth', art:'lunar'},
-  // Noctilucent clouds (nlc.js) on a bright night of 2100's season, from mid-latitudes, where by
-  // then they reach overhead: the Sun 10.6° down, the weather's clouds cleared.
-  {epoch:'y2100', date:'2100-07-01', t:1260, look:[0, 14], clear:true, title:'Noctilucent clouds, 2100', sub:'Ice 83 km up, still in sunlight after dark, spreading as methane rises', art:'nlc'},
-  {epoch:'y2100', date:'2100-03-12', t:1167, look:[300, 28], clear:true, title:'Satellites at dusk, 2100', sub:'Megaconstellations and orbital datacenters still in sunlight', art:'sats'},
+  // The summer dusk of 2100 at mid-latitudes, the Sun 10.6° down and the weather's clouds cleared:
+  // a bright display of noctilucent clouds (nlc.js), which by then reach overhead, low in the
+  // north, and above them the megaconstellations and orbital datacenters, still in sunlight.
+  {epoch:'y2100', date:'2100-07-01', t:1260, look:[20, 22], clear:true, title:'Dusk in 2100', sub:'Noctilucent clouds spreading as methane rises, and megaconstellations still in sunlight', art:'nlcsats'},
 ];
 const MOMENT_ART={
   theia:'<circle cx="62" cy="30" r="11" fill="#3a3430"/><path d="M62 19a11 11 0 0 1 0 22z" fill="#b8aa98"/>',
@@ -74,6 +74,8 @@ const MOMENT_ART={
     +'</g></g></g>'
     +'<path d="M0 64V44C8 42 14 39 22 43C30 46 38 42 46 44C56 46 64 40 74 44C84 47 94 44 104 46C110 47 116 45 120 46V64Z" fill="#1c120d"/>',
 };
+// Dusk in 2100: the noctilucent clouds' bands low down, satellite trains crossing above them.
+MOMENT_ART.nlcsats=`<g transform="translate(0,18)">${MOMENT_ART.nlc}</g><g transform="scale(1,0.55)">${MOMENT_ART.sats}</g>`;
 function momentGradient(m){
   // The Hadean evening: the whole dome dimmed to orange as the Sun sets in the 30-bar air.
   if(m.art==='hadean') return 'linear-gradient(#3e2a22, #8a5a3c 55%, #d3874a)';
@@ -82,7 +84,7 @@ function momentGradient(m){
     return `linear-gradient(${hex(tone(xyY2XYZ(v.z), YREF))}, ${hex(tone(xyY2XYZ(v.h), YREF))})`;
   }
   return {theia:'linear-gradient(#04050a, #1a1622)', aurora:'linear-gradient(#06050f, #151027)', eclipse:'linear-gradient(#0f1a2e, #3a3442)', lunar:'linear-gradient(#05060c, #161625)', nova:'linear-gradient(#05060c, #141a2c)', galaxy:'linear-gradient(#06070b, #121521)',
-    city:'linear-gradient(#2a1f17, #6b4527)', sats:'linear-gradient(#0c0b0f, #2e2620)', nlc:'linear-gradient(#0b0e1a, #1d2232 60%, #4a3a2c)', storm:'linear-gradient(#04050b, #121626)', meteors:'linear-gradient(#07070c, #1d1a1c)', stars:'linear-gradient(#05060a, #10131c)'}[m.art];
+    city:'linear-gradient(#2a1f17, #6b4527)', sats:'linear-gradient(#0c0b0f, #2e2620)', nlc:'linear-gradient(#0b0e1a, #1d2232 60%, #4a3a2c)', nlcsats:'linear-gradient(#0b0e1a, #1d2232 60%, #4a3a2c)', storm:'linear-gradient(#04050b, #121626)', meteors:'linear-gradient(#07070c, #1d1a1c)', stars:'linear-gradient(#05060a, #10131c)'}[m.art];
 }
 function starsSVG(seed){
   let s='', x=seed*9301+49297;
