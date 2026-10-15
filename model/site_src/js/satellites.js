@@ -1,20 +1,22 @@
 // Lawler, Boley & Rein 2022, AJ 163, 21: every filed shell of Starlink, OneWeb,
 // Kuiper, and StarNet/GW, 65,262 satellites. Brightness is their Lambertian sphere
 // with effective area 0.8 m², plus 0.5 mag of fixed scatter and Kasten & Young
-// airmass. Magnitude is V, the same scale as the star catalog. Equinox geometry
-// matches the dome: local midnight puts the observer on the anti-sun axis, and a
-// satellite in Earth's shadow is dark.
+// airmass. Magnitude is V, the same scale as the star catalog. The Sun is where it
+// is on the date: the clock is sundial time, so the observer's place in the orbits'
+// frame turns with the Sun's hour angle (local midnight puts it on the side away from
+// the Sun), and the Sun's declination tilts the Sun out of that frame's equator. A
+// satellite in Earth's shadow, a cylinder behind it, is dark.
 const SAT_SHELLS=[[7178,30,328],[7178,40,334],[7178,53,345],[2000,96.9,360],[1998,75,373],[4000,53,499],[144,148,604],[324,115.7,614],[2547,53,346],[2478,48,341],[2493,42,336],[1600,53,550],[1584,53.2,540],[720,70,570],[348,97.6,560],[172,97.6,560],[720,87.9,1200],[1764,87.9,1200],[2304,40,1200],[2304,55,1200],[480,85,590],[2000,50,600],[3600,55,508],[1728,30,1145],[1728,40,1145],[1728,50,1145],[1728,60,1145],[1156,51.9,630],[1296,42,610],[784,33,509]];
 const SAT_RE=6371, SAT_GM=398600.4418, SAT_AU=149597870.7, SAT_MSUN=-26.77;
 const SAT_PREF=(2/(3*Math.PI*Math.PI))*(0.8/((SAT_AU*1000)*(SAT_AU*1000)));
-// Boley, Lawler & Rein 2026, arXiv:2608.02757. Blue Origin's Sunrise (51,600),
-// the paper's conservative 800 m² panels, and the relaxed nodal spread, ±10° of the
-// terminator, rather than the tight ring. Not the million-satellite SpaceX filing, and
-// not panels of several thousand square meters. Their brightness is not the paper's
-// sphere at albedo 0.2 but the drawn shape's, its wings turned to the Sun (odcLight):
-// at dusk and dawn, seeing the sunlit faces, about a magnitude fainter at the bright
-// end; through the night, seeing only the wings' backs over a dark Earth, too faint
-// to see, where the sphere showed hundreds of 3rd to 5th magnitude.
+// Boley, Lawler & Rein 2026, arXiv:2608.02757. Blue Origin's Sunrise (51,600), and the
+// relaxed nodal spread, ±10° of the terminator, rather than the tight ring. Not the
+// million-satellite SpaceX filing. The paper gives each satellite 800 m², panels,
+// radiators and bus together, as a diffuse sphere at albedo 0.2, a deliberately simple
+// reference. Here each is the drawn shape (odcLight): 800 m² of wings on one drive
+// following the Sun, cells under cover glass, mirror-like radiators, so besides its
+// diffuse light it glints. At 45° it comes to about half the sphere's count at dusk,
+// none in view through the middle of the night, and glints to −2.6 at December dusk.
 function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15, 1|a); t=t+Math.imul(t^t>>>7, 61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
 function gauss01(rng){ let u=0, v=0; while(u===0) u=rng(); while(v===0) v=rng(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
 function ssoInc(aKm){
@@ -55,28 +57,76 @@ const ODC_RATE=new Float64Array(ODC_N);
     }
   }
 })();
+// Each datacenter's pointing error (rad): its wings sit a little off where their drive aims them,
+// 2° on average, the same from pass to pass (its own random draw, so the orbits are unchanged).
+const ODC_TILT=new Float64Array(ODC_N);
+(()=>{ const rng=mulberry32(2609); for(let p=0;p<ODC_N;p++) ODC_TILT[p]=gauss01(rng)*2*Math.PI/180; })();
+// A datacenter's frame from the Sun's way S and its way along the orbit F (unit vectors, in any one
+// frame): x along the orbit; z the wings' normal; y = z × x. The bus points at the Earth and the
+// wings turn on one drive along their length, the way along the orbit, so they follow the Sun all
+// but its share along the orbit (in a dawn-dusk orbit some 10-25°, with the season and the orbit's
+// wander from the terminator), and sit tilt off that about the drive.
+function odcFrame(S, F, tilt){
+  const fd=S[0]*F[0]+S[1]*F[1]+S[2]*F[2];
+  let z=[S[0]-fd*F[0], S[1]-fd*F[1], S[2]-fd*F[2]];
+  const zl=Math.hypot(...z)||1; z=z.map(v=>v/zl);
+  const w=[F[1]*z[2]-F[2]*z[1], F[2]*z[0]-F[0]*z[2], F[0]*z[1]-F[1]*z[0]], c=Math.cos(tilt), s=Math.sin(tilt);
+  z=[z[0]*c+w[0]*s, z[1]*c+w[1]*s, z[2]*c+w[2]*s];
+  return {X:F, Z:z, Y:[z[1]*F[2]-z[2]*F[1], z[2]*F[0]-z[0]*F[2], z[0]*F[1]-z[1]*F[0]]};
+}
+// The datacenters' surfaces (ODC_FACES: axis of the frame and its sign, area m², diffuse albedo,
+// specular reflectance, the specular lobe's width rad, and whether that reflectance follows Fresnel's
+// law for glass):
+//   - the wings' sunward face, 800 m² of cells, 0.06 diffuse (dark blue, the grid between), under
+//     cover glass that reflects as glass does, 4% straight on and more at a slant, in a lobe about
+//     1° wide from the panels' waviness (twice their slope) and the Sun's disk;
+//   - the wings' backs, white and matte, 0.6;
+//   - the bus's two broad faces, 24 m², 0.55;
+//   - the radiators, 288 m² a face, optical solar reflectors as spacecraft radiators usually are,
+//     silvered quartz tiles: dark (0.08) but mirror-like, 88%, in a lobe about 0.5° wide.
+// Each face sends light toward the observer as a Lambertian surface lit by the Sun and by the Earth
+// below, plus its mirror lobe: the Sun's glint, and the sunlit Earth it reflects. These are
+// estimates; no operator has published its spacecraft's reflectance.
+const ODC_FACES=[['Z', 1, 800, 0.06, 0.04, 0.0175, true], ['Z', -1, 800, 0.6, 0, 0, false], ['Z', 1, 24, 0.55, 0, 0, false], ['Z', -1, 24, 0.55, 0, 0, false],
+  ['X', 1, 288, 0.08, 0.88, 0.009, false], ['X', -1, 288, 0.08, 0.88, 0.009, false]];
+// The sunlit Earth below, as the light falling on a face turned straight down (per unit of
+// sunlight) and as the radiance a mirror shows of it: albedo 0.3 over the half of the sky it fills,
+// less as more of what it sees of the Earth is night.
+function odcEarth(SU){ const lit=Math.min(1, Math.max(0, 0.5+0.6*SU)); return {E:0.25*lit, L:0.3*lit/Math.PI}; }
+// Fresnel's reflectance of glass (n 1.5) for light at cosine c from the normal (Schlick).
+function glassFresnel(c){ const k=1-Math.max(0, Math.min(1, c)); return 0.04+0.96*k*k*k*k*k; }
 // The light a datacenter sends toward o (unit, from it to the observer), as its intensity per unit
-// of sunlight (m²/sr), from the shape drawDatacentersVR draws: its wings and bus square to the Sun,
-// which is along −x in this frame, its radiators edge-on to it, square to its way along the orbit
-// (0, ay, az); U is its own up. Each face is Lambertian, lit by the Sun if it faces it and by the
-// Earth below (as ODCFS lights it), seen in proportion to its area turned to the observer:
-//   wings, 800 m², cells 0.06 (dark blue, with the grid between) and white backs 0.6;
-//   the bus's two broad faces, 24 m², 0.55; the radiators, 288 m² a face, 0.82.
-// Shadows of one part on another are left out.
-function odcLight(ox, oy, oz, ux, uy, uz, ay, az){
-  const No=-ox, NU=-ux, Ao=ay*oy+az*oz, AU=ay*uy+az*uz;
-  const earth=0.25*Math.min(1, Math.max(0, 0.5+0.6*NU)), P=Math.max;
-  const front=(1+earth*P(-NU, 0))*P(No, 0), back=earth*P(NU, 0)*P(-No, 0);
-  const I=800*(0.06*front+0.6*back)+24*0.55*(front+back)+288*0.82*earth*(P(-AU, 0)*P(Ao, 0)+P(AU, 0)*P(-Ao, 0));
-  return I/Math.PI;
+// of sunlight (m²/sr): its frame fr (odcFrame), the Sun's way S, its own up U, and how far below
+// its horizon the Earth's limb lies (cosLimb, the cosine of the limb's angle from straight down).
+function odcLight(o, S, U, fr, cosLimb){
+  const dot=(a, b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2], earth=odcEarth(dot(S, U));
+  let I=0;
+  for(const [ax, sg, area, kd, ks, sig, glass] of ODC_FACES){
+    const n=fr[ax].map(v=>v*sg), no=dot(n, o);
+    if(no<=0) continue;
+    const nS=dot(n, S), sunI=Math.max(nS, 0), down=Math.max(-dot(n, U), 0);
+    I+=kd*(sunI+earth.E*down)*area*no/Math.PI;
+    if(!(ks>0)) continue;
+    // The Sun's glint: the mirror's lobe about the reflected sunlight, per steradian.
+    if(sunI>0){
+      const rx=2*nS*n[0]-S[0], ry=2*nS*n[1]-S[1], rz=2*nS*n[2]-S[2], a=Math.acos(Math.max(-1, Math.min(1, rx*o[0]+ry*o[1]+rz*o[2])));
+      if(a<6*sig) I+=ks*(glass?glassFresnel(nS)/0.04:1)*sunI*area*Math.exp(-0.5*a*a/(sig*sig))/(2*Math.PI*sig*sig);
+    }
+    // The Earth it mirrors, where its reflection of the observer's line of sight lands on the Earth.
+    const m=[2*no*n[0]-o[0], 2*no*n[1]-o[1], 2*no*n[2]-o[2]];
+    if(-dot(m, U)>cosLimb) I+=ks*(glass?glassFresnel(no)/0.04:1)*earth.L*area*no;
+  }
+  return I;
 }
 function placeSatellites(latDeg, tex, marks, up){
   const lat=latDeg*Math.PI/180, ang=minutes/1440*Math.PI*2, cl=Math.cos(lat), sl=Math.sin(lat);
+  // The Sun's way: along -x at the equinox, tilted toward +z by its declination.
+  const dec=sunEquatorial(astroDay()).Dec*Math.PI/180, Sx=-Math.cos(dec), Sz=Math.sin(dec), Sun=[Sx, 0, Sz];
   const ox=SAT_RE*cl*Math.cos(ang), oy=SAT_RE*cl*Math.sin(ang), oz=SAT_RE*sl;
   const upx=ox/SAT_RE, upy=oy/SAT_RE, upz=oz/SAT_RE;
   let ex=-upy, ey=upx; const em=Math.hypot(ex,ey)||1; ex/=em; ey/=em;
   const nx=-upz*ey, ny=upz*ex, nz=upx*ey-upy*ex, RE2=SAT_RE*SAT_RE, hit=[];
-  // A vector from the frame the orbits are in (the Sun along -x) to the observer's east, north, up.
+  // A vector from the frame the orbits are in to the observer's east, north, up.
   const enu=(vx, vy, vz)=>[vx*ex+vy*ey, vx*nx+vy*ny+vz*nz, vx*upx+vy*upy+vz*upz];
   const scan=(n, pref, scatter, A, CI, SI, CO, SO, M0, RATE, DV, odc)=>{
     for(let i=0;i<n;i++){
@@ -89,27 +139,30 @@ function placeSatellites(latDeg, tex, marks, up){
       const x=r*(co*cu-so*su*ci), y=r*(so*cu+co*su*ci), z=r*(su*si);
       // Below the horizon plane: dark to this observer whatever else holds.
       if(x*upx+y*upy+z*upz<=SAT_RE) continue;
-      if(x>=0 && y*y+z*z<=RE2) continue;
+      const ds=x*Sx+z*Sz;
+      if(ds<0 && r*r-ds*ds<=RE2) continue;
       const sx=x-ox, sy=y-oy, sz=z-oz, dist=Math.hypot(sx,sy,sz);
       const shx=sx/dist, shy=sy/dist, shz=sz/dist, sel=shx*upx+shy*upy+shz*upz;
       if(sel<=0.02) continue;
-      const phi=Math.acos(Math.max(-1, Math.min(1, shx)));
+      const phi=Math.acos(Math.max(-1, Math.min(1, -(shx*Sx+shz*Sz))));
       const phase=(Math.PI-phi)*Math.cos(phi)+Math.sin(phi);
       if(phase<=1e-8) continue;
       const el=Math.asin(sel)*180/Math.PI;
       const air=airmass(el);
-      // A datacenter's light is its shape's (odcLight), turned to the Sun along its orbit; the
+      // A datacenter's light is its shape's (odcLight), pointed as its drive points it; the
       // others' a Lambertian sphere's.
-      const vx=-co*su-so*cu*ci, vy=-so*su+co*cu*ci, vz=cu*si, va=Math.hypot(vy, vz)||1;
-      const lit=odc?odcLight(-shx, -shy, -shz, x/r, y/r, z/r, vy/va, vz/va)/(dist*dist*1e6):pref*phase/((dist/SAT_AU)*(dist/SAT_AU));
+      const F=[-co*su-so*cu*ci, -so*su+co*cu*ci, cu*si], U=[x/r, y/r, z/r];
+      const cosLimb=odc?Math.sqrt(1-RE2/(r*r)):0, fr=odc?odcFrame(Sun, F, ODC_TILT[i]):null;
+      const lit=odc?odcLight([-shx, -shy, -shz], Sun, U, fr, cosLimb)/(dist*dist*1e6):pref*phase/((dist/SAT_AU)*(dist/SAT_AU));
       if(!(lit>0)) continue;
       const mag=SAT_MSUN-2.5*Math.log10(lit)+(scatter?DV[i]:0)+0.15*(air-1);
       if(mag>6.5) continue;
       const az=Math.atan2(shx*ex+shy*ey, shx*nx+shy*ny+shz*nz)*180/Math.PI;
       const h={mag, az:(az%360+360)%360, el};
       // A datacenter keeps what its drawn shape needs (drawDatacentersVR): its distance (km), its
-      // way along its orbit, the Sun's way from it and its own up, in the observer's frame.
-      if(odc) h.odc={dist, F:enu(vx, vy, vz), S:enu(-1, 0, 0), U:enu(x/r, y/r, z/r)};
+      // way along its orbit, the Sun's way from it and its own up, in the observer's frame, its
+      // pointing error and where the Earth's limb lies below it.
+      if(odc) h.odc={dist, F:enu(...F), S:enu(...Sun), U:enu(...U), tilt:ODC_TILT[i], cosLimb};
       hit.push(h);
     }
   };
@@ -151,7 +204,8 @@ precision highp float;
 uniform sampler2D cloudTex, hitInfo;
 uniform vec2 res;
 uniform float yaw, pitch, fov, showScn, cloudOn, trans;
-uniform vec3 rel, axA, axB, axN, sunL, upS;
+uniform vec3 rel, axA, axB, axN, sunL, upS, sunS;
+uniform float cosLimb;
 out vec4 fragColor;
 ${VIEW_RAY_GLSL}
 // Ray (o, d) against the box of half-size h about c: distance and the face's normal, or -1.
@@ -197,22 +251,34 @@ void main(){
     if(t>=1.0e8) continue;
     vec3 p=o+d*t;
     if(dot(n, d)>0.0) n=-n;
-    vec3 alb;
+    // Each part as ODC_FACES has it: diffuse albedo, and its mirror (reflectance, lobe width,
+    // glass) on the cells and the radiators.
+    vec3 alb; float ks=0.0, sig=1.0; bool glass=false;
     if(id<0.5) alb=vec3(0.55, 0.52, 0.45);
     else if(id<1.5){
-      // Cells on the sunward face, dark blue in a grid of panels, the backs white.
+      // Cells on the sunward face (+z), dark blue in a grid of panels under cover glass; white backs.
       vec2 g=abs(fract(p.xy/vec2(2.0, 2.5))-0.5);
-      alb=n.z>0.0?mix(vec3(0.035, 0.05, 0.10), vec3(0.14), step(0.47, max(g.x, g.y))):vec3(0.6);
+      if(n.z>0.0){ alb=mix(vec3(0.035, 0.05, 0.10), vec3(0.14), step(0.47, max(g.x, g.y))); ks=0.04; sig=0.0175; glass=true; }
+      else alb=vec3(0.6);
     }
     else if(id<2.5) alb=vec3(0.4);
-    else if(id<3.5) alb=vec3(0.82);
+    else if(id<3.5){ alb=vec3(0.08); ks=0.88; sig=0.009; }
     else alb=vec3(0.45);
-    // The Sun on the faces turned to it (z), and the Earth's light on those turned down to it: a
-    // quarter of the Sun's from a lit Earth filling half the sky below (albedo 0.3), less as more
-    // of what it sees of the Earth is night.
-    float earth=0.25*clamp(0.5+0.6*upS.z, 0.0, 1.0);
-    vec3 L=sunL*(max(n.z, 0.0)+earth*max(-dot(n, upS), 0.0)+0.01);
-    col+=alb*L; cov+=0.25;
+    // The Sun on the faces turned to it, and the Earth's light on those turned down to it: a
+    // quarter of the Sun's from a lit Earth below, less as more of it is night (odcEarth).
+    float lit=clamp(0.5+0.6*dot(sunS, upS), 0.0, 1.0), sunI=max(dot(n, sunS), 0.0), no=max(dot(n, -d), 0.05);
+    vec3 L=alb*sunL*(sunI+0.25*lit*max(-dot(n, upS), 0.0)+0.01);
+    if(ks>0.0){
+      // Its mirror: the Sun's glint in the lobe about the reflected sunlight (a white Lambertian
+      // face's light is sunL, so the Sun's is π sunL), and the sunlit Earth where it reflects
+      // the line of sight onto the Earth.
+      vec3 r=reflect(-sunS, n), m=reflect(d, n);
+      float a=acos(clamp(dot(r, -d), -1.0, 1.0));
+      float kS=ks*(glass?(0.04+0.96*pow(1.0-sunI, 5.0))/0.04:1.0), kE=ks*(glass?(0.04+0.96*pow(1.0-no, 5.0))/0.04:1.0);
+      if(sunI>0.0) L+=sunL*3.14159*kS*sunI*exp(-0.5*a*a/(sig*sig))/(6.28318*sig*sig)/no;
+      if(-dot(m, upS)>cosLimb) L+=sunL*kE*0.3*lit;
+    }
+    col+=L; cov+=0.25;
   }
   if(cov<=0.0) discard;
   vec3 c=col/(cov*4.0)*trans;
@@ -237,7 +303,7 @@ function drawDatacentersVR(gl, c, ez){
     ODCV.job=glProgramAsync(gl, vrGL.vs, ODCFS);
     whenLinked(gl, [ODCV.job], p=>{
       if(!p) return;
-      ODCV.u=uniformLocs(gl, p, ['res', 'yaw', 'pitch', 'fov', 'showScn', 'cloudOn', 'trans', 'rel', 'axA', 'axB', 'axN', 'sunL', 'upS']);
+      ODCV.u=uniformLocs(gl, p, ['res', 'yaw', 'pitch', 'fov', 'showScn', 'cloudOn', 'trans', 'rel', 'axA', 'axB', 'axN', 'sunL', 'upS', 'sunS', 'cosLimb']);
       gl.useProgram(p); bindSamplers(gl, p, [['cloudTex', 2], ['hitInfo', 10]]); gl.useProgram(vrGL.prog);
       ODCV.prog=p; requestVR();
     });
@@ -265,14 +331,11 @@ function drawDatacentersVR(gl, c, ez){
       const mx=Math.max(...POINT_TINT), s=POINT_TINT.map(v=>Math.pow(v/mx, 2.2)*3.2);
       gl.uniform3f(u.sunL, s[0], s[1], s[2]);
     }
-    // Its frame: z to the Sun, x its way along the orbit square to that, y across.
-    const N=m.odc.S, F=m.odc.F, fd=F[0]*N[0]+F[1]*N[1]+F[2]*N[2];
-    let A=[F[0]-fd*N[0], F[1]-fd*N[1], F[2]-fd*N[2]];
-    const al=Math.hypot(...A)||1; A=A.map(v=>v/al);
-    const B=[N[1]*A[2]-N[2]*A[1], N[2]*A[0]-N[0]*A[2], N[0]*A[1]-N[1]*A[0]];
+    // Its frame (odcFrame): x along the orbit, z the wings' normal as the drive points it.
+    const fr=odcFrame(m.odc.S, m.odc.F, m.odc.tilt), A=fr.X, B=fr.Y, N=fr.Z, inF=v=>[v[0]*A[0]+v[1]*A[1]+v[2]*A[2], v[0]*B[0]+v[1]*B[1]+v[2]*B[2], v[0]*N[0]+v[1]*N[1]+v[2]*N[2]];
     gl.uniform3f(u.rel, -dir[0]*dist, -dir[1]*dist, -dir[2]*dist);
     gl.uniform3fv(u.axA, A); gl.uniform3fv(u.axB, B); gl.uniform3fv(u.axN, N);
-    const U=m.odc.U; gl.uniform3f(u.upS, U[0]*A[0]+U[1]*A[1]+U[2]*A[2], U[0]*B[0]+U[1]*B[1]+U[2]*B[2], U[0]*N[0]+U[1]*N[1]+U[2]*N[2]);
+    gl.uniform3fv(u.upS, inF(m.odc.U)); gl.uniform3fv(u.sunS, inF(m.odc.S)); gl.uniform1f(u.cosLimb, m.odc.cosLimb);
     gl.uniform1f(u.trans, extinction(m.el, k));
     gl.scissor(Math.floor(X-R), Math.floor(Y-R), Math.ceil(2*R)+1, Math.ceil(2*R)+1);
     gl.drawArrays(gl.TRIANGLES, 0, 6);

@@ -665,15 +665,20 @@ SATELLITES = [
 "fleet are the orbital datacenters modeled by Boley, Lawler &amp; Rein (2026). Of their three filed designs we "
 "take Blue Origin's Sunrise and the relaxed one of their two node spreads: 51,600 "
 "Sun-synchronous satellites from 500 to 1,800 km in a dawn–dusk cross of rings whose nodes wander 10° to either "
-"side of the terminator. We keep their 800 m² of solar panels, the size they call conservative next to panels "
-"several times larger, but not their diffuse sphere at albedo 0.2. Each is a shape after the designs proposed for "
-"such satellites (Starcloud's, and Google's Project Suncatcher): two solar wings held square to the Sun, dark cells "
-"with white backs, white radiators edge-on to it, a flat bus and laser terminals, drawn when the zoom resolves it, "
-"and its brightness is that shape's, lit by the Sun and by the Earth below. An hour after sunset some 1,800 are "
-"brighter than fifth magnitude and 400 brighter than third, a band along the terminator, each crossing the dome "
-"in minutes. From the night side only the wings' backs face the ground, over a dark Earth, so two and a half hours "
-"after sunset none is left to see, where the sphere keeps hundreds in view until near midnight. The paper's "
-"all-night winter rings belong to the December solstice, which the page's equinox geometry does not show.",
+"side of the terminator. The paper gives each satellite 800 m², panels, radiators and bus together, the size it "
+"calls conservative next to designs several times larger, and treats it as a diffuse sphere at albedo 0.2, a "
+"deliberately simple reference. We draw a satellite instead, after the designs proposed for such craft (Starcloud's, "
+"and Google's Project Suncatcher), and take its brightness from that shape: two solar wings of 800 m² in all, white "
+"radiators, a flat bus and laser terminals. The bus points at the Earth and the wings turn on one drive along their "
+"length, so they follow the Sun but for its share along the orbit, 10–25° with the season, and sit about 2° off "
+"where the drive aims them. The cells lie under cover glass and the radiators are mirror-like optical solar "
+"reflectors, so besides their diffuse light they glint; the reflectances are estimates, since no operator has "
+"published its own. The Sun stands where it does on the date. At 45° on the March equinox, an hour after sunset, "
+"some 2,200 are brighter than fifth magnitude and 400 brighter than third, about half as many as the sphere gives, "
+"in a band along the terminator, each crossing the dome in minutes; from the night side only the wings' backs face "
+"the ground, so two hours after sunset none is left to see. On the December solstice they last until about 8 p.m., "
+"and the brightest are glints, the cover glass mirroring the Sun low in the east at dusk, as bright as magnitude "
+"−2.6; in June's short nights the brightest are about fourth magnitude.",
 ]
 
 # ---------------------------------------------------------------------------------------------------
