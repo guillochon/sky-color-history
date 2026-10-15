@@ -258,26 +258,27 @@ function settleVR(){
     if(!townSolid(sc, x, y, 0.4)){ vrX=x; vrY=y; return; }
   }
 }
-// The direct sunlight's colour on the scenery, as a gain on its sRGB values: the Sun's colour over
-// the noon Sun's (the modern Equator's), which the eye takes as white, scaled to the same
-// luminance, so only its hue changes: orange, then red, as it sets. It fades out as the disk
+// The direct sunlight's colour on the scenery, as a gain on its sRGB values: the Sun's light (sun,
+// paintVR's sunLight, sRGB 0-255) over the noon Sun's (the modern Equator's), which the eye takes
+// as white, scaled to the same luminance, so only its hue changes: orange, then red, as it sets
+// (green where the air leaves only green). It fades out as the disk
 // (radius rd, at apparent altitude app) goes below the horizon, where no direct light is left.
 let SUN_NOON_LIN=null;
-function sunTintAt(app, rd){
+function sunTintAt(app, rd, sun){
   if(!SUN_NOON_LIN){ const s=DAY.epochs['modern']['Equator'].sun[0]; SUN_NOON_LIN=tone(xyY2XYZ([s[0], s[1], 1]), 1, 0.95, 0.4, 0.98).map(v=>SRGB_LIN[v]); }
-  const lin=skyNow.sunRGB.map((v, q)=>SRGB_LIN[Math.round(v)]/Math.max(SUN_NOON_LIN[q], 1e-3));
+  const lin=sun.map((v, q)=>SRGB_LIN[Math.round(v)]/Math.max(SUN_NOON_LIN[q], 1e-3));
   const y=Math.max(0.2126*lin[0]+0.7152*lin[1]+0.0722*lin[2], 1e-6), x=Math.max(0, Math.min(1, (app+rd)/(2*rd))), up=x*x*(3-2*x);
   return new Float32Array(lin.map(v=>up*Math.min(2, Math.pow(v/y, 1/2.2))));
 }
 // The ground's colour under the sky's light and sunlight mu (sunMu in paintVR).
 // Fresh snow's albedo, for the snow the weather leaves on the ground (clouds.js snowOnGround).
 const SNOW_ALB=[.80, .83, .88];
-function groundRGB(mu, albedo=null){
+function groundRGB(mu, albedo=null, sun=skyNow.sunRGB){
   const alb=albedo||tableNow(LAND, EP[dIdx].key, [.2, .18, .14]), cg=skyNow.colgrid, NR=skyNow.nr, NA=skyNow.na;
   let ar=0,ag=0,ab=0,n=0; const ir=Math.round(NR*0.45);
   for(let ia=0; ia<=NA; ia+=8){ const c=(ir*(NA+1)+ia)*3; ar+=cg[c]; ag+=cg[c+1]; ab+=cg[c+2]; n++; }
   ar=ar/n*0.65+cg[0]*0.35; ag=ag/n*0.65+cg[1]*0.35; ab=ab/n*0.65+cg[2]*0.35;
-  const s=skyNow.sunRGB, amb=[ar,ag,ab];
+  const s=sun, amb=[ar,ag,ab];
   return new Float32Array(alb.map((a,i)=>Math.min(255, a*(0.42*amb[i]+1.25*mu*s[i]+16))/255));
 }
 function ensureHitTarget(w, h){
@@ -537,14 +538,21 @@ function paintVR(){
   const sCen=sunBandsAt(app, off), sLin=skyNow.sunRGB.map(v=>SRGB_LIN[Math.round(v)]);
   const gAll=Math.max(...sLin)/Math.max(...sCen, 1e-30);
   gl.uniform1f(u.refK, refK()); vrGL.refKv=refK(); gl.uniform1f(u.sunOff, off); gl.uniform4fv(u.sunTau, airOff()?sb.t.map(()=>0):sb.t.map(t=>t-off)); gl.uniform1f(u.airOn, airOff()?0:1); gl.uniform3fv(u.sunW, sb.w);
-  gl.uniform3fv(u.sunG, sCen.map((v, q)=>Math.max(gAll, v>0?sLin[q]/v:0)));
+  const sunG=sCen.map((v, q)=>Math.max(gAll, v>0?sLin[q]/v:0));
+  gl.uniform3fv(u.sunG, sunG);
   gl.uniform4fv(u.sunLay, sl.lay); gl.uniform4fv(u.sunMir, sl.mir);
   // The Sun's light on the ground and the ground's colour, for the sky and cloud passes.
   const sinApp=Math.max(0, Math.sin(app*Math.PI/180)), sunMu=sinApp*(skyNow.sunVis==null?1:skyNow.sunVis);
-  const sunCol=new Float32Array(skyNow.sunRGB.map(v=>v/255)), ground=groundRGB(sunMu);
+  // The light the Sun casts, on the clouds, rain, planes, water, ground and scenery, is the disk's
+  // middle as drawn: the bands through the air at their gains, at sunRGB's brightness. Where the
+  // air leaves the Sun only green (the early Hadean, low down), it lights everything green too,
+  // not with the last orange the day's table held.
+  const vC=sCen.map((v, q)=>Math.max(0, v*sunG[q])), vM=Math.max(...vC), lM=Math.max(...sLin);
+  const sunLight=vM>0?vC.map(v=>255*g(v*lM/vM)):skyNow.sunRGB.slice();
+  const sunCol=new Float32Array(sunLight.map(v=>v/255)), ground=groundRGB(sunMu, null, sunLight);
   // The snow lying from the weather: patches of groundSnow over the plain (shader_sky.js), the
   // slopes buried, and the ground the clouds and the rain are lit by brightened to match.
-  const snowLie=vrScenery?snowOnGround(EP[dIdx].key):0, groundSnow=groundRGB(sunMu, SNOW_ALB);
+  const snowLie=vrScenery?snowOnGround(EP[dIdx].key):0, groundSnow=groundRGB(sunMu, SNOW_ALB, sunLight);
   const groundSeen=ground.map((g, i)=>g+(groundSnow[i]-g)*snowLie);
   gl.uniform1f(u.sunMu, sunMu);
   // Blinding above a few hundredths of the Sun's brightness above the air (a Sun a few degrees
@@ -565,7 +573,7 @@ function paintVR(){
   // as the beads come.
   gl.uniform1f(u.glareMoon, (0.08+0.92*sStep((vis-0.6)/0.35))*sStep((vis-0.05)/0.25));
   gl.uniform3fv(u.glareDir, glareCentre(vis));
-  gl.uniform3fv(u.sunCol, sunCol); gl.uniform3fv(u.sunTint, sunTintAt(app, rd));
+  gl.uniform3fv(u.sunCol, sunCol); gl.uniform3fv(u.sunTint, sunTintAt(app, rd, sunLight));
   gl.uniform3fv(u.ground, ground);
   gl.uniform1f(u.showScn, vrScenery?1:0);
   gl.uniform1f(u.mtnSnow, tableNow(MTN_SNOW, EP[dIdx].key, 0));
