@@ -80,6 +80,20 @@ float nN(vec2 p){
   return mix(mix(nh(i), nh(i+vec2(1.0, 0.0)), u.x), mix(nh(i+vec2(0.0, 1.0)), nh(i+vec2(1.0, 1.0)), u.x), u.y);
 }
 float nF(vec2 p){ return nN(p)*0.5+nN(p*2.03+7.1)*0.3+nN(p*4.11+3.7)*0.2; }
+// A family of filaments along k: ridges of noise drawn out st times along it, thin and bright,
+// in four octaves from width L down; each octave finer than a pixel's footprint (pix, km) goes to
+// its mean, as fine structure does to the eye near the horizon.
+float strands(vec2 p, vec2 k, float L, float st, float pix, float seed){
+  vec2 r=vec2(dot(p, k), dot(p, vec2(-k.y, k.x)));
+  float acc=0.0, wsum=0.0, amp=1.0;
+  for(int o=0;o<4;o++){
+    float rg=1.0-abs(2.0*nN(vec2(r.x/(st*L), r.y/L)+seed+float(o)*17.3)-1.0);
+    rg*=rg*rg;
+    acc+=amp*mix(0.25, rg, 1.0-smoothstep(0.25*L, 0.8*L, pix)); wsum+=amp;
+    L*=0.45; amp*=0.75;
+  }
+  return acc/wsum;
+}
 void main(){
   vec3 rd=viewRay(gl_FragCoord.xy, res, fov, yaw, pitch);
   fragColor=vec4(0.0);
@@ -94,18 +108,29 @@ void main(){
   float latP=nlcP.y+P.y/111195.0, pole=nlcP.y<0.0?-latP:latP;
   float edge=smoothstep(nlcP.z-3.0, nlcP.z+6.0, pole);
   if(edge<=0.0) return;
-  // Their shape, in km on the layer: patches a few hundred km across; in them, bands some 40 km
-  // apart, wavy, and finer billows 7 km apart across them, all drifting with the wind. Detail
-  // finer than a pixel's footprint fades to its mean, as it does to the eye near the horizon.
+  // Their shape, in km on the layer: a web of fine filaments, long streaks drawn out along the
+  // wind (bands) crossed by shorter ones (billows), bent by the gravity waves that make them, in
+  // soft-edged fields a few hundred km across that brighten and fade, all drifting with the wind.
   vec2 q=P.xy/1000.0+nlcDrift+nlcP.w*vec2(131.0, 77.0);
   float muv=max(dot(rd, n), 0.03), pix=t*2.0*(fov<2e-3?0.5*fov:tan(fov*0.5))/res.y/1000.0/muv;
-  float clump=smoothstep(0.42, 0.72, nF(q/420.0)+0.12);
+  float clump=smoothstep(0.35, 0.75, nF(q/380.0)*0.6+nF(q/120.0+6.1)*0.4+0.08);
   if(clump<=0.0) return;
-  vec2 kA=normalize(vec2(0.8+0.3*sin(nlcP.w), 0.6)), kB=vec2(-kA.y, kA.x)*0.94+kA*0.34;
-  float bands=0.5+0.5*sin(6.2831853*dot(q, kA)/40.0+3.0*nF(q/90.0)); bands*=bands;
-  float bill=0.5+0.5*sin(6.2831853*dot(q, kB)/7.0+2.0*nF(q/18.0)); bill*=bill;
-  float fA=1.0-smoothstep(4.0, 12.0, pix), fB=1.0-smoothstep(0.8, 2.5, pix);
-  float shape=clump*mix(1.0, 0.15+2.4*bands, 0.85*fA)*mix(1.0, 0.4+1.6*bill, 0.6*fB)*(0.55+0.9*nF(q/25.0)*fA);
+  vec2 w=q+70.0*(vec2(nF(q/260.0), nF(q/260.0+9.1))-0.5)+18.0*(vec2(nF(q/60.0+3.3), nF(q/60.0+7.7))-0.5);
+  vec2 kA=normalize(vec2(0.8+0.3*sin(nlcP.w), 0.6)), kB=vec2(-kA.y, kA.x)*0.87+kA*0.5;
+  vec2 kC=vec2(-kA.y, kA.x)*0.6-kA*0.8;
+  float sA=strands(w, kA, 24.0, 4.0, pix, 1.7), sB=strands(w, kB, 10.0, 2.5, pix, 5.3), sC=strands(w, kC, 14.0, 3.0, pix, 9.1);
+  float web=0.45*sA+0.25*sB+0.2*sC+1.4*sA*sB+1.0*sA*sC+0.8*sB*sC;
+  // Between the filaments the sky is nearly clear.
+  float fil=smoothstep(0.25, 1.2, web);
+  float shape=clump*(0.35+1.3*nF(q/140.0+2.2))*fil*fil*5.0;
+  // The tropospheric cloud tops that screen the grazing sunlight (nlc.py) differ from place to
+  // place by several km, so the Earth's shadow on the layer has a ragged, uneven edge: u, the
+  // Sun's place, moved by up to about 15 km of screening height (0.017 in u) over the layer.
+  u+=0.012*(2.0*nF(q/300.0+4.4)-1.0)+0.005*(2.0*nF(q/60.0+8.8)-1.0);
+  if(u<=0.0) return;
+  // And the layer is a km or two deep, its grains caught by the shadow at different heights:
+  // the edge softens over a few km more.
+  shape*=smoothstep(0.0, 0.03, u);
   float tau=nlcP.x*edge*shape;
   // The table (nlc.py): by the view's elevation and the Sun's place at the cloud.
   float el=asin(clamp(rd.z, 0.0, 1.0))*57.2957795;

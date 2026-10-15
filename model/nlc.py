@@ -11,7 +11,7 @@ orange and red, which is most of why they look silvery blue (Gadsden & Schröder
 So this works out, for each epoch's air (epochs.py, its high-latitude summer ozone):
   - the sunlight reaching a grain at 83 km, by u, the Sun's cosine there placed between its horizon
     (u = 0, where the Earth hides the Sun) and the zenith (skymodel.sun_tau), none of it grazing
-    the Earth below about 12 km, where the tropospheric cloud and haze screen it,
+    the Earth low, where the tropospheric cloud and haze screen it (half lost at 19 km),
   - the grains' scattering, a log-normal of radii about 40 nm (geometric spread 1.4) of ice, by
     Lorenz-Mie theory, relative to its value at 550 nm,
   - the light's way down to the eye, by the view's elevation (skymodel.path_columns to 83 km),
@@ -63,11 +63,13 @@ def table(e, sigma):
     u = 0.25*(np.arange(NU)/(NU-1))**2
     mu = muh+np.maximum(u, 1e-6)*(1-muh)
     tauS = sm.sun_tau(atm, tab, np.full(NU, H_NLC), mu)               # (NU, LAM)
-    # Sunlight that grazes the Earth lower than about 12 km goes through the tropospheric cloud and
-    # haze over hundreds of kilometers and is lost (the screening height of NLC visibility
-    # studies, some 12-20 km): the deep red that would light a cloud just past the Earth's shadow.
+    # Sunlight that grazes the Earth low goes through the tropospheric cloud and haze over hundreds
+    # of kilometers and is lost (the screening height of NLC visibility studies, some 12-20 km):
+    # the deep red that would light a cloud just past the Earth's shadow: half is lost at 19 km,
+    # nearly all below 15. The cloud tops differ from place to place, which the page draws by
+    # moving this edge about over the layer (nlc.js).
     ht = np.where(mu < 0, (sm.R_E+H_NLC)*np.sqrt(1-mu**2)-sm.R_E, 1e3)
-    tauS = tauS-np.log(np.clip((ht-10.0)/6.0, 1e-9, 1.0))[:, None]
+    tauS = tauS+np.log1p(np.exp(-(np.minimum(ht, 200.0)-19.0)/1.5))[:, None]
     el = 90.0*(np.arange(NE)/(NE-1))**2
     cols = sm.path_columns([c.profile for c in atm.comps], np.full(NE, sm.R_E), np.sin(np.radians(np.maximum(el, 0.05))), hmax=H_NLC, n=400)
     tauD = np.tensordot(cols.T, np.stack([c.tau for c in atm.comps]), axes=([1], [0]))   # (NE, LAM)
