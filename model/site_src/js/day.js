@@ -240,7 +240,8 @@ function toneAt(T, r){
   const x=(Math.log10(Math.max(r, 1e-12))+12)/0.002, i=Math.min(6499, Math.floor(x)), f=Math.min(1, x-i);
   return T[i]+(T[i+1]-T[i])*f;
 }
-// tone(), for the XYZ at X[o..o+2], written to out[o..o+2].
+// tone(), for the XYZ at X[o..o+2], written to out[o..o+2] as sRGB 0..255, not rounded: the VR sky
+// is filtered and dithered from these, and whole bytes would leave it in bands a step apart.
 function toneTo(X, o, Yref, k, p, cap, out){
   const x0=X[o], x1=X[o+1], x2=X[o+2];
   if(!(x1>0)){ out[o]=0; out[o+1]=0; out[o+2]=0; return; }
@@ -248,7 +249,7 @@ function toneTo(X, o, Yref, k, p, cap, out){
   let r=M[0][0]*x0+M[0][1]*x1+M[0][2]*x2, gg=M[1][0]*x0+M[1][1]*x1+M[1][2]*x2, b=M[2][0]*x0+M[2][1]*x1+M[2][2]*x2;
   r=Math.max(0,r*e); gg=Math.max(0,gg*e); b=Math.max(0,b*e);
   const mx=Math.max(r,gg,b); if(mx>1){r/=mx;gg/=mx;b/=mx;}
-  out[o]=Math.round(255*g(r)); out[o+1]=Math.round(255*g(gg)); out[o+2]=Math.round(255*g(b));
+  out[o]=255*g(r); out[o+1]=255*g(gg); out[o+2]=255*g(b);
 }
 // The dome's sky grid: DOME_NR+1 rings from the zenith to the horizon, DOME_NA+1 azimuths.
 const DOME_NR=72, DOME_NA=144;
@@ -291,14 +292,23 @@ function domeExtinction(geo, k){
   if(geo.extK!==k){ geo.ext=new Float64Array(geo.nb); for(let b=0;b<geo.nb;b++) if(geo.bl.cell[b]!==0xFFFF) geo.ext[b]=extinction(geo.el[b], k); geo.extK=k; }
   return geo.ext;
 }
-// The packed sky texture for VR and the dome's aurora (RGB and log luminance), made once per sky.
+// The packed sky texture for VR and the dome's aurora (RGB and log luminance), made once per sky:
+// floats 0..1 for an RGBA16F texture (skyTexUpload), finer than bytes (toneTo).
 function skyTexData(sky){
   if(!sky.rgba){
-    const n=sky.rgrid.length, cg=sky.colgrid, d=new Uint8Array(n*4);
-    for(let c=0;c<n;c++){ d[c*4]=cg[c*3]; d[c*4+1]=cg[c*3+1]; d[c*4+2]=cg[c*3+2]; d[c*4+3]=encodeLogR(sky.rgrid[c]); }
+    const n=sky.rgrid.length, cg=sky.colgrid, d=new Float32Array(n*4);
+    for(let c=0;c<n;c++){
+      d[c*4]=cg[c*3]/255; d[c*4+1]=cg[c*3+1]/255; d[c*4+2]=cg[c*3+2]/255;
+      d[c*4+3]=Math.max(0, Math.min(1, (Math.log10(Math.max(sky.rgrid[c], 1e-13))-LOGR_LO)/LOGR_SPAN));
+    }
     sky.rgba=d;
   }
   return sky.rgba;
+}
+// The sky texture into the bound TEXTURE_2D (w×h), in place when the size is the same.
+function skyTexUpload(gl, w, h, sub){
+  if(sub) gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, w, h, gl.RGBA, gl.FLOAT, skyTexData(skyNow));
+  else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.FLOAT, skyTexData(skyNow));
 }
 // Linear light to an sRGB byte, through a 4096-step table.
 const LIN_BYTE=Array.from({length:4097}, (_, i)=>Math.round(255*g(i/4096)));
@@ -421,7 +431,7 @@ function renderDay(fast){
   const Ybase=past>0?Yhold:Math.max(Ysun,Ymax);
   const Yref = autoExpo ? Math.max(Ybase, 1e-6*YREF) : YREF; const k=0.85, p = autoExpo?0.5:0.4;
   // Display colours (sRGB bytes) and luminance over the reference, flat in grid order.
-  const colgrid=new Uint8Array(NG*3), rgrid=new Float64Array(NG);
+  const colgrid=new Float32Array(NG*3), rgrid=new Float64Array(NG);
   for(let c=0;c<NG;c++){ toneTo(grid, c*3, Yref, k, p, 0.95, colgrid); rgrid[c]=Math.max(grid[c*3+1], 1e-30)/Yref; }
   // The Milky Way on the dome, per pixel, once the sky is dark enough for it to matter.
   // The Milky Way of the epoch shown (milkyway.js), made again when the epoch changes.

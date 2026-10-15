@@ -429,8 +429,8 @@ function paintVR(){
   const h=skyNow.nr+1, w=skyNow.na+1;
   if(skyUploaded!==skyNow.gen){
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex);
-    if(vrGL.skyW===w && vrGL.skyH===h) gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, skyTexData(skyNow));
-    else { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, skyTexData(skyNow)); vrGL.skyW=w; vrGL.skyH=h; }
+    skyTexUpload(gl, w, h, vrGL.skyW===w && vrGL.skyH===h);
+    vrGL.skyW=w; vrGL.skyH=h;
     skyUploaded=skyNow.gen;
   }
   gl.uniform1f(u.nr, h-1); gl.uniform1f(u.na, w-1); vrGL.skyNa=[h-1, w-1];

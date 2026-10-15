@@ -645,7 +645,7 @@ function paintDomeAurora(){
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, dome);
   const h=skyNow.nr+1, w=skyNow.na+1;
   gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, domeAur.skyTex);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, skyTexData(skyNow));
+  skyTexUpload(gl, w, h, false);
   domeAur.nr=h-1; domeAur.na=w-1;
   drawDomeAurora();
   if(!domeAur.shown){ c.style.display='block'; domeAur.shown=true; }
