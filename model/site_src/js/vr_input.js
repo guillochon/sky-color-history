@@ -352,6 +352,7 @@ function syncVRPad(){
   const set=(id,on)=>{ const b=document.getElementById(id); if(b) b.setAttribute('aria-pressed', on?'true':'false'); };
   set('vrpad-scenery', vrScenery);
   set('vrpad-clouds', vrClouds);
+  set('vrpad-air', !vrAirOff);
   set('vrpad-labels', vrLabels);
   set('vrpad-music', !musicMuted);
   set('vrpad-run', vrRun);
@@ -378,6 +379,7 @@ document.querySelectorAll('.vrpad button, .vrplay, .vrwalk button, #vrpad-ui').f
     const act=b.dataset.act;
     if(act==='scenery'){ vrScenery=!vrScenery; requestVR(); }
     else if(act==='clouds'){ vrClouds=!vrClouds; momentClouds=null; requestVR(); }
+    else if(act==='air'){ setAirOff(!vrAirOff); return; }
     else if(act==='labels'){ vrLabels=!vrLabels; requestVR(); }
     else if(act==='music'){ toggleVRMusic(); return; }
     else if(act==='play') hplay.click();

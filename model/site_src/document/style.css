@@ -125,6 +125,8 @@ button.tick.on{background:none;color:var(--ink)}
 #vrclock{font-size:1.25rem}
 .vrpad{display:none}
 .vrpad-row{display:flex;justify-content:center;gap:.45rem}
+/* On a narrow phone the rows' buttons give up a little width rather than run off the edge. */
+.vrpad-row>button{flex:0 1 2.75rem;min-width:2.3rem}
 .vrpad button,.vrplay,.vrui,.vrwalk-run{width:2.75rem;height:2.75rem;padding:0;display:inline-flex;align-items:center;justify-content:center;color:#fff;background:rgba(8,10,16,.5);border:1px solid rgba(255,255,255,.5);border-radius:10px;touch-action:manipulation}
 .vrpad button[aria-pressed="true"],.vrplay[aria-pressed="true"],.vrwalk-run[aria-pressed="true"]{color:#1c1400;background:#ffc400;border-color:#fff4c2}
 .vrpad button svg,.vrplay svg,.vrui svg,.vrwalk-run svg{width:1.4rem;height:1.4rem;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
