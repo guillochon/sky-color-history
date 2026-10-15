@@ -636,7 +636,16 @@ SCENERY = [
 "snow-capped peaks; and the modern epochs, a town with lit windows. The ground's color, the snow on the peaks, the "
 "Snowball's snow cover and its ice halos cross-fade with the year and with an event's strength, while the layout "
 "of the scenery changes with the epoch. Water reflects the "
-"sky and glitters in the Sun and Moon; lava glows; distant scenery fades into the sky's color. None of this is "
+"sky and glitters in the Sun and Moon, and below the glare it has the epoch's own color, which cross-fades too. "
+"The Hadean's is clear, as dissolved ferrous iron barely colors water. The Archean's is green: Fe(III) hydroxide, "
+"from iron oxidized by ultraviolet light and by early photosynthesis, absorbs the blue and water the red, so the "
+"light under water was mostly green (Matsuo et al. 2025), more so by the Neoarchean. After the Great Oxidation Event "
+"the iron settles deeper and the shallows are olive and teal, with purple slicks of sulfur bacteria where sulfide "
+"reached the sunlit water, as it did in restricted basins and lakes (Brocks et al. 2005; French et al. 2015). Rock "
+"flour from the glaciers clouds the Cryogenian's lakes turquoise; with no land plants to stain it brown, the "
+"Ordovician's water is a clear blue; from the Cretaceous on it is today's, gray with ash in the impact winter and "
+"green with algae in a polluted city. These colors are chosen from the chemistry, not computed. Lava glows; "
+"distant scenery fades into the sky's color. None of this is "
 "part of the model: the sky above it is.",
 ]
 

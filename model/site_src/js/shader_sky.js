@@ -207,6 +207,10 @@ vec2 reliefLight(vec3 b, vec3 sB, vec3 vB, float px){
 uniform vec4 obj[12];
 uniform vec4 pond[8];
 uniform float pondN;
+// The water's own color under the glare, the epoch's (vr_paint.js WATER_COLOR), and its blooms:
+// rgb and the share of the surface they cover.
+uniform vec3 waterDeep;
+uniform vec4 waterBloom;
 // The sea (vr_paint.js ZONES 'sea'): water everywhere beyond this radius of land round the origin; 0 for none.
 uniform float seaR;
 uniform vec4 grid[6];
@@ -735,7 +739,12 @@ void main(){
         vec3 wn=normalize(vec3(-((r1.yz*0.45+r2.yz*0.35)*detail+r3.yz*0.25)*0.12, 1.0));
         vec3 refl=reflect(rd, wn);
         float fres=0.02+0.98*pow(1.0-clamp(-dot(rd, wn), 0.0, 1.0), 5.0);
-        vec3 deep=pk>2.5?vec3(0.035, 0.045, 0.02):vec3(0.012, 0.035, 0.05);
+        vec3 deep=pk>2.5?vec3(0.035, 0.045, 0.02):waterDeep;
+        // Blooms drift as slicks a few tens of meters across, thickest near the shore.
+        if(pk<0.5 && waterBloom.w>0.0){
+          float b=vN(gp/23.0+vec2(0.011, -0.007)*waterT)*0.7+vN(gp/6.0+3.7)*0.3;
+          deep=mix(deep, waterBloom.rgb, smoothstep(1.0-waterBloom.w, 1.15-waterBloom.w, b+0.25*exp(-edge/25.0))*0.85);
+        }
         vec3 wc=mix(deep*light, skyLook(refl), fres);
         wc+=sunCol*pow(max(dot(refl, sd), 0.0), 300.0)*step(0.0, sd.z)*2.0*glintFade;
         wc+=snLight*pow(max(dot(refl, snDir), 0.0), 300.0)*6.0+mlLight*pow(max(dot(refl, mlDir), 0.0), 120.0)*4.0+fbLight*pow(max(dot(refl, fbDir), 0.0), 120.0)*4.0;

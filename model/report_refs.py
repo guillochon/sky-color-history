@@ -121,6 +121,9 @@ BIB += r"""
 @article{minnis1998, author={Minnis, Patrick and Young, David F. and Garber, Donald P. and others}, title={Transformation of contrails into cirrus during {SUCCESS}}, journal={Geophysical Research Letters}, volume={25}, pages={1157--1160}, year={1998}}
 @article{kyba2011, author={Kyba, Christopher C. M. and Ruhtz, Thomas and Fischer, J{\"u}rgen and H{\"o}lker, Franz}, title={Cloud coverage acts as an amplifier for ecological light pollution in urban ecosystems}, journal={PLoS ONE}, volume={6}, pages={e17307}, year={2011}}
 @article{zahnle2010, author={Zahnle, Kevin and Schaefer, Laura and Fegley, Bruce}, title={Earth's earliest atmospheres}, journal={Cold Spring Harbor Perspectives in Biology}, volume={2}, pages={a004895}, year={2010}}
+@article{matsuo2025, author={Matsuo, Taro and Ito-Miwa, Kumiko and Hoshino, Yosuke and others}, title={Archaean green-light environments drove the evolution of cyanobacteria's light-harvesting system}, journal={Nature Ecology \& Evolution}, volume={9}, pages={599--612}, year={2025}, doi={10.1038/s41559-025-02637-3}}
+@article{brocks2005, author={Brocks, Jochen J. and Love, Gordon D. and Summons, Roger E. and Knoll, Andrew H. and Logan, Graham A. and Bowden, Stephen A.}, title={Biomarker evidence for green and purple sulphur bacteria in a stratified {Palaeoproterozoic} sea}, journal={Nature}, volume={437}, pages={866--870}, year={2005}, doi={10.1038/nature04068}}
+@article{french2015, author={French, Katherine L. and Rocher, Don and Zumberge, John E. and Summons, Roger E.}, title={Assessing the distribution of sedimentary {C}$_{40}$ carotenoids through time}, journal={Geobiology}, volume={13}, pages={139--151}, year={2015}, doi={10.1111/gbi.12126}}
 """
 
 # Entries added with the timeline: the air between the epochs and the events that interrupt it.

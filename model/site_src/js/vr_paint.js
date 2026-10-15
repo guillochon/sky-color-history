@@ -15,6 +15,26 @@ function mtnSnowOwn(key){
   return 0;
 }
 const MTN_SNOW=Object.fromEntries(EP.map(e=>[e.key, mtnSnowOwn(e.key)])), SNOW_COVER={snowball07:1};
+// The water's own color, the light it sends back from below the surface, in linear RGB: clear
+// water's is dark, and water clouded with iron flocs, rock flour or algae two to three times
+// brighter. And its blooms, [r, g, b, share]. These are chosen, not computed. The Hadean's is
+// clear: dissolved Fe2+ barely colors water. The Archean's is green: Fe(III) hydroxide, from Fe2+ oxidized by UV light and by early photosynthesis, takes
+// out the blue and water the red, so the light under water was mostly green (Matsuo et al. 2025),
+// more so by the Neoarchean. After the Great Oxidation Event the iron settles deeper; the shallows are
+// olive and teal, with purple slicks of sulfur bacteria where sulfide reaches the light, as in
+// restricted basins and lakes (Brocks et al. 2005; French et al. 2015). Rock flour from the glaciers
+// clouds the Cryogenian's lakes turquoise. With no land plants yet, nothing stains the Ordovician's
+// water brown; from the Cretaceous on it is today's. The impact winter's is gray with ash, and a
+// polluted city's lake green with algae.
+const WATER_COLOR={
+  protoearth455:[0.010, 0.040, 0.050], hadean45:[0.010, 0.040, 0.050], hadean40:[0.010, 0.040, 0.050],
+  archean38:[0.034, 0.090, 0.040],
+  archean27clear:[0.050, 0.120, 0.030], archean27thin:[0.050, 0.120, 0.030], archean27:[0.050, 0.120, 0.030], archean27vthick:[0.050, 0.120, 0.030],
+  proterozoic22:[0.030, 0.058, 0.040], snowball07:[0.040, 0.120, 0.120], cryogenian65:[0.040, 0.120, 0.120],
+  ordovician466:[0.008, 0.032, 0.062], carbon30:[0.016, 0.030, 0.026], kpg66:[0.018, 0.021, 0.020],
+  modernpoll:[0.032, 0.070, 0.030],
+};
+const WATER_BLOOM={proterozoic22:[0.160, 0.040, 0.120, 0.6]};
 function scRad(k, r){ return (k>0.5&&k<1.5)?r*1.28:(k>1.5&&k<2.5)?r*1.12:(k>2.5&&k<3.5)?r*1.08:r; }
 const MTN_SCALE=0.67; // massif and hill heights relative to the original layout
 // Zones: [bearing deg, distance m, kind, radius m]. Cities and neighborhoods draw a building
@@ -605,6 +625,8 @@ function paintVR(){
   gl.uniform1f(u.snowCover, Math.max(tableNow(SNOW_COVER, EP[dIdx].key, 0), snowLie));
   gl.uniform1f(u.snowLie, snowLie); gl.uniform3fv(u.groundSnow, groundSnow);
   gl.uniform1f(u.waterT, (performance.now()/1000)%1000);
+  gl.uniform3fv(u.waterDeep, tableNow(WATER_COLOR, EP[dIdx].key, [0.012, 0.035, 0.050]));
+  gl.uniform4fv(u.waterBloom, tableNow(WATER_BLOOM, EP[dIdx].key, [0.160, 0.040, 0.120, 0]));
   // Night lights: the Moon and the brightest nova or supernova. Each lights the scene in
   // proportion to 0.6 times the square root of its brightness relative to the full Moon, a
   // perceptual scale under which the full Moon still outshines the supernova. They only
