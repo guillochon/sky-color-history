@@ -192,6 +192,9 @@ precision highp float;
 uniform sampler2D cloudTex; uniform sampler2D hitInfo; uniform vec2 res;
 uniform float yaw,pitch,fov,showScn,seaR,waterT,nr,na,vrDropOk;
 uniform vec3 eye; uniform sampler2D sky;
+// Lightning's glow (lightning.js ltUniforms): each flash's place, eye-relative (m), and the glow's
+// radius; the linear light it adds to the cloud there.
+uniform vec4 ltP[4], ltC[4]; uniform float ltN;
 out vec4 fragColor;
 ${SHELL_GLSL}
 vec4 toneCloud(vec4 c){
@@ -218,11 +221,23 @@ void main(){
   if(c.a<0.004 && !rain && !fog){ fragColor=c; return; }
   vec3 rd=viewRay(gl_FragCoord.xy, res, fov, yaw, pitch), ro=eye;
   vec4 occ=texture(hitInfo, gl_FragCoord.xy/res);
+  // The cloud and the rain about a flash glow with its light, falling off with the ray's nearest
+  // distance from it as light diffusing out of a cloud does.
+  vec3 ltAdd=vec3(0.0);
+  for(int i=0;i<4;i++){
+    if(float(i)>=ltN) break;
+    vec3 P=ltP[i].xyz; float tp=max(dot(P, rd), 0.0);
+    ltAdd+=ltC[i].rgb*exp(-length(P-rd*tp)/ltP[i].w);
+  }
   float tHit=showScn>0.5 && occ.g>0.5 && occ.r>0.0?occ.r:1.0e8;
   if(c.a<0.004) c=vec4(0.0);
   else{
     float tIn=shellT(ro, rd, 1200.0);
-    c=tIn>=0.0 && tHit<tIn?vec4(0.0):toneCloud(c);
+    if(tIn>=0.0 && tHit<tIn) c=vec4(0.0);
+    else{
+      if(ltN>0.5) c.rgb=pow(pow(c.rgb/c.a, vec3(2.2))+ltAdd, vec3(1.0/2.2))*c.a;
+      c=toneCloud(c);
+    }
   }
   fragColor=c;
   if(seaR>0.0 && showScn>0.5 && c.a>0.0){
@@ -235,7 +250,9 @@ void main(){
     // As far as the land, or the ground.
     float tEnd=tHit;
     if(tEnd>=1.0e8 && rd.z<0.0) tEnd=max(ro.z, 0.0)/(-rd.z);
-    vec4 fv=rainDisplay(fogVeil(ro, rd, tEnd));
+    vec4 fv=fogVeil(ro, rd, tEnd);
+    fv.rgb+=ltAdd*0.5*fv.a;
+    fv=rainDisplay(fv);
     fragColor=fv+(1.0-fv.a)*fragColor;
   }
   if(rain){
@@ -254,7 +271,10 @@ void main(){
     float comp=atan(rd.x, rd.y); if(comp<0.0) comp+=6.28318530718;
     float elevDeg=asin(clamp(rd.z, -1.0, 1.0))*57.2957795;
     vec3 skyC=rnLin(texture(sky, vec2((fract(comp*57.2957795/360.0)*na+0.5)/(na+1.0), ((90.0-max(elevDeg, 0.0))/90.0*nr+0.5)/(nr+1.0))).rgb);
-    vec4 veil=rainDisplay(rainVeil(ro, rd, tEnd, skyC));
+    // The rain under a flash is lit by it too, about half as brightly as the cloud.
+    vec4 veil=rainVeil(ro, rd, tEnd, skyC);
+    veil.rgb+=ltAdd*0.5*veil.a;
+    veil=rainDisplay(veil);
     fragColor=veil+(1.0-veil.a)*fragColor;
     vec3 amb, sunB, sd;
     rainLight(amb, sunB, sd);

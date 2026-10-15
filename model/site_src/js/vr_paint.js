@@ -783,20 +783,30 @@ function paintVR(){
   gl.uniform4f(u.ringV, rg?rg.k:0, rg?(rg.R.rOut-rg.R.rIn)/(rg.R.H/RE_KM):0, rg?1:0, 0);
   if(rg){ gl.uniform4f(u.ringU, rg.R.rIn, rg.R.rOut, rg.R.tau, 0.5*rg.R.H/RE_KM); gl.uniform3fv(u.ringP, rg.P); gl.uniform3fv(u.ringLin, RING_LIN); }
   // Meteors and lunar flashes (meteors.js), as they are this instant.
-  const mu=metUniforms();
-  gl.uniform1f(u.metN, airOff()?0:mu.n); gl.uniform3fv(u.metFlash, mu.flash||[0, 0, 0]);
+  // And lightning (lightning.js): its light on the scene and its glow in the clouds.
+  const mu=metUniforms(), lt=airOff()?{fire:null, E:0, glow:{n:0}}:ltUniforms(ez, night);
+  // The flash over the sky is the brighter one's, the fireball's or the lightning's.
+  const ltOver=!!lt.fire&&(!mu.fire||lt.fire.mag<mu.fire.mag), skyFlash=ltOver?metFlash(lt.E, lt.fire.rgb):mu.flash;
+  gl.uniform1f(u.metN, airOff()?0:mu.n); gl.uniform3fv(u.metFlash, airOff()?[0, 0, 0]:skyFlash||[0, 0, 0]);
   vrGL.metFlash=new Float32Array(mu.flash||[0, 0, 0]);
   // The brightest fireball lights the scene from its head, in two parts. As sunlight, in
   // proportion to its brightness against the Sun's, without limit, so one brighter than the Sun
   // outshines it, day or night. And at night, when the eye has adapted, as moonlight (nightLight's
   // scale: the full Moon's magnitude gives about the full Moon's light), easing off as it nears
   // the Sun's light. Its magnitude is already through the air. The clouds take the two together.
-  const fire=mu.fire, fbMx=fire?Math.max(...fire.rgb)||1:1, tint=fire?fire.rgb.map(c=>c/fbMx):[0, 0, 0];
-  const fbSunRel=fire?Math.pow(10, -0.4*(fire.mag-MOON_V_SUN)):0, fbN=fire?1.5*(1-Math.exp(-0.4*Math.sqrt(Math.pow(10, -0.4*(fire.mag-MOON_V_FULL)))))*night:0;
+  // A lightning flash brighter than it lights the scene in its place, but not the clouds' march:
+  // that settles over a second of frames and would smear a flash of a tenth of one, so the
+  // composite lights the clouds about each flash instead (ltUniforms).
+  const fireParts=fire=>{
+    const mx=fire?Math.max(...fire.rgb)||1:1, tint=fire?fire.rgb.map(c=>c/mx):[0, 0, 0];
+    return {tint, sunRel:fire?Math.pow(10, -0.4*(fire.mag-MOON_V_SUN)):0, N:fire?1.5*(1-Math.exp(-0.4*Math.sqrt(Math.pow(10, -0.4*(fire.mag-MOON_V_FULL)))))*night:0};
+  };
+  const fire=ltOver?lt.fire:mu.fire, fp=fireParts(fire), mp=ltOver?fireParts(mu.fire):fp, tint=fp.tint, fbSunRel=fp.sunRel;
   vrGL.fbDir=new Float32Array(fire?fire.dir:[0, 0, 1]);
-  vrGL.fbLight=new Float32Array(tint.map(c=>c*fbN));
+  vrGL.fbDirCloud=new Float32Array(mu.fire?mu.fire.dir:[0, 0, 1]);
+  vrGL.fbLight=new Float32Array(tint.map(c=>c*fp.N));
   // As the clouds light by the Sun (3.2 times its color) through nightScatter's 0.6 and toLin.
-  vrGL.fbCloud=new Float32Array(tint.map(c=>Math.pow(Math.pow(c*fbN, 2.2)+c*fbSunRel*3.2/0.6, 1/2.2)));
+  vrGL.fbCloud=new Float32Array(mp.tint.map(c=>Math.pow(Math.pow(c*mp.N, 2.2)+c*mp.sunRel*3.2/0.6, 1/2.2)));
   gl.uniform3fv(u.fbDir, vrGL.fbDir); gl.uniform3fv(u.fbLight, vrGL.fbLight); gl.uniform3fv(u.fbSun, new Float32Array(tint.map(c=>c*fbSunRel)));
   // groundRGB's ground under a white Sun overhead, without the sky's light.
   if(fbSunRel>0.001) gl.uniform3fv(u.groundDay, new Float32Array(tableNow(LAND, EP[dIdx].key, [.2, .18, .14]).map(a=>Math.min(1, a*(1.25*255+16)/255))));
@@ -855,7 +865,7 @@ function paintVR(){
     gl.uniform1f(cu.cloudType, field.type); gl.uniform1f(cu.cloudDeck, field.deck);
     gl.uniform3fv(cu.snLight, vrGL.snLight||new Float32Array(3)); if(vrGL.snDir) gl.uniform3fv(cu.snDir, vrGL.snDir);
     gl.uniform3fv(cu.mlLight, vrGL.mlLight||new Float32Array(3)); if(vrGL.mlDir) gl.uniform3fv(cu.mlDir, vrGL.mlDir);
-    gl.uniform3fv(cu.fbLight, vrGL.fbCloud||new Float32Array(3)); if(vrGL.fbDir) gl.uniform3fv(cu.fbDir, vrGL.fbDir); gl.uniform1f(cu.cloudBase, field.base); gl.uniform1f(cu.cloudTop, field.top); gl.uniform1f(cu.cloudCirrus, field.cirrus);
+    gl.uniform3fv(cu.fbLight, vrGL.fbCloud||new Float32Array(3)); if(vrGL.fbDirCloud) gl.uniform3fv(cu.fbDir, vrGL.fbDirCloud); gl.uniform1f(cu.cloudBase, field.base); gl.uniform1f(cu.cloudTop, field.top); gl.uniform1f(cu.cloudCirrus, field.cirrus);
     gl.uniform1f(cu.useHDR, vrGL.cloudHDR?1:0);
     gl.uniform1f(cu.sunVis, skyNow.sunVis==null?1:skyNow.sunVis);
     gl.uniform3fv(cu.cityUp, skyNow.cityUp||new Float32Array(3));
@@ -933,10 +943,15 @@ function paintVR(){
     // The fog (clouds.js cloudFog), with its fogbow and glory.
     bindDrops(gl);
     gl.uniform4fv(pu.fogP, fogUniform(field)); gl.uniform1f(pu.fogRow, drops[1]); gl.uniform1f(pu.vrDropOk, vrGL.dropOk?1:0);
+    // The lightning's glow in the clouds (lightning.js ltUniforms).
+    gl.uniform1f(pu.ltN, lt.glow.n);
+    if(lt.glow.n){ gl.uniform4fv(pu.ltP, lt.glow.P); gl.uniform4fv(pu.ltC, lt.glow.C); }
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     perfPassEnd('composite');
     gl.disable(gl.BLEND);
     gl.activeTexture(gl.TEXTURE0); gl.useProgram(vrGL.prog);
+    // The lightning's channels, over them.
+    if(!airOff()&&LT.active.length){ perfPass('lightning'); ltDrawVR(gl, c, ez); perfPassEnd('lightning'); }
   }
   // Airliners and their lights (contrails.js), over the clouds' composite.
   if(vrClouds&&vrGL.cloudProg&&vrGL.noise) drawPlanesVR(gl, c, ez, sunCol);
@@ -959,7 +974,7 @@ function paintVR(){
   const lat=latLabel();
   const hud=vrGL.hud||(vrGL.hud={place:document.getElementById('vrplace'), clock:document.getElementById('vrclock')});
   setText(hud.place, EP[dIdx].name+(atAnchor()?'':' · '+shownAge())+' · '+lat);
-  setText(hud.clock, dateLabel()+' · '+hh+':'+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0')+' · '+(dayPlaying?'playing':'paused')+' · '+speedLabel()+(Math.abs(vrFov-60)>0.5?' · '+fovLabel(vrFov)+' view':'')+(skyNow.eclipse?' · '+skyNow.eclipse:'')+(vrGL.field?' · '+tempLabel(vrGL.field.T):'')+(vrClouds&&vrGL.field?' · clouds '+Math.round(vrGL.field.cov*100)+'%'+rainLabel(vrGL.field, vrX, vrY, eyeZ()):'')+(vrNote?' · '+vrNote:''));
+  setText(hud.clock, dateLabel()+' · '+hh+':'+String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0')+' · '+(dayPlaying?'playing':'paused')+' · '+speedLabel()+(Math.abs(vrFov-60)>0.5?' · '+fovLabel(vrFov)+' view':'')+(skyNow.eclipse?' · '+skyNow.eclipse:'')+(vrGL.field?' · '+tempLabel(vrGL.field.T):'')+(vrClouds&&vrGL.field?' · clouds '+Math.round(vrGL.field.cov*100)+'%'+rainLabel(vrGL.field, vrX, vrY, eyeZ())+ltLabel():'')+(vrNote?' · '+vrNote:''));
   placeBodyMarks();
   drawVRLabels();
   followVRPin();

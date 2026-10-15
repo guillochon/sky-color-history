@@ -1284,9 +1284,9 @@ void main(){
         skyC+=C.rgb*exp(-0.5*d2/(sig*sig))*(1.0-diskK)*dim*vis;
       }
     }
-    // A fireball's glow, brightest in the air about it. As bright as the display's white it hides
-    // the stars and the night sky under it, as the eye adapts.
-    if(metN>0.5 && te>-0.5){
+    // A fireball's glow (or a lightning flash's), brightest in the air about it. As bright as
+    // the display's white it hides the stars and the night sky under it, as the eye adapts.
+    if((metN>0.5 || metFlash.r+metFlash.g+metFlash.b>0.0) && te>-0.5){
       vec3 fg=metFlash*(0.6+1.4*pow(max(dot(src, fbDir), 0.0), 4.0));
       skyC=meteorsAt(skyC*(1.0-min(1.0, 1.2*max(fg.r, max(fg.g, fg.b))))+fg, src, onBody);
     }

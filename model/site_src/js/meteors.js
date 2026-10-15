@@ -682,11 +682,13 @@ function metLoop(now){
   if(showDome) drawDomeMeteors(airOff()?[]:scene); else if(metDrawn) drawDomeMeteors([]);
   // VR is drawn again only when the sky's time has moved and something is or was lit.
   const moved=MET.now!==MET.drawnT; MET.drawnT=MET.now;
-  if(vrOn&&moved&&(scene.length||MET.vrLit)){ MET.vrLit=scene.length>0; requestVR(); }
+  // Lightning (lightning.js) keeps the same clock.
+  const lit=ltTick(MET.now);
+  if(vrOn&&moved&&(scene.length||MET.vrLit||lit||LT.lit)){ MET.vrLit=scene.length>0; LT.lit=lit; requestVR(); }
   metHoverCheck();
   // Every frame while the clock runs and something is in the air; otherwise a few times a second
   // (renderDay kicks it at once when the clock or the view changes).
-  if(moved&&(scene.length||MET.list.length||MET.flashes.length)) MET.raf=requestAnimationFrame(metLoop);
+  if(moved&&(scene.length||MET.list.length||MET.flashes.length||LT.storm)) MET.raf=requestAnimationFrame(metLoop);
   else MET.timer=setTimeout(()=>metLoop(performance.now()), 250);
 }
 function metKick(){ if(MET.raf) return; if(MET.timer){ clearTimeout(MET.timer); MET.timer=0; } MET.last=performance.now(); MET.raf=requestAnimationFrame(metLoop); }

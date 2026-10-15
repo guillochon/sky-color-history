@@ -192,6 +192,7 @@ PARTS = [
     'js/shader_temporal.js',
     'js/shader_noise.js',
     'js/clouds.js',
+    'js/lightning.js',
     'js/vr_init.js',
     'js/vr_paint.js',
     'js/roads.js',
