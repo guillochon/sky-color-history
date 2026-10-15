@@ -68,6 +68,9 @@ uniform vec3 groundDay;
 uniform float snowLie;
 uniform vec3 groundSnow;
 uniform vec3 sunCol,ground,eye;
+// The direct sunlight's colour on the scenery (vr_paint.js sunTintAt): against the noon Sun's, at
+// the same luminance, so slopes, trees and walls facing the Sun redden as it sets; 0 once it has set.
+uniform vec3 sunTint;
 // How blinding the Sun is (vr_paint.js): 1 for a Sun near full daylight brightness, falling to 0
 // as the air or the Moon dims it toward what the eye can look at, times the share of its disk
 // above the horizon.
@@ -718,7 +721,7 @@ void main(){
         if(d>1.0){ pk=0.0; edge=(d-1.0)*seaR; }
         else if(pk>-1.5){ shore=smoothstep(1.0-8.0/seaR, 1.0, d); if(shore>0.0) pk=-10.0; }
       }
-      float light=0.42+0.58*sunMu, detail=1.0-smoothstep(0.3, 1.5, foot);
+      vec3 light=0.42+0.58*sunMu*sunTint; float detail=1.0-smoothstep(0.3, 1.5, foot);
       if(pk>-0.5 && (pk<0.5 || pk>2.5)){
         // Two ripple layers drifting different ways over a slow swell. waterT is real seconds;
         // swamp water moves at a third of the speed.
@@ -780,7 +783,7 @@ void main(){
     }
     float wrap=part>0.5?clamp(dot(n, sd)*0.65+0.35, 0.0, 1.0):max(dot(n, sd), 0.0);
     float ao=mix(0.5, 1.0, n.z*0.5+0.5)*mix(0.7, 1.0, smoothstep(0.0, 2.0, pBest.z));
-    col=albedo*(0.45*ao+0.9*wrap)*(0.42+0.58*sunMu)+albedo*(snLight*max(dot(n, snDir)*0.65+0.35, 0.0)+mlLight*max(dot(n, mlDir)*0.65+0.35, 0.0)+fbLight*max(dot(n, fbDir)*0.65+0.35, 0.0)+fbSun*max(dot(n, fbDir)*0.65+0.35, 0.0));
+    col=albedo*(0.45*ao+0.9*wrap*sunTint)*(0.42+0.58*sunMu)+albedo*(snLight*max(dot(n, snDir)*0.65+0.35, 0.0)+mlLight*max(dot(n, mlDir)*0.65+0.35, 0.0)+fbLight*max(dot(n, fbDir)*0.65+0.35, 0.0)+fbSun*max(dot(n, fbDir)*0.65+0.35, 0.0));
     col=mix(col, skyLook(rd), clamp(1.0-exp(-tBest/16000.0), 0.0, 0.8));
   }else if(kBest>5.5){
     // Towers (6) and houses (7). Wall coordinates are world x or y, which line up with the bays
@@ -825,7 +828,7 @@ void main(){
     }
     float ndl=max(dot(n, sd), 0.0);
     float ao=mix(0.62, 1.0, clamp(n.z, 0.0, 1.0))*mix(0.7, 1.0, smoothstep(0.0, 2.5, z));
-    col=mix(albedo*((0.40*ao+0.95*ndl)*(0.42+0.58*sunMu)+nightLit(n)+fireSun(n)), glass, win);
+    col=mix(albedo*((0.40*ao+0.95*ndl*sunTint)*(0.42+0.58*sunMu)+nightLit(n)+fireSun(n)), glass, win);
     col+=vec3(1.0, 0.74, 0.42)*win*lit*0.9;
     col=mix(col, skyLook(rd), clamp(1.0-exp(-tBest/16000.0), 0.0, 0.8));
   }else if(kBest>0.5){
@@ -890,8 +893,8 @@ void main(){
     float ndl=max(dot(nBest,sd),0.0);
     float sh=kBest<3.5?shBest:1.0;
     float ao=mix(0.58, 1.0, clamp(nBest.z,0.0,1.0));
-    float lit=(0.40*ao+0.95*ndl*sh)*(0.42+0.58*sunMu);
-    if(kBest>2.5&&kBest<3.5) lit=(0.62+0.6*ndl*sh)*(0.42+0.58*sunMu); // ice scatters light into its shade
+    vec3 lit=(0.40*ao+0.95*ndl*sh*sunTint)*(0.42+0.58*sunMu);
+    if(kBest>2.5&&kBest<3.5) lit=(0.62+0.6*ndl*sh*sunTint)*(0.42+0.58*sunMu); // ice scatters light into its shade
     col=albedo*(lit+nightLit(nBest)+fireSun(nBest))+emit;
     if(kBest<3.5){
       float uTex=(fract(compDeg/360.0)*na+0.5)/(na+1.0);

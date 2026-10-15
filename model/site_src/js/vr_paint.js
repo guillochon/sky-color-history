@@ -258,6 +258,17 @@ function settleVR(){
     if(!townSolid(sc, x, y, 0.4)){ vrX=x; vrY=y; return; }
   }
 }
+// The direct sunlight's colour on the scenery, as a gain on its sRGB values: the Sun's colour over
+// the noon Sun's (the modern Equator's), which the eye takes as white, scaled to the same
+// luminance, so only its hue changes: orange, then red, as it sets. It fades out as the disk
+// (radius rd, at apparent altitude app) goes below the horizon, where no direct light is left.
+let SUN_NOON_LIN=null;
+function sunTintAt(app, rd){
+  if(!SUN_NOON_LIN){ const s=DAY.epochs['modern']['Equator'].sun[0]; SUN_NOON_LIN=tone(xyY2XYZ([s[0], s[1], 1]), 1, 0.95, 0.4, 0.98).map(v=>SRGB_LIN[v]); }
+  const lin=skyNow.sunRGB.map((v, q)=>SRGB_LIN[Math.round(v)]/Math.max(SUN_NOON_LIN[q], 1e-3));
+  const y=Math.max(0.2126*lin[0]+0.7152*lin[1]+0.0722*lin[2], 1e-6), x=Math.max(0, Math.min(1, (app+rd)/(2*rd))), up=x*x*(3-2*x);
+  return new Float32Array(lin.map(v=>up*Math.min(2, Math.pow(v/y, 1/2.2))));
+}
 // The ground's colour under the sky's light and sunlight mu (sunMu in paintVR).
 // Fresh snow's albedo, for the snow the weather leaves on the ground (clouds.js snowOnGround).
 const SNOW_ALB=[.80, .83, .88];
@@ -554,7 +565,7 @@ function paintVR(){
   // as the beads come.
   gl.uniform1f(u.glareMoon, (0.08+0.92*sStep((vis-0.6)/0.35))*sStep((vis-0.05)/0.25));
   gl.uniform3fv(u.glareDir, glareCentre(vis));
-  gl.uniform3fv(u.sunCol, sunCol);
+  gl.uniform3fv(u.sunCol, sunCol); gl.uniform3fv(u.sunTint, sunTintAt(app, rd));
   gl.uniform3fv(u.ground, ground);
   gl.uniform1f(u.showScn, vrScenery?1:0);
   gl.uniform1f(u.mtnSnow, tableNow(MTN_SNOW, EP[dIdx].key, 0));
