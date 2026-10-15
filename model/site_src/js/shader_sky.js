@@ -1167,6 +1167,10 @@ void main(){
           ivec2 at=ivec2(id- (id/1024)*1024, id/1024);
           vec4 sp=texelFetch(starIdx, at, 0);
           if(sp.w<=0.0) continue;
+          // A datacenter's direction is longer by its angular size (satellites.js): its point
+          // gives way to its drawn shape as that grows past a pixel or two.
+          float ext=length(sp.xyz)-1.0, shape=1.0;
+          if(ext>1.0e-6){ sp.xyz/=1.0+ext; shape=1.0-smoothstep(1.5, 4.0, ext*res.y/(2.0*fy)); if(shape<=0.0) continue; }
           // No narrower than about half a screen pixel, so a faint star does not shimmer as the view turns.
           float sig=max(sp.w*starPx, sigMin);
           // The squared chord, from the difference: 1-dot(src, star) loses the float's precision
@@ -1175,7 +1179,7 @@ void main(){
           if(d2>16.0*sig*sig) continue;
           float wgt=exp(-0.5*d2/(sig*sig));
           vec4 sc=texelFetch(starIdx, at+ivec2(1, 0), 0);
-          skyC+=sc.rgb*wgt*(1.0-smoothstep(lim-0.8, lim+0.2, sc.a+dm))*dim;
+          skyC+=sc.rgb*wgt*(1.0-smoothstep(lim-0.8, lim+0.2, sc.a+dm))*dim*shape;
         }
       }
     }

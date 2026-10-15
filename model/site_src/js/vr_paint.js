@@ -865,6 +865,8 @@ function paintVR(){
   }
   // Airliners and their lights (contrails.js), over the clouds' composite.
   if(vrClouds&&vrGL.cloudProg&&vrGL.noise) drawPlanesVR(gl, c, ez, sunCol);
+  // And the orbital datacenters, where the zoom resolves them.
+  drawDatacentersVR(gl, c, ez);
   perfPaintEnd(); perfBeg('labels & HUD');
   // A piece of close-up detail now drawn: its note goes (or the next one's shows).
   if(vrGL.detailDone&&vrGL.detailDone.length&&!firsts.length){

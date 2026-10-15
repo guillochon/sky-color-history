@@ -58,7 +58,9 @@ function placeSatellites(latDeg, tex, marks, up){
   const upx=ox/SAT_RE, upy=oy/SAT_RE, upz=oz/SAT_RE;
   let ex=-upy, ey=upx; const em=Math.hypot(ex,ey)||1; ex/=em; ey/=em;
   const nx=-upz*ey, ny=upz*ex, nz=upx*ey-upy*ex, RE2=SAT_RE*SAT_RE, hit=[];
-  const scan=(n, pref, scatter, A, CI, SI, CO, SO, M0, RATE, DV)=>{
+  // A vector from the frame the orbits are in (the Sun along -x) to the observer's east, north, up.
+  const enu=(vx, vy, vz)=>[vx*ex+vy*ey, vx*nx+vy*ny+vz*nz, vx*upx+vy*upy+vz*upz];
+  const scan=(n, pref, scatter, A, CI, SI, CO, SO, M0, RATE, DV, odc)=>{
     for(let i=0;i<n;i++){
       const ci=CI[i], si=SI[i], co=CO[i], so=SO[i], r=A[i];
       // The height above the observer's horizon plane goes as r(P cos u + Q sin u). An orbit
@@ -81,20 +83,173 @@ function placeSatellites(latDeg, tex, marks, up){
       const mag=SAT_MSUN-2.5*Math.log10(pref*phase)+5*Math.log10(dist/SAT_AU)+(scatter?DV[i]:0)+0.15*(air-1);
       if(mag>6.5) continue;
       const az=Math.atan2(shx*ex+shy*ey, shx*nx+shy*ny+shz*nz)*180/Math.PI;
-      hit.push({mag, az:(az%360+360)%360, el});
+      const h={mag, az:(az%360+360)%360, el};
+      // A datacenter keeps what its drawn shape needs (drawDatacentersVR): its distance (km), its
+      // way along its orbit, the Sun's way from it and its own up, in the observer's frame.
+      if(odc) h.odc={dist, F:enu(-co*su-so*cu*ci, -so*su+co*cu*ci, cu*si), S:enu(-1, 0, 0), U:enu(x/r, y/r, z/r)};
+      hit.push(h);
     }
   };
   scan(SAT_N, SAT_PREF, true, SAT_A, SAT_CI, SAT_SI, SAT_CO, SAT_SO, SAT_M0, SAT_RATE, SAT_DV);
-  scan(ODC_N, ODC_PREF, false, ODC_A, ODC_CI, ODC_SI, ODC_CO, ODC_SO, ODC_M0, ODC_RATE, null);
+  scan(ODC_N, ODC_PREF, false, ODC_A, ODC_CI, ODC_SI, ODC_CO, ODC_SO, ODC_M0, ODC_RATE, null, true);
   if(hit.length>SAT_CAP) hit.sort((a,b)=>a.mag-b.mag);
   const nDome=Math.min(hit.length, DOME_SAT_CAP), nTex=Math.min(hit.length, SAT_CAP);
   for(let k=0;k<nDome;k++){
     const s=hit[k], show=pointDisplay(s.mag), dir=horizDir(s.az, s.el);
-    marks.push({az:s.az, el:s.el, px:show.px, rgb:show.rgb, mag:s.mag});
+    marks.push({az:s.az, el:s.el, px:show.px, rgb:show.rgb, mag:s.mag, odc:s.odc});
     if(k>=nTex) continue;
     const i=STAR_N+k, o=i*4;
-    tex[o]=dir[0]; tex[o+1]=dir[1]; tex[o+2]=dir[2]; tex[o+3]=show.px;
+    // A datacenter's direction is written longer by its angular size, so the sky shader can fade
+    // its point as the drawn shape takes over (shader_sky.js); everything else's is a unit vector.
+    const g=s.odc?1+ODC_SPAN/(s.odc.dist*1000):1;
+    tex[o]=dir[0]*g; tex[o+1]=dir[1]*g; tex[o+2]=dir[2]*g; tex[o+3]=show.px;
     const c=STAR_MAP_W*4+o; tex[c]=show.rgb[0]; tex[c+1]=show.rgb[1]; tex[c+2]=show.rgb[2]; tex[c+3]=s.mag;
     up.push({i, x:dir[0], y:dir[1], z:dir[2]});
   }
+}
+
+// The orbital datacenters close up, drawn when the zoom resolves them, as the airliners are
+// (contrails.js drawPlanesVR): a simple shape after the designs proposed for them (Starcloud's
+// four subsystems, solar arrays, radiators, compute and laser terminals; Google's Project
+// Suncatcher; the flat-packed 3-tonne Starcloud-3 that fits Starship's Starlink dispenser). In the
+// metres of its own frame, z toward the Sun, x along its orbit, y across:
+//   - a flat-packed bus 7.4 m by 3.2 m and 0.8 m thick, foil-grey, holding the compute;
+//   - two solar wings on a boom along the orbit, each 40 m by 10 m, 800 m² in all (the arrays
+//     Boley, Lawler & Rein take for Sunrise), turned square to the Sun, dark blue cells in a grid
+//     of 2 m panels, white backs;
+//   - two white radiators across the orbit, 18 m by 8 m, edge-on to the Sun so it does not heat
+//     them, radiating from both faces (288 m² a side, a little over a third of the arrays, as
+//     Starcloud's 838 W a square metre against the cells' output asks);
+//   - four laser terminals for the links to the others, small grey domes at the bus's corners.
+// Sunlight is the Sun's above the air; the air in front dims it by its extinction.
+const ODC_SPAN=86;
+const ODCFS=`#version 300 es
+precision highp float;
+uniform sampler2D cloudTex, hitInfo;
+uniform vec2 res;
+uniform float yaw, pitch, fov, showScn, trans;
+uniform vec3 rel, axA, axB, axN, sunL, upS;
+out vec4 fragColor;
+${VIEW_RAY_GLSL}
+// Ray (o, d) against the box of half-size h about c: distance and the face's normal, or -1.
+float boxHit(vec3 o, vec3 d, vec3 c, vec3 h, out vec3 n){
+  vec3 m=1.0/d, q=m*(o-c), k=abs(m)*h, t1=-q-k, t2=-q+k;
+  float tN=max(max(t1.x, t1.y), t1.z), tF=min(min(t2.x, t2.y), t2.z);
+  n=-sign(d)*step(t1.yzx, t1.xyz)*step(t1.zxy, t1.xyz);
+  return tN>tF||tF<0.0?-1.0:tN;
+}
+void part(vec3 o, vec3 d, vec3 c, vec3 h, float id, inout float tB, inout vec3 nB, inout float idB){
+  vec3 n; float t=boxHit(o, d, c, h, n);
+  if(t>0.0 && t<tB){ tB=t; nB=n; idB=id; }
+}
+void dome(vec3 o, vec3 d, vec3 c, float r, inout float tB, inout vec3 nB, inout float idB){
+  vec3 oc=o-c; float b=dot(oc, d), h=b*b-dot(oc, oc)+r*r;
+  if(h<0.0) return;
+  float t=-b-sqrt(h);
+  if(t>0.0 && t<tB){ tB=t; nB=(oc+d*t)/r; idB=4.0; }
+}
+// The nearest surface: its distance, normal and part (0 bus, 1 wing, 2 boom, 3 radiator, 4 terminal).
+float datacenter(vec3 o, vec3 d, out vec3 n, out float id){
+  float t=1.0e9; n=vec3(0.0, 0.0, 1.0); id=-1.0;
+  part(o, d, vec3(0.0), vec3(1.6, 3.7, 0.4), 0.0, t, n, id);
+  part(o, d, vec3(23.0, 0.0, 0.0), vec3(20.0, 5.0, 0.04), 1.0, t, n, id);
+  part(o, d, vec3(-23.0, 0.0, 0.0), vec3(20.0, 5.0, 0.04), 1.0, t, n, id);
+  part(o, d, vec3(0.0), vec3(3.0, 0.12, 0.12), 2.0, t, n, id);
+  part(o, d, vec3(0.0, 12.7, 0.0), vec3(0.03, 9.0, 4.0), 3.0, t, n, id);
+  part(o, d, vec3(0.0, -12.7, 0.0), vec3(0.03, 9.0, 4.0), 3.0, t, n, id);
+  for(int i=0;i<4;i++){ vec2 s=vec2(float(i&1), float(i>>1))*2.0-1.0; dome(o, d, vec3(1.3*s.x, 3.3*s.y, -0.45), 0.35, t, n, id); }
+  return t;
+}
+void main(){
+  vec2 fc=gl_FragCoord.xy;
+  vec3 o0=vec3(dot(rel, axA), dot(rel, axB), dot(rel, axN));
+  vec3 col=vec3(0.0); float cov=0.0;
+  for(int i=0;i<4;i++){
+    vec2 off=vec2(float(i&1), float(i>>1))*0.5-0.25;
+    vec3 rd=viewRay(fc+off, res, fov, yaw, pitch), d=normalize(vec3(dot(rd, axA), dot(rd, axB), dot(rd, axN)));
+    // From just short of it: the box tests lose their precision from hundreds of kilometres.
+    float t0=max(-dot(o0, d)-80.0, 0.0);
+    vec3 o=o0+d*t0, n; float id;
+    float t=datacenter(o, d, n, id);
+    if(t>=1.0e8) continue;
+    vec3 p=o+d*t;
+    if(dot(n, d)>0.0) n=-n;
+    vec3 alb;
+    if(id<0.5) alb=vec3(0.55, 0.52, 0.45);
+    else if(id<1.5){
+      // Cells on the sunward face, dark blue in a grid of panels, the backs white.
+      vec2 g=abs(fract(p.xy/vec2(2.0, 2.5))-0.5);
+      alb=n.z>0.0?mix(vec3(0.035, 0.05, 0.10), vec3(0.14), step(0.47, max(g.x, g.y))):vec3(0.6);
+    }
+    else if(id<2.5) alb=vec3(0.4);
+    else if(id<3.5) alb=vec3(0.82);
+    else alb=vec3(0.45);
+    // The Sun on the faces turned to it (z), and the Earth's light on those turned down to it: a
+    // quarter of the Sun's from a lit Earth filling half the sky below (albedo 0.3), less as more
+    // of what it sees of the Earth is night.
+    float earth=0.25*clamp(0.5+0.6*upS.z, 0.0, 1.0);
+    vec3 L=sunL*(max(n.z, 0.0)+earth*max(-dot(n, upS), 0.0)+0.01);
+    col+=alb*L; cov+=0.25;
+  }
+  if(cov<=0.0) discard;
+  vec3 c=col/(cov*4.0)*trans;
+  c=mix(c, 0.6+0.4*(1.0-exp(-(c-0.6)/0.4)), step(0.6, c));
+  c=pow(c, vec3(1.0/2.2));
+  float occ=1.0-texture(cloudTex, fc/res).a;
+  if(showScn>0.5){ vec4 h=texture(hitInfo, fc/res); if(h.g>0.5 && h.r>0.0) occ=0.0; }
+  fragColor=vec4(c*cov*occ, cov*occ);
+}`;
+const ODCV={job:null, prog:null, u:null};
+// Draws each datacenter the zoom resolves over the composited view, scissored to its patch,
+// behind the clouds by their opacity and behind the land.
+function drawDatacentersVR(gl, c, ez){
+  const marks=skyNow&&skyNow.starMarks;
+  if(!marks||EP[dIdx].key!=='y2100') return;
+  const fovR=vrFov*Math.PI/180, H=c.height, W=c.width, fy=Math.tan(fovR/2), fx=fy*W/H, pixA=2*fy/H;
+  // Resolved only zoomed in: even the nearest, 500 km off, needs a view under half a degree.
+  if(ODC_SPAN/(500e3*pixA)<1.5) return;
+  if(!ODCV.job){
+    ODCV.job=glProgramAsync(gl, vrGL.vs, ODCFS);
+    whenLinked(gl, [ODCV.job], p=>{
+      if(!p) return;
+      ODCV.u=uniformLocs(gl, p, ['res', 'yaw', 'pitch', 'fov', 'showScn', 'trans', 'rel', 'axA', 'axB', 'axN', 'sunL', 'upS']);
+      gl.useProgram(p); bindSamplers(gl, p, [['cloudTex', 2], ['hitInfo', 10]]); gl.useProgram(vrGL.prog);
+      ODCV.prog=p; requestVR();
+    });
+  }
+  if(!ODCV.prog) return;
+  const yaw=vrYaw*Math.PI/180, pitch=vrPitch*Math.PI/180, cp=Math.cos(pitch), sp=Math.sin(pitch), cy=Math.cos(yaw), sy=Math.sin(yaw);
+  const u=ODCV.u, k=extK(EP[dIdx].key);
+  let drawn=false;
+  for(const m of marks){
+    if(!m.odc||m.el<=0) continue;
+    const dist=m.odc.dist*1000, R=ODC_SPAN/2/dist/pixA+2;
+    if(R<2.6) continue;
+    // Where its point is drawn: refracted as the sky shader refracts it.
+    const dir=horizDir(m.az, shaderApparent(m.el).a), depth=dir[0]*sy*cp+dir[1]*cy*cp+dir[2]*sp;
+    if(depth<0.05) continue;
+    const X=((dir[0]*cy-dir[1]*sy)/depth/fx*0.5+0.5)*W, Y=((-dir[0]*sy*sp-dir[1]*cy*sp+dir[2]*cp)/depth/fy*0.5+0.5)*H;
+    if(X+R<0||X-R>W||Y+R<0||Y-R>H) continue;
+    if(!drawn){
+      drawn=true;
+      gl.useProgram(ODCV.prog); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); gl.enable(gl.SCISSOR_TEST);
+      gl.uniform2f(u.res, W, H); gl.uniform1f(u.yaw, yaw); gl.uniform1f(u.pitch, pitch); gl.uniform1f(u.fov, fovR);
+      gl.uniform1f(u.showScn, vrScenery&&vrGL.hitInfo?1:0);
+      // The Sun above the air, as bright on a white face as on the airliners' sunlit sides.
+      const mx=Math.max(...POINT_TINT), s=POINT_TINT.map(v=>Math.pow(v/mx, 2.2)*3.2);
+      gl.uniform3f(u.sunL, s[0], s[1], s[2]);
+    }
+    // Its frame: z to the Sun, x its way along the orbit square to that, y across.
+    const N=m.odc.S, F=m.odc.F, fd=F[0]*N[0]+F[1]*N[1]+F[2]*N[2];
+    let A=[F[0]-fd*N[0], F[1]-fd*N[1], F[2]-fd*N[2]];
+    const al=Math.hypot(...A)||1; A=A.map(v=>v/al);
+    const B=[N[1]*A[2]-N[2]*A[1], N[2]*A[0]-N[0]*A[2], N[0]*A[1]-N[1]*A[0]];
+    gl.uniform3f(u.rel, -dir[0]*dist, -dir[1]*dist, -dir[2]*dist);
+    gl.uniform3fv(u.axA, A); gl.uniform3fv(u.axB, B); gl.uniform3fv(u.axN, N);
+    const U=m.odc.U; gl.uniform3f(u.upS, U[0]*A[0]+U[1]*A[1]+U[2]*A[2], U[0]*B[0]+U[1]*B[1]+U[2]*B[2], U[0]*N[0]+U[1]*N[1]+U[2]*N[2]);
+    gl.uniform1f(u.trans, extinction(m.el, k));
+    gl.scissor(Math.floor(X-R), Math.floor(Y-R), Math.ceil(2*R)+1, Math.ceil(2*R)+1);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+  }
+  if(drawn){ gl.disable(gl.SCISSOR_TEST); gl.disable(gl.BLEND); gl.useProgram(vrGL.prog); }
 }
