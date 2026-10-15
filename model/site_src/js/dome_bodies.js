@@ -28,7 +28,9 @@ function placeStars(lat){
     up.push({i, x:dir[0], y:dir[1], z:dir[2]});
   }
   placePlanets(lat, marks, bodies, epochKey, year, LST);
-  if(epochKey==='y2100') placeSatellites(lat, tex, marks, up);
+  // The satellites in orbit on the date, from 1957 on (satellites.js); the datacenters in 2100.
+  const satY=satYear(epochKey);
+  if(satY!==null && satY>=1957.7) placeSatellites(lat, tex, marks, up, satY, epochKey==='y2100');
   placeTransients(lat, LST, tex, marks, up);
   const comets=cometsNow(epochKey, lat);
   placeCometHeads(comets, tex, marks, up);

@@ -220,7 +220,7 @@ function drawSkyLabels(ctx, W, H, o){
     // A comet by its whole light (its head is a quarter of it) against the naked-eye limit there.
     if(s.comet){ if(starVisible(starThroughAir(s.comet.mag, s.el, key), skyRAt(skyNow.rgrid, s.el, s.az)*skyNow.rCd)*(1-a)>0.3) add(s, s.comet.c.name, 'comet', TR_TYPES.comet.color); continue; }
     if(Math.max(...zoomedDisplay(s).rgb)*vis*dim<0.06) continue;
-    add(s, s.planet||(s.star?s.star[7]||starTypeLabel(s.star[8]):s.odc?'orbital datacenter':'satellite'), s.host?'moon':s.planet?'planet':s.star?(s.star[7]?'star':'stype'):'sat');
+    add(s, s.planet||(s.star?s.star[7]||starTypeLabel(s.star[8]):s.sat?s.sat.sh.label:'satellite'), s.host?'moon':s.planet?'planet':s.star?(s.star[7]?'star':'stype'):'sat');
   }
   // Placed brightest first, a label that would overlap one placed left out; the novae, supernovae
   // and comets go before everything else, so a star or planet beside one never takes its place.
