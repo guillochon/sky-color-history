@@ -846,38 +846,46 @@ void main(){
     if(kBest>4.5) albedo=vec3(0.10,0.26,0.08);
     else if(kBest>3.5) albedo=vec3(0.74,0.71,0.66);
     else if(kBest>2.5){
-      // Glacier: white snow on the flats, blue ice on the cliffs, banded by its layers.
-      // Layers are hBest*0.022 thick, warped, and dip gently across the massif. Each layer has
-      // one band of its own width and position, of bubbly white, pale blue, turquoise or clear
-      // deep blue ice, or gray debris, with faint fine lines between. Far away it fades to the mean.
-      float sp=hBest*0.022;
-      vec2 dip=vec2(cos(qBest.x*0.013), sin(qBest.y*0.017))*0.03;
-      float lay=pBest.z/sp+(vN(pBest.xy/90.0)-0.5)*2.5+vN(pBest.xy/25.0)*0.6+dot(pBest.xy-qBest.xy, dip)/sp;
-      float detail=1.0-smoothstep(1.0, 4.0, tBest*2.0*fy/res.y/max(sp, 1.0));
-      float li=floor(lay), lf=fract(lay);
-      float r1=h12(vec2(li, 3.7)), r2=h12(vec2(li, 9.1)), r3=h12(vec2(li, 5.3));
-      float wd=mix(0.06, 0.85, r2*r2), ctr=mix(wd*0.5, 1.0-wd*0.5, r3);
-      float m=(1.0-smoothstep(wd*0.5-0.03, wd*0.5+0.03, abs(lf-ctr)))*mix(0.55, 0.95, fract(r1*7.3));
+      // Glacier: white snow on the flats, blue ice on the cliffs. ti runs along the face. Its
+      // patterns are laid on xy, which runs along any upright face, slanted by z: not on a
+      // coordinate along the face, which swings with the crags' facets and would swirl them.
+      vec3 ti=cross(vec3(0.0, 0.0, 1.0), nBest); ti=dot(ti, ti)>1e-4?normalize(ti):vec3(1.0, 0.0, 0.0);
+      vec3 bi=cross(nBest, ti);
+      float px=tBest*2.0*fy/res.y; // meters per pixel
       // The ice's color is the light its bubbles send back out before the ice absorbs it. Ice
       // absorbs red most, about 0.3 per meter, green 0.05 and blue 0.008 (Warren & Brandt 2008),
       // so light that goes far between bubbles comes back blue. Diffusing through a deep layer it
       // reflects exp(-(4/√3)·√(absorption·mean free path)): a centimeter gives white, a meter
-      // turquoise, several meters deep blue. Bands: clear ice 1.5 to 4 m, turquoise 0.5 to 1.2,
-      // pale 0.15 to 0.3, debris 0.1 grayed by grit, bubbly 1 cm; the body 8 cm.
-      float ell=r1<0.3?mix(1.5, 4.0, fract(r1*11.0)):(r1<0.5?mix(0.5, 1.2, fract(r1*11.0)):(r1<0.7?mix(0.15, 0.3, fract(r1*11.0)):(r1<0.85?0.1:0.01)));
-      ell=mix(0.08, ell, m*detail);
-      vec3 face=exp(-2.31*sqrt(vec3(0.30, 0.05, 0.008)*ell))*(r1>0.7&&r1<0.85?mix(1.0, 0.62, m*detail):1.0);
-      float thin=1.0-smoothstep(0.0, 0.05, abs(fract(lay*3.1+r3)-0.5));
-      face*=(1.0-0.12*thin*detail)*(0.92+0.16*vN(pBest.xy/6.0+pBest.z*0.3));
+      // turquoise, several meters deep blue.
+      // Most of the face is the body's ice, whose blue goes with the crags: the faces that stand
+      // out are weathered to white, the fresh breaks in the recesses and under the overhangs are
+      // blue, and meltwater and fractures streak it upright, 4 m across and tens of meters tall.
+      // Its mean free path runs from 2 cm to about a meter.
+      float crag=glacierCrag(pBest.xy-qBest.xy, pBest.z);
+      float recess=smoothstep(2.0, -5.0, crag)+max(-nBest.z, 0.0);
+      float streak=mix(0.5, vN(pBest.xy/4.0+pBest.z*vec2(0.021, -0.027)+7.7), 1.0-smoothstep(1.0, 4.0, px));
+      float ell=0.05*exp2(2.6*recess+2.5*(streak-0.5));
+      // Layers are hBest*0.022 thick, warped, and dip gently across the massif. Some carry a
+      // faint band of pale, turquoise or clear ice (mean free path 0.12 to 2 m), gray debris or
+      // bubbly white. The bands come and go along the face and fade out far away.
+      float sp=hBest*0.022;
+      vec2 dip=vec2(cos(qBest.x*0.013), sin(qBest.y*0.017))*0.03;
+      float lay=pBest.z/sp+(vN(pBest.xy/90.0)-0.5)*3.5+(vN(pBest.xy/25.0)-0.5)*1.2+dot(pBest.xy-qBest.xy, dip)/sp;
+      float detail=1.0-smoothstep(1.0, 4.0, px/max(sp, 1.0));
+      float li=floor(lay), lf=fract(lay);
+      float r1=h12(vec2(li, 3.7)), r2=h12(vec2(li, 9.1)), r3=h12(vec2(li, 5.3));
+      float wd=mix(0.3, 0.8, r2*r2), ctr=mix(wd*0.5, 1.0-wd*0.5, r3);
+      float m=(1.0-smoothstep(0.0, wd*0.5, abs(lf-ctr)))*smoothstep(0.3, 0.8, vN(pBest.xy/80.0+li*0.37))*0.6*detail;
+      float bell=r1<0.15?mix(0.8, 2.0, fract(r1*17.0)):(r1<0.4?mix(0.3, 0.7, fract(r1*11.0)):(r1<0.7?mix(0.12, 0.25, fract(r1*11.0)):(r1<0.8?0.1:0.02)));
+      ell=exp(mix(log(ell), log(bell), m));
+      vec3 face=exp(-2.31*sqrt(vec3(0.30, 0.05, 0.008)*ell))*(r1>0.7&&r1<0.8?mix(1.0, 0.8, m):1.0);
+      face*=0.92+0.16*vN(pBest.xy/6.0+pBest.z*0.3);
       float snowy=smoothstep(0.55, 0.85, nBest.z);
       albedo=mix(face, vec3(0.94, 0.96, 0.99), snowy);
       glass=1.0-snowy; iceEll=ell;
       // The faces are glazed but not flat: ripples a few meters and tens of centimeters across
       // tilt the normal a little, so the sky they mirror wavers and the Sun's glint spreads.
-      vec3 ti=cross(vec3(0.0, 0.0, 1.0), nBest); ti=dot(ti, ti)>1e-4?normalize(ti):vec3(1.0, 0.0, 0.0);
-      vec3 bi=cross(nBest, ti);
-      vec2 fu=vec2(dot(pBest.xy, ti.xy), pBest.z);
-      vec3 g1=vNd(fu/2.5), g2=vNd(fu/0.6+11.0);
+      vec3 g1=vNd((pBest.xy+pBest.z*vec2(0.62, -0.79))/2.5), g2=vNd((pBest.xy+pBest.z*vec2(-0.71, 0.70))/0.6+11.0);
       iceN=normalize(nBest+(ti*(g1.y+g2.y*0.4)+bi*(g1.z+g2.z*0.4))*0.12*detail);
     }
     else {
@@ -934,7 +942,7 @@ void main(){
       for(int i=0;i<6;i++){
         float s1=0.5*exp2(float(i));
         vec3 p=pBest+sd*s1-nBest*0.05;
-        T+=step(p.z, glacierH(p.xy, qBest, seed))*(s1-s0); s0=s1;
+        T+=step(p.z, glacierH(p.xy, p.z, qBest, seed))*(s1-s0); s0=s1;
       }
       float ellP=sqrt(0.08*iceEll);
       vec3 x=T/sqrt(ellP/(3.0*vec3(0.30, 0.05, 0.008)));

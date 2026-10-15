@@ -279,7 +279,7 @@ float scnShadow(vec3 p, vec3 sd){
     vec4 ms=massifSeed(q, volc);
     for(int s=1;s<=5+loopPad;s++){
       float dist=R*(0.04*float(s)+0.018*float(s*s));
-      float h=massifH(p.xy+dir*dist, q, volc, ms);
+      float h=massifH(p.xy+dir*dist, p.z+rise*dist, q, volc, ms);
       float pen=smoothstep(0.0, dist*0.18+3.0, h-(p.z+rise*dist));
       sh=min(sh, mix(1.0, 0.28, pen));
     }
@@ -372,7 +372,7 @@ void main(){
   float kShade=0.0;
   if(objWins){
     pShade=ro+rd*tObj; kShade=kObj;
-    nOut=kObj<3.5?massifN(pShade.xy, qObj, kObj>2.5?2.0:step(1.5, kObj)):nObj;
+    nOut=kObj<3.5?massifN(pShade, qObj, kObj>2.5?2.0:step(1.5, kObj)):nObj;
     if(dot(nOut, rd)>0.0) nOut=-nOut;
   }else if(hillWins){
     pShade=ro+rd*tHill; kShade=1.0; nOut=nHill;

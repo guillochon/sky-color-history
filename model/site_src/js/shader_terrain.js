@@ -41,9 +41,28 @@ float ridge(vec2 p){
 // mean), and low-frequency noise varies each cliff from sheer to a steep ramp and each bench
 // from flat to sloping. The noise is kept smooth: high-frequency outlines make thin fins that
 // the march steps over.
-float glacierH(vec2 p, vec4 q, float seed){
+// Value noise from h12 with straight-line blending, so it is made of flat facets with creases
+// between, as broken ice is. Both shaders have the same h12, so they get the same crags.
+float glacierN(vec2 p){
+  vec2 i=floor(p), f=fract(p);
+  return mix(mix(h12(i), h12(i+vec2(1.0, 0.0)), f.x), mix(h12(i+vec2(0.0, 1.0)), h12(i+1.0), f.x), f.y);
+}
+// The crags, in meters: how far the cliff at d from the center and height z stands out (or,
+// negative, is cut back). Noise on two upright planes at right angles makes it vary along any
+// face and with height: buttresses and blocks 20 to 40 m across, and broken blocks of about 7 m,
+// leaning out over the face below them by up to some 4 m for overhangs.
+float glacierCrag(vec2 d, float z){
+  vec2 a=vec2(d.x*0.8+d.y*0.6, d.y*0.8-d.x*0.6);
+  return (glacierN(vec2(a.x/26.0, z/15.0))+glacierN(vec2(a.y/26.0, z/15.0)+17.3)-1.0)*7.0
+    +(glacierN(vec2((a.x+a.y)/7.0, z/6.0)+5.1)-0.5)*2.6;
+}
+// A glacier's height at p, for a point at height z: the cliff line moves with z, so the ice is a
+// solid, not a height field, and can overhang: p is inside where z<glacierH(p, z).
+float glacierH(vec2 p, float z, vec4 q, float seed){
   vec2 d=p-q.xy;
   float R=massifRad(q.z, 2.0), r=length(d);
+  if(r>=R+9.0) return 0.0;
+  d*=max(1.0-glacierCrag(d, z)/max(r, 1.0), 0.0); r=length(d);
   if(r>=R) return 0.0;
   float ang=atan(d.y, d.x);
   float u=r/(R*(0.74+0.26*texture(weather, vec2(ang*0.3+seed*2.0, seed*3.1)).g));
@@ -129,10 +148,10 @@ vec4 massifSeed(vec4 q, float volc){
   float s0=texture(weather, q.xy*0.00041+0.13).r, ang=s0*6.2831853;
   return vec4(s0, texture(weather, q.xy*0.00041+0.71).g, cos(ang), sin(ang));
 }
-// ms is massifSeed(q, volc).
-float massifH(vec2 p, vec4 q, float volc, vec4 ms){
+// ms is massifSeed(q, volc); z the height of the point asked about, which only a glacier uses.
+float massifH(vec2 p, float z, vec4 q, float volc, vec4 ms){
 #if GLACIERS
-  if(volc>1.5) return glacierH(p, q, ms.x);
+  if(volc>1.5) return glacierH(p, z, q, ms.x);
 #endif
   vec2 c=q.xy;
   float R=massifRad(q.z, volc), H=q.w;
@@ -150,39 +169,45 @@ float massifH(vec2 p, vec4 q, float volc, vec4 ms){
   return h;
 }
 float marchMassif(vec3 ro, vec3 rd, vec4 q, float volc){
-  float R=massifRad(q.z, volc);
+  float R=massifRad(q.z, volc)+(volc>1.5?9.0:0.0); // a glacier's crags stand out up to 9 m
   float tPlane=rd.z<0.0?-ro.z/rd.z:1e8;
   vec2 span=cylSpan(ro, rd, q.xy, R, -4.0, q.w*1.55+40.0);
   if(span.x<0.0) return -1.0;
   float t0=span.x, t1=min(span.y, tPlane);
   if(t1<t0) return -1.0;
   // 28 steps across the span (64 for glaciers, whose cliffs are sharper), then 6 bisections
-  // once a step lands inside.
+  // once a step lands inside (11 for glaciers, to a centimeter or so, as their normals are
+  // taken over 0.6 m and the crags' facets would show the steps as rings).
   float nst=volc>1.5?64.0:28.0, dt=(t1-t0)/nst, prev=t0, lo=t0, hi=t0;
   int bis=-1;
   vec4 ms=massifSeed(q, volc);
-  for(int i=0;i<=int(nst)+6+loopPad;i++){
+  int nbis=volc>1.5?11:6;
+  for(int i=0;i<=int(nst)+nbis+loopPad;i++){
     float t=bis<0?min(t0+dt*float(i), t1):0.5*(lo+hi);
     vec3 p=ro+rd*t;
-    float h=massifH(p.xy, q, volc, ms);
+    float h=massifH(p.xy, p.z, q, volc, ms);
     if(bis<0){
       if(h>0.3 && p.z<=h){ if(i==0) return t; lo=prev; hi=t; bis=0; }
       else { prev=t; if(t>=t1) break; }
     }else{
       if(h>=p.z) hi=t; else lo=t;
-      if(++bis>=6) return hi;
+      if(++bis>=nbis) return hi;
     }
   }
   return -1.0;
 }
-vec3 massifN(vec2 p, vec4 q, float volc){
-  float e=max(massifRad(q.z, volc)*(volc>1.5?0.012:0.028), 3.0);
-  vec4 s, ms=massifSeed(q, volc);
-  for(int k=0;k<4+loopPad;k++){
-    vec2 o=vec2(k==0?e:(k==1?-e:0.0), k==2?e:(k==3?-e:0.0));
-    s[k]=massifH(p+o, q, volc, ms);
+// The surface is massifH(p, z)-z=0; its normal is that function's gradient, turned outward. A
+// glacier's varies with z too (overhangs face down), and its crags are a few meters across, so
+// it is taken over 0.6 m in all three directions.
+vec3 massifN(vec3 p, vec4 q, float volc){
+  float e=volc>1.5?0.6:max(massifRad(q.z, volc)*0.028, 3.0);
+  float s[6]; s[4]=0.0; s[5]=0.0;
+  vec4 ms=massifSeed(q, volc);
+  for(int k=0;k<(volc>1.5?6:4)+loopPad;k++){
+    vec3 o=vec3(k==0?e:(k==1?-e:0.0), k==2?e:(k==3?-e:0.0), k==4?e:(k==5?-e:0.0));
+    s[k]=massifH(p.xy+o.xy, p.z+o.z, q, volc, ms);
   }
-  return normalize(vec3(-(s.x-s.y), -(s.z-s.w), 2.0*e));
+  return normalize(vec3(-(s[0]-s[1]), -(s[2]-s[3]), 2.0*e-(s[4]-s[5])));
 }
 float marchLand(vec3 ro, vec3 rd, float tMax, out vec3 nOut, out float ROut, out float HOut){
   nOut=vec3(0.0, 0.0, 1.0); ROut=1.0; HOut=1.0;
@@ -216,7 +241,7 @@ float marchLand(vec3 ro, vec3 rd, float tMax, out vec3 nOut, out float ROut, out
   }
   if(best<0.0) return -1.0;
   vec4 q=vec4(cBest, Rb, Hb);
-  nOut=massifN((ro+rd*best).xy, q, 0.0);
+  nOut=massifN(ro+rd*best, q, 0.0);
   if(dot(nOut, rd)>0.0) nOut=-nOut;
   ROut=Rb; HOut=Hb;
   return best;

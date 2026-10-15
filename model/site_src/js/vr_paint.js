@@ -164,8 +164,19 @@ function onePeak(x, y, cx, cy, R, H, volc, seed){
   if(volc>0.5) prof+=smoothstep(0.045, 0.10, u)*(1-smoothstep(0.12, 0.22, u))*0.11-(1-smoothstep(0.02, 0.145, u))*0.18;
   return Math.max(prof, 0)*H;
 }
-function glacierH(x, y, q, seed){
-  const dx=x-q[0], dy=y-q[1], R=q[2]*1.08, r=Math.hypot(dx, dy);
+// The glacier's crags (shader_terrain.js glacierN, glacierCrag).
+function glacierN(x, y){
+  const ix=Math.floor(x), iy=Math.floor(y), fx=x-ix, fy=y-iy;
+  return mix(mix(h12xy(ix, iy), h12xy(ix+1, iy), fx), mix(h12xy(ix, iy+1), h12xy(ix+1, iy+1), fx), fy);
+}
+function glacierCrag(dx, dy, z){
+  const ax=dx*0.8+dy*0.6, ay=dy*0.8-dx*0.6;
+  return (glacierN(ax/26, z/15)+glacierN(ay/26+17.3, z/15+17.3)-1)*7+(glacierN((ax+ay)/7+5.1, z/6+5.1)-0.5)*2.6;
+}
+function glacierH(x, y, z, q, seed){
+  let dx=x-q[0], dy=y-q[1], R=q[2]*1.08, r=Math.hypot(dx, dy);
+  if(r>=R+9) return 0;
+  const sh=Math.max(1-glacierCrag(dx, dy, z)/Math.max(r, 1), 0); dx*=sh; dy*=sh; r*=sh;
   if(r>=R) return 0;
   const u=r/(R*(0.74+0.26*wtex(Math.atan2(dy, dx)*0.3+seed*2, seed*3.1, 1)));
   if(u>=1) return 0;
@@ -180,7 +191,12 @@ function glacierH(x, y, q, seed){
 function massifH(x, y, q, volc){
   if(volc>1.5){
     const F=Math.fround, i=Math.floor(fract(F(F(q[0]*F(0.00041))+F(0.37)))*256), j=Math.floor(fract(F(F(q[1]*F(0.00041))+F(0.37)))*256);
-    return glacierH(x, y, q, weatherData()[(j*256+i)*4]/255);
+    // The top surface, where the ice's height at a point's height is that height: stepped down to
+    // from above the glacier.
+    const seed=weatherData()[(j*256+i)*4]/255;
+    let z=q[3]*1.6;
+    for(let k=0;k<4;k++) z=glacierH(x, y, z, q, seed);
+    return z;
   }
   const R=q[2]*mix(1.28, 1.12, volc), H=q[3], s0=wtex(q[0]*0.00041+0.13, q[1]*0.00041+0.13, 0), s1=wtex(q[0]*0.00041+0.71, q[1]*0.00041+0.71, 1);
   const ox=Math.cos(s0*2*Math.PI), oy=Math.sin(s0*2*Math.PI), d=R*mix(0.09, 0.02, volc);
