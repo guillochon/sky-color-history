@@ -34,7 +34,8 @@ SHOTS = {
     # The Moment looks too high to show a town; this faces the city 2.8 km to the north-east, its
     # towers along the bottom of the frame.
     'city':         dict(epoch='modern', date='2026-07-08', t=1380, look=[35, 10], fov=30, wait=8000),
-    'sats2100':     dict(moment='Satellites at dusk, 2100'),
+    # Dusk on 12 March 2100, the Sun 17° down, facing west-north-west (the Moment it came from now opens on a summer night).
+    'sats2100':     dict(epoch='y2100', date='2100-03-12', t=1167, look=[300, 28], clouds=False),
     # Telescope views, framed by the find tool and zoomed past it.
     'saturn':       dict(epoch='modern', date='2017-06-15', t=1410, look={'find': 'Saturn'}, zoom=0.29, clouds=False, wait=10000),
     # Jupiter (jup): over the nights from the date (nights of them), the Sun 18° down and Jupiter 30°

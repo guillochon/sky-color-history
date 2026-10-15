@@ -8,7 +8,9 @@
 // with the radiant highest, at the visitor's own longitude (showers.js openStorm). Moments
 // that show one feature (clear: the eclipse, the supernova, an aurora, the Milky Way, the
 // satellites) open with clouds off, and the visitor's own setting returns on leaving VR; c or the
-// pad during the moment makes that the setting. Dates are in each epoch's own year (calendar.js
+// pad during the moment makes that the setting. Each plays in real time (keys 1, 2 and 3 change
+// it), save where speed names the pace that suits it better: the eclipses, which take hours, at
+// the normal pace, which slows itself tenfold through totality. Dates are in each epoch's own year (calendar.js
 // EPOCH_YEAR): year 0 (2000 underneath) for the older skies, 1815 and 2100 for theirs.
 const MOMENTS=[
   // Theia's closest pass to the proto-Earth, at its brightest, in the epoch's random-phase orbits
@@ -28,12 +30,15 @@ const MOMENTS=[
   {epoch:'volcanic', date:'1815-07-06', t:1392, look:[180, 32], title:'A town night in 1815', sub:'Oil lamps light the streets but barely touch the sky', art:'stars'},
   {epoch:'modern', date:'2026-07-08', t:1380, look:[180, 32], title:'A city night, today', sub:'Sodium and LED glow hides all but the brightest stars', art:'city'},
   {epoch:'modern', date:null, t:0, storm:true, clear:true, title:'A Leonid meteor storm', sub:'Over a thousand an hour from one point in Leo, even through city glow', art:'storm'},
-  {epoch:'modern', date:null, eclipse:true, clear:true, title:'The next total eclipse', sub:'The corona, Baily’s beads, and a sunset all round the horizon', art:'eclipse'},
-  {epoch:'modern', date:null, lunar:true, look:'moon', clear:true, title:'The next total lunar eclipse', sub:'A copper Moon, lit by every sunrise and sunset on Earth', art:'lunar'},
-  // The summer dusk of 2100 at mid-latitudes, the Sun 10.6° down and the weather's clouds cleared:
-  // a bright display of noctilucent clouds (nlc.js), which by then reach overhead, low in the
-  // north, and above them the megaconstellations and orbital datacenters, still in sunlight.
-  {epoch:'y2100', date:'2100-07-01', t:1260, look:[20, 22], clear:true, title:'Dusk in 2100', sub:'Noctilucent clouds spreading as methane rises, and megaconstellations still in sunlight', art:'nlcsats'},
+  {epoch:'modern', date:null, eclipse:true, clear:true, speed:'default', title:'The next total eclipse', sub:'The corona, Baily’s beads, and a sunset all round the horizon', art:'eclipse'},
+  {epoch:'modern', date:null, lunar:true, look:'moon', clear:true, speed:'default', title:'The next total lunar eclipse', sub:'A copper Moon, lit by every sunrise and sunset on Earth', art:'lunar'},
+  // A summer night of 2100 at mid-latitudes, the weather's clouds cleared. At 02:25, the Sun 14.5°
+  // down, the megaconstellations and orbital datacenters still in sunlight cross the south-western
+  // sky, opposite the coming dawn, where they shine brightest: some 25 above the naked-eye limit
+  // the town's glow leaves (4.6), more than in any twilight bright enough to light the noctilucent
+  // clouds. From about 02:40, with the Sun 13° down, a bright display of those (nlc.js) rises in
+  // the north-east behind the eye, and brightens until 03:00 as the satellites fade.
+  {epoch:'y2100', date:'2100-07-02', t:145, look:[225, 30], clear:true, title:'Night into dawn, 2100', sub:'Megaconstellations crossing the night, then noctilucent clouds in the dawn', art:'nlcsats'},
 ];
 const MOMENT_ART={
   theia:'<circle cx="62" cy="30" r="11" fill="#3a3430"/><path d="M62 19a11 11 0 0 1 0 22z" fill="#b8aa98"/>',
@@ -74,7 +79,7 @@ const MOMENT_ART={
     +'</g></g></g>'
     +'<path d="M0 64V44C8 42 14 39 22 43C30 46 38 42 46 44C56 46 64 40 74 44C84 47 94 44 104 46C110 47 116 45 120 46V64Z" fill="#1c120d"/>',
 };
-// Dusk in 2100: the noctilucent clouds' bands low down, satellite trains crossing above them.
+// Night into dawn, 2100: the noctilucent clouds' bands low down, satellite trains crossing above them.
 MOMENT_ART.nlcsats=`<g transform="translate(0,18)">${MOMENT_ART.nlc}</g><g transform="scale(1,0.55)">${MOMENT_ART.sats}</g>`;
 function momentGradient(m){
   // The Hadean evening: the whole dome dimmed to orange as the Sun sets in the 30-bar air.
@@ -106,6 +111,7 @@ function openMoment(m){
   if(m.eclipse) jumpNextEclipse(true, true);
   if(m.lunar) jumpNextLunarEclipse(true);
   const storm=m.storm?openStorm():null;
+  setPlaySpeed(m.speed||'real');
   if(momentClouds!==null) vrClouds=momentClouds;
   momentClouds=m.clear?vrClouds:null;
   if(m.clear) vrClouds=false;
