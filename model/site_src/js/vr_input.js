@@ -377,11 +377,13 @@ function syncVRPad(){
   const el=document.getElementById('vrmusiclabel');
   if(el) el.textContent=musicMuted?'muted':'music';
 }
-document.querySelectorAll('.vrpad button, .vrplay, .vrwalk button, #vrpad-ui').forEach(b=>{
+document.querySelectorAll('.vrpad button, .vrplay, .vrwalk button, #vrpad-ui, #vrpad-exit').forEach(b=>{
   b.addEventListener('pointerdown', e=>e.stopPropagation());
   b.addEventListener('click', e=>{
     e.preventDefault(); e.stopPropagation();
     const act=b.dataset.act;
+    // A phone has no Esc, and iOS Safari no full screen to leave, so the × leaves VR.
+    if(act==='exit'){ exitVR(); return; }
     if(act==='scenery'){ vrScenery=!vrScenery; requestVR(); }
     else if(act==='clouds'){ vrClouds=!vrClouds; momentClouds=null; requestVR(); }
     else if(act==='air'){ setAirOff(!vrAirOff); return; }
