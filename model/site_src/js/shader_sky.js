@@ -301,6 +301,7 @@ vec2 roadAt(vec2 p, float foot){
   return vec2(d, line);
 }
 float massifRad(float R, float volc){ return volc>1.5?R*1.08:R*mix(1.28, 1.12, volc); }
+${GLACIER_GLSL}
 float apparentEl(float h){ // Saemundsson 1986, true altitude (deg) to apparent, times the epoch's refK
   if(h>80.0) return h;
   float u=h+10.3/(h+5.11);
@@ -839,13 +840,16 @@ void main(){
     float volc=step(1.5, kBest);
     vec3 albedo=vec3(0.46,0.38,0.31);
     vec3 emit=vec3(0.0);
+    // The glacier's ice faces (glass, 0 on the snowy flats), their rippled normal, and how far
+    // light goes in the ice before a bubble turns it (its transport mean free path, meters).
+    float glass=0.0, iceEll=0.08; vec3 iceN=nBest;
     if(kBest>4.5) albedo=vec3(0.10,0.26,0.08);
     else if(kBest>3.5) albedo=vec3(0.74,0.71,0.66);
     else if(kBest>2.5){
       // Glacier: white snow on the flats, blue ice on the cliffs, banded by its layers.
       // Layers are hBest*0.022 thick, warped, and dip gently across the massif. Each layer has
-      // one band of its own width, position, and color (deep blue, turquoise, pale blue, gray
-      // debris, or near-white), with faint fine lines between. Far away it fades to the mean.
+      // one band of its own width and position, of bubbly white, pale blue, turquoise or clear
+      // deep blue ice, or gray debris, with faint fine lines between. Far away it fades to the mean.
       float sp=hBest*0.022;
       vec2 dip=vec2(cos(qBest.x*0.013), sin(qBest.y*0.017))*0.03;
       float lay=pBest.z/sp+(vN(pBest.xy/90.0)-0.5)*2.5+vN(pBest.xy/25.0)*0.6+dot(pBest.xy-qBest.xy, dip)/sp;
@@ -854,14 +858,27 @@ void main(){
       float r1=h12(vec2(li, 3.7)), r2=h12(vec2(li, 9.1)), r3=h12(vec2(li, 5.3));
       float wd=mix(0.06, 0.85, r2*r2), ctr=mix(wd*0.5, 1.0-wd*0.5, r3);
       float m=(1.0-smoothstep(wd*0.5-0.03, wd*0.5+0.03, abs(lf-ctr)))*mix(0.55, 0.95, fract(r1*7.3));
-      vec3 bc=r1<0.3?vec3(0.18, 0.42, 0.75):(r1<0.5?vec3(0.32, 0.66, 0.84):(r1<0.7?vec3(0.62, 0.80, 0.93):(r1<0.85?vec3(0.46, 0.53, 0.60):vec3(0.90, 0.95, 0.99))));
+      // The ice's color is the light its bubbles send back out before the ice absorbs it. Ice
+      // absorbs red most, about 0.3 per meter, green 0.05 and blue 0.008 (Warren & Brandt 2008),
+      // so light that goes far between bubbles comes back blue. Diffusing through a deep layer it
+      // reflects exp(-(4/√3)·√(absorption·mean free path)): a centimeter gives white, a meter
+      // turquoise, several meters deep blue. Bands: clear ice 1.5 to 4 m, turquoise 0.5 to 1.2,
+      // pale 0.15 to 0.3, debris 0.1 grayed by grit, bubbly 1 cm; the body 8 cm.
+      float ell=r1<0.3?mix(1.5, 4.0, fract(r1*11.0)):(r1<0.5?mix(0.5, 1.2, fract(r1*11.0)):(r1<0.7?mix(0.15, 0.3, fract(r1*11.0)):(r1<0.85?0.1:0.01)));
+      ell=mix(0.08, ell, m*detail);
+      vec3 face=exp(-2.31*sqrt(vec3(0.30, 0.05, 0.008)*ell))*(r1>0.7&&r1<0.85?mix(1.0, 0.62, m*detail):1.0);
       float thin=1.0-smoothstep(0.0, 0.05, abs(fract(lay*3.1+r3)-0.5));
-      vec3 base=vec3(0.80, 0.89, 0.96);
-      vec3 face=mix(base, bc, m)*(1.0-0.12*thin);
-      face=mix(mix(base, vec3(0.5, 0.68, 0.85), 0.3), face, detail);
-      face*=0.92+0.16*vN(pBest.xy/6.0+pBest.z*0.3);
-      albedo=mix(face, vec3(0.94, 0.96, 0.99), smoothstep(0.55, 0.85, nBest.z));
-      emit=vec3(0.06, 0.13, 0.22)*(1.0-smoothstep(0.4, 0.8, nBest.z))*(0.42+0.58*sunMu);
+      face*=(1.0-0.12*thin*detail)*(0.92+0.16*vN(pBest.xy/6.0+pBest.z*0.3));
+      float snowy=smoothstep(0.55, 0.85, nBest.z);
+      albedo=mix(face, vec3(0.94, 0.96, 0.99), snowy);
+      glass=1.0-snowy; iceEll=ell;
+      // The faces are glazed but not flat: ripples a few meters and tens of centimeters across
+      // tilt the normal a little, so the sky they mirror wavers and the Sun's glint spreads.
+      vec3 ti=cross(vec3(0.0, 0.0, 1.0), nBest); ti=dot(ti, ti)>1e-4?normalize(ti):vec3(1.0, 0.0, 0.0);
+      vec3 bi=cross(nBest, ti);
+      vec2 fu=vec2(dot(pBest.xy, ti.xy), pBest.z);
+      vec3 g1=vNd(fu/2.5), g2=vNd(fu/0.6+11.0);
+      iceN=normalize(nBest+(ti*(g1.y+g2.y*0.4)+bi*(g1.z+g2.z*0.4))*0.12*detail);
     }
     else {
       float hh=clamp(pBest.z/max(hBest,1.0), 0.0, 1.6);
@@ -898,8 +915,38 @@ void main(){
     float sh=kBest<3.5?shBest:1.0;
     float ao=mix(0.58, 1.0, clamp(nBest.z,0.0,1.0));
     vec3 lit=(0.40*ao+0.95*ndl*sh*sunTint)*(0.42+0.58*sunMu);
-    if(kBest>2.5&&kBest<3.5) lit=(0.62+0.6*ndl*sh*sunTint)*(0.42+0.58*sunMu); // ice scatters light into its shade
+    if(kBest>2.5&&kBest<3.5){
+      // The sky and the snow all round light the ice's shade, so the shade takes the color of
+      // the sky the face looks up into: blue under a blue sky, gray under cloud.
+      vec3 skyA=skyLook(normalize(vec3(nBest.xy*0.6, 0.8)));
+      vec3 tintA=skyA/max(dot(skyA, vec3(0.2126, 0.7152, 0.0722)), 1e-3);
+      lit=(0.62*mix(vec3(1.0), tintA, 0.6)+0.6*ndl*sh*sunTint)*(0.42+0.58*sunMu);
+    }
     col=albedo*(lit+nightLit(nBest)+fireSun(nBest))+emit;
+    if(glass>0.0){
+      // Sunlight through the ice. Where the Sun is behind the face, its light crosses T meters of
+      // ice (stepped toward the Sun through glacierH, out to 16 m) and comes out diffused. A slab
+      // that thick lets through 1.7ℓ/(T+1.4ℓ) of it, ℓ the mean free path, times x/sinh x for
+      // the absorption, x=T/δ, δ=√(ℓ/(3·absorption)) the distance light diffuses before the ice
+      // takes it: blue goes on ten times farther than red, so edges and thin fins glow blue.
+      // The path crosses layers, so ℓ is between this layer's and the body's.
+      float seed=glacierSeed(qBest), T=0.0, s0=0.0;
+      for(int i=0;i<6;i++){
+        float s1=0.5*exp2(float(i));
+        vec3 p=pBest+sd*s1-nBest*0.05;
+        T+=step(p.z, glacierH(p.xy, qBest, seed))*(s1-s0); s0=s1;
+      }
+      float ellP=sqrt(0.08*iceEll);
+      vec3 x=T/sqrt(ellP/(3.0*vec3(0.30, 0.05, 0.008)));
+      vec3 tr=1.7*ellP/(T+1.4*ellP)*2.0*x*exp(-x)/max(1.0-exp(-2.0*x), 1e-4);
+      col+=tr*0.67*sunTint*(0.42+0.58*sunMu)*smoothstep(0.2, 0.5, T)*step(0.0, sd.z)*(1.0-ndl*sh)*glass;
+      // And the face mirrors the sky, as ice of index 1.31 does: 1.8% straight on, rising toward
+      // grazing, but weathered and frosted, so at most half (Schlick's form with roughness), with
+      // the Sun's glint spread by the ripples.
+      float fres=0.018+0.482*pow(1.0-clamp(-dot(rd, iceN), 0.0, 1.0), 5.0);
+      vec3 refl=reflect(rd, iceN);
+      col=mix(col, skyLook(refl), fres*glass)+sunCol*pow(max(dot(refl, sd), 0.0), 150.0)*step(0.0, sd.z)*1.5*glintFade*sh*glass;
+    }
     if(kBest<3.5){
       float uTex=(fract(compDeg/360.0)*na+0.5)/(na+1.0);
       float vTex=((90.0-max(elevDeg,0.0))/90.0*nr+0.5)/(nr+1.0);

@@ -26,6 +26,41 @@ vec2 cylSpan(vec3 ro, vec3 rd, vec2 c, float R, float z0, float z1){
   return vec2(t0, t1);
 }
 `;
+// The glacier's shape, shared by the hit shader and the sky shader, which measures the ice the
+// sunlight crosses to shine through it (shader_sky.js). Needs h12, massifRad and weather.
+const GLACIER_GLSL=`
+float ridge(vec2 p){
+  float a=texture(weather, p).b;
+  float b=texture(weather, p*2.35+0.37).a;
+  a=pow(1.0-abs(a*2.0-1.0), 1.45);
+  b=pow(1.0-abs(b*2.0-1.0), 1.45);
+  return a*0.64+b*0.36;
+}
+// Ice plateaus with cliffs between them. The tiers follow a noisy elevation field, so their
+// edges wander instead of ringing the center. Each step gets its own height (0.4 to 1.6 of the
+// mean), and low-frequency noise varies each cliff from sheer to a steep ramp and each bench
+// from flat to sloping. The noise is kept smooth: high-frequency outlines make thin fins that
+// the march steps over.
+float glacierH(vec2 p, vec4 q, float seed){
+  vec2 d=p-q.xy;
+  float R=massifRad(q.z, 2.0), r=length(d);
+  if(r>=R) return 0.0;
+  float ang=atan(d.y, d.x);
+  float u=r/(R*(0.74+0.26*texture(weather, vec2(ang*0.3+seed*2.0, seed*3.1)).g));
+  if(u>=1.0) return 0.0;
+  vec2 w=d/R;
+  float n1=texture(weather, w*0.6+seed).b, n2=texture(weather, w*1.1+seed*1.7).a;
+  float e=(1.0-u)*0.75+sqrt(1.0-u)*0.35*ridge(w*0.9+seed)+(n1-0.5)*0.25;
+  float tiers=3.0+floor(seed*2.99), s=max(e*tiers+(n2-0.5)*1.6, 0.0), k=floor(s), f=fract(s);
+  float b0=k+0.6*(h12(vec2(k, seed*37.0))-0.5), b1=k+1.0+0.6*(h12(vec2(k+1.0, seed*37.0))-0.5);
+  float cliff=smoothstep(0.0, mix(0.04, 0.35, n1*n1), f);
+  float prof=(b0+(b1-b0)*mix(cliff, f, mix(0.0, 0.55, n2)))/(tiers+0.5);
+  return max(prof, 0.0)*smoothstep(0.0, 0.03, 1.0-u)*q.w;
+}
+// A glacier's seed: one texel, not filtered, since its tier heights hash it and massifH in
+// vr_paint.js must get the same value to stand the walker on them.
+float glacierSeed(vec4 q){ return texelFetch(weather, ivec2(fract(q.xy*0.00041+0.37)*256.0), 0).r; }
+`;
 // Marched by the hit shader. massifRad must match scRad. The volc argument picks the style:
 // 0 mountain, 1 volcano, 2 glacier.
 // Hill cells must match hillHeight in vr_paint.js. hillN, loopPad, town and townN are hit-shader uniforms.
@@ -57,13 +92,7 @@ vec3 rollN(vec2 p){
   float hy=rollAt(p+vec2(0.0,e))-rollAt(p-vec2(0.0,e));
   return normalize(vec3(-hx, -hy, 2.0*e));
 }
-float ridge(vec2 p){
-  float a=texture(weather, p).b;
-  float b=texture(weather, p*2.35+0.37).a;
-  a=pow(1.0-abs(a*2.0-1.0), 1.45);
-  b=pow(1.0-abs(b*2.0-1.0), 1.45);
-  return a*0.64+b*0.36;
-}
+${GLACIER_GLSL}
 float onePeak(vec2 p, vec2 c, float R, float H, float volc, float seed){
   vec2 d=p-c;
   float r=length(d);
@@ -91,34 +120,11 @@ float onePeak(vec2 p, vec2 c, float R, float H, float volc, float seed){
   }
   return max(prof, 0.0)*H;
 }
-// Ice plateaus with cliffs between them. The tiers follow a noisy elevation field, so their
-// edges wander instead of ringing the center. Each step gets its own height (0.4 to 1.6 of the
-// mean), and low-frequency noise varies each cliff from sheer to a steep ramp and each bench
-// from flat to sloping. The noise is kept smooth: high-frequency outlines make thin fins that
-// the march steps over.
-float glacierH(vec2 p, vec4 q, float seed){
-  vec2 d=p-q.xy;
-  float R=massifRad(q.z, 2.0), r=length(d);
-  if(r>=R) return 0.0;
-  float ang=atan(d.y, d.x);
-  float u=r/(R*(0.74+0.26*texture(weather, vec2(ang*0.3+seed*2.0, seed*3.1)).g));
-  if(u>=1.0) return 0.0;
-  vec2 w=d/R;
-  float n1=texture(weather, w*0.6+seed).b, n2=texture(weather, w*1.1+seed*1.7).a;
-  float e=(1.0-u)*0.75+sqrt(1.0-u)*0.35*ridge(w*0.9+seed)+(n1-0.5)*0.25;
-  float tiers=3.0+floor(seed*2.99), s=max(e*tiers+(n2-0.5)*1.6, 0.0), k=floor(s), f=fract(s);
-  float b0=k+0.6*(h12(vec2(k, seed*37.0))-0.5), b1=k+1.0+0.6*(h12(vec2(k+1.0, seed*37.0))-0.5);
-  float cliff=smoothstep(0.0, mix(0.04, 0.35, n1*n1), f);
-  float prof=(b0+(b1-b0)*mix(cliff, f, mix(0.0, 0.55, n2)))/(tiers+0.5);
-  return max(prof, 0.0)*smoothstep(0.0, 0.03, 1.0-u)*q.w;
-}
 // What massifH takes from the massif alone, worked out once per massif rather than per sample:
-// its two seeds and the direction the first sets, or a glacier's seed in x. The glacier's seed
-// is one texel, not filtered: its tier heights hash it, and massifH in vr_paint.js must get
-// the same value to stand the walker on them.
+// its two seeds and the direction the first sets, or a glacier's seed (glacierSeed) in x.
 vec4 massifSeed(vec4 q, float volc){
 #if GLACIERS
-  if(volc>1.5) return vec4(texelFetch(weather, ivec2(fract(q.xy*0.00041+0.37)*256.0), 0).r, 0.0, 0.0, 0.0);
+  if(volc>1.5) return vec4(glacierSeed(q), 0.0, 0.0, 0.0);
 #endif
   float s0=texture(weather, q.xy*0.00041+0.13).r, ang=s0*6.2831853;
   return vec4(s0, texture(weather, q.xy*0.00041+0.71).g, cos(ang), sin(ang));
