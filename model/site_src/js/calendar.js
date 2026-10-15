@@ -332,7 +332,7 @@ dpDaySel.addEventListener('change', ()=>{ const [Y,M]=pageDate(); setPageDate(Y,
 // A click on the dimmed page outside the dialog closes it.
 datePop.addEventListener('click', e=>{ if(e.target===datePop) datePop.close(); });
 dpMonths.addEventListener('click', e=>{ const b=e.target.closest('[data-m]'); if(!b) return; const [Y,,D]=pageDate(); setPageDate(Y, +b.dataset.m, D); });
-dpDays.addEventListener('click', e=>{ const b=e.target.closest('[data-d]'); if(!b) return; const [Y,M]=pageDate(); setPageDate(Y, M, +b.dataset.d); datePop.close(); });
+dpDays.addEventListener('click', e=>{ const b=e.target.closest('[data-d]'); if(!b) return; const [Y,M]=pageDate(); setPageDate(Y, M, +b.dataset.d); dpDays.querySelector('[aria-pressed="true"]')?.focus(); });
 // The year is checked as it is typed and taken on Enter or on leaving the field.
 function typedTime(){ const A=parseTime(dpYear.value); return A!==null && A>=TIME_MIN && A<=TIME_MAX?A:null; }
 dpYear.addEventListener('input', ()=>{ if(typedTime()===null) dpYear.setAttribute('aria-invalid', 'true'); else dpYear.removeAttribute('aria-invalid'); });
