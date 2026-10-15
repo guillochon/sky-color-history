@@ -1,6 +1,6 @@
 /* ---------- lunar eclipses: the Moon in the Earth's shadow ---------- */
 // The shadow is the same from everywhere the Moon is up, so it is worked geocentrically: the
-// Moon's centre's distance from the shadow's axis (the antisolar direction), in Earth radii at
+// Moon's center's distance from the shadow's axis (the antisolar direction), in Earth radii at
 // the Moon. The umbra and penumbra take Danjon's enlargement of the Earth by 1/85 of the Moon's
 // parallax (the air and clouds the grazing light cannot get through), as the eclipse almanacs do;
 // with the Moon nearer or the young Sun smaller, they follow on their own.
@@ -74,7 +74,7 @@ function lunarPhaseEnd(ms, total){
   return lo;
 }
 // The shadow per epoch on LUN_LUT_N samples from the axis out to rhoMax: its luminance over the
-// uneclipsed Moon's, and its colour (linear sRGB over that luminance).
+// uneclipsed Moon's, and its color (linear sRGB over that luminance).
 const lunarLuts=new Map();
 function lunarLut(key){
   key=airFor(key);
@@ -118,7 +118,7 @@ function lunarEclipseNow(moon){
   if(!(s.rho<s.pen+MOON_ER)) return null;
   const sun=sunEquatorial(d), lst=localSidereal(), lat=LATDEG[dLat];
   const ax=raDecAltaz(lat, rev(sun.RA+180), -sun.Dec, lst), ah=horizDir(ax.az, ax.alt), b=moonBasis(moon);
-  // The axis's point at the Moon's distance, from the Moon's centre, in the horizon frame.
+  // The axis's point at the Moon's distance, from the Moon's center, in the horizon frame.
   const md=b.md, ma=vdot(md, ah), v=[(ma*ah[0]-md[0])*s.r, (ma*ah[1]-md[1])*s.r, (ma*ah[2]-md[2])*s.r];
   const c=[vdot(v, b.east)/MOON_ER, vdot(v, b.north)/MOON_ER];
   const L=lunarLut(EP[dIdx].key), sh=L.s;

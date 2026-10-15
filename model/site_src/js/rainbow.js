@@ -1,5 +1,5 @@
-// Rainbows: the light raindrops send each way (the phase function, per steradian, normalised to a
-// drop's cross-section), in linear sRGB relative to the sunlight's own colour, for the rain veil
+// Rainbows: the light raindrops send each way (the phase function, per steradian, normalized to a
+// drop's cross-section), in linear sRGB relative to the sunlight's own color, for the rain veil
 // (shader_present.js rainVeil). Geometric optics for each internal reflection, Airy theory about
 // the primary and secondary bows, a log-normal spread of drop sizes, the Sun's disk; rainbow.py
 // has the method and its check against Lorenz-Mie theory.
@@ -54,7 +54,7 @@ function bowRay(m, b, k){
   return [Math.acos(Math.cos(D)), k<0?Rs:(1-Rs)**2*Rs**k, k<0?Rp:(1-Rp)**2*Rp**k];
 }
 // Geometric optics of order k on the angle grid th (rad): each branch b(θ) of the rays, as the
-// light per steradian, s and p (the mean of the two is the unpolarised sunlight's).
+// light per steradian, s and p (the mean of the two is the unpolarized sunlight's).
 function bowGeometric(m, k, th, outS, outP){
   const N=4000, bs=new Float64Array(N), ts=new Float64Array(N);
   // Denser toward grazing incidence, where the angle turns fastest.
@@ -150,7 +150,7 @@ function rainbowTable(T, airN){
       const c=[0, 0, 0];
       for(let j=-n;j<=n;j++){ const qq=Math.min(W-1, Math.max(0, q+j)), w=ker[j+n]/ks; for(let e=0;e<3;e++) c[e]+=acc[r][e][qq]*w; }
       for(let e=0;e<3;e++) c[e]/=sunRGB[e];
-      // Bow colours outside sRGB, toward grey of the same luminance until they fit.
+      // Bow colors outside sRGB, toward gray of the same luminance until they fit.
       const Y=0.2126*c[0]+0.7152*c[1]+0.0722*c[2], lo=Math.min(c[0], c[1], c[2]);
       if(lo<0 && Y>0){ const t=Y/(Y-lo); for(let e=0;e<3;e++) c[e]=Y+(c[e]-Y)*t; }
       const o=(r*W+q)*4;

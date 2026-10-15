@@ -1,4 +1,4 @@
-// Dust and debris in Earth's neighbourhood: a brighter zodiacal light, and the Ordovician ring.
+// Dust and debris in Earth's neighborhood: a brighter zodiacal light, and the Ordovician ring.
 //
 // Zodiacal light. Today's is part of the natural night sky (day.js, 22.0 mag/arcsec² in all at the
 // zenith). Where the inner Solar System held more dust, the excess over today's is drawn as its
@@ -66,14 +66,14 @@ function zodiExtra(key, v, F){
 }
 
 // The Ordovician ring. Tomkins, Martin & Cawood 2024 (EPSL 646, 118991) found all 21 known
-// Ordovician impact craters within 30° of the palaeo-equator, though most crust that could have
+// Ordovician impact craters within 30° of the paleo-equator, though most crust that could have
 // kept one lay outside that band, and proposed that a 10–12 km L-chondrite asteroid passing within
 // the Roche limit about 466 Ma broke up into a ring in the equatorial plane, which lasted tens of
 // millions of years and rained debris onto the low latitudes. It is speculative (the cluster may
 // be a preservation bias, Lagain et al. 2022), and its size and opacity are not given. Here it lies
-// between 1.55 and 2.75 Earth radii from the centre, inside the Roche limit for rock (about 2.9
-// fluid, 1.5 rigid), two kilometres thick, with ringlets and a gap. Its normal optical depth,
-// 1.5e-4 at most (about 1e14 kg of centimetre grains), makes the sunlit ring about as bright as
+// between 1.55 and 2.75 Earth radii from the center, inside the Roche limit for rock (about 2.9
+// fluid, 1.5 rigid), two kilometers thick, with ringlets and a gap. Its normal optical depth,
+// 1.5e-4 at most (about 1e14 kg of centimeter grains), makes the sunlit ring about as bright as
 // the Moon's light in total: plain at night, lost in a blue day sky. Its grains are L-chondrite
 // rubble, albedo 0.25, scattering as Lambert spheres. Earth's shadow takes a bite out of it
 // around midnight. Taken in the equatorial plane of the year shown.
@@ -84,7 +84,7 @@ function ringOf(key){
   const R=RING[key], w=R?ordRingNow():0;
   return w<0.01?null:w>0.999?R:{...R, tau:R.tau*w};
 }
-// The ring's optical depth at rho Earth radii from the centre.
+// The ring's optical depth at rho Earth radii from the center.
 function ringTau(R, rho){
   if(rho<R.rIn||rho>R.rOut) return 0;
   const e=smooth01(R.rIn, R.rIn+0.08, rho)*(1-smooth01(R.rOut-0.15, R.rOut, rho));
@@ -96,7 +96,7 @@ function ringTau(R, rho){
 // frame), and pw the angle a pixel spans (radians), to resolve the edge-on ring at the equator.
 // Sun luminous flux: 1.27e5 lux today at 1 AU, times the epoch's luminosity and sunFlux.
 function ringAt(R, v, s, P, pw, sunFlux){
-  const dp=v[0]*P[0]+v[1]*P[1]+v[2]*P[2], cp=-P[2]; // (C·P)/R_E, Earth's centre C=(0,0,−1) R_E
+  const dp=v[0]*P[0]+v[1]*P[1]+v[2]*P[2], cp=-P[2]; // (C·P)/R_E, Earth's center C=(0,0,−1) R_E
   const half=0.5*R.H/RE_KM;
   let t;
   if(Math.abs(cp)<1e-6){
@@ -136,7 +136,7 @@ function ringIlluminance(R, s, P, sunFlux, k){
       E+=ringAt(R, v, s, P, dE, sunFlux)*ext*se*ce*dE*dA; } }
   return E;
 }
-// The ring's colour: sunlight off L-chondrite rubble (an S-type spectrum, redder with wavelength),
+// The ring's color: sunlight off L-chondrite rubble (an S-type spectrum, redder with wavelength),
 // as linear sRGB of unit luminance, set by spectrum.js once it loads.
 let RING_LIN=[1, 0.93, 0.82];
 const RING_REFL=l=>0.8+0.4*Math.max(0, Math.min(1, (l-400)/380))-0.08*Math.exp(-0.5*((l-500)/40)**2);

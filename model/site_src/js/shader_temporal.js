@@ -5,7 +5,7 @@ uniform vec2 res;
 uniform float yaw,pitch,prevYaw,prevPitch,fov,histValid,histW;
 // With cbOn, currTex and metaTex are half as wide and hold the pixels marched this frame: pixel
 // (x, y) of the res-sized view is among them when x+y+cbPar is even, at texel (x/2, y). The
-// others take the reprojected history, or, where there is none, their marched neighbours' mean.
+// others take the reprojected history, or, where there is none, their marched neighbors' mean.
 uniform float cbOn, cbPar;
 uniform vec3 eye, prevEye;
 out vec4 fragColor;
@@ -18,7 +18,7 @@ void main(){
   float tMean;
   if(fresh){ cur=texelFetch(currTex, cp, 0); tMean=texelFetch(metaTex, cp, 0).r; }
   else {
-    // The four neighbours, all marched this frame: left and right in this row, above and below.
+    // The four neighbors, all marched this frame: left and right in this row, above and below.
     ivec2 nb[4]=ivec2[4](ivec2((fp.x-1)>>1, fp.y), ivec2((fp.x+1)>>1, fp.y), ivec2(fp.x>>1, fp.y-1), ivec2(fp.x>>1, fp.y+1));
     cur=vec4(0.0); float tS=0.0, tN=0.0;
     for(int i=0;i<4;i++){
@@ -29,10 +29,10 @@ void main(){
     tMean=tN>0.0?tS/tN:0.0;
   }
   if(histValid<0.5){ fragColor=cur; return; }
-  // Clamp history to the range of this frame's 3x3 neighbourhood, so moving
+  // Clamp history to the range of this frame's 3x3 neighborhood, so moving
   // clouds and new edges do not ghost while the jitter noise still averages out.
-  // Alpha and the unpremultiplied colour are clamped separately; clamping
-  // premultiplied channels one by one paired a high alpha with a dark colour.
+  // Alpha and the unpremultiplied color are clamped separately; clamping
+  // premultiplied channels one by one paired a high alpha with a dark color.
   float aLo=fresh?cur.a:1e4, aHi=fresh?cur.a:-1e4;
   vec3 cLo=vec3(1e4), cHi=vec3(-1e4);
   for(int y=-1;y<=1;y++) for(int x=-1;x<=1;x++){

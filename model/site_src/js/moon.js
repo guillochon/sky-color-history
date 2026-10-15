@@ -9,11 +9,11 @@ const VR_FOV_MIN=0.004, VR_FOV_MAX=90, VR_FILL_MIN=0.25;
 const DISK_SCALE=4; // Sun and Moon are drawn at four times their angular size
 const DOME_DISK=11; // fisheye solar radius in pixels, half the previous enlargement
 // Limb darkening: toward its edge the Sun is seen through higher, cooler photosphere, so the edge is
-// dimmer and redder than the centre. Hestroffer & Magnan 1998 (A&A 333, 338) fit the intensity at
+// dimmer and redder than the center. Hestroffer & Magnan 1998 (A&A 333, 338) fit the intensity at
 // mu (the cosine of the angle from the line of sight to the surface normal there) as mu^alpha, with
 // alpha=-0.023+0.292/lambda (µm). In linear sRGB that is mu^SUN_LD_FULL per channel, to under 1% for a
 // Sun of 5,560 to 5,772 K and any epoch's air, which only multiplies the spectrum. The model's direct
-// sunlight is the whole disk's, mean over centre (alpha+2)/2, so the centre is a little bluer still.
+// sunlight is the whole disk's, mean over center (alpha+2)/2, so the center is a little bluer still.
 function sunLimbAlpha(lam){ return -0.023+292/lam; }
 const SUN_LD_FULL=[0.434, 0.513, 0.641];
 // The drawing keeps a fifth of it, so the edge only hints at it: the real contrast, on a disk drawn
@@ -21,8 +21,8 @@ const SUN_LD_FULL=[0.434, 0.513, 0.641];
 const SUN_LD_DRAW=0.2, SUN_LD=SUN_LD_FULL.map(a=>a*SUN_LD_DRAW), SUN_LD_C=SUN_LD.map(a=>(a+2)/(SUN_LD[1]+2));
 // mu at fraction r of the disk's radius, held at 0.1 at the very edge (about what its last pixel averages).
 function limbMu(r){ return Math.sqrt(Math.max(0.01, 1-r*r)); }
-// The disk's drawn colour (sRGB bytes, the whole disk's) at fraction r of its radius, as sRGB bytes;
-// the centre keeps the drawn colour's brightest channel.
+// The disk's drawn color (sRGB bytes, the whole disk's) at fraction r of its radius, as sRGB bytes;
+// the center keeps the drawn color's brightest channel.
 function sunLimbRGB(rgb, r){
   const lin=rgb.map(v=>SRGB_LIN[Math.round(v)]), c=lin.map((v, i)=>v*SUN_LD_C[i]), k=Math.max(...lin)/Math.max(...c, 1e-9), mu=limbMu(r);
   return c.map((v, i)=>linToByte(v*k*Math.pow(mu, SUN_LD[i])));
@@ -269,7 +269,7 @@ function dayOfMs(ms){ return DN_UNIX+ms/86400000; }
 function eqVec(ra, dec){ return [cosd(dec)*cosd(ra), cosd(dec)*sind(ra), sind(dec)]; }
 function moonEcc(){ return moonEccNow(); }
 function geoPair(d){ const eq=moonEquatorial(d, moonRate(), moonInc(), moonInEquator(), moonEcc()), sun=sunEquatorial(d); return {eq, m:eqVec(eq.RA, eq.Dec), s:eqVec(sun.RA, sun.Dec)}; }
-// A Moon this close shifts by several degrees from where the Earth's centre sees it (7° at 8 Earth
+// A Moon this close shifts by several degrees from where the Earth's center sees it (7° at 8 Earth
 // radii): it is placed as seen from the ground, and the best seat below is left out.
 function moonNear(){ return moonDist()<20; }
 // Closest geocentric approach of the Moon to that Sun in lunation k (golden-section search
@@ -302,7 +302,7 @@ function moonAt(d){
   return {v, s:g.s, RA:Math.atan2(v[1], v[0])*180/Math.PI, Dec:Math.asin(Math.max(-1, Math.min(1, v[2])))*180/Math.PI, Ls:g.eq.Ls, Ms:g.eq.Ms, r:g.eq.r*sc};
 }
 // The eclipse at time ms: separation and true radii in degrees. The Moon's distance is from the
-// observer, an Earth radius closer than the Earth's centre with the Moon overhead.
+// observer, an Earth radius closer than the Earth's center with the Moon overhead.
 function eclipseAt(ms){
   const d=dayOfMs(ms), m=moonAt(d);
   const el=90-sunGeom(LATDEG[dLat], pageAt(d).min, Math.asin(Math.max(-1, Math.min(1, m.s[2])))*180/Math.PI).sza;
@@ -318,7 +318,7 @@ function eclipseAt(ms){
   return {sep, rS:sunRadiusAt(m.Ms), rM:moonRadiusAt(m.r-Math.max(0, sind(el))), el};
 }
 // The Moon seen from the ground at geocentric altitude p.alt and distance r (Earth radii): the
-// observer stands an Earth radius from the centre, straight up.
+// observer stands an Earth radius from the center, straight up.
 function topoMoon(p, r){
   const g=horizDir(p.az, p.alt), v=[g[0]*r, g[1]*r, g[2]*r-1], n=Math.hypot(...v);
   return {az:(Math.atan2(v[0], v[1])*180/Math.PI+360)%360, alt:Math.asin(v[2]/n)*180/Math.PI, r:n};

@@ -85,7 +85,7 @@ function cometRateAt(A){ const b=cometBase(A); return b+(COMET_RATE.zetaoph-b)*M
 const cometRateNow=byTime(cometRateAt);
 function cometRate(key){ return cometsReal(key)?0:key===EP[dIdx].key?cometRateNow():(COMET_RATE[key]??1); }
 // Comets a year today with H ≤ 10 and q ≤ 2 AU: 3.2 gives one a year peaking at m ≤ 6 (seen at
-// least 20° from the Sun) and 0.3 a year at m ≤ 3; Hughes's normalisation (0.5 a year per AU
+// least 20° from the Sun) and 0.3 a year at m ≤ 3; Hughes's normalization (0.5 a year per AU
 // of q brighter than H = 6.5) gives 3.7. Comets brighter than 0 come out at a quarter of the
 // observed rate: many real ones are sungrazers or pass close to Earth, which this mix lacks.
 const COMET_PER_YEAR=3.2;
@@ -135,7 +135,7 @@ function cometFitM1(c, tp, peak){
 // Halley's node and perihelion advance 1.22° and 1.04° a century: fitted so its 837 passage comes
 // 0.033 AU from Earth on 10 April (Julian), as recorded, its later ones moving by at most 0.03 AU.
 const COMET_DRIFT={'1P/Halley':[1.22, 1.04]};
-const cometReal=COMETS_REAL.map(([name, desig, q, e, i, om, w, tps, peak, rmin])=>{
+const cometeral=COMETS_REAL.map(([name, desig, q, e, i, om, w, tps, peak, rmin])=>{
   const c={name, desig, q, e, i, om, w, tps, rmin:rmin||0, M1:0, real:true, drift:COMET_DRIFT[desig]};
   c.M1=cometFitM1(c, tps[0], peak);
   // A periodic comet also returns before its first perihelion listed and after its last, every
@@ -165,7 +165,7 @@ function cometPeak(c, tp){
   }
   return best;
 }
-addEvents(cometReal.map((c, n)=>{
+addEvents(cometeral.map((c, n)=>{
   const [tp, pk]=c.tps.map(tp=>[tp, cometPeak(c, tp)]).reduce((a, b)=>b[1].s>a[1].s?b:a), t=new Date((pk.jd-2440587.5)*86400000);
   return {id:`comet${n}`, name:c.name, type:'comet', group:'comet', comet:c, tp, date:fmtDate(t.getUTCFullYear(), t.getUTCMonth()+1, t.getUTCDate()),
     note:`At its best, magnitude ${pk.m.toFixed(1).replace('-', '−')}, ${Math.round(pk.el)}° from the Sun and ${pk.D.toFixed(2)} AU from Earth (${c.desig}).`, seen:pk.s};
@@ -195,7 +195,7 @@ function cometYear(key, b){
   if(cometBins.size>200) cometBins.clear();
   return got;
 }
-// An invented great comet for the ζ Oph sky, the only one not from an orbit catalogue or the random
+// An invented great comet for the ζ Oph sky, the only one not from an orbit catalog or the random
 // draw. It returns every year, as the supernova shines every year in that sky: perihelion
 // (0.77 AU) on 2 July, then through July it passes 0.4–0.6 AU from Earth, in the north-northwest
 // in the late evening from 45° (22–36° up at 22:30), its tail rising clear of the Milky Way (head
@@ -213,7 +213,7 @@ for(const key in COMETS_FICT) cometFict[key]=COMETS_FICT[key].map(([name, desig,
 function cometsNow(key, lat){
   const d=astroDay(), jd=d+JD_D0, E=earthHelio(d), lst=localSidereal(), list=[];
   const cands=[];
-  if(cometsReal(key)){ for(const c of cometReal) for(const tp of c.tps) if(Math.abs(jd-tp)<400) cands.push([c, tp]); }
+  if(cometsReal(key)){ for(const c of cometeral) for(const tp of c.tps) if(Math.abs(jd-tp)<400) cands.push([c, tp]); }
   else{ const b=Math.floor((jd-JD_D0)/365.25); for(let y=b-1;y<=b+1;y++) for(const c of cometYear(key, y)) if(Math.abs(jd-c.tps[0])<400) cands.push([c, c.tps[0]]); }
   // The invented comet, on the same dates every year of the page's calendar.
   for(const c of cometFict[key]||[]){ const Y=pageDate()[0]; for(let y=Y-1;y<=Y+1;y++){ const tp=dayNumber(y, c.md[0], Math.floor(c.md[1]), 24*(c.md[1]%1))+JD_D0; if(Math.abs(jd-tp)<400) cands.push([c, tp]); } }
@@ -264,7 +264,7 @@ function cometAt(C, v, pw, out){
   out.coma=out.dust=out.ion=0;
   const ch=vdot(v, C.dir); if(ch<Math.cos(C.extent+4*pw)) return out;
   const lx=C.lux||(C.lux=cometLux(C));
-  // Coma: exponential in angle from the head, its light normalised over the plane, with a bright
+  // Coma: exponential in angle from the head, its light normalized over the plane, with a bright
   // central condensation a sixth its size.
   const rc=Math.max(C.rhoc, 1.5*pw), dh=Math.sqrt(Math.max(0, 2-2*ch));
   const rc2=Math.max(C.rhoc/6, pw);
@@ -275,7 +275,7 @@ function cometAt(C, v, pw, out){
 }
 // A tail toward v: distance to its spine pts, a width growing from the coma's size rc to wEnd of its
 // length len (a tenth for the dust tail, a thirtieth for the ion tail), brightness falling along
-// it; normalised so its light adds to lum.
+// it; normalized so its light adds to lum.
 function cometTailAt(v, pts, len, lum, rc, wEnd, fall, pw){
   if(!(lum>0)||len<1e-6) return 0;
   let best=Infinity, bs=0;
@@ -291,7 +291,7 @@ function cometTailAt(v, pts, len, lum, rc, wEnd, fall, pw){
   const norm=len/(fall+1)*Math.sqrt(2*Math.PI)*Math.max(0.5*(rc+wEnd*len), pw);
   return lum*b*Math.exp(-0.5*best/(w*w))/norm;
 }
-// Colours of the parts as linear sRGB of unit luminance, from their spectra (spectrum.js).
+// Colors of the parts as linear sRGB of unit luminance, from their spectra (spectrum.js).
 let COMET_LIN=null;
 function cometLin(){
   if(COMET_LIN) return COMET_LIN;
@@ -348,7 +348,7 @@ float cometTail(vec3 v, int o, int n, bool ion, float len, float lum, float rc, 
   float norm=len/(fall+1.0)*2.5066283*max(0.5*(rc+wEnd*len), pw);
   return lum*b*exp(-0.5*best/(w*w))/norm;
 }
-// The comets' light over the sky reference toward v (linear colour), pw a pixel's angle.
+// The comets' light over the sky reference toward v (linear color), pw a pixel's angle.
 vec3 cometsAt(vec3 v, float pw){
   vec3 L=vec3(0.0);
   for(int c=0;c<${COMET_GL};c++){
@@ -365,7 +365,7 @@ vec3 cometsAt(vec3 v, float pw){
   return L;
 }`;
 // Readout: the brightest comet up, or how many are about.
-function cometReadout(){
+function cometeradout(){
   const list=(skyNow&&skyNow.comets)||[];
   if(!list.length) return 'none bright enough to see';
   const C=list.slice().sort((a, b)=>a.mag-b.mag)[0], tail=C.lenD*180/Math.PI;

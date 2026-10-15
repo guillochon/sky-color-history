@@ -1,16 +1,16 @@
 // The rocky bodies' surfaces, from spacecraft maps (all public domain): Mercury from MESSENGER's
-// MDIS MD3 colour mosaic (1000, 750 and 430 nm; USGS), Mars from Viking's colour mosaic (USGS), Io
-// from Galileo's colour over the Galileo and Voyager mosaic, Europa from the Galileo and Voyager
-// mosaic (grey, in Europa's tint), Ganymede from the Galileo and Voyager colour mosaic (all USGS
-// Astrogeology), Callisto from the Galileo and Voyager mosaic (grey, in Callisto's tint; USGS), and
-// Tethys, Dione and Rhea from Cassini's colour maps (PIA18439, PIA18434, PIA18438;
-// NASA/JPL-Caltech/SSI/LPI); Ceres and Vesta from Dawn's Framing Camera mosaics (grey, in their
+// MDIS MD3 color mosaic (1000, 750 and 430 nm; USGS), Mars from Viking's color mosaic (USGS), Io
+// from Galileo's color over the Galileo and Voyager mosaic, Europa from the Galileo and Voyager
+// mosaic (gray, in Europa's tint), Ganymede from the Galileo and Voyager color mosaic (all USGS
+// Astrogeology), Callisto from the Galileo and Voyager mosaic (gray, in Callisto's tint; USGS), and
+// Tethys, Dione and Rhea from Cassini's color maps (PIA18439, PIA18434, PIA18438;
+// NASA/JPL-Caltech/SSI/LPI); Ceres and Vesta from Dawn's Framing Camera mosaics (gray, in their
 // tints; DLR, USGS), and Phobos from Mars Express's SRC mosaic (DLR, USGS). Each map is turned to start at longitude 0 (the IAU prime meridian;
 // the moons' faces the host), east to the right; the gaps (Europa south of 83°S, Callisto's south
 // polar region over a third of its longitudes, slivers at other poles, Vesta's north and Ceres's far
 // south, dark when Dawn mapped them) filled from round about,
-// smooth where there is no data; the colours toned
-// toward true colour, the Cassini and USGS colour composites reaching into the ultraviolet and
+// smooth where there is no data; the colors toned
+// toward true color, the Cassini and USGS color composites reaching into the ultraviolet and
 // infrared; and each scaled to the same mean brightness (surfaces.py, small_bodies.py).
 //
 // One file per body (surf/<name>.webp: Mercury's and Mars's 4096 x 2048, each moon's 1024 x 512),

@@ -1,10 +1,10 @@
 // The Sun's corona in totality, and how it changes with the Sun's age.
 //
-// Today's, in millionths of the mean disk's brightness at r solar radii from the centre (Baumbach
+// Today's, in millionths of the mean disk's brightness at r solar radii from the center (Baumbach
 // 1937): the K corona, sunlight scattered by free electrons, 1.425 r⁻⁷ + 2.565 r⁻¹⁷; the F corona,
 // sunlight scattered by dust, the inner end of the zodiacal cloud, 0.0532 r⁻²·⁵. K is most of the
 // light near the limb, F beyond about 2.3 radii. The electrons move so fast (thousands of km/s)
-// that K's light has the photosphere's colour without its Fraunhofer lines; F keeps them, and is
+// that K's light has the photosphere's color without its Fraunhofer lines; F keeps them, and is
 // a little redder. The E corona, lines of highly ionized iron and calcium, adds a few percent near
 // the limb: Fe XIV 530.3 nm (the green line, from gas near 1.8 MK), Fe X 637.4 nm (red, 1.0 MK) and
 // Ca XV 569.4 nm (yellow, 4.5 MK, today only over strong active regions). The chromosphere, seen

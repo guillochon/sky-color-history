@@ -110,7 +110,7 @@ function pointDisplay(mag){ const d=magDisplay(mag, 200); return {px:d.px, rgb:P
 // bent them by a few parsecs: each real star (today's thousand and STAR_EXTRA) is shown to a time
 // of its own between STAR_LINE_MIN and STAR_LINE_MAX years from 2000 and fades out over the
 // STAR_FADE before it. Each of today's thousand then gives way to stand-ins of its kind, whose real
-// counterparts that far back cannot be known: stars of its absolute magnitude, colour and type
+// counterparts that far back cannot be known: stars of its absolute magnitude, color and type
 // passing the Sun one after another on straight lines at STAR_FLYBY_KMS (15-40 km/s, as the
 // nearby stars' speeds relative to the Sun run), each nearest the Sun, at today's star's distance,
 // halfway through its time and so as bright as today's star then, its closest approach toward the
@@ -184,7 +184,7 @@ function starTypeLabel(t){
   return sp+' '+(STAR_LUM_WORD[lum]||'star');
 }
 // Each cell's stars are written into idx whole, two texels apiece (the star map's two rows:
-// direction and size, then colour and magnitude), so the sky shader reads a star where it
+// direction and size, then color and magnitude), so the sky shader reads a star where it
 // would otherwise read its index and then the star.
 function starBinsFor(up, tex){
   const pxMax=STAR_PX_ANCHOR*Math.pow(42, 0.22);

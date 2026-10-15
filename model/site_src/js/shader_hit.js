@@ -5,8 +5,8 @@
 // hitVariant() and townVariant() define GLACIERS, TOWNS, and TREES for the current epoch, so
 // each program compiles only the scenery that epoch shows. The defaults include everything.
 const TOWN_GLSL=`
-// Towns and woods are lots on a grid. town[i] is (centre x, centre y, radius, type). Types:
-// 0 keeps hills out and nothing else (pools), 1 city of towers on 42 m lots, 2 neighbourhood of
+// Towns and woods are lots on a grid. town[i] is (center x, center y, radius, type). Types:
+// 0 keeps hills out and nothing else (pools), 1 city of towers on 42 m lots, 2 neighborhood of
 // houses on 24 m lots, 3 broadleaf and conifer wood, 4 Carboniferous forest, 5 dead wood, all
 // on 10 m lots. Everything on a lot stays inside it, so the first hit along the grid walk is the
 // nearest. Must match townLot and friends in vr_paint.js.

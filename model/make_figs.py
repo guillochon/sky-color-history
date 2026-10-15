@@ -25,22 +25,22 @@ def grad(top, bot, n=200):
     a, b = srgb2lin(top), srgb2lin(bot); t = np.linspace(0,1,n)[:,None]
     return lin2srgb(a*(1-t)+b*t)
 
-GREY = '#7a7d84'
+GRAY = '#7a7d84'
 
 # ---------- Figure 1: timeline strip ----------
-fig, ax = plt.subplots(figsize=(10, 2.6), dpi=200); fig.patch.set_facecolor(GREY)
+fig, ax = plt.subplots(figsize=(10, 2.6), dpi=200); fig.patch.set_facecolor(GRAY)
 for i, k in enumerate(order):
     lat = byk[k]['lat']['Mid-latitude']
     g = grad(rgb(lat['zenith'], Yz), rgb(lat['horizon'], Yz))
     ax.imshow(g[:, None, :].repeat(20, 1), extent=[i+0.03, i+0.97, 0, 1], aspect='auto')
     ax.text(i+0.5, -0.06, ages[k], ha='center', va='top', fontsize=7, color='white', linespacing=1.1)
 ax.set_xlim(0, len(order)); ax.set_ylim(-0.32, 1); ax.axis('off')
-fig.savefig(f'{OUT}/fig01_timeline.png', bbox_inches='tight', facecolor=GREY, pad_inches=0.1); plt.close()
+fig.savefig(f'{OUT}/fig01_timeline.png', bbox_inches='tight', facecolor=GRAY, pad_inches=0.1); plt.close()
 
 # ---------- Per-epoch figures ----------
 def epoch_fig(k):
     r = byk[k]
-    fig = plt.figure(figsize=(4.4, 3.4), dpi=250); fig.patch.set_facecolor(GREY)
+    fig = plt.figure(figsize=(4.4, 3.4), dpi=250); fig.patch.set_facecolor(GRAY)
     gs = fig.add_gridspec(3, 3, height_ratios=[3.0, 0.9, 0.9], hspace=0.6, wspace=0.08, left=0.02, right=0.98, top=0.95, bottom=0.05)
     for j, L in enumerate(['Equator', 'Mid-latitude', 'Polar summer']):
         lat = r['lat'][L]; ax = fig.add_subplot(gs[0, j])
@@ -63,7 +63,7 @@ def epoch_fig(k):
         ax.text(0, 1.10, title, fontsize=5.2, color='white', va='bottom')
     strip(1, r['sunset'], ['solar_horizon','above_sun','zenith','anti_15','anti_horizon'], ['sun horizon','15° up','zenith','15° up','antisolar'], Yss, 'Sun on the horizon')
     strip(2, r['twilight'], ['solar_horizon','above_sun','above_sun30','zenith','anti_horizon'], ['sun horizon','15° up','30° up','zenith','antisolar'], Ytw, 'Sun 4° below the horizon')
-    fig.savefig(f'{OUT}/sky_{k}.png', facecolor=GREY); plt.close()
+    fig.savefig(f'{OUT}/sky_{k}.png', facecolor=GRAY); plt.close()
 for k in order: epoch_fig(k)
 
 # ---------- Globes ----------

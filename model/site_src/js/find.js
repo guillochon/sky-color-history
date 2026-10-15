@@ -1,5 +1,5 @@
 // Find (f): a box in the middle of the screen takes a name and offers the three best matches as
-// it is typed, any below the horizon greyed and not to be chosen; Enter (or a click) turns and
+// it is typed, any below the horizon grayed and not to be chosen; Enter (or a click) turns and
 // zooms the walk-around view to the one chosen in two seconds, along van Wijk & Nuij's smooth
 // path (pulling back for a long turn), until it fills half the view: the Sun, the Moon, a planet or moon by its drawn disk (rings and all), a nebula or
 // galaxy by its tile's window, a constellation by its figure. A star or supernova, a point, ends in
@@ -281,7 +281,7 @@ function findRender(){
     }
     findHits=scored.sort((a, b)=>b.r-a.r).slice(0, FIND_MAX).map(h=>h.c);
   }
-  // Up is above the horizon as drawn (refracted); one below it is shown greyed and can't be chosen.
+  // Up is above the horizon as drawn (refracted); one below it is shown grayed and can't be chosen.
   findUp=findHits.map(c=>{ const w=findWhere(c.t); return !!w&&w.d[2]>0; });
   findSel=findUp.indexOf(true);
   findList.textContent='';
@@ -337,15 +337,15 @@ findQ.addEventListener('keyup', e=>e.stopPropagation());
 findQ.addEventListener('blur', ()=>setTimeout(()=>{ if(document.activeElement!==findQ) closeFind(); }, 0));
 findBox.addEventListener('pointerdown', e=>e.stopPropagation());
 findBox.addEventListener('wheel', e=>e.stopPropagation());
-// On the page the dome flies the same way, its zoom (domeZoom) for the field and its centre for
+// On the page the dome flies the same way, its zoom (domeZoom) for the field and its center for
 // the look: the sky at the canvas's middle goes from where it is to the found thing, along the
 // same path, in the fisheye's plane, where the dome's radius is 1. The dome zooms no further than
 // DOME_ZOOM_MAX (a field about 20° across), so smaller things, and points, end there. The Sun and
 // Moon are drawn enlarged (DOME_DISK). Then it follows until the dome is zoomed,
 // dragged or reset, or the walk-around view opens. Near the horizon setDomeView keeps the sky
-// circle round the middle, and the thing ends off centre.
+// circle round the middle, and the thing ends off center.
 let domeFind=null;
-// Where the dome puts a found thing, in units of its radius from the fisheye's centre.
+// Where the dome puts a found thing, in units of its radius from the fisheye's center.
 function domeFindAt(w){ const r=(90-w.el)/90, a=w.az*Math.PI/180; return [r*Math.sin(a), -r*Math.cos(a)]; }
 function domeFindZoom(w){
   const W=dome.width, H=dome.height, deg=w.disk?2*w.disk*DOME_DISK/(0.46*W)*90/SUN_RADIUS_DEG:w.diam;

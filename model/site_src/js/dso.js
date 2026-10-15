@@ -59,7 +59,7 @@ function loadDso(){
   img.src=DSO_IMG;
 }
 // The objects in the sky now, for the epoch, date, clock time and latitude shown: each with its
-// centre C and its east E and north N on the sky, in the local horizon frame (east, north, up),
+// center C and its east E and north N on the sky, in the local horizon frame (east, north, up),
 // the tangent-plane half-width of its tile (hw), the cosine of the angle out to the tile's corner
 // (cosR), and the light its tile's top stands for, times how much of it there is (k).
 function dsoPlace(lat){
@@ -109,16 +109,16 @@ function dsoAt(list, d, pix, out){
 // The spectra the probe gives them (spectrum.js). A galaxy's is old and young starlight (spPop)
 // and the lines of its H II regions, in the shares of the light in V usual for its Hubble type
 // (DSO_GAL), from an elliptical's old stars alone to an irregular's or a starburst's young ones and
-// strong Hα: the plates' colour, near white for all of them, says little of their stars. A
-// nebula's is a mix of its kind's lights matched to the colour drawn there (linear sRGB L), so a
+// strong Hα: the plates' color, near white for all of them, says little of their stars. A
+// nebula's is a mix of its kind's lights matched to the color drawn there (linear sRGB L), so a
 // pink core and a green-blue rim differ as they look:
-//   - an H II region: the low-ionisation zone (Balmer lines at case B, 2.86 Hα to Hβ, with [N II]
-//     and [S II]), the high-ionisation zone ([O III] 500.7 and 495.9, three to one, and a little
+//   - an H II region: the low-ionization zone (Balmer lines at case B, 2.86 Hα to Hβ, with [N II]
+//     and [S II]), the high-ionization zone ([O III] 500.7 and 495.9, three to one, and a little
 //     Hβ), and its stars' light scattered by dust (bluer as 1/λ);
-//   - a planetary nebula: the low-ionisation zone, the high with He II 468.6, and its hot central star;
+//   - a planetary nebula: the low-ionization zone, the high with He II 468.6, and its hot central star;
 //   - the Crab: its synchrotron glow (F_λ as λ^-0.6 over the visible) and its filaments' lines;
 //   - a reflection nebula: a B star's light scattered, and its stars' own.
-// The surveys' colour also holds the stars behind and around a nebula, too faint to have been taken
+// The surveys' color also holds the stars behind and around a nebula, too faint to have been taken
 // out, so each nebula may take some of the Milky Way's starlight (spMW) as well; a pale pixel is
 // mostly that. Line strengths are energy relative to Hβ.
 const DSO_GAL_MIX={E:{old:1}, Sa:{old:0.9, young:0.1}, Sb:{old:0.75, young:0.25, hii:0.003}, Sc:{old:0.5, young:0.5, hii:0.006},
@@ -157,13 +157,13 @@ function syncDsoTex(gl){
   if(dsoPx&&(!vrGL.skyArrayDso||hi!==(vrGL.skyArrayHi||0))) buildSkyArray(gl);
 }
 // Into the sky shader: those whose tile can reach the screen, nearest the middle of the view
-// first, up to DSO_MAX. C is the centre and the cosine of the tile's corner, E the east and the
+// first, up to DSO_MAX. C is the center and the cosine of the tile's corner, E the east and the
 // half-width, N the north and the layer, K the light 1.0 stands for, over the display's unit and
 // above the air, W how far it is shown as a picture (dsoView), H the first layer of its full-size
 // tile's pieces (-1 while there are none) and the cube root of that tile's top over the atlas's.
 const DSO_MAX=10, DSO_U={C:new Float32Array(DSO_MAX*4), E:new Float32Array(DSO_MAX*4), N:new Float32Array(DSO_MAX*4), K:new Float32Array(DSO_MAX), W:new Float32Array(DSO_MAX), H:new Float32Array(DSO_MAX*2)};
 // Zoomed in on an object, it is shown more and more as its picture (the tile as coded, a cube-root
-// stretch in full colour) rather than as the eye would see its light: not at all while the object
+// stretch in full color) rather than as the eye would see its light: not at all while the object
 // (its ellipse's diagonal, the size find.js frames) spans a quarter of the view's height or less,
 // wholly once it spans half, as find frames it, smoothly between on a log scale. A telescope's
 // view, as a photograph shows it.
@@ -216,7 +216,7 @@ vec3 dsoAt(vec3 src, float pix, out vec3 img, out float w){
     } else q=textureLod(dsoTex, vec3(uv, dsoN[i].w), lod).rgb;
     L+=q*q*q*dsoK[i];
     // The picture's black is set a little above the tile's, and it fades out in a circle inside
-    // the tile, or the stretch would show what is left of the survey's sky as a grey square. How
+    // the tile, or the stretch would show what is left of the survey's sky as a gray square. How
     // far it is shown fades with it: another object's picture within this one's square (the Small
     // Cloud's in the Large's, when they were further) would otherwise take this one's w up to the
     // square's edge.

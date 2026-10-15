@@ -175,7 +175,7 @@ function precessionMatrix(year){
 }
 // The obliquity at day number d (default: the instant shown), to the nearest year.
 function obliquity(d=astroDay()){ return precessionMatrix(Math.round(2000+(d-DN_2000)/TROPICAL_YEAR)).eps; }
-// The Sun for day number d (Schlyter's elements, with the equation of centre): right ascension,
+// The Sun for day number d (Schlyter's elements, with the equation of center): right ascension,
 // declination, ecliptic longitude, mean anomaly, and distance in AU, in the equator and ecliptic
 // of date (below).
 function sunEquatorial(d){
@@ -273,7 +273,7 @@ function drawDatePop(){
     for(const w of ['Su','Mo','Tu','We','Th','Fr','Sa']) html+=`<span class="dp-wd" aria-hidden="true">${w}</span>`;
     for(let i=weekday(Y, M, 1); i>0; i--) html+='<span></span>';
   }
-  // A day with a nova, supernova or eruption (transients.js) has a star in its corner, in the colour of its kind.
+  // A day with a nova, supernova or eruption (transients.js) has a star in its corner, in the color of its kind.
   const evDays=transientDays(Y, M), evLabel=d=>evDays.get(d).map(ev=>ev.name).join(', ');
   // Noon of day d as a day number, from the page's own instant.
   const k0=epochDayIndex(Y, M, D), dNoon=d=>astroDay()+(epochDayIndex(Y, M, d)-k0+(DAYMIN/2-minutes)/DAYMIN)*dayHours()/24;

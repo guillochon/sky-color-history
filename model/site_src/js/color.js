@@ -63,7 +63,7 @@ const ginv = s => s<=0.04045 ? s/12.92 : Math.pow((s+0.055)/1.055, 2.4);
 // Display curve, as linear light t for luminance r=Y/Yref. In daylight and twilight it is
 // k·r^p. A dark-adapted eye sees far more at night than that curve shows, so a second branch
 // gives the sRGB value as TOE_A − TOE_B·exp(−log10 L / TOE_W) for luminance L in cd/m²: black
-// at 8e-5 cd/m², the natural night sky (1.7e-4) a very dark grey at 13/255, the Milky Way on it
+// at 8e-5 cd/m², the natural night sky (1.7e-4) a very dark gray at 13/255, the Milky Way on it
 // up to about 26, deep twilight and city skies near 32–35, a full-Moon sky 37, nautical
 // twilight about 41. Its slope eases with brightness, so the Milky Way keeps its contrast on a
 // dark sky while every step of twilight still darkens. The branches meet in a soft maximum
@@ -73,7 +73,7 @@ const TOE_A=0.1674, TOE_B=0.002276, TOE_W=0.957, TOE_W2=0.012, TOE_CD=YREF*969.5
 // A nebula or galaxy is a small patch, and the eye judges it against the sky round it, by the
 // ratio of their light: its pixels are drawn at least DSO_STEP of sRGB brighter than the sky's for
 // each tenfold of light over it (20 levels a decade, about the curve's own step just above a dark
-// sky), where the curve alone, levelling off toward 43, would crush M42's 16-19 mag/arcsec² into
+// sky), where the curve alone, leveling off toward 43, would crush M42's 16-19 mag/arcsec² into
 // six levels. Rods and cones see contrast, not the light's absolute level, over so small a field.
 const DSO_STEP=20/255;
 // The sky it is judged against is at least the light beyond the air, the zodiacal light and the

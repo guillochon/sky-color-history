@@ -1,6 +1,6 @@
 // The planets, the five naked-eye ones and Uranus and Neptune, placed for the selected date and clock time like the Moon. Orbits
 // are JPL's approximate Keplerian elements (Standish, "Approximate Positions of the Planets",
-// table 1, J2000 ecliptic, valid 1800-2050), with the Earth-Moon barycentre standing in for
+// table 1, J2000 ecliptic, valid 1800-2050), with the Earth-Moon barycenter standing in for
 // the Earth. Older epochs reuse today's orbits on the selected date, as the Moon does, since
 // where the planets were on a day millions of years ago cannot be known. Magnitudes follow
 // Meeus (Astronomical Algorithms), including Saturn's ring tilt; Uranus's and Neptune's follow
@@ -293,7 +293,7 @@ function moonGain(){ return 5*Math.log10(Math.max(1, vrOn?60/vrFov:domeZoom.z));
 function markMag(s){ return s.planet?s.mag-moonGain():s.mag; }
 // How a planet's or moon's point is drawn, at that same gain: brighter and larger as the view
 // zooms, as through a telescope, so a moon that shows is not left a near-black dot.
-// One that sets its own colour (an incoming asteroid's, meteors.js incomingRGB) keeps it.
+// One that sets its own color (an incoming asteroid's, meteors.js incomingRGB) keeps it.
 function zoomedDisplay(o){ return o.tint&&!o.ownRGB?planetDisplay(o.mag-moonGain(), o.tint):o; }
 // The epochs before history, and their ages in Myr. On any day of one of them, where each planet and
 // moon was on its orbit cannot be known: the Solar System is chaotic, its uncertainties growing
@@ -348,7 +348,7 @@ function planetPhases(key){
 // before, it shrank 0.114 degrees a year (1943-1979, Beebe & Youngblood) from about 35 degrees
 // long in the 1880s, its width near today's. The fits meet, a round spot 8.4 degrees across, in
 // 2045, and it is held there: whether it shrinks on, steadies or fades is not known. Its red was
-// deepest in 1879-1882 and has deepened again since 2014. Centred at 22.4 degrees south.
+// deepest in 1879-1882 and has deepened again since 2014. Centered at 22.4 degrees south.
 const GRS_LON=[1831.63,3308,1832.72,3220,1840.37,2816,1845.83,2549,1850.20,2345,1851.29,2297,1852.38,2246,1855.66,2109,1856.75,2075,1857.84,2046,1858.94,2014,1860.03,1996,1863.30,1849,1864.40,1782,1867.67,1607,1869.86,1485,1873.13,1304,1876.41,1117,1878.59,976,1880.78,848,1884.05,755,1887.33,733,1889.51,714,1891.70,714,1892.79,716,1893.88,718,1894.97,720,1896.07,727,1897.16,735,1898.25,742,1899.34,751,1900.44,760,1901.53,766,1902.62,762,1903.71,754,1904.80,745,1905.90,748,1906.99,738,1908.08,743,1909.17,737,1910.26,728,1911.36,688,1912.45,664,1913.54,621,1914.63,564,1915.72,533,1916.82,490,1917.91,439,1919.00,370,1920.09,322,1921.19,284,1922.28,256,1923.37,230,1924.46,172,1925.55,90,1926.65,21,1927.74,-16,1928.83,-45,1929.92,-76,1931.02,-103,1932.11,-131,1933.20,-157,1934.29,-180,1935.38,-201,1936.47,-218,1937.57,-221,1938.66,-213,1939.75,-194,1940.84,-187,1941.94,-191,1943.03,-188,1944.12,-177,1945.21,-148,1946.30,-143,1947.40,-130,1948.49,-126,1949.58,-119,1950.67,-110,1951.77,-104,1952.86,-89,1957.28,-52,1962.67,14,1964.73,18,1966.02,22,1967.20,28,1968.16,27,1969.34,21,1970.30,19,1971.03,16,1971.70,7,1972.44,-1,1973.79,7,1974.40,14,1975.08,29,1975.87,45,1976.77,41,1978.29,55,1979.80,61,1980.37,58,1980.93,53,1982.00,54,1983.57,39,1984.42,28,1986.50,19,1987.83,14,1988.83,16,1989.83,30,1990.92,27,1991.42,32,1992.08,34,1993.08,38,1994.25,40,1995.33,42,1996.50,51,1997.33,62,1998.83,64,1999.92,66,2000.75,74,2001.33,76,2001.83,77,2003.00,80,2003.67,84,2004.75,94,2006.17,104,2007.33,114,2008.17,121,2009.54,138,2010.77,156,2011.58,168,2012.58,182,2013.75,202,2014.25,212,2015.00,226,2015.92,236,2016.67,253,2017.58,276,2018.25,288,2018.83,296,2019.33,309,2019.83,320,2020.58,339,2021.25,357,2021.92,365,2022.83,386,2024.00,410,2024.75,421,2025.92,439];
 const GRS_LAT=-22.4;
 // The year whose Red Spot an epoch shows, instead of the page date's own: none now, since the
@@ -605,7 +605,7 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
   // The walk-around view draws at most BODY_MAX bodies, the brightest on screen first.
   bodies.sort((a, b)=>a.mag-b.mag);
 }
-// The dome's version of the sky shader's bodyDisk, bodyAlbedo and saturnRing (rings.js satRingAt): the colour (before the
+// The dome's version of the sky shader's bodyDisk, bodyAlbedo and saturnRing (rings.js satRingAt): the color (before the
 // air, times its coverage) of body b where the view ray is src, drawn rad radians across its radius
 // and rPx pixels.
 // The kinds of body: the planets in order (0-6), then any moon.

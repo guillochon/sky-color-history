@@ -4,7 +4,7 @@ function sizeVR(){
   if(c.width!==w||c.height!==h){ c.width=w; c.height=h; }
   if(vrGL){ vrGL.gl.viewport(0,0,c.width,c.height); }
 }
-// The ground's colour and snow follow the year as the clouds do (air_time.js tableNow): between
+// The ground's color and snow follow the year as the clouds do (air_time.js tableNow): between
 // the main epochs, and toward an event's own (the Snowball's ice, the impact winter's snow) by its level.
 function mtnSnowOwn(key){
   if(key==='kpg66'||key==='snowball07') return 1;
@@ -17,7 +17,7 @@ function mtnSnowOwn(key){
 const MTN_SNOW=Object.fromEntries(EP.map(e=>[e.key, mtnSnowOwn(e.key)])), SNOW_COVER={snowball07:1};
 function scRad(k, r){ return (k>0.5&&k<1.5)?r*1.28:(k>1.5&&k<2.5)?r*1.12:(k>2.5&&k<3.5)?r*1.08:r; }
 const MTN_SCALE=0.67; // massif and hill heights relative to the original layout
-// Zones: [bearing deg, distance m, kind, radius m]. Cities and neighbourhoods draw a building
+// Zones: [bearing deg, distance m, kind, radius m]. Cities and neighborhoods draw a building
 // count instead, and their radius follows from it and the lot occupancy in lotOcc (70% of city
 // lots, 77% of house lots). Woods are lot grids too; pools are drawn by the sky shader.
 const WATER=[[30,350,'water',120],[95,600,'water',220],[320,500,'water',180],[60,1500,'water',400]];
@@ -80,7 +80,7 @@ function buildScene(key){ // [bearing deg, distance m, radius m, height m, kind]
     const tw=townsFor(key);
     return {o, k, ...tw, ...roadsFor(o, k, tw.t, tw.tn)}; };
   const VOLC=[[175,320,80,150,2],[205,560,130,240,2],[140,900,200,340,2],[250,3000,700,520,2],[310,5200,1400,1000,1],[350,8000,2200,1500,1],[100,9000,2500,1600,1],[160,7000,1800,1100,1],[230,11000,2800,1700,1],[40,6500,1600,900,1],[70,4200,1100,780,1],[280,4800,1000,640,1]];
-  // Volcanic islands out at sea: broad, low basalt shields a few hundred metres high, the young
+  // Volcanic islands out at sea: broad, low basalt shields a few hundred meters high, the young
   // ocean crust's volcanoes, one or two of them erupting; and the knoll the walker stands on.
   const ISLES=[[0,1,120,36,1],[250,4200,1300,320,2],[205,7000,2200,520,2],[290,9500,2600,700,2],[150,12000,3400,900,2],[330,5600,1100,260,2],[40,8000,1900,450,2],[95,14000,3600,1000,2],[260,15000,3000,650,2]];
   const ICE=[[165,900,350,260,3],[200,1500,500,420,3],[120,1900,600,380,3],[240,2600,800,600,3],[300,3500,1100,700,3],[30,5000,1500,900,3],[90,7000,2000,1100,3],[190,8000,1800,1000,3],[260,10000,2600,1300,3],[330,6000,1600,900,3],[60,3000,900,500,3]];
@@ -258,7 +258,7 @@ function settleVR(){
     if(!townSolid(sc, x, y, 0.4)){ vrX=x; vrY=y; return; }
   }
 }
-// The direct sunlight's colour on the scenery, as a gain on its sRGB values: the Sun's light (sun,
+// The direct sunlight's color on the scenery, as a gain on its sRGB values: the Sun's light (sun,
 // paintVR's sunLight, sRGB 0-255) over the noon Sun's (the modern Equator's), which the eye takes
 // as white, scaled to the same luminance, so only its hue changes: orange, then red, as it sets
 // (green where the air leaves only green). It fades out as the disk
@@ -270,7 +270,7 @@ function sunTintAt(app, rd, sun){
   const y=Math.max(0.2126*lin[0]+0.7152*lin[1]+0.0722*lin[2], 1e-6), x=Math.max(0, Math.min(1, (app+rd)/(2*rd))), up=x*x*(3-2*x);
   return new Float32Array(lin.map(v=>up*Math.min(2, Math.pow(v/y, 1/2.2))));
 }
-// The ground's colour under the sky's light and sunlight mu (sunMu in paintVR).
+// The ground's color under the sky's light and sunlight mu (sunMu in paintVR).
 // Fresh snow's albedo, for the snow the weather leaves on the ground (clouds.js snowOnGround).
 const SNOW_ALB=[.80, .83, .88];
 function groundRGB(mu, albedo=null, sun=skyNow.sunRGB){
@@ -388,10 +388,10 @@ function nightLight(rgb, rel, el, night){ const f=0.6*Math.sqrt(Math.max(rel, 0)
 function setText(el, text){ if(el.textContent!==text) el.textContent=text; }
 // A field of view for the HUD: whole degrees down to 10°, then tenths, then arcminutes and arcseconds.
 function fovLabel(f){ return f>=9.95?Math.round(f)+'°':f>=0.995?f.toFixed(1)+'°':f*60>=0.995?(f*60<9.95?(f*60).toFixed(1):Math.round(f*60))+'′':(f*3600<9.95?(f*3600).toFixed(f*3600<0.995?2:1):Math.round(f*3600))+'″'; }
-// The glare's centre: the Sun's, or with the Moon over part of it the middle of the part that
+// The glare's center: the Sun's, or with the Moon over part of it the middle of the part that
 // still shows (on the drawn disks, as day.js sunCovered measures it), so the glare comes off the
 // crescent and not from behind the Moon.
-function glareCentre(vis){
+function glareCenter(vis){
   const sd=horizDir(skyNow.sunAz, 90-skyNow.sza);
   if(!(vis<0.9999) || !skyNow.moon.on) return sd;
   const md=horizDir(skyNow.moon.az, skyNow.moon.el), d2r=Math.PI/180;
@@ -532,7 +532,7 @@ function paintVR(){
   // The setting Sun (sunset.js): the epoch's bands, the light at the disk's middle, the day's layers.
   const sb=airNow().sun, rd=skyNow.moon.sunRadDeg*DISK_SCALE, sl=sunsetLayers(rd);
   // Each channel's gain keeps sunCol at the disk's middle. It is held to at least the brightest
-  // channel's, so a colour the display curve has dropped from sunCol (the blue at sunset) still
+  // channel's, so a color the display curve has dropped from sunCol (the blue at sunset) still
   // shows where it is all that is left: a blue flash.
   const app=apparentEl(90-skyNow.sza), off=Math.min(...sunTauAt(app));
   const sCen=sunBandsAt(app, off), sLin=skyNow.sunRGB.map(v=>SRGB_LIN[Math.round(v)]);
@@ -541,7 +541,7 @@ function paintVR(){
   const sunG=sCen.map((v, q)=>Math.max(gAll, v>0?sLin[q]/v:0));
   gl.uniform3fv(u.sunG, sunG);
   gl.uniform4fv(u.sunLay, sl.lay); gl.uniform4fv(u.sunMir, sl.mir);
-  // The Sun's light on the ground and the ground's colour, for the sky and cloud passes.
+  // The Sun's light on the ground and the ground's color, for the sky and cloud passes.
   const sinApp=Math.max(0, Math.sin(app*Math.PI/180)), sunMu=sinApp*(skyNow.sunVis==null?1:skyNow.sunVis);
   // The light the Sun casts, on the clouds, rain, planes, water, ground and scenery, is the disk's
   // middle as drawn: the bands through the air at their gains, at sunRGB's brightness. Where the
@@ -572,7 +572,7 @@ function paintVR(){
   // quarter covered: faint by a third, plain by a half under a twelfth of the glare, which goes
   // as the beads come.
   gl.uniform1f(u.glareMoon, (0.08+0.92*sStep((vis-0.6)/0.35))*sStep((vis-0.05)/0.25));
-  gl.uniform3fv(u.glareDir, glareCentre(vis));
+  gl.uniform3fv(u.glareDir, glareCenter(vis));
   // The disk's surface, 1.9e9 cd/m² above the air (128,000 lux over its 6.8e-5 sr), dimmed by the
   // air at its apparent altitude and taken through the sky's tone curve, over the top of that
   // curve: 1 while it is past the display's reach (every modern sunset), less once the air has
@@ -609,8 +609,8 @@ function paintVR(){
   // The molten Moon's (moon_surface.js MOLTEN_*) is orange: the sunlight its dark, lava-laced
   // globe reflects, and the lava's own light at every phase alike, over a disk as much larger than
   // today's as the Moon is nearer (56 times at 8 Earth radii). So the ground, the clouds and the
-  // glint on the water take its colour. As it cools (moon_surface.js moonMelt) the reflected light
-  // goes over to today's colour and the lava's fades.
+  // glint on the water take its color. As it cools (moon_surface.js moonMelt) the reflected light
+  // goes over to today's color and the lava's fades.
   const glow=moonGlow(EP[dIdx].key), melt=moonMelt(EP[dIdx].key), mr=Math.sqrt(MOLTEN_REFL);
   vrGL.mlLight=!moonUp?new Float32Array(3):nightLight([0.82, 0.88, 1.0].map((c, q)=>c+(MOLTEN_REFL_RGB[q]*mr-c)*melt), skyNow.moonRel||0, mo.el, night);
   if(moonUp&&glow){
@@ -755,7 +755,7 @@ function paintVR(){
   const fbSunRel=fire?Math.pow(10, -0.4*(fire.mag-MOON_V_SUN)):0, fbN=fire?1.5*(1-Math.exp(-0.4*Math.sqrt(Math.pow(10, -0.4*(fire.mag-MOON_V_FULL)))))*night:0;
   vrGL.fbDir=new Float32Array(fire?fire.dir:[0, 0, 1]);
   vrGL.fbLight=new Float32Array(tint.map(c=>c*fbN));
-  // As the clouds light by the Sun (3.2 times its colour) through nightScatter's 0.6 and toLin.
+  // As the clouds light by the Sun (3.2 times its color) through nightScatter's 0.6 and toLin.
   vrGL.fbCloud=new Float32Array(tint.map(c=>Math.pow(Math.pow(c*fbN, 2.2)+c*fbSunRel*3.2/0.6, 1/2.2)));
   gl.uniform3fv(u.fbDir, vrGL.fbDir); gl.uniform3fv(u.fbLight, vrGL.fbLight); gl.uniform3fv(u.fbSun, new Float32Array(tint.map(c=>c*fbSunRel)));
   // groundRGB's ground under a white Sun overhead, without the sky's light.

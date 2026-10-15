@@ -4,7 +4,7 @@
 // Today (dark site, naked eye): about 8 sporadic meteors an hour averaged over the night, 2–5 in
 // the evening and about 10 before dawn, when the apex of the Earth's motion is up (Dubietis & Arlt
 // 2010). Brightness: N(<m) ∝ r^m with r = 3.0 for ordinary meteors (the IMO's sporadic value) and
-// r = 2.3 brighter than magnitude 1 (s ≈ 1.9, Brown et al. 2002 for metre bodies). The scale is
+// r = 2.3 brighter than magnitude 1 (s ≈ 1.9, Brown et al. 2002 for meter bodies). The scale is
 // set by the fireballs, which are not lost to inattention: one of magnitude −4 or brighter per
 // observer about every 25 hours (AMS fireball FAQ; Suggs et al. 2014's lunar flash flux agrees).
 // The eye misses faint meteors, so the fireball rate, carried down the distribution, gives far more
@@ -33,8 +33,8 @@
 //   - 700 and 300 Ma: lunar craters were made at 0.4 of today's rate before 290 Ma (Mazrouei et al.
 //     2019; disputed by Lagain et al. 2022): taken as 0.6 at 700 Ma (the tail of the Eulalia
 //     shower, Bottke et al. 2026) and 0.5 at 300 Ma.
-//   - 466 Ma: the L-chondrite parent body's break-up (Schmitz et al. 2019). Decimetre meteoroids,
-//     the fireballs, rose about 100 times, and millimetre grains 100–1000 times, so the
+//   - 466 Ma: the L-chondrite parent body's break-up (Schmitz et al. 2019). Decimeter meteoroids,
+//     the fireballs, rose about 100 times, and millimeter grains 100–1000 times, so the
 //     distribution steepens: here 100 times today's fireballs and r = 3.4 for faint meteors. The
 //     fragments came from the inner main belt on low orbits, so they were slow (15–20 km/s) and
 //     yellow with sodium. And if Earth had a ring (debris.js), its grains fell back too: at the
@@ -42,7 +42,7 @@
 //   - 4.55 and 4.50 Ga: the leftovers of the planets' growth, and after the giant impact its debris:
 //     the chronology run back past 4.4 Ga, taken as 30,000 and 10,000 times today.
 // Heights: in the Early Hadean's 30 bar of CO₂ every density level sits higher, so meteors burn
-// about 22 km higher up (in the proto-Earth's guessed 4 bar, 9 km); elsewhere the difference is a few kilometres and is left out.
+// about 22 km higher up (in the proto-Earth's guessed 4 bar, 9 km); elsewhere the difference is a few kilometers and is left out.
 const MET_EPOCH=aliasEpochs({
   protoearth455:{F:30000, rf:3.0, rb:2.0, mix:{aster:0.9, iso:0.1}, dh:9, flash:1},
   hadean45:{F:10000, rf:3.0, rb:2.0, mix:{aster:0.85, iso:0.15}, dh:22, flash:1},
@@ -107,7 +107,7 @@ function metRadiant(src, F){
     default: { let d; do{ d=[metGauss(), metGauss(), metGauss()]; }while(Math.hypot(...d)<1e-6); return {d:vnorm(d), v:15+55*metRand()}; }
   }
 }
-// Brighter than this, a stony or asteroidal meteoroid (tens of metres across) is not stopped by the
+// Brighter than this, a stony or asteroidal meteoroid (tens of meters across) is not stopped by the
 // air: it keeps its speed and strikes the ground, as Meteor Crater's iron did; smaller ones break up
 // and burst in the air, as Chelyabinsk did at about 30 km.
 const MET_GROUND=-24;
@@ -117,7 +117,7 @@ function metHeights(M, v, dh){
   const he=Math.max(22, 82+0.15*(v-12)-5*Math.max(0, 2-M)*(1-0.006*(v-12)));
   return [hb+dh, Math.min(he, hb-6)+dh];
 }
-// The observer is at the origin of the horizon frame (x east, y north, z up), Earth's centre at
+// The observer is at the origin of the horizon frame (x east, y north, z up), Earth's center at
 // (0, 0, −R). A meteor runs from B along unit u for L km.
 function metMake(E, F, lo, hi, ctx){
   const src=metPick(E.mix), rad=metRadiant(src, F);
@@ -212,7 +212,7 @@ function metEmission(v, air, ring){
   for(let i=0;i<SP_N;i++) S[i]+=0.25*tot*C[i]/ct;
   return S;
 }
-// Each meteor's colour, as stars have theirs (starTint: sRGB-like values over their luminance),
+// Each meteor's color, as stars have theirs (starTint: sRGB-like values over their luminance),
 // from the emission, by speed in 2 km/s steps.
 const metTints={};
 function metTint(v, key, ring){
@@ -234,7 +234,7 @@ function metVisible(m, L){ const lim=nakedEyeLimit(L)-MET_PERCEPT; return 1-smoo
 // Lunar impact flashes: a meteoroid hitting the Moon's night side flashes for a tenth of a second
 // to a few seconds. Today about 0.5 an hour reach magnitude 10 on the night side (Suggs et al.
 // 2014; NELIOTA, Liakos et al. 2024), and N ∝ E^−0.9 gives a naked-eye one (≤ 5) once in about
-// 100 hours. The flash is impact vapour and melt at 2,000–4,500 K, reddish. In the bombardment
+// 100 hours. The flash is impact vapor and melt at 2,000–4,500 K, reddish. In the bombardment
 // they come with the epoch's rate, and a closer Moon makes each brighter.
 const FLASH_Q10=0.5, FLASH_R=2.5;
 // The engine: active meteors, those just gone (for the tooltip), and the clock.
@@ -393,7 +393,7 @@ function impactAt(m, t){
   if(age>life) return null;
   const P=metPoint(m, 1), up=vnorm([P[0], P[1], P[2]+MET_RE]);
   // The fireball drawn no wider than a quarter of its distance: Chicxulub's, by the scaling 1,300 km,
-  // would hold the observer 200 km away inside it and sit its centre 1,000 km up.
+  // would hold the observer 200 km away inside it and sit its center 1,000 km up.
   const d=1000*Math.hypot(P[0], P[1]), tau=Math.min(60, 8*Math.pow(Y, 0.4)), Rf=Math.min(1000*Math.pow(Y, 0.4), 0.25*d), x=age/tau;
   // The thermal pulse, W: up within the first 15% of it (or half a second, for the longest), then
   // down; its shape integrates to about 0.425.
@@ -494,7 +494,7 @@ function metTick(now){
   if(MET.cache.size>3000){ for(const [k, v] of MET.cache){ const q=k.split('|'), s=+q[q.length-2], b=+q[q.length-1]*MET_BIN[s]; if(b<t-400-MET_LOOK[s]||b>t+400) MET.cache.delete(k); } if(MET.cache.size>3000) MET.cache.clear(); }
 }
 // What is lit now, in the horizon frame, for both views: streaks (head, a wake behind it, with
-// display colour and size), trains and flashes. pxScale turns display pixels into the view's.
+// display color and size), trains and flashes. pxScale turns display pixels into the view's.
 function metScene(){
   const out=[], t=MET.now, k=extK(EP[dIdx].key), g0=skyNow.rgrid, rCd=skyNow.rCd;
   for(const m of MET.list){
@@ -652,7 +652,7 @@ function metUniforms(){
 }
 const MET_GLSL=`
 uniform vec4 metA[${MET_GL}], metB[${MET_GL}], metC[${MET_GL}]; uniform float metN; uniform vec3 metFlash;
-// The meteors over the sky colour c toward src: a streak from tail to head, brightening toward
+// The meteors over the sky color c toward src: a streak from tail to head, brightening toward
 // the head (kind 0), an even line (a train, kind 1), or a point (a lunar flash, kind 2, drawn
 // on the Moon).
 vec3 meteorsAt(vec3 c, vec3 src, bool onBody){
@@ -771,7 +771,7 @@ function metAsteroid(I, r, t, sd){
 // The Sun's direction at clock time min on the day shown.
 function metSunDir(lat, min){ const p=sunGeom(lat, min); return horizDir(p.az, 90-p.sza); }
 // The asteroids coming in now (Chicxulub's), drawn as the moons are (planets.js), with Phobos
-// standing in for how one looks: its map, shape and colour on a body I.D km across, lit from the
+// standing in for how one looks: its map, shape and color on a body I.D km across, lit from the
 // Sun, a point among the stars far off and a cratered, lumpy disk in its last seconds. It turns
 // once in 2.4 hours, about as fast as a rubble pile can (Pravec & Harris 2000), about a pole
 // tilted from the vertical, slowly enough to watch through a zoomed view over its approach. Far off it is drawn as a planet's point is

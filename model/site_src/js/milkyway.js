@@ -1,24 +1,24 @@
 // The Milky Way, as V surface brightness (cd/m²) on a grid in galactic longitude and latitude,
 // built once in the browser. It is a model, not a survey: a disk whose brightness along the
 // plane follows the bright star fields (Sagittarius, Scutum, Cygnus, Carina, Crux and Centaurus,
-// Norma and Scorpius) and fades toward the anticentre, thicker toward the bulge, mottled by
+// Norma and Scorpius) and fades toward the anticenter, thicker toward the bulge, mottled by
 // noise; a bulge; the Sagittarius and Scutum star clouds; dust in a thin layer that splits the
 // band from Cygnus to Sagittarius (the Great Rift), plus the Coalsack and the Ophiuchus and
 // Taurus clouds. The Magellanic Clouds and M31 are images (dso.js). The brightest field, the Sagittarius star
 // cloud, is set to 8.5e-4 cd/m² (about 20.2 mag/arcsec² on its own, 20.0 with the natural sky,
 // at the bright end of what is measured), and the band elsewhere runs from about 40% of that in Cygnus to a tenth toward the
-// anticentre, in line with the integrated starlight of Leinert et al. 1998 (A&AS 127, 1).
+// anticenter, in line with the integrated starlight of Leinert et al. 1998 (A&AS 127, 1).
 // In older epochs the Galaxy is the one mw_evolution.py describes (MW_EPOCH, buildMilkyWay):
-// seen from nearer its centre, its discs smaller and thinner, its light younger and its dust
+// seen from nearer its center, its discs smaller and thinner, its light younger and its dust
 // thicker, and, more than 30 Myr back, with other dark clouds, star clouds and young stars than
-// today's. Its colour is its starlight's, worked out from the spectrum the probe gives it (spectrum.js
+// today's. Its color is its starlight's, worked out from the spectrum the probe gives it (spectrum.js
 // spMWAt), so the two agree: old stars and young ones in the share mwSurface gives each place,
 // reddened by the dust in front of them. Young stars (B, A and F) keep to a layer a few degrees
 // thick, strongest along the spiral arms seen end on and the nearby OB associations, and patchy
 // as their clusters are; the bulge is old. The dust is the map's own (tau, the e-folds of V light
 // it takes out), reddening the light that gets through by the Cardelli, Clayton & Mathis (1989)
 // law with R_V = 3.1, so the band is browner along the Great Rift and the edges of the dark
-// clouds. MW_XY is the band's mean colour so made (weighted by light), for the nebulae's
+// clouds. MW_XY is the band's mean color so made (weighted by light), for the nebulae's
 // background starlight (dso.js).
 const MW_W=1024, MW_H=288, MW_BMAX=50, MW_PEAK=8.5e-4, MW_XY=[0.353, 0.357];
 // mwMap: V surface brightness (cd/m²); mwRGB: its light in linear sRGB (cd/m², three per pixel);
@@ -40,11 +40,11 @@ const MW_YOUNG=[[80, 12, 1.0], [287, 8, 1.0], [305, 10, 0.8], [330, 10, 0.6], [2
 const MW_FBM=[[2.4, 1], [1.6, 2], [1.2, 3], [1.5, 4], [1.5, 5], [1.0, 6]];
 const mwOctaves=add=>MW_FBM.flatMap(([cell, seed])=>[[cell, seed+add], [cell/2.5, seed+add+7], [cell/6, seed+add+13]]);
 // Today's layout: the spots, star fields and young stretches above, the noise's seeds, and the
-// Great Rift (how far it lies from the plane, in degrees, the longitude it centres on, and its
+// Great Rift (how far it lies from the plane, in degrees, the longitude it centers on, and its
 // half-length). More than 30 Myr back (mw_evolution.py, seed) none of them existed: dark clouds
 // last tens of Myr and spiral arms come and go, so the sky gets others like them, at random but
-// the same each time, as the nebulae do: star clouds near the centre, dark clouds anywhere within
-// 18° of the plane, star fields and young stretches within 110° of the centre either way.
+// the same each time, as the nebulae do: star clouds near the center, dark clouds anywhere within
+// 18° of the plane, star fields and young stretches within 110° of the center either way.
 const MW_TODAY={spot:MW_SPOT, field:MW_FIELD, young:MW_YOUNG, oct:mwOctaves(0), rift:[1.2, 38, 42]};
 function mwLayout(seed){
   if(!seed) return MW_TODAY;
@@ -107,7 +107,7 @@ function mwSurface(C, R){
   return I;
 }
 // The Galaxy as it was (mw_evolution.py): for each epoch more than 1e5 years back and for now
-// ('now'), how long ago (T, Gyr), the Sun's distance from the centre (R), the scale lengths and
+// ('now'), how long ago (T, Gyr), the Sun's distance from the center (R), the scale lengths and
 // heights (kpc) and V light (relative) of the thin disc's old (o) and young (y) stars and of the
 // thick disc (k), the bulge's light (Lb), the dust (D, relative to today's), and the seed of the
 // sky's particular features (0: today's).
@@ -115,7 +115,7 @@ const MW_EPOCH=__MW_EPOCH__;
 // A smooth model of that Galaxy seen from the Sun, 20.8 pc above the plane: exponential discs, a
 // bulge (exponential sphere, 0.6 kpc, a quarter of today's disc light) and dust in a layer 0.12 kpc
 // thick with a 3.5 kpc scale length, 0.74 e-folds of V light per kpc where the Sun is today (0.8
-// mag/kpc), which puts some 26 magnitudes between us and the centre. Its light toward each node
+// mag/kpc), which puts some 26 magnitudes between us and the center. Its light toward each node
 // of a grid (longitude every MW_DL degrees, latitude at MW_MB), old (thin and thick discs and
 // bulge) and young apart, summed along the line of sight through the dust out to 40 kpc, and all
 // of it as it would be without the dust (n).
@@ -149,7 +149,7 @@ function mwModel(p){
 // grid of MW_CY by MW_CT up to tau MW_TMAX, made once.
 const MW_CY=11, MW_CT=25, MW_TMAX=6;
 let mwColTab=null;
-function mwColour(y, tau, out){
+function mwColor(y, tau, out){
   if(!mwColTab){
     mwColTab=new Float32Array(MW_CY*MW_CT*3);
     for(let a=0;a<MW_CY;a++) for(let t=0;t<MW_CT;t++) mwColTab.set(spRGB(spMWAt(a/(MW_CY-1), t/(MW_CT-1)*MW_TMAX).S), (a*MW_CT+t)*3);
@@ -214,7 +214,7 @@ function buildMilkyWay(){
     }
   }
   for(let k=0;k<n;k++){
-    m[k]*=MW_PEAK/peak; mwColour(age[2*k], age[2*k+1], c);
+    m[k]*=MW_PEAK/peak; mwColor(age[2*k], age[2*k+1], c);
     rgb[3*k]=m[k]*c[0]; rgb[3*k+1]=m[k]*c[1]; rgb[3*k+2]=m[k]*c[2];
   }
   mwAge=age; mwRGB=rgb; mwFor=id;
@@ -232,7 +232,7 @@ function mwSample(l, b, rgb, age){
   if(age) for(let q=0;q<2;q++) age[q]=mwAge[2*k00+q]*w00+mwAge[2*k10+q]*w10+mwAge[2*k01+q]*w01+mwAge[2*k11+q]*w11;
   return mwMap[k00]*w00+mwMap[k10]*w10+mwMap[k01]*w01+mwMap[k11]*w11;
 }
-// The galactic axes (toward the centre, toward l=90°, toward the north pole) in the local
+// The galactic axes (toward the center, toward l=90°, toward the north pole) in the local
 // horizon frame (east, north, up), for the date, clock time, and latitude shown. They are moved
 // from J2000 to the stars' year with the same precession as the stars.
 const GAL_AXES=[[-0.0548755604, -0.8734370902, -0.4838350155], [0.4941094279, -0.4448296300, 0.7469822445], [-0.8676661490, -0.1980763734, 0.4559837762]];
@@ -247,7 +247,7 @@ function galacticBasis(lat){
   };
   // Rows of GAL_AXES are the galactic axes in J2000 equatorial coordinates. At a traced epoch
   // the plane is where it is now, but the Sun was elsewhere on its orbit (sunGal, from
-  // build_star_epochs.py), so the Galactic centre, and the bright part of the band, lay at
+  // build_star_epochs.py), so the Galactic center, and the bright part of the band, lay at
   // another longitude: the first two axes turn about the pole to put it there.
   const [x, y, z]=GAL_AXES.map(toHoriz), L=sunGal().l*Math.PI/180;
   const c=Math.cos(L), s=Math.sin(L);
@@ -260,7 +260,7 @@ function galacticBasis(lat){
 // band's light comes from. Today's 20.8 pc is already in the map.
 function mwLatShift(){ return -Math.atan((sunGal().z-20.8)/1500)*180/Math.PI; }
 // The Sun's place in the Galaxy at year A (STAR_SUN_TRACK, traced as the epochs are): the galactic
-// longitude, in today's coordinates, of the Galactic centre seen from it, and its height (pc).
+// longitude, in today's coordinates, of the Galactic center seen from it, and its height (pc).
 function sunGalAt(A){
   const T=STAR_SUN_TRACK, n=T.l.length, x=Math.max(0, Math.min(n-1, (2000-A)/1e6/T.step)), i=Math.min(n-2, Math.floor(x)), u=x-i;
   return {l:T.l[i]*(1-u)+T.l[i+1]*u, z:T.z[i]*(1-u)+T.z[i+1]*u};

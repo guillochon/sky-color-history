@@ -8,7 +8,7 @@
 // calendar; their dates here are converted (the page counts Gregorian years back to −3000).
 // Each light curve is a list of knots, magnitude against time, joined by straight lines and
 // continued past the last at a fixed rate (mag/day); a star is gone once fainter than 7.
-// Positions are J2000, remnants' centres for the supernovae, held still: a remnant's star moved
+// Positions are J2000, remnants' centers for the supernovae, held still: a remnant's star moved
 // a few arcminutes at most since. Betelgeuse's is the catalog star's, with its proper motion.
 //
 // Supernova peaks are a Type II-P's (M_V −16.75, Richardson et al. 2014) at the distance given,
@@ -34,7 +34,7 @@ const TR_CURVE={
   // Eddington rate, then falls as t^(−5/3). The light, held near Eddington, goes as 1 + ln ṁ while
   // ṁ > 1 (a slim disc) and as ṁ after, ṁ the fallback over Eddington's: down 0.24 mag at twice
   // the peak time, 1.1 at ten times, 1.9 at nineteen, when ṁ reaches 1 (2.5 years), then 5/3 as fast
-  // as t^(-1) fades. The colour (its temperature) is held.
+  // as t^(-1) fades. The color (its temperature) is held.
   // M31's (above, with the event): the fallback peaks ~300 days after the disruption, near the
   // Eddington rate, so the light goes as the fallback, t^(−5/3) from the disruption: 1.25 mag down
   // at twice the peak time, 2.5 at four times, 4.2 at ten, 5.4 at twenty, then 0.0003 mag a day.
@@ -182,7 +182,7 @@ const TRANSIENTS=[
   // LMC's 49.6 kpc (Pietrzyński et al. 2019) through A_V ≈ 0.3, V ≈ −0.6 (−3 to +1 over 1–5 L_Edd and
   // 2–4×10⁴ K). The LMC has no nuclear star cluster, which in loss-cone models puts the rate near
   // 10⁻⁶–10⁻⁵ a year (Pfister et al. 2020), but it has thrown out about as many hypervelocity stars as
-  // the Milky Way's centre, whose disruptions run near 10⁻⁴ a year: taken here as 3×10⁻⁵ a year, so
+  // the Milky Way's center, whose disruptions run near 10⁻⁴ a year: taken here as 3×10⁻⁵ a year, so
   // the median wait for the next is about 23,000 years. The day is assumed.
   {id:'lmctde', name:'A star torn apart by the LMC’s black hole', type:'tde', group:'future', year:25000, md:'12-15', ra:80.23, dec:-69.55, mag:-0.6, curve:'tde', spec:'tde', note:'Predicted: a 6×10⁵ M☉ black hole in the Large Magellanic Cloud disrupting a star, as bright as Canopus for months and visible for decades. Year and day assumed.'},
   // A tidal disruption by M31's black hole, 1.4×10⁸ M☉ (Bender et al. 2005), at its nucleus. A
@@ -234,7 +234,7 @@ function transientRow(ev){
 // from −9. Fainter, the point the stars are drawn with is all of it.
 function transientGlare(mag){ return smooth01(2, 9, -mag); }
 function transientSpec(ev){ return TR_SPEC[ev.spec||'IIP']; }
-// Its colour as a star's (stars.js starTint), and as the glare's, the brightest channel 1.
+// Its color as a star's (stars.js starTint), and as the glare's, the brightest channel 1.
 function transientTint(ev){ return ev.tint||(ev.tint=starTint(ev.T||transientSpec(ev).T).map(c=>Math.min(2.4, c))); }
 function transientRGB(ev){ if(ev.rgb) return ev.rgb; const t=transientTint(ev), mx=Math.max(...t); return t.map(c=>c/mx); }
 // One event's place at latitude lat and sidereal time LST, at timeline time A; null when not shown.
@@ -331,7 +331,7 @@ function goToTransient(ev){
   datePopDrawn=''; renderDay(); warm();
 }
 // The clock time on the day shown when the Sun has set 4° in the evening, where the twilight
-// colours are deepest.
+// colors are deepest.
 function duskMinute(lat){
   const dec=sunEquatorial(astroDay()).Dec;
   for(let m=720; m<DAYMIN; m+=2) if(90-sunGeom(lat, m, dec).sza<-4) return m;
@@ -343,7 +343,7 @@ function transientNote(Y, M, D){
   if(!evs) return '';
   return evs.map(ev=>`★ ${ev.name}: ${ev.note}`+(ev.at==null&&!ev.dusk&&transientBestMinute(ev, LATDEG[dLat])==null?' '+(ev.unseen||'It does not rise at this latitude today.'):'')).join(' ');
 }
-// The menu, by group, oldest first in each, and the colour key under it. The ones before history
+// The menu, by group, oldest first in each, and the color key under it. The ones before history
 // are listed by age, the others by year.
 function transientWhen(ev){ const a=2000-ev.Y; return ev.group!=='pre'&&ev.Y>-8000?fmtYear(ev.Y):a<1e6?`${+(a/1e3).toPrecision(3)} ka`:`${+(a/1e6).toPrecision(3)} Ma`; }
 const dpEvents=document.getElementById('dpEvents');

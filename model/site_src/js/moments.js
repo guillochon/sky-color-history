@@ -22,7 +22,7 @@ const MOMENTS=[
   {epoch:'archean38', date:'2000-01-38', t:1410, look:[0, 30], clear:true, aurora:true, title:'Aurora over the young Earth, 3.8 Ga', sub:'All night under the young Sun’s stronger wind: nitrogen glowing violet and pink in air with no oxygen', art:'aurora'},
   {epoch:'archean27', date:'2000-03-07', t:913, title:'Hazy afternoon, 2.52 Ga', sub:'A pale orange organic haze, like Titan’s', art:'day'},
   {epoch:'ordovician466', date:'2000-10-09', t:1324, look:[200, 18], clear:true, title:'Meteor storm and ring, 466 Ma', sub:'A shattered asteroid’s fragments, and perhaps a ring across the sky', art:'meteors'},
-  {epoch:'carbon30', date:'2000-06-31', t:1417, look:[180, 32], clear:true, title:'The Milky Way, 300 Ma', sub:'No city lights, and stars no one has catalogued', art:'galaxy'},
+  {epoch:'carbon30', date:'2000-06-31', t:1417, look:[180, 32], clear:true, title:'The Milky Way, 300 Ma', sub:'No city lights, and stars no one has cataloged', art:'galaxy'},
   {epoch:'kpg66', date:'2000-04-01', t:720, title:'Noon after the asteroid', sub:'Soot from Chicxulub turns the sky dim amber', art:'day'},
   {epoch:'geminga', date:'2000-01-07', t:1358, look:'sn', clear:true, title:'The Geminga supernova', sub:'342,000 years ago, a star in Orion as bright as the quarter Moon', art:'nova'},
   {epoch:'volcanic', date:'1815-07-06', t:1392, look:[180, 32], title:'A town night in 1815', sub:'Oil lamps light the streets but barely touch the sky', art:'stars'},

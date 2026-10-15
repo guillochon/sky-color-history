@@ -24,7 +24,7 @@ float steamOpacity(vec3 ro, vec3 rd, float tEnd){
     float f=(float(i)+1.0)/6.0, tq=t0+(t1-t0)*f*f, dt=tq-tp; tp=tq;
     vec3 p=ro+rd*(tq-0.5*dt);
     // Columns where the water steams hardest drift with the wind and lean downwind with height;
-    // in them, puffs a dozen metres tall rise at about 1.5 m/s, swelling and fading as they go.
+    // in them, puffs a dozen meters tall rise at about 1.5 m/s, swelling and fading as they go.
     vec2 q=p.xy-dr+vec2(0.7, 0.4)*p.z*0.8;
     float col=stN(q/90.0)*0.6+stN(q/28.0+3.1)*0.4;
     float puff=stN(vec2((q.x*0.8+q.y*0.6)/22.0, (p.z-1.5*waterT)/12.0))*0.6+stN(vec2((q.y*0.8-q.x*0.6)/9.0+5.3, (p.z-2.2*waterT)/6.0))*0.4;
@@ -62,13 +62,13 @@ uniform vec3 snDir,snCol,snLight,mlDir,mlLight;
 // The brightest fireball now: where its head is, the light it casts as moonlight (as mlLight), and
 // as sunlight (1 is the Sun's).
 uniform vec3 fbDir,fbLight,fbSun;
-// The ground's colour in full daylight, which a fireball as bright as the Sun gives it.
+// The ground's color in full daylight, which a fireball as bright as the Sun gives it.
 uniform vec3 groundDay;
-// The snow the weather has left (vr_paint.js): the share of the plain it hides, and its colour.
+// The snow the weather has left (vr_paint.js): the share of the plain it hides, and its color.
 uniform float snowLie;
 uniform vec3 groundSnow;
 uniform vec3 sunCol,ground,eye;
-// The direct sunlight's colour on the scenery (vr_paint.js sunTintAt): against the noon Sun's, at
+// The direct sunlight's color on the scenery (vr_paint.js sunTintAt): against the noon Sun's, at
 // the same luminance, so slopes, trees and walls facing the Sun redden as it sets; 0 once it has set.
 uniform vec3 sunTint;
 // How blinding the Sun is (vr_paint.js): 1 for a Sun near full daylight brightness, falling to 0
@@ -82,14 +82,14 @@ uniform float sunFade, glintFade;
 // The share of the glare laid over the Moon: all of it until the Moon has covered a good part
 // of the Sun, none as the beads come, so in an eclipse its disk emerges from the glare.
 uniform float glareMoon;
-// Where the glare is centred: the Sun's centre, or in an eclipse the middle of what still shows.
+// Where the glare is centered: the Sun's center, or in an eclipse the middle of what still shows.
 uniform vec3 glareDir;
 // The setting Sun (sunDiskAt).
 // airOn 0 with the air off (sunset.js airOff): the Moon not dimmed or reddened, and no aureole.
 uniform float refK, airOn, sunOff; uniform vec4 sunTau[50]; uniform vec3 sunW[20]; uniform vec3 sunG; uniform vec4 sunLay[4]; uniform vec4 sunMir;
 uniform float corona, coronaMap[16], coronaRim;
 // The photosphere's spots and faculae (sunspots.js): its heliographic map, and x the position angle
-// of the Sun's north pole from celestial north, y the latitude of the disk's centre (B0), z the
+// of the Sun's north pole from celestial north, y the latitude of the disk's center (B0), z the
 // rotation phase in turns, w whether the map is ready.
 uniform sampler2D sunMap; uniform vec4 sunOri;
 // The next day's map, and x the days from the first map's day to now, y from the next's, z the
@@ -106,7 +106,7 @@ uniform vec3 galX,galY,galZ;
 // The aurora, from its own pass (aurora.js) at reduced size, in cd/m² times 1000.
 uniform sampler2D aurTex; uniform float aurOn;
 // Ice halos (halo.js): x the Sun's and y the Moon's halo luminance over the sky reference per
-// unit of haloAt, with their colours as linear RGB of unit luminance.
+// unit of haloAt, with their colors as linear RGB of unit luminance.
 uniform vec2 haloK; uniform vec3 haloSunLin, haloMoonLin;
 // A lunar eclipse (lunar_eclipse.js): the shadow's light along its radius (linear, sRGB-coded, in
 // noiseTex's first row), and where its axis meets the Moon's disk (xy, in the disk's radii), the scale from disk radii
@@ -130,7 +130,7 @@ float extinctionAt(float el, float k){
 }
 uniform vec4 beads[6];
 // The planets and their moons (planets.js): per body, P its direction and drawn radius (radians),
-// C the colour of its point and that point's size (as a star's), L the way to the Sun from it and
+// C the color of its point and that point's size (as a star's), L the way to the Sun from it and
 // its magnitude, N its north pole and its kind (0-6 Mercury to Neptune, 7 a moon), plus 8 when it
 // is nearer than the Sun and 16 when Saturn has no rings. moonGain is what zooming in adds to the limit for the planets and moons (planets.js moonGain).
 // S is where the body is on the view's image plane (xy, worked out in double precision) and the
@@ -141,7 +141,7 @@ uniform vec4 bodyP[${BODY_MAX}], bodyC[${BODY_MAX}], bodyL[${BODY_MAX}], bodyN[$
 // its planet in the planet's radii and w the planet's index among the bodies; K x the moon's radius
 // in the planet's, y the Sun's angular radius there.
 // Jupiter's Great Red Spot (planets.js grsAt): its longitude's direction in Jupiter's equator, and
-// x its length (degrees of longitude), y width (latitude), z centre latitude, w how red
+// x its length (degrees of longitude), y width (latitude), z center latitude, w how red
 // it is; x is 0 when there is none.
 uniform vec3 grsDir; uniform vec4 grsAB;
 uniform vec4 shadowM[${SHADOW_MAX}], shadowK[${SHADOW_MAX}]; uniform float shadowCnt;
@@ -241,7 +241,7 @@ vec3 vNd(vec2 p){ // value noise and its gradient
   float c=textureLod(noiseTex, (i+vec2(0.5, 1.5))/128.0, 0.0).r, d=textureLod(noiseTex, (i+1.5)/128.0, 0.0).r, k=a-b-c+d;
   return vec3(a+(b-a)*u.x+(c-a)*u.y+k*u.x*u.y, du*vec2(b-a+k*u.y, c-a+k*u.x));
 }
-// Metre-scale relief on the open ground: xy is the height gradient, z the height in metres.
+// Meter-scale relief on the open ground: xy is the height gradient, z the height in meters.
 // Octaves finer than the pixel footprint fade out so the far field doesn't shimmer.
 vec3 groundRelief(vec2 p, float foot){
   const mat2 rot=mat2(0.8, 0.6, -0.6, 0.8);
@@ -267,8 +267,8 @@ float groundMottle(vec2 p, float foot){
   }
   return m;
 }
-// Roads (roads.js). x: how far outside the paving p is, in metres. y: 1 on a road's dashed centre
-// line. grid[i] is a town's (centre, radius, type), road[i] a segment between towns.
+// Roads (roads.js). x: how far outside the paving p is, in meters. y: 1 on a road's dashed center
+// line. grid[i] is a town's (center, radius, type), road[i] a segment between towns.
 void roadSeg(vec2 p, vec4 r, float foot, inout float d, inout float line){
   vec2 pa=p-r.xy, ba=r.zw-r.xy;
   if(abs(pa.x-ba.x*0.5)>abs(ba.x)*0.5+4.0 || abs(pa.y-ba.y*0.5)>abs(ba.y)*0.5+4.0) return;
@@ -343,10 +343,10 @@ float lowAir(float comp, float app, float rd, out float bend, out float extra){
 // day's low air (lowAir). sunG takes band light to linear sRGB, so the
 // disk's middle is sunCol. xyz is the band light reaching this ray, w its
 // fraction of the disk's radius in the nearest image, and off the ray's offset from the Sun's
-// centre in the 545 nm image.
+// center in the 545 nm image.
 const float SUN_DISP[20]=float[20](${SUN_DISP.join(', ')});
 const float SUN_APPS[10]=float[10](${SUN_APP.map(v=>v.toFixed(1)).join(', ')});
-// Zoomed in to arcseconds, the angle from a disk's centre can't come from the dot product of two
+// Zoomed in to arcseconds, the angle from a disk's center can't come from the dot product of two
 // unit vectors: their float steps are a pixel or more, and acos near a small angle magnifies them
 // tens of times, so the limb comes out jagged. fineEU gives the offset exactly instead, in the
 // target's tangent plane along its azimuth (x) and altitude (y) axes (azAxis, altAxis), for a
@@ -382,7 +382,7 @@ vec4 sunDiskAt(float comp, float app, vec3 sd, float rd, out vec3 off, out float
     float gap=max(dispX*abs(SUN_DISP[b]-SUN_DISP[min(b+1, 19)])*bend*0.01745329252, px);
     float cov=clamp(0.5+(sunRad-d)/gap, 0.0, 1.0);
     // The surface is placed by the 545 nm image alone: taking the nearest image's offset would
-    // hold it still across the rows where the images' centres lie, smearing the granulation there.
+    // hold it still across the rows where the images' centers lie, smearing the granulation there.
     if(b==8) off=ov;
     if(cov<=0.0) continue;
     int k0=i*20+b, k1=k0+20;
@@ -391,9 +391,9 @@ vec4 sunDiskAt(float comp, float app, vec3 sd, float rd, out vec3 off, out float
     r=min(r, d/sunRad); covM=max(covM, cov);
   }
   // The light as if the outermost image covered the whole pixel, and covM how much of it it does:
-  // the edge pixel is the disk's colour over the sky by its coverage, not a dimmer disk (which,
+  // the edge pixel is the disk's color over the sky by its coverage, not a dimmer disk (which,
   // drawn over the sky, would ring the Sun with a line darker than both). The images' own spread
-  // at the horizon, the coloured rims, is kept in their ratios.
+  // at the horizon, the colored rims, is kept in their ratios.
   return vec4(P/max(covM, 1e-6), r);
 }
 // The photosphere at q (disk radii, x toward celestial east, y north) as multipliers of linear
@@ -620,7 +620,7 @@ void main(){
   float elevDeg=asin(clamp(rd.z,-1.0,1.0))*57.2957795;
   float compDeg=comp*57.2957795;
   // The width of the blend from ground to sky at the horizon, taken here where every pixel runs
-  // it, so the derivative is defined; below it the sky's work is skipped (its colour is unused).
+  // it, so the derivative is defined; below it the sky's work is skipped (its color is unused).
   float hw=max(fwidth(elevDeg),0.04);
   float sunA=sunAz*0.01745329252;
   vec3 sd=azElDir(sunAz, sunEl);
@@ -658,12 +658,12 @@ void main(){
     float foot=tG*2.0*fy/res.y/sqrt(max(abs(rd.z), 0.002));
     vec3 relief=groundRelief(gp, foot);
     if(tLand<0.0) nG=normalize(nG+vec3(-relief.xy, 0.0));
-    // Bare and grassy patches, scaled by how colourful the ground is so snow stays white.
+    // Bare and grassy patches, scaled by how colorful the ground is so snow stays white.
     float gmx=max(gcol.r, max(gcol.g, gcol.b)), chroma=(gmx-min(gcol.r, min(gcol.g, gcol.b)))/max(gmx, 1e-4);
     float patchy=smoothstep(0.38, 0.66, vN(gp/120.0+7.7)+(vN(gp/31.0+2.3)-0.5)*0.55-relief.z*0.12);
-    float colourful=clamp(chroma*1.6, 0.0, 1.0);
-    gcol*=mix(vec3(1.0), mix(vec3(0.88, 1.04, 0.94), vec3(1.24, 1.06, 0.72), patchy), colourful);
-    gcol*=1.0+groundMottle(gp, foot)*mix(0.3, 0.8, colourful);
+    float colorful=clamp(chroma*1.6, 0.0, 1.0);
+    gcol*=mix(vec3(1.0), mix(vec3(0.88, 1.04, 0.94), vec3(1.24, 1.06, 0.72), patchy), colorful);
+    gcol*=1.0+groundMottle(gp, foot)*mix(0.3, 0.8, colorful);
     gcol*=1.0+clamp(relief.z*0.18, -0.14, 0.08);
     // Snow from the weather, in patches that shrink as it melts (the hollows last), the roads
     // kept clear.
@@ -705,7 +705,7 @@ void main(){
       gcol+=nightLit(nG)*0.16+dayCol*fireSun(nG);
     }
 #if SCENERY
-    // Pools: pond[i] is (centre, radius, kind) with kind 0 water, 1 magma, 2 ice, 3 swamp.
+    // Pools: pond[i] is (center, radius, kind) with kind 0 water, 1 magma, 2 ice, 3 swamp.
     // The shore wanders with two octaves of noise. Hills are kept out of them by the hit pass.
     if(tLand<0.0 && kBest<0.5){
       float pk=-1.0, edge=0.0, shore=0.0;
@@ -766,7 +766,7 @@ void main(){
 #if SCENERY
   if(kBest>7.5){
     // Trees (8). hBest is style*2+part: part 0 trunk, 1 crown. Leaf clumps bump the crown
-    // normal at metre scale and fade with distance; foliage wraps light a little.
+    // normal at meter scale and fade with distance; foliage wraps light a little.
     float sty=floor(hBest*0.5+0.25), part=hBest-sty*2.0, seed=qBest.w, foot=tBest*2.0*fy/res.y;
     vec3 n=nBest, albedo;
     if(part<0.5){
@@ -822,7 +822,7 @@ void main(){
         albedo=roof*mix(1.0, 0.82+0.18*step(0.18, fract(z/0.32)), detail);
       }else{
         albedo=siding;
-        // One row of windows per storey, centred in each 3.6 m bay, none in the gable.
+        // One row of windows per story, centered in each 3.6 m bay, none in the gable.
         float bx=u/3.6, sill=z<3.0?z-0.95:z-3.7;
         float m=step(abs(fract(bx)-0.5), 0.17)*step(0.0, sill)*step(sill, 1.25)*step(z, hBest-0.25);
         float detail=1.0-smoothstep(0.25, 0.7, foot);
@@ -844,7 +844,7 @@ void main(){
     else if(kBest>2.5){
       // Glacier: white snow on the flats, blue ice on the cliffs, banded by its layers.
       // Layers are hBest*0.022 thick, warped, and dip gently across the massif. Each layer has
-      // one band of its own width, position, and colour (deep blue, turquoise, pale blue, grey
+      // one band of its own width, position, and color (deep blue, turquoise, pale blue, gray
       // debris, or near-white), with faint fine lines between. Far away it fades to the mean.
       float sp=hBest*0.022;
       vec2 dip=vec2(cos(qBest.x*0.013), sin(qBest.y*0.017))*0.03;
@@ -956,8 +956,8 @@ void main(){
     vec3 skyBase=skyC;
     if(inSun){
       // Limb darkening (moon.js sunLimbRGB): dimmer and redder toward the edge. The bands that
-      // reach this ray, over those at the disk's middle, colour sunCol: redder low on the disk,
-      // a rim of the last colour the air lets through at its top. The disk is far brighter than
+      // reach this ray, over those at the disk's middle, color sunCol: redder low on the disk,
+      // a rim of the last color the air lets through at its top. The disk is far brighter than
       // the display, so its range is squeezed (brightness to the power 0.45, hue kept), as the
       // eye and a camera both see a setting Sun: dark red at the bottom is still bright. Below a
       // tenth of the middle's brightness it falls off faster, so a rim the air has all but put
@@ -984,7 +984,7 @@ void main(){
         dsk=clamp(dsk*sunSurface(q, 2.0*(fov<2e-3?0.5*fov:tan(fov*0.5))/res.y/sunRad), 0.0, 1.0);
       }
       // Seen whole, the Sun is far too bright to look at: its disk a white-hot blank tinted the
-      // epoch's colour, no limb or spots. Zoomed in, as through a filter, it dims to the disk above.
+      // epoch's color, no limb or spots. Zoomed in, as through a filter, it dims to the disk above.
       if(glareK>0.0){
         vec3 hot=mix(lin/max(lm, 1e-6), vec3(1.0), 0.6);
         dsk=mix(dsk, hot, glareK); op=mix(op, 1.0, glareK);
@@ -1051,7 +1051,7 @@ void main(){
     }
     float rMwBg=0.0;
     if(mwOn>0.5 && !onBody && te>-1.0 && rBg<6e-6){
-      // The Milky Way, behind the air: its light (linear sRGB, its colour its starlight's and
+      // The Milky Way, behind the air: its light (linear sRGB, its color its starlight's and
       // its dust's) dimmed by extinction and added to the sky's under the same display curve.
       vec3 gq=vec3(dot(src, galX), dot(src, galY), dot(src, galZ));
       float gb=asin(clamp(gq.z, -1.0, 1.0))*57.2957795-mwDB;
@@ -1126,7 +1126,7 @@ void main(){
     }
     if(glareK>0.0 && te>-1.0 && (!onMoon || glareMoon>0.0)){
       // The Sun's glare, the light scattered in the eye about it: a bright bloom hugging the
-      // disk, white near it and the epoch's colour farther out, and a wide glow over the sky,
+      // disk, white near it and the epoch's color farther out, and a wide glow over the sky,
       // over the Moon too until an eclipse is well along.
       float a=acos(clamp(dot(src, glareDir), -1.0, 1.0)), r=max(a/sunRad-1.0, 0.0);
       vec3 lin=s2lin3(sunCol); lin/=max(max(lin.r, max(lin.g, lin.b)), 1e-6);
@@ -1170,7 +1170,7 @@ void main(){
         int start=int(info.r+0.5), count=int(info.g+0.5);
         for(int k=0;k<96;k++){
           if(k>=count) break;
-          // Two texels a star (stars.js starBinsFor): direction and size, then colour and magnitude.
+          // Two texels a star (stars.js starBinsFor): direction and size, then color and magnitude.
           int id=(start+k)*2;
           ivec2 at=ivec2(id- (id/1024)*1024, id/1024);
           vec4 sp=texelFetch(starIdx, at, 0);

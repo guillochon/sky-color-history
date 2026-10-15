@@ -49,7 +49,7 @@ const AUR_IV=20, AUR_DIFF=1.0;
 const AUR_RGB=[[5.6821e-05, 2.5589e-04, -3.2342e-05], [2.8106e-04, -2.3548e-05, -2.7534e-06], [3.5841e-05, -4.8614e-05, 5.0564e-04], [1.0517e-04, 1.6209e-06, -2.3369e-06]];
 // How bright each looks to the dark-adapted eye, which sees with its rods: scotopic luminance per
 // kR (CIE 1951 V'(λ), 1700 lm/W) over that of the natural night sky per unit of its photopic
-// luminance. The sky's ratio is about 1.6: half of it sunlight-coloured (5772 K, 2.3) and half
+// luminance. The sky's ratio is about 1.6: half of it sunlight-colored (5772 K, 2.3) and half
 // airglow (the green line 0.9, sodium 0.2, the continuum about 1.6). Rods see nitrogen's violet
 // 26 times better than cones do, and hardly see the red line at all (0.03), which is why red
 // aurora so often shows in photographs and barely to the eye. The shader moves from this to
@@ -61,11 +61,11 @@ const AUR_SCOT=[1.729e-4, 1.284e-6, 2.447e-4, 2.342e-6].map(v=>v/1.6);
 const AUR_RATIO=[1, 1, 0.30, 0.2];
 const AUR_LAMBDA=[557.7, 630, 430, 665];
 const AUR_N=4096, AUR_ARCS=4, KM_DEG=111.2;
-// Arcs: offset poleward of the oval's centre line (in its half-widths), brightness, and sheet
+// Arcs: offset poleward of the oval's center line (in its half-widths), brightness, and sheet
 // half-width (km). The brightest is the most equatorward, where substorms break up; the diffuse
 // aurora lies along the equatorward edge.
 const AUR_ARC=[[-0.3, 1, 3.0], [0.05, 0.55, 5.0], [0.4, 0.45, 4.0], [0.7, 0.3, 6.5]];
-// Today's oval for activity kp: centre and half-width (degrees) at midnight and noon.
+// Today's oval for activity kp: center and half-width (degrees) at midnight and noon.
 function aurOvalToday(kp){ return [69-0.2*kp-0.1*kp*kp, 77-0.5*kp, 2.5+0.4*kp+0.05*kp*kp, 1.5+0.25*kp]; }
 function aurScaleLat(lat, rmp){ const L=rmp/Math.pow(Math.cos(lat*Math.PI/180), 2); return L<=1.0001?0:Math.acos(Math.sqrt(1/L))*180/Math.PI; }
 function aurHashI(i, j, s){
@@ -148,7 +148,7 @@ function auroraState(key, latDeg, clockMin, zenithCd){
   else if(aurActive){ kp=Math.min(11, kp+0.5); drive*=2; }
   const [cm, cn, wm, wn]=aurOvalToday(kp), e=[cm-wm, cm+wm, cn-wn, cn+wn].map(l=>aurScaleLat(l, rmp));
   const mid=(e[0]+e[1])/2, noon=(e[2]+e[3])/2, hwm=(e[1]-e[0])/2, hwn=(e[3]-e[2])/2;
-  // Centre A+B·cos θ and half-width W0+W1·cos θ, θ the magnetic local time from noon.
+  // Center A+B·cos θ and half-width W0+W1·cos θ, θ the magnetic local time from noon.
   const A=(mid+noon)/2, B=(noon-mid)/2, W0=(hwm+hwn)/2, W1=(hwn-hwm)/2, mlt0=clockMin/DAYMIN*24;
   const here=A+B*Math.cos((mlt0-12)*Math.PI/12);
   const st={on:false, key, lat:latDeg, ns, mlt0, A, B, W0, W1, here, mid, fO, fN};
@@ -225,8 +225,8 @@ function auroraArcs(st, t, out=new Float32Array(AUR_N*AUR_ARCS*4)){
   }
   return out;
 }
-// Rays: bright field-aligned streaks half a kilometre to two wide, in clusters along the arc a
-// few kilometres apart, 0.5 km a texel and 4,096 km round.
+// Rays: bright field-aligned streaks half a kilometer to two wide, in clusters along the arc a
+// few kilometers apart, 0.5 km a texel and 4,096 km round.
 function auroraRayData(){
   const N=8192, v=new Float32Array(N); let s=777;
   const rnd=()=>{ s=(Math.imul(s, 1103515245)+12345)>>>0; return s/4294967296; };
@@ -359,7 +359,7 @@ float aurNoise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
 #endif
 float aurCirc(float a, float b){ return mod(a-b+36.0, 24.0)-12.0; }
 const float AUR_FR[4]=float[4](${AUR_ARC.map(a=>a[0].toFixed(2)).join(', ')});
-// Arc i at point P (Earth-centred km; ax the axis, m0 the meridian here): the signed distance
+// Arc i at point P (Earth-centered km; ax the axis, m0 the meridian here): the signed distance
 // across its sheet (km), its texel a, and the point's place along the arc s (km).
 vec4 aurArc(int i, float lonD){
   float la=lonD+aurShiftA, lb=lonD+aurShiftB, h=0.5*aurSpan, sa=aurSlot*4.0, sb=4.0-sa;
@@ -505,7 +505,7 @@ void main(){
   fragColor=auroraLight(rd, 2.0*(fov<2e-3?0.5*fov:tan(fov*0.5))/res.y)*1000.0;
 }`;
 // The aurora's light (auroraLight) added to a sky of luminance ratio rBg shown as sRGB skyC,
-// under the display curve, as the Milky Way is added in the sky shader. Its colour is the
+// under the display curve, as the Milky Way is added in the sky shader. Its color is the
 // spectrum's, as the cones see it. Its brightness is the larger of what the rods and the cones
 // see, a simple stand-in for mesopic vision, so violet shows by the rods and a red border by
 // the cones; it becomes the cones' alone as the sky brightens through the mesopic range.
@@ -535,7 +535,7 @@ out vec4 fragColor;
 void main(){
   vec2 uv=vec2(gl_FragCoord.x/res.x, 1.0-gl_FragCoord.y/res.y);
   vec3 base=texture(domeTex, uv).rgb;
-  vec2 d=gl_FragCoord.xy-view.xy; // east right, north up; view is the fisheye's centre and radius
+  vec2 d=gl_FragCoord.xy-view.xy; // east right, north up; view is the fisheye's center and radius
   float R=view.z, r=length(d);
   if(r<R){
     float zen=90.0*r/R, az=atan(d.x, d.y), el=(90.0-zen)*0.0174532925;
@@ -675,7 +675,7 @@ function domeAurKick(){
   };
   domeAur.raf=requestAnimationFrame(step);
 }
-// The dome's colour under the pointer, with the aurora when it shows.
+// The dome's color under the pointer, with the aurora when it shows.
 function domePixel(x, y){
   if(!domeAur.shown||!domeAur.gl) return null;
   const px=new Uint8Array(4); domeAur.gl.readPixels(x, domeAur.canvas.height-1-y, 1, 1, domeAur.gl.RGBA, domeAur.gl.UNSIGNED_BYTE, px);

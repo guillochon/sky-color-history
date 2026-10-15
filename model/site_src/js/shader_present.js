@@ -2,7 +2,7 @@
 // resolution: the shafts and the veil between the eye and the cloud base or the ground, and the
 // drops and flakes falling close by. rainP is the rate from the cloud (mm/h): x steady, y showers,
 // z drizzle, and w the share falling as snow. rainQ: x the height where it has all evaporated (0
-// when it reaches the ground), y the shafts' lean per metre of fall, z the rate on the eye.
+// when it reaches the ground), y the shafts' lean per meter of fall, z the rate on the eye.
 // bowTex: the drops' phase function by angle and drop size, with the rainbows (rainbow.js).
 const RAIN_GLSL=`
 uniform sampler2D weather, bowTex;
@@ -19,7 +19,7 @@ vec4 rainMap(vec2 xy){
   float th=clamp((w.b-0.30)/0.38, 0.0, 1.0), sheet=smoothstep(0.55, 0.9, cov)*smoothstep(0.35, 0.75, th);
   return vec4(rainP.x*sheet+rainP.y*smoothstep(0.55, 0.85, th)*smoothstep(0.3, 0.6, cov), rainP.z*sheet, cov, th);
 }
-// Extinction (per metre) of rain R and drizzle D (mm/h): rain about 0.25 R^0.63 per km, so 1 mm/h
+// Extinction (per meter) of rain R and drizzle D (mm/h): rain about 0.25 R^0.63 per km, so 1 mm/h
 // leaves some 15 km of visibility and 50 mm/h barely 1.5 km; drizzle's small drops dim more for
 // their water; snow, 3 S^0.7 per km of melted S, dims ten times as much as rain.
 float rainSigma(vec4 m){
@@ -38,7 +38,7 @@ void rainLight(out vec3 amb, out vec3 sunB, out vec3 sd){
 }
 // What the cloud over the rain lets through of the sky's light: less where it is thick, and
 // much less over heavy rain, which only falls from a deep cloud (a shower's tower lets through a
-// tenth or less, and its shaft hangs dark against the sky). Light through cloud is grey, not blue.
+// tenth or less, and its shaft hangs dark against the sky). Light through cloud is gray, not blue.
 float rainShade(vec4 m){ return (1.0-m.z*mix(0.55, 0.92, m.w))*exp(-m.x/6.0); }
 vec3 rainAmb(vec3 amb, vec4 m){ return mix(amb, vec3(dot(amb, vec3(0.2126, 0.7152, 0.0722))), sqrt(m.z))*rainShade(m); }
 // Snow scatters mostly forward (per steradian, as the clouds' phase).
@@ -53,7 +53,7 @@ vec3 rainDropPhase(float u, vec4 m){
   float row=clamp(log(D/0.1)/2.302585*5.0, 0.0, 5.0);
   return 0.75*texture(bowTex, vec2((u*2047.0+0.5)/2048.0, (row+0.5)/6.0)).rgb+0.25*0.0796;
 }
-// The rain between ro and tEnd along rd, in front of skyC: premultiplied linear colour, opacity.
+// The rain between ro and tEnd along rd, in front of skyC: premultiplied linear color, opacity.
 // Twenty steps, closer together near the eye, without jitter (this pass keeps no history).
 vec4 rainVeil(vec3 ro, vec3 rd, float tEnd, vec3 skyC){
   vec3 amb, sunB, sd;
@@ -91,7 +91,7 @@ vec4 rainVeil(vec3 ro, vec3 rd, float tEnd, vec3 skyC){
   }
   return vec4(col, 1.0-T);
 }
-// The drops or flakes falling within a few metres, on four cylinders about the eye 1.5, 3, 6 and
+// The drops or flakes falling within a few meters, on four cylinders about the eye 1.5, 3, 6 and
 // 12 m out, nearest first, falling at 7 m/s (rain) or 1 m/s (snow) in real time. How many there
 // are follows the rate: density D drops to a cell, one per cell at 3 mm/h of rain or 0.25 mm/h of
 // snow (melted), up to six at 18 mm/h or 1.5 mm/h and more, each layer its own drops in the same cells. A
@@ -154,7 +154,7 @@ vec4 toneCloud(vec4 c){
 ${VIEW_RAY_GLSL}
 ${STEAM_GLSL}
 ${RAIN_GLSL}
-// Linear premultiplied colour to the display values the clouds are blended in, with their shoulder.
+// Linear premultiplied color to the display values the clouds are blended in, with their shoulder.
 vec4 rainDisplay(vec4 v){
   if(v.a<1.0e-4) return vec4(0.0);
   vec3 c=v.rgb/v.a;

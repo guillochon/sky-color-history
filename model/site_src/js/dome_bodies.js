@@ -209,7 +209,7 @@ function paintMoonSprite(moon, sunAz, sunEl){
     // While it cools, the molten globe over it (moon_surface.js moonMelted).
     if(melt){ moonAlbedo(melt.m, bv, alb2); for(let q=0;q<3;q++) alb[q]+=(alb2[q]-alb[q])*melt.k; }
     px[o]=alb[0]; px[o+1]=alb[1]; px[o+2]=alb[2]; px[o+3]=255;
-    // The sunlit share is kept beside the sprite, not in its alpha, as a canvas loses the colour
+    // The sunlit share is kept beside the sprite, not in its alpha, as a canvas loses the color
     // where alpha is 0 and the molten Moon's night side glows.
     moonSpriteLit[j*96+i]=Math.round(lit*255);
   }

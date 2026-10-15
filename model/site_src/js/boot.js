@@ -16,7 +16,7 @@ showEpoch(dIdx); renderDay(); warm();
 if(openVR) enterVR(true);
 // The VR shaders compile in the background a few seconds after the page is up.
 setTimeout(()=>(window.requestIdleCallback||setTimeout)(precompileVR, {timeout:5000}), 3000);
-// extra(x, y, box), when given, fills a box under the colour line (the dome's spectrum).
+// extra(x, y, box), when given, fills a box under the color line (the dome's spectrum).
 function colorTip(canvas, tip, inside, pixel=()=>null, extra=null){
   const ctx=canvas.getContext('2d'); let cur=null, copiedUntil=0, hovering=false, px=0, py=0;
   const refresh=()=>{
@@ -46,8 +46,8 @@ function colorTip(canvas, tip, inside, pixel=()=>null, extra=null){
 refreshGlobeTip=colorTip(globe, document.getElementById('gtip'), (x,y)=>{ const r=Math.hypot(x-globe.width/2,y-globe.height/2); return r<globe.width*0.30*1.5; }, ()=>null, globeSpectrumTip);
 refreshDomeTip=colorTip(dome, document.getElementById('dtip'), (x,y)=>{ const v=domeView(); return Math.hypot(x-v.cx, y-v.cy)<v.R; }, domePixel, domeSpectrum);
 // A tooltip that follows the pointer over page elements rather than a canvas: probe(el, fx, fy)
-// gives, for the element under the pointer and the pointer's place in it (0–1), the colour line's
-// label, its colour and a filler for the spectrum box, or null.
+// gives, for the element under the pointer and the pointer's place in it (0–1), the color line's
+// label, its color and a filler for the spectrum box, or null.
 function elemTip(root, sel, tip, probe){
   let at=null, hovering=false;
   const refresh=()=>{
@@ -73,7 +73,7 @@ function elemTip(root, sel, tip, probe){
 const ptip=document.getElementById('ptip');
 refreshBarTip=elemTip(document.getElementById('hbar'), 'i', ptip, sw=>({
   color:sw.dataset.hex, label:`${sw.getAttribute('aria-label')} · ${sw.dataset.hex}`, fill:box=>barSpectrumTip(sw, box)}));
-// The colour at height f of a noon sky's gradient, mixed in sRGB as CSS draws it.
+// The color at height f of a noon sky's gradient, mixed in sRGB as CSS draws it.
 const mixHex=(a, b, f)=>'#'+[1, 3, 5].map(i=>Math.round(parseInt(a.substr(i, 2), 16)*(1-f)+parseInt(b.substr(i, 2), 16)*f).toString(16).padStart(2, '0')).join('');
 refreshNoonTip=elemTip(document.getElementById('tdomes'), '.sky', ptip, (sky, fx, fy)=>{
   const f=Math.max(0, Math.min(1, fy)), c=mixHex(sky.dataset.zc, sky.dataset.hc, f);

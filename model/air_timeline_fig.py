@@ -1,12 +1,12 @@
-"""The report's timeline of the air: how its parts and its colours change through Earth's history,
+"""The report's timeline of the air: how its parts and its colors change through Earth's history,
 with every epoch at an even step -> latex/figures/air_timeline.png
 
 The horizontal axis is the page's timeline (globe.js timeAtPos): the epochs' ticks are evenly
 spaced, and between two ticks the year runs linearly from one epoch's to the next's. The lines are
 the background air through time (airtime.py background); an event's own air is drawn at its tick
 (a short bar over the tick's width, joined to the line), since its few years or million years
-would not show at this scale. The strips beneath are the sky's colour, from the airs the page
-blends (airgrid.py, air_nodes.json) between the ticks and from each epoch's own colours
+would not show at this scale. The strips beneath are the sky's color, from the airs the page
+blends (airgrid.py, air_nodes.json) between the ticks and from each epoch's own colors
 (skycolors.json) at its tick.
 """
 import json, struct, sys
@@ -44,7 +44,7 @@ OWN = {k: at.event_air(k, at.ANCHOR[k], 1.0) for k in at.EV_FIELDS}
 OWN['archean27vthick'] = at.normalize(_ep.BY_KEY['archean27vthick'])
 OWN['modernpoll'] = at.scenario_air('modernpoll')
 ZONE = 0.16                      # half the width of a tick's own stretch
-# CO2 and water vapour leave the radiative model once they no longer touch the visible sky (CO2
+# CO2 and water vapor leave the radiative model once they no longer touch the visible sky (CO2
 # after the Ordovician, H2O after the Hadean), so the air holds none from there. The figure goes on
 # with them as dashed lines through these pins, log-linear between ticks; each starts from the
 # model's last value. CO2, in ppm of the whole air: the stage medians of PhanDA (Judd et al. 2024),
@@ -53,7 +53,7 @@ ZONE = 0.16                      # half the width of a tick's own stretch
 # et al. 2020).
 CO2_PPM = {'carbon30': 458, 'cretaceous66': 943, 'zetaoph': 253, 'geminga': 205, 'volcanic': 284, 'y1900': 296,
            'ozonehole': 354, 'modern': 425, 'y2100': 603}
-# H2O: the near-surface vapour pressure at a fixed 80% relative humidity (Held & Soden 2006) and each
+# H2O: the near-surface vapor pressure at a fixed 80% relative humidity (Held & Soden 2006) and each
 # epoch's global mean surface temperature, °C. The Precambrian between glaciations is temperate,
 # held at 20 °C, the middle of the 8-30 °C that the carbon cycle allows (Charnay et al. 2017;
 # Krissansen-Totton et al. 2018); the Phanerozoic is PhanDA's stage medians (Judd et al. 2024), with
@@ -67,7 +67,7 @@ RH = 0.8
 
 
 def h2o_bar(t_c):
-    """Vapour pressure (bar) at relative humidity RH and t_c °C (Bolton 1980's saturation curve)."""
+    """Vapor pressure (bar) at relative humidity RH and t_c °C (Bolton 1980's saturation curve)."""
     return RH*6.112*np.exp(17.67*t_c/(t_c+243.5))/1000
 
 
@@ -117,7 +117,7 @@ def plot_runs(ax, v, floor, col, ls='-', lw=1.2, label=None, drop_right=True):
     if label: ax.plot([], [], color=col, lw=lw, ls=ls, label=label)
 
 
-# ---------- the sky's colours: the page's blended airs between the ticks, each epoch's own at its tick ----------
+# ---------- the sky's colors: the page's blended airs between the ticks, each epoch's own at its tick ----------
 NODES = json.loads((HERE / 'air_nodes.json').read_text(encoding='utf-8'))
 AIRDIR = HERE.parent / 'site' / 'air'
 LI = NODES['lats'].index('Mid-latitude')
@@ -162,7 +162,7 @@ def noon_xyY(t, v, a):
     return blend(bg_xyY(t, dc.SZAS.index(40), v, a), bg_xyY(t, dc.SZAS.index(50), v, a), 0.5)
 
 
-def strip_colours(kind):
+def strip_colors(kind):
     """sRGB along X for one strip, as the report's panels draw them (gen_report.rgb)."""
     Yref = {'noon': gr.Yz, 'noonh': gr.Yz, 'sunset': gr.Yss, 'dusk': gr.Ytw}[kind]
     out = np.zeros((len(X), 3))
@@ -261,10 +261,10 @@ def main():
                 if base > 0: axt.plot([i, i], [base, val], color=col, lw=0.6, alpha=0.7)
     axt.set_yscale('log'); axt.set_ylim(3e-3, 20); axt.set_ylabel('Optical depth at 550 nm')
     axt.legend(loc='upper left', bbox_to_anchor=(1.005, 1.0), frameon=False, fontsize=6.5, handlelength=1.6)
-    # Colour strips.
+    # Color strips.
     for a, (kind, lab) in zip(strips, [('noon', 'Zenith, Sun 45° up'), ('noonh', 'Horizon, Sun 45° up'),
                                        ('sunset', 'Horizon under the setting Sun'), ('dusk', 'Zenith, Sun 4° down')]):
-        c = strip_colours(kind)
+        c = strip_colors(kind)
         a.imshow(c[None, :, :], extent=[X[0], X[-1], 0, 1], aspect='auto', interpolation='nearest')
         a.set_xlim(*xs); a.set_yticks([]); a.text(len(T)-0.45, 0.5, lab, va='center', fontsize=6.2)
         a.tick_params(axis='x', bottom=False, labelbottom=False)

@@ -128,7 +128,7 @@ function cloudRegime(e, w){
 // clear days and overcast ones both come, as often as the era's vary allows. Cumulus days (type 0.3
 // and up) build clouds through the afternoon; stratiform ones start overcast and burn off by midday.
 // Near overcast (75% to 95%), deck ramps up: the cloud shader fills the gaps between clouds, and
-// cumulus flattens into a layer about a kilometre thick.
+// cumulus flattens into a layer about a kilometer thick.
 function cloudCover(e, w, g){
   const h=(cloudDate().m%DAYMIN)/60, cu=smoothstep(0.22, 0.38, g.type);
   const daily=cu*(Math.exp(-(((h-15)/3.5)**2))-0.35)+(1-cu)*(Math.exp(-(((h-7)/3)**2))-0.3);
@@ -145,12 +145,12 @@ function cloudCover(e, w, g){
 // minAbs, the minutes since day 0, tells a jump from the clock's own steps.
 function cloudClock(scale){
   const {k, m}=cloudDate(), fr=x=>x-Math.floor(x), k1=Math.floor(k/65536), k0=k-k1*65536;
-  // Turns of a lookup that moves c a metre, at rate metres a minute.
+  // Turns of a lookup that moves c a meter, at rate meters a minute.
   const at=(c, rate)=>{ const d=c*rate*DAYMIN; return fr(fr(fr(d*65536)*k1)+fr(d*k0)+c*rate*m); };
   const R=NOISE_ROT, wind=[0, 1, 2].map(i=>(R[i]+0.42*R[3+i])/9000), shape=[0, 1, 2].map(i=>R[6+i]/90000);
   const lowOff=s=>wind.map((c, i)=>fr(at(c*s, 88)+at(shape[i]*s, 35)));
   const Dw=50/(scale*0.33);
-  // The cirrus's place, rotated into its streaks' frame, per metre of the low clouds' drift.
+  // The cirrus's place, rotated into its streaks' frame, per meter of the low clouds' drift.
   const ra=1.6*(0.92+0.39*0.42), rb=1.6*(-0.39+0.92*0.42), sl=CIRRUS_SLANT;
   const cirOff=(sx, sy)=>[at(ra/sx, 88), at(rb/sy, 88), at(ra/sx*sl[0]+rb/sy*sl[1], 88)];
   return {drift:Dw*at(1/Dw, 88), noiseOff:lowOff(1), detOff:lowOff(6.5), cirW:[at(1.6*scale*0.12, 88), at(1.6*0.42*scale*0.12, 88)],
@@ -188,7 +188,7 @@ function surfaceTemp(key, w, cov){
 // Calibrated so today's comes to about 1,800 mm a year at the Equator, 850 at 45° and 200 at 75°,
 // falling in 5-8% of the hours (clouds.js alone, run over eight years). snow is the share falling
 // as snow (it melts from 0 to 2.5 °C). virgaH is the height (m) where it has all evaporated, in
-// dry air under a high base or over a hot surface; 0 when it reaches the ground. tilt is how far the shafts lean per metre of fall, in the wind's
+// dry air under a high base or over a hot surface; 0 when it reaches the ground. tilt is how far the shafts lean per meter of fall, in the wind's
 // shear: rain falls at 7 m/s, snow at 1 m/s and leans more.
 function cloudPrecip(w, c, T){
   const h=(cloudDate().m%DAYMIN)/60, cc=Math.min(3, Math.max(0.08, Math.exp(0.06*(T-15)))), cs=Math.min(2.5, Math.max(0.2, Math.exp(0.035*(T-15))));
@@ -225,7 +225,7 @@ function rainHere(f, x, y, z){
   return r.virgaH>0?(m.rain+m.driz)*fall:m.rain+m.driz;
 }
 // The cover the shaders take (cloudCov) for the view from (x, y): the weather map moves the cover
-// about it, more here and less there, and is centred on its mean within 40 km of the eye, where
+// about it, more here and less there, and is centered on its mean within 40 km of the eye, where
 // the clouds are seen, so the sky in view comes to the day's cover wherever the wind has taken the map.
 function cloudCovHere(f, x, y){
   const W=weatherData(), n=256, k=f.scale*0.33*n, wr=i=>((i%n)+n)%n;
@@ -278,7 +278,7 @@ function snowOnGround(key){
   return snowMemo.cover;
 }
 // A day's weather for the calendar, where the eye starts, from every third hour: its rain and
-// its snow (mm of water) and its daytime cover. kind is 'snow' or 'rain' with a millimetre or
+// its snow (mm of water) and its daytime cover. kind is 'snow' or 'rain' with a millimeter or
 // more, else 'clear', 'partly' or 'cloudy' by the cover from 09:00 to 18:00.
 function dayWeather(key, Y, M, D){
   const k=utcDay(Y, M, D), k0=cloudDate().k;

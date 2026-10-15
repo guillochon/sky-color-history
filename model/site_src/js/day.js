@@ -1,19 +1,19 @@
 /* ---------- Section 2: a day under that sky ---------- */
-// The Moon pass and the colour tip read the dome back every render, so it is kept in memory.
+// The Moon pass and the color tip read the dome back every render, so it is kept in memory.
 const dome=document.getElementById('dome'), dctx=dome.getContext('2d', {willReadFrequently:true});
 const sel=document.getElementById('depoch'); EP.forEach((ep,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=`${ep.age} — ${ep.name}`; sel.appendChild(o); });
 let dIdx=MODERN_IDX, dLat='Mid-latitude', minutes=720, autoExpo=false;
 const DAYMIN=1440; // midnight to midnight
 sel.value=dIdx;
 const LATDEG={'Equator':0,'Mid-latitude':45,'Polar':75,'Mid-latitude S':-45,'Polar S':-75};
-// The southern latitudes share the northern ones' sky tables: the colours are tabulated by the
+// The southern latitudes share the northern ones' sky tables: the colors are tabulated by the
 // Sun's height and the azimuth from it, the same in either hemisphere (the air is not told apart).
 function dayLat(){ return dLat.replace(/ S$/, ''); }
 // The latitude in words, as the dome's corner and the VR view give it.
 function latLabel(){ const d=LATDEG[dLat]; return d?(d<0?'−':'')+Math.abs(d)+'°':'equator'; }
 const SZ=DAY.szas, VZ=DAY.vz, AZ=DAY.az;
 // The dome's zoom: the scroll wheel magnifies it up to DOME_ZOOM_MAX times about the pointer.
-// z scales the fisheye's radius and (ox, oy) moves its centre, in canvas pixels.
+// z scales the fisheye's radius and (ox, oy) moves its center, in canvas pixels.
 const DOME_ZOOM_MAX=10, domeZoom={z:1, ox:0, oy:0};
 function domeView(){ const W=dome.width, z=domeZoom.z; return {cx:W/2+domeZoom.ox, cy:dome.height/2+domeZoom.oy, R:W*0.46*z, z}; }
 // The Sun at clock time min (sundial time) and declination dec, by default the page date's.
@@ -109,7 +109,7 @@ function findBeads(moon, sunAz, sza, rSun, rMoon, sunUp){
   const env=smooth01(0, 0.0015, vis)*(1-smooth01(0.012, 0.045, vis));
   if(!(env>0)) return none;
   // A bead at each local peak of the visible width along the limb (a valley in the relief), with
-  // the light between the neighbouring troughs.
+  // the light between the neighboring troughs.
   const at=i=>w[(i+N)%N], peaks=[];
   for(let i=0;i<N;i++){
     if(!(w[i]>0) || w[i]<at(i-1) || w[i]<=at(i+1)) continue;
@@ -139,10 +139,10 @@ function cdPerUnit(){
 // the zenith (Leinert et al. 1998), brightening toward the horizon as airglow does: the slant
 // path through a layer 100 km up (van Rhijn). Extinction dims the direct light toward the
 // horizon, but the air scatters much of it back into view, so 40% is kept whatever the airmass;
-// the horizon comes out about twice the zenith, as measured at dark sites. Near neutral colour.
+// the horizon comes out about twice the zenith, as measured at dark sites. Near neutral color.
 // Artificial skyglow is for an observer in a mid-sized city of a few hundred thousand people:
-// zenith brightness (cd/m²) and the colour of the lamps' light scattered by the air.
-//   Today: 18.8 mag/arcsec² in all, typical of such a city centre in the World Atlas (Falchi et
+// zenith brightness (cd/m²) and the color of the lamps' light scattered by the air.
+//   Today: 18.8 mag/arcsec² in all, typical of such a city center in the World Atlas (Falchi et
 //     al. 2016), from a mix of high-pressure sodium and LED lamps.
 //   1980–2000: about six times the natural sky, as for mid-sized cities in the first atlas
 //     (Cinzano, Falchi & Elvidge 2001), orange high-pressure sodium.
@@ -154,7 +154,7 @@ function cdPerUnit(){
 // Within the city the glow rises about threefold toward the horizon.
 const NIGHT_NATURAL=1.71e-4, NIGHT_XY=[0.310, 0.330];
 // The airglow's share depends on the air. In V about half of today's dark sky is airglow (Leinert
-// et al. 1998). The other half, zodiacal light and faint starlight, is sunlight-coloured (5772 K,
+// et al. 1998). The other half, zodiacal light and faint starlight, is sunlight-colored (5772 K,
 // xy 0.3265, 0.3361), which leaves the airglow at xy 0.294, 0.324 for the measured total.
 // Nearly all of the visible airglow needs free oxygen: the 557.7 nm green line and the 630 nm red
 // line from O atoms made by splitting O2, the OH bands (H + O3), the sodium D lines (cycled
@@ -186,7 +186,7 @@ const SKYGLOW={modern:[3.09e-3, 0.44, 0.40], modernpoll:[4.94e-3, 0.45, 0.40], o
 // of 30 years to today's. That passes a third of today's in 1990 (the ozone-hole years' glow) and
 // grows 3.3% a year, between the 2.2% a year in lit area and radiance satellites saw in 2012-2016
 // (Kyba et al. 2017) and the 9.6% a year in sky brightness the eye reported in 2011-2022 (Kyba et
-// al. 2023). Its colour goes from incandescent and gas to sodium by 1990, then to today's LEDs.
+// al. 2023). Its color goes from incandescent and gas to sodium by 1990, then to today's LEDs.
 const GLOW_FROM=1900, GLOW_EFOLD=30, GLOW_TIMED=new Set(['y1900', 'ozonehole', 'modern']);
 function skyGlowAt(A){
   const L=SKYGLOW.y1900, M=SKYGLOW.modern, now=epochAnchor('modern');
@@ -227,8 +227,8 @@ function nightRows(key, NR){
 function xyzLin(X){ return [0,1,2].map(i=>M[i][0]*X[0]+M[i][1]*X[1]+M[i][2]*X[2]); }
 const SRGB_LIN=Array.from({length:256}, (_, i)=>ginv(i/255));
 // Adding the Milky Way (luminance ratio rMw) to sky of luminance ratio rBg under the display
-// curve: the pixel goes to the curve's value for the sum, its colour the luminance-weighted mix.
-// Returns the factor on the sky's linear colour and the weight of the Milky Way's.
+// curve: the pixel goes to the curve's value for the sum, its color the luminance-weighted mix.
+// Returns the factor on the sky's linear color and the weight of the Milky Way's.
 // toneT tabulated in log10 r (steps of 0.002 decade) for the per-pixel dome work.
 const toneLUTs={};
 function toneLUT(k, p){
@@ -368,7 +368,7 @@ function renderDay(fast){
   const sepDeg=Math.acos(Math.max(-1,Math.min(1,vdot(horizDir(moon.az,moon.el),horizDir(sunAz,90-sza)))))*180/Math.PI;
   const rSun=moon.sunRadDeg*diskScale, rMoon=moon.radDeg*diskScale;
   const cover=sunCovered(sepDeg, rSun, rMoon), sunVis=1-cover;
-  // Near totality the sky is lit from outside the Moon's shadow, tens to a hundred kilometres
+  // Near totality the sky is lit from outside the Moon's shadow, tens to a hundred kilometers
   // away, where the Sun is still partly up: deep twilight overhead and a sunset glow all round
   // the horizon. That is this epoch's sky with the Sun 6° below the horizon, averaged over
   // azimuth, scaled to 1e-3 of the uneclipsed zenith: measured totality skies are about three
@@ -430,7 +430,7 @@ function renderDay(fast){
   }
   const Ybase=past>0?Yhold:Math.max(Ysun,Ymax);
   const Yref = autoExpo ? Math.max(Ybase, 1e-6*YREF) : YREF; const k=0.85, p = autoExpo?0.5:0.4;
-  // Display colours (sRGB bytes) and luminance over the reference, flat in grid order.
+  // Display colors (sRGB bytes) and luminance over the reference, flat in grid order.
   const colgrid=new Float32Array(NG*3), rgrid=new Float64Array(NG);
   for(let c=0;c<NG;c++){ toneTo(grid, c*3, Yref, k, p, 0.95, colgrid); rgrid[c]=Math.max(grid[c*3+1], 1e-30)/Yref; }
   // The Milky Way on the dome, per pixel, once the sky is dark enough for it to matter.
@@ -441,7 +441,7 @@ function renderDay(fast){
   const dsoList=rgrid[0]<2e-4?dsoPlace(LATDEG[dLat]):[];
   const geo=domeGeometry(W, H), W2=geo.W2;
   // The Milky Way, the nebulae and galaxies, and the sky under them vary slowly, so the mix is
-  // worked out once per 2×2 pixel block: each pixel's linear colour is scaled by mwA and gains
+  // worked out once per 2×2 pixel block: each pixel's linear color is scaled by mwA and gains
   // mwB (three channels) of their light.
   // mwR keeps their light, for what is mixed over them after (the comets, halos and ring).
   const mwA=(mwOn||dsoList.length)&&!fast?new Float32Array(geo.nb):null, mwB=mwA?new Float32Array(geo.nb*3):null, mwR=mwA?new Float32Array(geo.nb):null;
@@ -480,7 +480,7 @@ function renderDay(fast){
     }
   }
   // Ice halos (halo.js), from the Sun and the Moon: each source's halo luminance over Yref per
-  // unit of haloAt, and its colour as linear RGB of unit luminance.
+  // unit of haloAt, and its color as linear RGB of unit luminance.
   const hStr=airOff()?0:haloStrength(ep.key, dayLat()), halos=[];
   let haloVR=null;
   if(hStr>0){
@@ -607,7 +607,7 @@ function renderDay(fast){
   skyNow={colgrid, nr:NR, na:NA, sza, sunAz, sunRGB, sunVis, lunar, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE*1.5+35/60*refK(), moon, corona, coronaMap:cMap, coronaRim:cRim, beads, eclipse:eclipse||(lunar&&moon.on?lunar.text:''), central, rgrid, cityUp:cityUplight(ep.key, Yref, k, p), Yref, toneK:k, toneP:p, rCd:Yref*cdu, gal:mwMap?galacticBasis(LATDEG[dLat]):null, dso:dsoList, extK:ek, stars:stars.tex, starMarks:stars.marks, bodies:stars.bodies, starBins:stars.bins, starIdx:stars.idx, starIdxCount:stars.idxCount, sn, sns, srcShare, moonRel:mScale/MOON_SUN_FULL, mScale, sunFlux, halo:haloVR, ring:ringVR, ecl, comets, aur:auroraState(ep.key, LATDEG[dLat], minutes, rgrid[0]*Yref*cdu), gen:++skyGen};
   document.getElementById('raur').textContent=auroraReadout(skyNow.aur);
   document.getElementById('rmet').textContent=meteorReadout();
-  document.getElementById('rcomet').textContent=cometReadout();
+  document.getElementById('rcomet').textContent=cometeradout();
   metKick();
   document.getElementById('rmoon').textContent = moon.none ? 'none yet: the Moon forms in a later giant impact' : (moon.el<-moon.radDeg ? 'below horizon' : moon.el.toFixed(1)+'°')+' · '+Math.round(moonLit(moon, sunAz, 90-sza)*100)+'% lit · '+fullPct(mScale/MOON_SUN_FULL)+' of full';
   // The eclipse's details have a cell of their own that is always there, so the Sun's and Moon's
@@ -650,7 +650,7 @@ function warm(){ const ep=EP[dIdx], key=ep.key, lat=dayLat(); let s=0; if(!DAY.e
 // The controls ask for a render on the next frame, so a burst of input draws once.
 let renderQueued=0;
 function requestRender(){ if(!renderQueued) renderQueued=requestAnimationFrame(()=>{ renderQueued=0; renderDay(); }); }
-// The scroll wheel zooms the dome about the pointer, by the same factor per notch. The centre
+// The scroll wheel zooms the dome about the pointer, by the same factor per notch. The center
 // may move only as far as keeps the sky around the middle of the canvas, as wide as the unzoomed
 // dome, inside the sky circle. Zoomed all the way out, the page scrolls as usual.
 function setDomeView(z, ox, oy){

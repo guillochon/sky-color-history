@@ -12,14 +12,14 @@
 // in both directions. A contrail forms where the exhaust's water freezes (Schmidt 1941, Appleman
 // 1953): at cruise height almost always at mid and high latitudes, under half the time in the warm
 // tropical upper air. In dry air it is gone in seconds to a minute; in ice-supersaturated air
-// (ISSRs, 10–20% of the cruise levels at mid-latitudes, in patches a hundred or two kilometres
+// (ISSRs, 10–20% of the cruise levels at mid-latitudes, in patches a hundred or two kilometers
 // across, Gierens et al. 1999) it persists for hours, sinking 100–300 m with the wake vortices and
-// spreading into contrail cirrus a few kilometres wide and a few tenths in optical depth
+// spreading into contrail cirrus a few kilometers wide and a few tenths in optical depth
 // (Schumann 2005; Minnis et al. 1998). Traffic falls at night, was under half today's in 1990, and
 // is taken as twice today's in 2100.
 //
-// Superbolides. Meteors brighter than magnitude −15 (bodies of a metre and up) leave a trail of
-// dust and condensed vapour from about 80 km down to where they break up, 25–40 km (Chelyabinsk's
+// Superbolides. Meteors brighter than magnitude −15 (bodies of a meter and up) leave a trail of
+// dust and condensed vapor from about 80 km down to where they break up, 25–40 km (Chelyabinsk's
 // was −27, about 1–2 km wide, and was seen for over an hour, Borovička et al. 2013). They come from
 // the meteor generator (meteors.js, stream 2), so the fireball that makes one is the one seen; today
 // one falls within 1,100 km about once in three years, in the bombardment several an hour. The
@@ -33,7 +33,7 @@ const CT_FORM={'Equator':0.45, 'Mid-latitude':0.92, 'Polar':0.97, 'Mid-latitude 
 const CT_ISSR={'Equator':0.10, 'Mid-latitude':0.15, 'Polar':0.12, 'Mid-latitude S':0.13, 'Polar S':0.10};
 const CT_BOLIDE=-15;                             // meteors this bright or brighter leave a dust trail
 const CT={flights:new Map(), key:'', n:0, T:0, data:null, tex:null, uploaded:''};
-// Drift since a trail was made, in metres east and north, for a parcel z metres up, over dt seconds
+// Drift since a trail was made, in meters east and north, for a parcel z meters up, over dt seconds
 // of sky time. The clouds move 88 m per clock minute toward −(1, 0.42) (clouds.js cloudClock),
 // the cirrus 1.6 times as fast (shader_clouds.js); air at jet heights moves with the cirrus. Above
 // the tropopause the wind turns and changes speed with height, differently from day to day.
@@ -168,7 +168,7 @@ function ctBolides(T){
   }
   return out;
 }
-// Ground strikes' clouds (meteors.js impactAt): the rising stem and cap of hot dust and vapour, the
+// Ground strikes' clouds (meteors.js impactAt): the rising stem and cap of hot dust and vapor, the
 // condensation ring the blast wave leaves as it spreads, and the dust it raises at its foot, all as
 // trails. Each part drifts with the wind at its height; the stem and cap glow with the fireball's
 // heat at first (glow).
@@ -186,7 +186,7 @@ function ctImpacts(T){
     const R0=Math.min(6000*Math.pow(Y, 0.35), S.d/3), Rc=Math.max(S.Rf, R0*(1-Math.exp(-age/(1.5*tr))))+3*age, fade=Math.exp(-((age/S.life)**2));
     const glow=4*Math.exp(-age/(1.5*S.tau)), seed=(m.t0*0.618)%1;
     // The stem, from the ground to under the cap, and the cap, a flattened ball (a segment a couple of
-    // metres long, which the shader rounds over its width).
+    // meters long, which the shader rounds over its width).
     const stem=[];
     // It forms as the fireball lifts off the ground, over the thermal pulse, widest at its foot.
     const sTau=3*fade*Math.min(1, R0/Rc)*smooth01(0.5*S.tau, 2*S.tau, age);
@@ -195,7 +195,7 @@ function ctImpacts(T){
     const c0=at(hc, 0, 0);
     const capPt=s=>({p:[c0[0]+s, c0[1], c0[2]], sg:Rc, sv:0.35*Rc, tau:6*fade*Math.min(1, (R0/Rc)**2), along:s, glow});
     out.push({kind:1, seed:seed+0.31, pts:[capPt(-1), capPt(1)]});
-    // A ball, flattened if sv<sg: a segment a couple of metres long, which the shader rounds over its width.
+    // A ball, flattened if sv<sg: a segment a couple of meters long, which the shader rounds over its width.
     const blob=(c, sg, sv, tau, glow, kind, s)=>{ out.push({kind, seed:s, pts:[-1, 1].map(d=>({p:[c[0]+d, c[1], c[2]], sg, sv, tau, along:d, glow}))}); };
     // The fireball, a glowing ball that grows, rises and cools, into the cap.
     const fbT=8*Math.exp(-age/(3*S.tau));
@@ -288,7 +288,7 @@ function ctPlanes(T){
 // shown from dead ahead to 110° round its side, about 40 cd; white on the tail, shown behind, 20 cd;
 // the red anti-collision beacon under the fuselage, a flash a second; and white strobes on the
 // wingtips and tail, a double flash every 1.3 s, a few thousand cd at the peak (CS-25.1385–1401).
-// Local position (m, x forward, y right, z up), colour, candela, side (−1 left, 1 right, 2 behind,
+// Local position (m, x forward, y right, z up), color, candela, side (−1 left, 1 right, 2 behind,
 // 0 all round) and flash (0 steady, 1 beacon, 2 strobe).
 const CT_LIGHTS=[
   [[-6.6, -17.1, -0.8], [1.9, 0.3, 0.2], 40, -1, 0], [[-6.6, 17.1, -0.8], [0.35, 1.6, 0.8], 40, 1, 0],
@@ -346,7 +346,7 @@ function drawPlanesVR(gl, c, ez, sunCol){
     }
     // The patch: the airliner's 40 m and its lights' glow, in pixels.
     const R=Math.max(25/dist, 4*sig)/pixA+2;
-    // Labelled while it shows at all: its shape, or a light, a strobe between its flashes too.
+    // Labeled while it shows at all: its shape, or a light, a strobe between its flashes too.
     if((R>=2.6||seen)&&X>-8&&X<W+8&&Y>-8&&Y<H+8) CT.drawn.push({X, Y, dir, dist, alt:P.f.alt*1000});
     if(R<2.6&&!n) continue;
     if(X+R<0||X-R>W||Y+R<0||Y-R>H) continue;

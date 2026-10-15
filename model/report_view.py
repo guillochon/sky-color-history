@@ -76,8 +76,8 @@ MOON_FACE = [
 
 "The Moon of 4.5 Ga is not yet solid. Its magma ocean is open at the top, some ten million years after the "
 "impact (the site draws it so for the first 20 million years, then cools it into the Moon of 4.0 Ga by 4,450 Ma, "
-"its glow fading and its dark rafts greying as a crust closes over it; the times are a guess): rafts of dark quench crust and the first pale anorthosite, floating a few hundred meters to a "
-"kilometre and a half above the melt, broken by cracks and lava lakes at 1,400 to 1,600 K in four "
+"its glow fading and its dark rafts graying as a crust closes over it; the times are a guess): rafts of dark quench crust and the first pale anorthosite, floating a few hundred meters to a "
+"kilometer and a half above the melt, broken by cracks and lava lakes at 1,400 to 1,600 K in four "
 "generations of floes, each a network of cracks within the last. The lava shines about as brightly per "
 "area as the sunlit Moon, so the disk glows orange by day and night alike, also inside the Earth's "
 "shadow, and the air around it carries a red aureole. The map and its relief are made up; that the young "
@@ -172,7 +172,7 @@ PLANETS_CLOSE = [
 "southern halves, lit in 1986; the rest is filled in smooth, and since Uranus's north has turned toward "
 "the Sun and the Earth, it is mostly that blank half that faces us now. Uranus has its ten narrow rings, "
 "as French et al. (2024) fit them to thirty years of stellar occultations: each the ellipse of its orbit, "
-"its periapse precessing (the ε ring's 406 km off-centre, turning once in nine months), its width "
+"its periapse precessing (the ε ring's 406 km off-center, turning once in nine months), its width "
 "growing from periapse to apoapse (the ε ring's from 20 to 97 km) and its depth thinning to match, with "
 "optical depths after Esposito et al. (1991). The particles are as dark as charcoal, so even the ε ring "
 "is only a faint thread at the deepest zoom, as it is in a real telescope; the dusty rings, a "
@@ -242,7 +242,7 @@ SATURN = [
 
 "Saturn's rings are drawn from the Cassini radio occultation of 3 May 2005 (Marouf et al. n.d.), its optical "
 "depth at 10 km resolution from the C ring to the outer A ring, corrected to visible light in the C ring, "
-"the Cassini division and the outer A ring by the same occultation's Ka band, which sees the sub-centimetre particles the X band misses (in the outer A ring "
+"the Cassini division and the outer A ring by the same occultation's Ka band, which sees the sub-centimeter particles the X band misses (in the outer A ring "
 "Jerousek et al. 2016 find them too), with the F ring added. Each ring is a single-scattering layer (as Cuzzi et "
 "al. 1984): lit from the Sun's side it shines by its depth and particle brightness, the A ring 0.7 of the "
 "B ring's and the C ring and Cassini division half of it and grayer; seen from the unlit side only light "
@@ -310,7 +310,7 @@ YOUNG_GIANTS = [
 "water no longer condenses high up and the planet is clear, their class III, a dark azure of Rayleigh "
 "scattering and methane absorption: Jupiter in the 4.55 Ga sky, and most of Saturn. Each planet's point is "
 "tinted and brightened or dimmed with its disk, and its spectrum's reflectance mixed toward the stage's: flatter "
-"and grey for the NH4SH and water decks, with shallower methane bands above the higher clouds, and blue and "
+"and gray for the NH4SH and water decks, with shallower methane bands above the higher clouds, and blue and "
 "dark in the red, with deep methane bands, when clear.",
 
 "Oceanus, of about Neptune's mass, cools as Neptune does; nearer the Sun, at 9.6 AU, its effective "
@@ -361,7 +361,7 @@ STARS = [
 "24.5° on the 41,000-year cycle. Going back, the stars move, and how far the site can follow them sets two "
 "kinds of sky.",
 
-"Over the last two million years, and the 250,000 ahead, every catalogue star moves in a straight line from "
+"Over the last two million years, and the 250,000 ahead, every catalog star moves in a straight line from "
 "its Hipparcos parallax, proper motion and radial velocity (the XHIP compilation of Anderson &amp; Francis "
 "2012), brightening or fading as its distance changes, and the site shows the thousand brightest of the year: "
 "today's thousand and 732 others that were among them at some time over that span. Over two million years the "
@@ -388,10 +388,10 @@ MILKY_WAY = [
 "The Milky Way is a model in galactic coordinates rather than a photograph: a disk and bulge, the "
 "Sagittarius and Scutum star clouds, the Great Rift from Cygnus to Sagittarius, the Coalsack and the "
 "Ophiuchus and Taurus dust, peaking at 20.2 mag/arcsec² in the Sagittarius star cloud (Leinert et al. "
-"1998), and shown only in a dark sky. Its colour is that of its stars: old ones, and young ones in a "
+"1998), and shown only in a dark sky. Its color is that of its stars: old ones, and young ones in a "
 "layer a few degrees thick that is richest along the spiral arms seen end on, in Cygnus and Carina, and "
 "absent from the bulge, all reddened by the band's own dust (Cardelli, Clayton &amp; Mathis 1989), so "
-"Cygnus is greyer and the edges of the Great Rift and the Coalsack browner. In the older skies its brightest part lies where the Galactic center "
+"Cygnus is grayer and the edges of the Great Rift and the Coalsack browner. In the older skies its brightest part lies where the Galactic center "
 "then lay as seen from the Sun, from the Sun's orbit traced back through the same model Galaxy, and the "
 "band shifts by a few degrees with the Sun's height above the plane: at 66 Ma the Sun was 100 pc north of "
 "it. Beyond about a billion years the Sun's place on its orbit is only nominal. The Galaxy itself "
@@ -406,7 +406,7 @@ MILKY_WAY = [
 "rifts, star clouds and young-star fields are stand-ins of the same kind, not today's.",
 
 "The 34 nebulae and galaxies that binoculars show under a dark sky are drawn from survey photographs, "
-"their stars taken out, each scaled to its catalogue magnitude and surface brightness, and turning into "
+"their stars taken out, each scaled to its catalog magnitude and surface brightness, and turning into "
 "its photograph when zoomed. They change with the epoch. The Andromeda and Triangulum galaxies fall "
 "toward the Milky Way on a timing-argument orbit (van der Marel et al. 2012; Kahn &amp; Woltjer 1959), so at "
 "4.5 Ga Andromeda is three quarters of today's size. The Large Magellanic Cloud is on its first infall "
@@ -480,7 +480,7 @@ SUPERNOVAE = [
 "the Cloud's 49.6 kpc (Pietrzyński et al. 2019) it peaks near V = −0.6, as bright as Canopus for months, and "
 "stays visible for about thirty years. The rate is uncertain: with no nuclear star cluster the Cloud would see "
 "one in 10⁵ to 10⁶ years (Pfister et al. 2020), but it has thrown out about as many hypervelocity stars as the "
-"Milky Way's centre, whose disruptions run near one in 10⁴; at one in 33,000 years the median wait puts it in "
+"Milky Way's center, whose disruptions run near one in 10⁴; at one in 33,000 years the median wait puts it in "
 "AD 25,000. Andromeda's black hole, 1.4×10⁸ solar masses (Bender et al. 2005), can tear a Sun-like star apart "
 "only on a deep plunge round a fast spin, perhaps once in 10⁵ to 10⁶ years; the debris returns over about 300 "
 "days near the Eddington rate, and at 765 kpc it makes a first-magnitude star in M31's core for most of a year, "
@@ -598,7 +598,7 @@ IMPACTS = [
 "no one knows. In the air its meteor is the glowing shocked air about it, brightening with the air's density "
 "from about the Sun's brightness at 100 km to its full light at the ground, where it strikes in a single flash; the "
 "fireball, the rising cloud and the condensation dome are drawn to fit their distance rather than at the "
-"thousands of kilometres the scalings give. Played faster than real time, the clock slows to real time 30 "
+"thousands of kilometers the scalings give. Played faster than real time, the clock slows to real time 30 "
 "seconds before each, so the fall is seen at its own pace.",
 ]
 

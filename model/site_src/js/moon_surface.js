@@ -22,13 +22,13 @@ const MARIA=[['Tranquillitatis', 8.5, 31.4, 13, 3.90], ['Serenitatis', 28, 17.5,
 function mareVec(lat, lon){ return [cosd(lat)*sind(lon), sind(lat), cosd(lat)*cosd(lon)]; }
 // The newborn Moon, 4.5 Ga, some ten million years after the giant impact, still has its magma ocean
 // open at the top: rafts of dark crust broken by cracks and lakes of lava at 1,400–1,600 K (the
-// molten globe, molten_moon.js). Per square kilometre that lava shines about as brightly as the
+// molten globe, molten_moon.js). Per square kilometer that lava shines about as brightly as the
 // sunlit Moon (see lunarLava), so the disk glows orange by day and night alike, and the air about
 // it carries a red aureole: the globe's red excess is the share that glows (moonGlow, drawn in the
 // sky shader and drawMoonOnDome), at 0.65 so the lit relief of the rafts stays clear beside it.
 // Drawn so from the impact (airtime.py T_IMPACT, 4,510 Ma) for 20 Myr; then, as a crust closes
 // over it, it cools into the Moon of 4.0 Ga by 4,450 Ma: the lava's glow fades and the black rafts
-// grey as the one globe gives way to the other (moonMelt, 1 to 0). The Early Hadean's epoch,
+// gray as the one globe gives way to the other (moonMelt, 1 to 0). The Early Hadean's epoch,
 // 10 Myr on, sees it wholly molten. The times are a guess.
 const MOLTEN_FROM_MA=4510, MOLTEN_TO_MA=4490, MOLTEN_COOL_MA=4450;
 function moonMelt(key){ const a=ageMaOf(key); return a>MOLTEN_FROM_MA||a<=MOLTEN_COOL_MA?0:smooth01(MOLTEN_COOL_MA, MOLTEN_TO_MA, a); }
@@ -38,12 +38,12 @@ function moonMolten(key){ return moonMelt(key)>0; }
 function moonGlow(key){ return 0.65*moonMelt(key); }
 // The light the molten Moon casts on the night (vr_paint.js): the sunlight its globe reflects, its
 // mean over the near side a quarter of today's (0.247 in linear luminance, the dark crust and the
-// lava's own colour) and orange (MOLTEN_REFL_RGB, today's moonlight's colour times the globes'
+// lava's own color) and orange (MOLTEN_REFL_RGB, today's moonlight's color times the globes'
 // ratio in each linear channel, at today's luminance); and the lava's own light, about 0.4 of the
-// disk glowing as bright per square kilometre as the sunlit Moon, the colour of melt at 1,400-1,600 K
+// disk glowing as bright per square kilometer as the sunlit Moon, the color of melt at 1,400-1,600 K
 // (MOLTEN_LAVA_RGB, at the same luminance).
 const MOLTEN_REFL=0.247, MOLTEN_REFL_RGB=[2.14, 0.51, 0.147], MOLTEN_LAVA_RGB=[1.84, 0.66, 0.15];
-// The Moon's whole globe for each epoch (moon_maps.py, from the LRO colour mosaic toned to a
+// The Moon's whole globe for each epoch (moon_maps.py, from the LRO color mosaic toned to a
 // full-Moon photograph): today's; before Tycho (108 Myr old; Apollo 17 samples of its ray,
 // Arvidson et al. 1976), its rays, the brightest on the full Moon, gone; at 3.8 and 4.0 Ga the
 // maria part-flooded and not yet (MARIA); and the molten newborn Moon, laid over the 4.0 Ga globe
@@ -200,7 +200,7 @@ function moonAlbedo(m, v, out){
   out[0]=m.px[o]; out[1]=m.px[o+1]; out[2]=m.px[o+2]; return out;
 }
 // Mare volcanism: fissures feeding the flood basalts fountained lava at about 1,400 K, as bright
-// per square kilometre as the sunlit Moon and far redder. A few to a hundred square kilometres of
+// per square kilometer as the sunlit Moon and far redder. A few to a hundred square kilometers of
 // it glowing at once is a point of magnitude +4 to −1 from 40 Earth radii (the page draws +3 to
 // −1, as fainter ones are lost in the moonlit sky beside the Moon), on the night side a red star
 // on the Moon. Each eruption lasted months; years without one were common, so this is a sky with
@@ -214,7 +214,7 @@ function lunarLava(key){
   const n=1+Math.floor(rnd()*3), dm=5*Math.log10(moonDist()/40), tot=live.reduce((a, m)=>a+m[3]*m[3], 0);
   for(let i=0;i<n;i++){
     let u=rnd()*tot, m=live[0]; for(const c of live){ u-=c[3]*c[3]; if(u<=0){ m=c; break; } }
-    // A vent within 0.6 of the mare's radius of its centre, on the near side; the brightness is
+    // A vent within 0.6 of the mare's radius of its center, on the near side; the brightness is
     // for the Moon at 40 Earth radii.
     const a=2*Math.PI*rnd(), r=0.6*m[3]*Math.sqrt(rnd()), v=mareVec(m[1]+r*Math.sin(a), m[2]+r*Math.cos(a)/Math.max(0.2, cosd(m[1])));
     if(v[2]<0.2) continue;

@@ -79,7 +79,7 @@ function placeBodyMarks(){
 // Labels (l): a name beside each star, planet, satellite and supernova that shows (an unnamed
 // stand-in star in the deep epochs by its spectral type), and a cross on the radiant of each
 // active meteor shower (showers.js radiantMarks). The faintest
-// labelled grows with the zoom, from about V 1.6 across 90° and V 3 at the usual 60° to every
+// labeled grows with the zoom, from about V 1.6 across 90° and V 3 at the usual 60° to every
 // point (V 6.5) by 20°, and a label that would overlap a brighter one's is left out, as is one
 // on a point cloud hides. With them, the constellation figures and names (constellations.js),
 // less each line whose stars have since moved too far apart to make it.
@@ -182,7 +182,7 @@ function drawVRLabels(){
 // The labels, for the walk-around view or the dome (drawDomeLabels), onto ctx W by H page pixels:
 // proj places a direction at true altitude for the constellations' lines (null behind), at a true
 // altitude and azimuth for a label (null out of view), diskPx is how many pixels a body's disk (or
-// rings) takes, lim the faintest star labelled, cloudAt what the cloud in front hides (or null),
+// rings) takes, lim the faintest star labeled, cloudAt what the cloud in front hides (or null),
 // and top and bottom the heights kept clear for the controls.
 function drawSkyLabels(ctx, W, H, o){
   const {at, lim, cloudAt}=o, key=EP[dIdx].key, pts=[];
@@ -191,12 +191,12 @@ function drawSkyLabels(ctx, W, H, o){
     if(s.el<=0) return;
     const p=at(s.el, s.az);
     if(!p) return;
-    // A planet or moon drawn larger than its label's usual offset is labelled beside its disk (or
+    // A planet or moon drawn larger than its label's usual offset is labeled beside its disk (or
     // rings). A moon's mark has no kind, only its body.
     const off=s.radDeg>0?o.diskPx(s):0;
     pts.push({x:p[0]+off*0.7, y:p[1]-off*0.7, mag:s.mag, text, kind, color});
   };
-  // The novae, supernovae, eruptions and comets in the colour of their stars in the date picker (transients.js).
+  // The novae, supernovae, eruptions and comets in the color of their stars in the date picker (transients.js).
   for(const s of skyNow.sns||[]) add(s, s.name, 'sn', TR_TYPES[s.ev.type].color);
   // The airliners in the walk-around view, each by its height and how far off it is, unless the
   // cloud in front hides it.
@@ -215,16 +215,16 @@ function drawSkyLabels(ctx, W, H, o){
     add({el, az:(az+360)%360, mag:2}, (/^(M|NGC )\d/.test(p.o.id)&&p.o.name!==p.o.id?`${p.o.id} ${p.o.name}`:p.o.name)+far, 'dso');
   }
   for(const s of skyNow.starMarks){
-    // A comet is labelled whenever it shows, however faint its head next to the stars labelled.
+    // A comet is labeled whenever it shows, however faint its head next to the stars labeled.
     if((s.mag>lim&&!s.planet&&!s.comet&&!s.asteroid)||s.el<=0||markHidden(s)||s.transient) continue;
-    // Labelled when it shows: its colour as the sky pass adds it (faded near the naked-eye limit,
+    // Labeled when it shows: its color as the sky pass adds it (faded near the naked-eye limit,
     // dimmed by the air), times what the cloud in front lets through. 0.06 is where the drawn
-    // point stands out from the sky around it. A planet or moon at its colour as zoomed in
+    // point stands out from the sky around it. A planet or moon at its color as zoomed in
     // (zoomedDisplay), as drawn.
     const m=starThroughAir(s.mag, s.el, key), dim=Math.pow(10, -0.2*(m-s.mag));
     const a=cloudAt?cloudAt(horizDir(s.az, apparentEl(s.el))):0;
     const vis=starVisible(m-(s.mag-markMag(s)), skyRAt(skyNow.rgrid, s.el, s.az)*skyNow.rCd)*(1-a);
-    // An incoming asteroid (meteors.js placeIncoming) in the impacts' colour.
+    // An incoming asteroid (meteors.js placeIncoming) in the impacts' color.
     if(s.asteroid){ add(s, s.asteroid, 'comet', TR_TYPES.impact.color); continue; }
     // A comet by its whole light (its head is a quarter of it) against the naked-eye limit there.
     if(s.comet){ if(starVisible(starThroughAir(s.comet.mag, s.el, key), skyRAt(skyNow.rgrid, s.el, s.az)*skyNow.rCd)*(1-a)>0.3) add(s, s.comet.c.name, 'comet', TR_TYPES.comet.color); continue; }
@@ -253,7 +253,7 @@ function drawSkyLabels(ctx, W, H, o){
   }
 }
 // The same labels over the dome, on the page (l there too): its fisheye placed by true altitude,
-// the faintest star labelled from V 2 unzoomed to every one at 10×, the bodies' disks at their true
+// the faintest star labeled from V 2 unzoomed to every one at 10×, the bodies' disks at their true
 // size. In page pixels on a canvas over the dome, so the text stays sharp.
 let domeLabelsDrawn=false;
 function drawDomeLabels(){

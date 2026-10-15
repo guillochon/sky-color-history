@@ -1,5 +1,5 @@
 /* ---------- the air through time ---------- */
-// The sky's precomputed parts (the day-cycle colours, the setting Sun's bands, the crepuscular
+// The sky's precomputed parts (the day-cycle colors, the setting Sun's bands, the crepuscular
 // rays' tables, the light in the Earth's shadow, the tooltip's spectra) are made for a set of
 // airs along the timeline (airgrid.py, airtime.py): every epoch's own, more wherever the air
 // changes between them, and each event at steps of its strength. The page blends the two either
@@ -75,7 +75,7 @@ function airTarget(){
 let AIR_CUR=null;
 function airFor(key){ return AIR_CUR && AIR_CUR.idx===dIdx && key===EP[dIdx].key?AIR_CUR.key:key; }
 function airNow(){ return AIR_CUR && AIR_CUR.idx===dIdx?AIR_CUR:EP[dIdx]; }
-// What follows from the air besides its colours (airgrid.py air_ext): the starlight's extinction k
+// What follows from the air besides its colors (airgrid.py air_ext): the starlight's extinction k
 // (magnitudes per airmass), the soot's absorbing optical depth, O2 (PAL) and ozone (DU), for the
 // epoch shown at the time shown and for the others at their own.
 const EXT_OF=Object.fromEntries(EP.map(e=>[e.key, e.ext]));

@@ -7,7 +7,7 @@ function refK(){ return airOff()?0:(EP[dIdx]&&airNow().sun)?airNow().sun.k:1; }
 // colors of what lies beyond it: no sky light, no extinction or reddening, no refraction or mirages,
 // no clouds, halos, aurorae or meteors; the Sun as it is above the air.
 function airOff(){ return vrAirOff; }
-// The disk is drawn as twenty images, one per 20 nm band centred on 385, 405, ... 765 nm. Air
+// The disk is drawn as twenty images, one per 20 nm band centered on 385, 405, ... 765 nm. Air
 // bends band b by SUN_DISP[b] times what it bends 550 nm (Edlén 1966). The spread is tiny: at the
 // horizon the 525 and 565 nm images are 6 arcseconds apart. Like the disk, it is enlarged, and
 // more so at the horizon, where a flash is a sliver (shader_sky.js dispX).

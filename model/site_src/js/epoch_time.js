@@ -11,7 +11,7 @@
 // them as we do, the others count from a year 0 of their own at 2000 (calendar.js).
 const EPOCH_PARENT={modernpoll:'modern', y2100:'modern'};
 const TIME_MIN=2000-4.567e9, TIME_MAX=250000;   // the Solar System's birth; as far ahead as before
-// A year typed or labelled: "1815", "−3000", "3000 BCE", "250,000 years ago", "342 ka", "66 Ma",
+// A year typed or labeled: "1815", "−3000", "3000 BCE", "250,000 years ago", "342 ka", "66 Ma",
 // "2.7 Ga", "today". Returns the year on the timeline, or null.
 const AGE_UNIT={ka:1e3, kyr:1e3, kya:1e3, ky:1e3, ma:1e6, myr:1e6, mya:1e6, ga:1e9, gyr:1e9, gya:1e9};
 function parseTime(s){

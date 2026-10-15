@@ -1,12 +1,12 @@
-// Roads. Each city and neighbourhood has streets on its lot lines, and roads join the towns,
+// Roads. Each city and neighborhood has streets on its lot lines, and roads join the towns,
 // routed around water, woods, hills, mountains, and the other towns. Buildings stand at least
 // 2.5 m inside their lots, so no street meets one.
-// Street spacing along x and y: every lot line in a city; in a neighbourhood every second lot
+// Street spacing along x and y: every lot line in a city; in a neighborhood every second lot
 // line one way and every fifth the other, so each house fronts a street. Must match streetD in
 // the sky shader and yardTree in the town pass.
 const ROAD_HW=3.4, ROAD_MAX=64;
 function streetPitch(ty){ return ty<1.5?[42, 42]:[48, 120]; }
-// g: grid[6] for the sky shader, (centre, radius, type) of each town. r: road[64], segments (x0, y0, x1, y1).
+// g: grid[6] for the sky shader, (center, radius, type) of each town. r: road[64], segments (x0, y0, x1, y1).
 function roadsFor(o, k, t, tn){
   const towns=[], disks=[];
   for(let i=0;i<tn;i++){
@@ -54,7 +54,7 @@ function roadsFor(o, k, t, tn){
   };
   // A* on a 20 m grid over the towns' bounding box.
   const W=Math.ceil((x1-x0)/C), H=Math.ceil((y1-y0)/C);
-  // A cell is bad when its centre is blocked; each disk marks the cells in its own square.
+  // A cell is bad when its center is blocked; each disk marks the cells in its own square.
   const bad=new Uint8Array(W*H);
   for(const d of disks){
     const r=d[2]+(ROAD_HW+30), i0=Math.max(0, Math.floor((d[0]-r-x0)/C)-1), i1=Math.min(W-1, Math.ceil((d[0]+r-x0)/C)+1);
@@ -150,7 +150,7 @@ function roadsFor(o, k, t, tn){
 }
 // The road segments near each 16 m cell, so the sky shader tests a few rather than all of them.
 // A segment is listed for a cell when it passes within ROAD_REACH of it: the paving and its
-// centre line reach no further than half a pixel's footprint past the 3.4 m half-width, so the
+// center line reach no further than half a pixel's footprint past the 3.4 m half-width, so the
 // lists hold every road that can show on the ground in a cell while the footprint is under
 // ROAD_FOOT; past that (at the horizon) the shader tests them all. Each cell has eight slots,
 // two RGBA8 texels, holding segment index + 1 in index order (0 ends the list); a cell with more

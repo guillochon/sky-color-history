@@ -32,7 +32,7 @@ function ssoInc(aKm){
 // ---------- The shapes ----------
 // Materials: [diffuse albedo, specular reflectance, the specular lobe's width (rad), whether that
 // reflectance follows Fresnel's law for glass]. Estimates; no operator publishes its spacecraft's.
-//   FOIL   the bus's thermal blankets and panels, grey-gold, 0.45;
+//   FOIL   the bus's thermal blankets and panels, gray-gold, 0.45;
 //   CELLS  solar cells under cover glass on a part's +z face (dark blue, 0.06, the grid between;
 //          glass reflects 4% straight on and more at a slant, in a lobe about 1° wide from the
 //          panels' waviness and the Sun's disk), the part's other faces BACK, the arrays' dark
@@ -46,7 +46,7 @@ function ssoInc(aKm){
 //   VISOR  a first-generation Starlink's bus under its sunshade visors ("VisorSat"), 0.12.
 const FOIL=0, CELLS=1, BACK=2, BOOM=3, OSR=4, WHITE=5, FILM=6, VISOR=7;
 const SAT_MATS=[[0.45, 0, 0, false], [0.06, 0.04, 0.0175, true], [0.12, 0, 0, false], [0.4, 0, 0, false], [0.08, 0.88, 0.009, false], [0.8, 0, 0, false], [0.05, 0.8, 0.035, false], [0.12, 0, 0, false]];
-// A part: a box of half-sizes h (m), its centre at c in the body's frame (x along the orbit, y
+// A part: a box of half-sizes h (m), its center at c in the body's frame (x along the orbit, y
 // across it, z up) plus o in its own frame, which is the body's ('B') or the wings' ('W', as the
 // drive points them: satFrame), and its material.
 const part=(fr, c, o, h, mat)=>({fr, c, o, h, mat});
@@ -75,7 +75,7 @@ const SAT_SHAPES={
   guowang:{label:'Guowang', drive:'N', parts:[part('B', [0, 0, 0], [0, 0, 0], [1, 0.75, 0.5], FOIL), ...wingPair([0, 0, 0], 0.95, [3.5, 1, 0.03])]},
   // Everyone else's: a box bus 1.6 m across and two wings 6 by 2 m, scaled per satellite (SAT_SCALE).
   payload:{label:'satellite', drive:'N', parts:[part('B', [0, 0, 0], [0, 0, 0], [0.8, 0.8, 0.8], FOIL), ...wingPair([0, 0, 0], 1.0, [3, 1, 0.03])]},
-  // Mir: its core and modules about the node, foil-grey with age, and two pairs of wings.
+  // Mir: its core and modules about the node, foil-gray with age, and two pairs of wings.
   mir:{label:'Mir', drive:'2', parts:[part('B', [-2, 0, 0], [0, 0, 0], [8, 2.1, 2.1], FOIL), part('B', [6, 0, 0], [0, 0, 0], [2, 9.5, 2], FOIL),
     ...wingPair([-2, 0, 3], 2.5, [7, 2, 0.03]), ...wingPair([6, 7, 3], 2.5, [6, 1.6, 0.03])]},
 };
@@ -92,7 +92,7 @@ const ISS_STAGES=[
     part('W', [0, 20, 0], [0, 0, 0], [11.5, 0.05, 5.5], WHITE), part('W', [0, -20, 0], [0, 0, 0], [11.5, 0.05, 5.5], WHITE)]}]];
 const ISS_END=2030.9;
 function issShape(Y){ let s=null; for(const [y, sh] of ISS_STAGES) if(Y>=y) s=sh; return Y<ISS_END?s:null; }
-// Each shape's reach from its centre (m), for the patch it is drawn in and how soon it resolves.
+// Each shape's reach from its center (m), for the patch it is drawn in and how soon it resolves.
 for(const sh of [...Object.values(SAT_SHAPES), ...ISS_STAGES.map(s=>s[1])])
   sh.span=Math.max(...sh.parts.map(p=>Math.hypot(...p.c)+Math.hypot(...p.o)+Math.hypot(...p.h)));
 // A satellite's frames from the Sun's way S, its way along the orbit F, the orbit's pole N and its
@@ -405,7 +405,7 @@ void main(){
   for(int s=0;s<4;s++){
     vec2 off=vec2(float(s&1), float(s>>1))*0.5-0.25;
     vec3 d=viewRay(fc+off, res, fov, yaw, pitch);
-    // From just short of it: the box tests lose their precision from hundreds of kilometres.
+    // From just short of it: the box tests lose their precision from hundreds of kilometers.
     vec3 o=rel+d*max(-dot(rel, d)-reach, 0.0);
     float tB=1.0e9, mat=-1.0; vec3 nB=vec3(0.0, 0.0, 1.0), nl; bool top=false; vec2 uv=vec2(0.0);
     for(int i=0;i<${SAT_PART_MAX};i++){
@@ -417,7 +417,7 @@ void main(){
     }
     if(mat<0.0) continue;
     vec3 n=nB; if(dot(n, d)>0.0) n=-n;
-    // Its material (SAT_MATS): diffuse colour, and its mirror (reflectance, lobe width, glass).
+    // Its material (SAT_MATS): diffuse color, and its mirror (reflectance, lobe width, glass).
     vec3 alb=vec3(0.5, 0.47, 0.4); float ks=0.0, sig=1.0; bool glass=false;
     if(mat>0.5&&mat<1.5){
       if(top){ vec2 g=abs(fract(uv/vec2(2.0, 2.5))-0.5); alb=mix(vec3(0.035, 0.05, 0.10), vec3(0.14), step(0.47, max(g.x, g.y))); ks=0.04; sig=0.0175; glass=true; }
@@ -460,7 +460,7 @@ void main(){
   fragColor=vec4(c*cov*occ, cov*occ);
 }`;
 const SATV={job:null, prog:null, u:null, parts:new Map()};
-// A shape's parts as the shader takes them, scaled: centre (body frame) and frame, offset (own
+// A shape's parts as the shader takes them, scaled: center (body frame) and frame, offset (own
 // frame) and material, half-sizes.
 function satPartData(sh, scale){
   const key=sh.parts.length+'|'+sh.span+'|'+scale; let P=SATV.parts.get(sh);

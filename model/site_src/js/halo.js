@@ -146,7 +146,7 @@ function domePixelDirs(geo){
   }
   return geo.pdir=d;
 }
-// Light of luminance ratio rH and linear colour L times k added to dome pixel bytes at o of px,
+// Light of luminance ratio rH and linear color L times k added to dome pixel bytes at o of px,
 // over the sky cell c at (tr, ta), under the display curve the way the Milky Way is. The halos,
 // comets and ring share it.
 function domeMixLight(px, o, c, tr, ta, H, rH, L, k){

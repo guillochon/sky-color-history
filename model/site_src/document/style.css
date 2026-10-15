@@ -91,7 +91,7 @@ button.tick.on{background:none;color:var(--ink)}
 #sunmark{z-index:7}
 #sunmark .badge{width:36px;height:36px}
 #moonmark{z-index:6;color:#e8e8ea}
-/* The Moon's badge is a canvas, so it must undo #vr canvas's full-size placement to centre like the others. */
+/* The Moon's badge is a canvas, so it must undo #vr canvas's full-size placement to center like the others. */
 #vr #moonmark .badge{inset:auto;left:50%;top:50%;width:36px;height:36px;cursor:inherit}
 #snmark{z-index:5;color:#dbeaff}
 #snmark .badge{width:28px;height:28px}

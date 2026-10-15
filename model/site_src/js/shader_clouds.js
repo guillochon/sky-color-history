@@ -1,4 +1,4 @@
-// Distance along rd from ro to the layer H metres up, which curves away below eye as a sphere of
+// Distance along rd from ro to the layer H meters up, which curves away below eye as a sphere of
 // radius 833 km does, or -1 (the cloud and present passes). For shaders that declare uniform vec3 eye.
 const SHELL_GLSL=`
 float shellT(vec3 ro, vec3 rd, float H){
@@ -41,7 +41,7 @@ uniform float cloudType,cloudBase,cloudTop,cloudCirrus,useHDR,cloudDeck;
 uniform float cbOn, cbPar;
 uniform vec3 snDir,snLight,mlDir,mlLight,fbDir,fbLight;
 uniform vec3 sunCol,groundCol,eye;
-// The hole a ground strike's blast clears in the clouds (contrails.js impactHole): its centre and
+// The hole a ground strike's blast clears in the clouds (contrails.js impactHole): its center and
 // radius, m; radius 0 for none.
 uniform vec3 impHole;
 // What is left of the cloud cover at p.xy: none inside the hole, banked up a little at its rim.
@@ -80,7 +80,7 @@ float cloudShape(vec3 p, out float hOut, out vec3 q, out vec2 ng){
   if(h0<0.0||h0>thickMax) return 0.0;
   vec2 pl=p.xy+vec2(cloudDrift, cloudDrift*0.42);
   vec4 w=texture(weather, pl*cloudScale*0.33);
-  // The weather fbm sits near 0.55 with a narrow spread, so normalise it first. It moves the cover
+  // The weather fbm sits near 0.55 with a narrow spread, so normalize it first. It moves the cover
   // in log-odds, so a nearly clear sky stays nearly clear everywhere.
   float cov=min(1.0, holeKeep(p.xy)/(1.0+exp(-(log(cloudCov/(1.0-cloudCov))+(w.r-0.56)/0.09*1.05))));
   if(cov<0.01) return 0.0;
@@ -333,8 +333,8 @@ vec3 shaftFrac(vec3 ro, vec3 rd, vec3 sd, float ign){
   }
   return share*clamp(1.0-lit/max(wAll, vec3(1e-30)), 0.0, 1.0);
 }
-// The layer that dims the sky behind the clouds, premultiplied display colour and alpha, for the
-// sky's display colour skyD along rd: the Sun's rays and the Moon's, each over its part of the sky,
+// The layer that dims the sky behind the clouds, premultiplied display color and alpha, for the
+// sky's display color skyD along rd: the Sun's rays and the Moon's, each over its part of the sky,
 // and a bright fireball's over the glow the sky pass lays about it.
 vec4 shaftLayer(vec3 ro, vec3 rd, vec3 sd, vec3 skyD, float ign){
   if(shN<0.5) return vec4(0.0);
@@ -352,7 +352,7 @@ vec4 shaftLayer(vec3 ro, vec3 rd, vec3 sd, vec3 skyD, float ign){
     }
   }
   // In display values the sky goes to skyD·(1-frac)^(1/2.2) and the glow to fg·(1-fracF): an
-  // alpha for the channel dimmed most, and the colour the others keep put back.
+  // alpha for the channel dimmed most, and the color the others keep put back.
   vec3 base=skyD*(1.0-min(1.0, 1.2*max(fg.r, max(fg.g, fg.b)))), P=base+fg;
   vec3 T=base*pow(1.0-frac, vec3(1.0/2.2))+fg*(1.0-fracF);
   vec3 keep=T/max(P, vec3(1e-4));
@@ -395,7 +395,7 @@ void main(){
   if(tHit<tIn) return;
   float tEnd=min(tOut, tIn+75000.0);
 
-  // Light. The sky texture and sun colour are display values; work in linear.
+  // Light. The sky texture and sun color are display values; work in linear.
   vec3 sunBase=toLin(sunCol)*sunVis*3.2*mix(0.3, 1.0, smoothstep(0.0, 0.10, sd.z));
   // After sunset the Earth's shadow climbs: a cloud stays sunlit, from below,
   // while it is above the shadow height for this depression angle.
@@ -544,9 +544,9 @@ void slabHit(vec3 o, vec3 d, int k, float c, float s, float le, float sweep, flo
   float x0=le-sweep*sp, ch=root-taper*sp;
   if(sp<s && p.x<x0 && p.x>x0-ch){ tB=t; nB=k==2?vec3(0.0, 0.0, 1.0):vec3(0.0, 1.0, 0.0); aB=alb; }
 }
-// The nearest surface along local ray (o, d), metres, x forward, y right, z up: about an A320.
+// The nearest surface along local ray (o, d), meters, x forward, y right, z up: about an A320.
 float airliner(vec3 o, vec3 d, out vec3 n, out float alb){
-  // From just short of it: the capsule test loses its precision from kilometres away.
+  // From just short of it: the capsule test loses its precision from kilometers away.
   float t0=max(-dot(o, d)-60.0, 0.0);
   o+=d*t0;
   float t=1.0e9; n=vec3(0.0, 0.0, 1.0); alb=0.0;

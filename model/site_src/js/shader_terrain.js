@@ -92,7 +92,7 @@ float onePeak(vec2 p, vec2 c, float R, float H, float volc, float seed){
   return max(prof, 0.0)*H;
 }
 // Ice plateaus with cliffs between them. The tiers follow a noisy elevation field, so their
-// edges wander instead of ringing the centre. Each step gets its own height (0.4 to 1.6 of the
+// edges wander instead of ringing the center. Each step gets its own height (0.4 to 1.6 of the
 // mean), and low-frequency noise varies each cliff from sheer to a steep ramp and each bench
 // from flat to sloping. The noise is kept smooth: high-frequency outlines make thin fins that
 // the march steps over.

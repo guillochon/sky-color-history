@@ -7,14 +7,14 @@
 //     reflectance rises by about half from 400 to 750 nm).
 //   - The natural night sky: zodiacal light and faint stars (sunlight), and airglow: the
 //     557.7 nm and 630/636 nm oxygen lines, the sodium D lines and the OH bands, with the O2
-//     Herzberg bands and a blue-green continuum set so the total has the colour the sky drawing
+//     Herzberg bands and a blue-green continuum set so the total has the color the sky drawing
 //     uses (xy 0.294, 0.324). Without oxygen, the O2 Herzberg II band from split CO2 instead.
 //   - City light: high-pressure sodium (broadened, self-absorbed D lines) and white LEDs
-//     (a 452 nm chip under a broad phosphor), mixed to each epoch's glow colour, or 1815's oil
+//     (a 452 nm chip under a broad phosphor), mixed to each epoch's glow color, or 1815's oil
 //     flames (1850 K).
 //   - The Milky Way: the light of its stars, old and young in the map's share there, reddened by
 //     its dust (spMWAt).
-//   - A nebula or galaxy: a galaxy's stars by its type, a nebula's lights mixed to the colour
+//   - A nebula or galaxy: a galaxy's stars by its type, a nebula's lights mixed to the color
 //     drawn there (dso.js dsoSpectrum).
 //   - The aurora: its four emissions at that point, as aurora.js lists their lines.
 //   - In totality, the corona and the chromosphere (corona.js): the electrons' light, sunlight
@@ -23,7 +23,7 @@
 //   - A cloud in front (VR): the light falling on it, over the sky it lets through (cloudLight).
 // Narrow features the 10 nm model does not resolve are drawn on top: the Sun's Fraunhofer lines
 // on everything that is sunlight, and the O2 A and B bands and the 720 nm water band of the air
-// along the way, scaled by each epoch's O2 and water. Too narrow to move the colour; drawn so
+// along the way, scaled by each epoch's O2 and water. Too narrow to move the color; drawn so
 // the plot shows them.
 const SP_L0=380, SP_N=401;
 const SP_LAM=Float32Array.from({length:SP_N}, (_, i)=>SP_L0+i);
@@ -65,7 +65,7 @@ const SP_OIL=spNorm(spPlanck(1850));
 // lines. Unit luminance, made on first use.
 const SP_POP_MIX={old:[[5800, 0.2], [5100, 0.3], [4500, 0.35], [3700, 0.15]], young:[[20000, 0.3], [10000, 0.4], [7500, 0.3]]}, SP_POP={};
 function spPop(k){ return SP_POP[k]||(SP_POP[k]=spNorm(spAdd(...SP_POP_MIX[k].map(([T, w])=>[w, spNorm(starAbove(T).S)])))); }
-// The mix of a set of lights comps ({k, S, rgb: spRGB of S}) whose colour comes nearest linear
+// The mix of a set of lights comps ({k, S, rgb: spRGB of S}) whose color comes nearest linear
 // sRGB u of unit luminance: {S, mix: each light's share of the luminance by k}.
 function spMix(comps, u){
   const best=spNNLS(comps.map(c=>c.rgb), u)||[[0, 1]], sum=best.reduce((s, [, w])=>s+w, 0)||1, mix={};
@@ -90,13 +90,13 @@ function spMWAt(young, tau){
   if(tau>0) for(let i=0;i<SP_N;i++) S[i]*=Math.exp(-tau*(SP_CCM[i]-1));
   return {S:spNorm(S), mix:{old:1-young, young, dust:tau}};
 }
-// The band's mean starlight, old and young mixed to its mean colour (milkyway.js MW_XY), for the
+// The band's mean starlight, old and young mixed to its mean color (milkyway.js MW_XY), for the
 // stars behind a nebula (dso.js).
 let SP_MW=null;
 function spMW(){ return SP_MW||(SP_MW=spMix([spComp('old', spPop('old')), spComp('young', spPop('young'))], xyzLin(xyY2XYZ([MW_XY[0], MW_XY[1], 1])))); }
-// The features each light shows, labelled when that light is at least a tenth of what is plotted,
+// The features each light shows, labeled when that light is at least a tenth of what is plotted,
 // or for an emission line's light (SP_MIX_LINES) two thousandths: a line holds its light in a
-// nanometre or two, so even that much stands well over the continuum.
+// nanometer or two, so even that much stands well over the continuum.
 const SP_MIX_MARKS={old:[{l:393.4, t:'Ca II H&K'}, {l:430.8, t:'G band'}, {l:517.3, t:'Mg b'}, {l:589.3, t:'Na D'}],
   stars:[{l:393.4, t:'Ca II H&K'}, {l:517.3, t:'Mg b'}, {l:589.3, t:'Na D'}],
   young:[{l:486.1, t:'Hβ'}, {l:434.0, t:'Hγ'}, {l:410.2, t:'Hδ'}],
@@ -104,7 +104,7 @@ const SP_MIX_MARKS={old:[{l:393.4, t:'Ca II H&K'}, {l:430.8, t:'G band'}, {l:517
   oiii:[{l:500.7, t:'[O III]', em:true}], dust:[{a:380, b:520, t:'reddened by dust', band:true}], heii:[{l:500.7, t:'[O III]', em:true}, {l:468.6, t:'He II', em:true}],
   sync:[{a:380, b:780, t:'synchrotron', band:true}], scat:[{a:380, b:480, t:'scattered starlight', band:true}]};
 const SP_MIX_LINES=new Set(['hii', 'oiii', 'heii']);
-// The dust's is labelled when it takes a third of the blue out relative to V (tau 0.25 or so).
+// The dust's is labeled when it takes a third of the blue out relative to V (tau 0.25 or so).
 function spMixMarks(mix, f, marks){ for(const k in mix) if(k==='dust'?f>0.3&&mix[k]>0.25:f*mix[k]>(SP_MIX_LINES.has(k)?0.002:0.1)) marks.push(...(SP_MIX_MARKS[k]||[])); }
 // The chromosphere's flash spectrum, by energy: Balmer lines, helium D3, and calcium H and K.
 const SP_CHROMO=spNorm(spLines([[656.3, 1], [486.1, 0.25], [434.0, 0.1], [587.6, 0.15], [393.4, 0.3], [396.8, 0.25]].map(([l, e])=>[l, e*l])));
@@ -191,10 +191,10 @@ function spTo1nm(lg){
   return out;
 }
 function spAirmass(el){ return airmass(Math.max(el, 0)); }
-// A cloud is a near-grey scatterer, so its light is the light that falls on it. The cloud pass
+// A cloud is a near-gray scatterer, so its light is the light that falls on it. The cloud pass
 // adds its lights in display-linear light, each drawn as the display shows its source. Its
 // spectrum is the mix of the lights that can reach it (the sky's light, direct sunlight while it
-// can reach a cloud, moonlight, and the city's light from below) whose colour matches the drawn
+// can reach a cloud, moonlight, and the city's light from below) whose color matches the drawn
 // one, by non-negative least squares on linear RGB. Each light's share of the pixel (premultiplied,
 // display-encoded, with a soft shoulder over 0.6) is then taken to cd/m² against its own source:
 // the city's against the city light the pass is given (six times the clear-sky glow, cityUplight),
@@ -231,7 +231,7 @@ function spLSQ(A, cols, u){
   return G.map((row, c)=>row[m]/row[c]);
 }
 // What lights the clouds, the same for every cloud in one sky: the sky's own light (from two whole-
-// sky spectra, the costly part), the Sun's, the Moon's and the city's, with their colours. Kept
+// sky spectra, the costly part), the Sun's, the Moon's and the city's, with their colors. Kept
 // for the sky it was made for, as tooltips refreshing several times a second ask for it again.
 let cloudLightsMemo=null;
 function cloudLights(key, lat){
@@ -273,9 +273,9 @@ function cloudLight(px, key, lat){
 }
 // The light toward true altitude el, azimuth az. disk is 'sun', 'moon' or null; aurora the
 // four emissions there (kR) or null; litHere, on the Moon, how sunlit that point of it is (0–1),
-// and on the Sun how far out from its centre (0–1, for limb darkening);
+// and on the Sun how far out from its center (0–1, for limb darkening);
 // cloudPx the cloud pass's pixel there ({a, rgb}) or null, its cloud in front of the sky; cr how
-// far from the Sun's centre, in drawn solar radii, for the corona (null leaves it out). Returns {S (1 nm, cd/m² per nm-ish units), Y (cd/m²),
+// far from the Sun's center, in drawn solar radii, for the corona (null leaves it out). Returns {S (1 nm, cd/m² per nm-ish units), Y (cd/m²),
 // parts: [[name, Y]], marks: annotations}.
 function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null, cr=null, moonXY=null, sunXY=null){
   const key=EP[dIdx].key, lat=dayLat(), cdu=cdPerUnit(), vz=Math.min(90-el, 88), parts=[], marks=[];
@@ -376,7 +376,7 @@ function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null, cr=null, moo
   if(share('sunlit')+share('moonlit')+share('cloud, lit by the sky')>0.3){
     if(spOzone(key)) marks.push({a:500, b:680, t:'O₃ Chappuis', band:true});
     if(key.startsWith('archean27')&&key!=='archean27clear') marks.push({a:380, b:480, t:'organic haze', band:true});
-    if(key==='kpg66') marks.push({a:380, b:780, t:'soot dims all colours', band:true});
+    if(key==='kpg66') marks.push({a:380, b:780, t:'soot dims all colors', band:true});
   }
   if(feat&&tioDepth(feat.T)>0.03) TIO_HEADS.forEach(l=>marks.push({l, t:'TiO'}));
   if(sun>0.3){ marks.push(...SP_SUN_MARKS); if(share('Sun')+share('sunlit')<0.5) marks.push({l:589.3, t:'Na D'}); }
@@ -398,7 +398,7 @@ function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null, cr=null, moo
   if(share('aurora, nitrogen red')>0.05) marks.push({l:670, t:'N₂ 1P', em:true});
   return {S, Y, parts, marks, feat};
 }
-// The plot: the spectrum filled with the colour of each wavelength, linear, normalized to the
+// The plot: the spectrum filled with the color of each wavelength, linear, normalized to the
 // continuum so a bright line runs off the top (marked with a caret) rather than flattening the rest.
 // Past 690 nm the fit's tails turn the hue back toward green, so the deep red holds from there.
 const SP_RGB=SP_CMF.map((c, i)=>SP_CMF[Math.min(i, 310)]).map(([x, y, z])=>{ const r=3.2406*x-1.5372*y-0.4986*z, gr=-0.9689*x+1.8758*y+0.0415*z, b=0.0557*x-0.2040*y+1.0570*z, m=Math.max(r, gr, b, 1e-6);
@@ -429,7 +429,7 @@ function drawSpectrum(cv, sp){
   cv._sp={dpr, marks:marksKey, ys, over:mx>top};
   if(cv.width!==W*dpr){ cv.width=W*dpr; cv.height=H*dpr; cv.style.width=W+'px'; cv.style.height=H+'px'; }
   const c=cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
-  // The colour fill: a strip of every wavelength's colour, made once, clipped to the spectrum's
+  // The color fill: a strip of every wavelength's color, made once, clipped to the spectrum's
   // steps (each column as high as the lower of its two ends) instead of a rectangle per column.
   c.save(); c.beginPath(); c.moveTo(X(SP_LAM[0]), B);
   for(let i=0;i<SP_N-1;i++){ const y=Yv(Math.min(S[i], S[i+1])); c.lineTo(X(SP_LAM[i]), y); c.lineTo(X(SP_LAM[i+1]), y); }
@@ -565,7 +565,7 @@ function globeSpectrumTip(x, y, box){
   spShow(box, globeSpectrum(ep.key, lat, h), disk?`The disk at ${Math.round(lat)}° latitude: sunlight off the ground and back out through the air`
     :`The limb ${Math.round(h)} km up at ${Math.round(lat)}° latitude: sunlight scattered along the line of sight`);
 }
-// A star's light as it reaches the ground: the star's own spectrum (a body at its colour
+// A star's light as it reaches the ground: the star's own spectrum (a body at its color
 // temperature with the absorption of its class) through the air in front of it, nothing taken
 // out. The air's transmission comes from the model's direct sunlight overhead and at 60°: their
 // ratio is one more airmass of that epoch's air (Rayleigh, ozone, haze), raised to the star's
@@ -574,7 +574,7 @@ function globeSpectrumTip(x, y, box){
 // there, or null; out.sep, if given, is how far dir is from its drawn edge (degrees).
 // A planet's or moon's drawn disk (and Saturn's rings) counts as near, however large it is drawn.
 // On a disk, the frontmost disk there is taken, unless something drawn in front of it (a moon
-// over its planet, a satellite) is within reach and nearer than the disk's centre; off every
+// over its planet, a satellite) is within reach and nearer than the disk's center; off every
 // disk, the one nearest dir.
 function starNear(dir, tolDeg, out){
   if(!skyNow||!skyNow.starMarks) return null;
@@ -610,8 +610,8 @@ function nearestPoint(dir, P, starSep){
 }
 // Planets and satellites: sunlight above the air (a 5772 K body with the Sun's lines) times the
 // body's reflectance, then through the air as a star. Reflectance shapes, 380-780 nm, are rough
-// fits to the planets' disk-integrated colours (the methane band depths after Karkoschka 1994);
-// a satellite's aluminium, panels and white paint reflect sunlight nearly grey, a little red.
+// fits to the planets' disk-integrated colors (the methane band depths after Karkoschka 1994);
+// a satellite's aluminum, panels and white paint reflect sunlight nearly gray, a little red.
 // Each: nodes [nm, relative reflectance], methane bands [nm, depth, width], and a caption.
 const REFL={
   Mercury:{n:[[380, 0.55], [500, 0.75], [600, 0.88], [780, 1]], note:'sunlight off bare rock, reddened by space weathering'},
@@ -632,7 +632,7 @@ const REFL={
   Phobos:{n:[[380, 0.62], [500, 0.75], [600, 0.88], [780, 1]], note:'sunlight off dark, reddish rubble, like the D-type asteroids’'},
   'Chicxulub asteroid':{n:[[380, 0.82], [450, 0.94], [550, 0.99], [780, 1]], note:'sunlight off a dark carbonaceous (C-type) asteroid, nearly flat, falling off in the violet'},
   Deimos:{n:[[380, 0.6], [500, 0.74], [600, 0.88], [780, 1]], note:'sunlight off dark, reddish rubble, like the D-type asteroids’'},
-  Ceres:{n:[[380, 0.8], [450, 0.92], [550, 0.98], [780, 1]], note:'sunlight off dark ground of clays and carbonates, nearly grey (a C-type surface), with Occator’s bright salts'},
+  Ceres:{n:[[380, 0.8], [450, 0.92], [550, 0.98], [780, 1]], note:'sunlight off dark ground of clays and carbonates, nearly gray (a C-type surface), with Occator’s bright salts'},
   Pallas:{n:[[380, 1], [500, 1], [650, 0.98], [780, 0.96]], note:'sunlight off dark carbonaceous rock, faintly blue (a B-type surface)'},
   Vesta:{n:[[380, 0.42], [450, 0.6], [550, 0.84], [650, 0.98], [720, 1], [780, 0.86]], note:'sunlight off basalt (a V-type surface), red, then falling into pyroxene’s band at 0.9 µm', band:[740, 780, 'pyroxene']},
   Theia:{n:[[380, 0.6], [450, 0.68], [550, 0.82], [650, 0.94], [780, 1]], note:'sunlight off dark, iron-rich basalt, as the lunar maria'},
@@ -641,7 +641,7 @@ const REFL={
 };
 // A young giant's reflectance (planets.js giantEra; shader_bodies.js eraAlb's stages): with no
 // ammonia ice on top, Jupiter's and Saturn's NH4SH haze, flatter and less red; with no methane ice,
-// an ice giant's H2S deck, as Uranus's is; a high deck of NH4SH and water clouds, near grey and
+// an ice giant's H2S deck, as Uranus's is; a high deck of NH4SH and water clouds, near gray and
 // bright for a gas giant (Sudarsky et al. 2000's class II), for an ice giant cyan, its methane bands
 // shallower above clouds that lie higher; clear (their class III), blue from Rayleigh scattering and
 // dark in the red with deep methane bands. Each stage mixed in as far as the disk's colors are.
@@ -724,7 +724,7 @@ function snSpectrum(sn){
 }
 const spRamp=(lo, hi, x)=>Math.max(0, Math.min(1, (x-lo)/(hi-lo)));
 function starClass(T){ return T>=30000?'O':T>=10500?'B':T>=7300?'A':T>=6000?'F':T>=5200?'G':T>=3700?'K':'M'; }
-// The star above the air at colour temperature T, with the lines of its class: hydrogen strongest
+// The star above the air at color temperature T, with the lines of its class: hydrogen strongest
 // near 9,500 K and broad there, helium in the hot stars, the metals (Ca II H and K, the G band,
 // Mg b, Na D, Ca I 423) growing toward the cool ones with their crowd of lines dimming the blue,
 // and TiO bands, sharp on the blue side, in the M stars.
@@ -773,7 +773,7 @@ function starSpectrum(s, el){
   const key=EP[dIdx].key, T=s.star[6]||10000, {S, marks}=starAbove(T), X=Math.min(spAirmass(el), 40);
   spThroughAir(S, marks, key, X);
   const cls=starClass(T), m=starThroughAir(s.mag, s.el, key);
-  const note=`${s.star[7]||(s.star[8]?`${/^[AFMOS]/.test(s.star[8])?'An':'A'} ${starTypeLabel(s.star[8])}, a stand-in for a star no catalogue can trace this far back`:'A star')} · ${cls==='O'||cls==='A'?'an':'a'} ${cls} star, ${Math.round(T/50)*50} K · `
+  const note=`${s.star[7]||(s.star[8]?`${/^[AFMOS]/.test(s.star[8])?'An':'A'} ${starTypeLabel(s.star[8])}, a stand-in for a star no catalog can trace this far back`:'A star')} · ${cls==='O'||cls==='A'?'an':'a'} ${cls} star, ${Math.round(T/50)*50} K · `
     +(airOff()?spAirTail(s.mag):`V ${s.mag.toFixed(1)} above the air, ${m.toFixed(1)} through ${X.toFixed(1)} airmass${X>=1.05?'es':''} of it, whose imprint is left in`);
   return {S, Y:1, parts:[], marks, note};
 }
@@ -796,7 +796,7 @@ function noonSpectrum(key, L, f){
   const marks=[...SP_SUN_MARKS];
   if(spOzone(key)) marks.unshift({a:500, b:680, t:'O₃ Chappuis', band:true});
   if(key.startsWith('archean27')&&key!=='archean27clear') marks.unshift({a:380, b:480, t:'organic haze', band:true});
-  if(key==='kpg66') marks.unshift({a:380, b:780, t:'soot dims all colours', band:true});
+  if(key==='kpg66') marks.unshift({a:380, b:780, t:'soot dims all colors', band:true});
   spAirMarks(marks, o2, h2o);
   return {S, Y:1, parts:[], marks, vz, sza};
 }
@@ -807,13 +807,13 @@ function noonSpectrumTip(sky, f, box){
 }
 
 // The ring's light: sunlight off L-chondrite rubble (debris.js), and the same scattered by the air
-// (bluer, as the moonlit sky is). Its display colour for the dome and VR.
+// (bluer, as the moonlit sky is). Its display color for the dome and VR.
 const SP_RING=spNorm(spPlanck(5772).map((v, i)=>v*RING_REFL(SP_LAM[i])));
 const SP_RINGSKY=spNorm(SP_RING.map((v, i)=>v*Math.pow(550/SP_LAM[i], 3)));
 RING_LIN=(()=>{ const X=[0, 0, 0]; for(let i=0;i<SP_N;i++) for(let q=0;q<3;q++) X[q]+=SP_RING[i]*SP_FRAUN_T[i]*SP_CMF[i][q]; return xyzLin(X).map(c=>Math.max(0, c)/X[1]); })();
 // A meteor's spectrum as it reaches the ground (meteors.js metEmission, through the air), or a
 // lunar impact flash's, with a caption.
-function metFmtMass(g){ return g<1e-3?`${+(g*1e3).toPrecision(2)} mg`:g<1e3?`${+g.toPrecision(2)} g`:g<1e6?`${+(g/1e3).toPrecision(2)} kg`:`${(+(g/1e6).toPrecision(2)).toLocaleString('en-US')} tonnes`; }
+function metFmtMass(g){ return g<1e-3?`${+(g*1e3).toPrecision(2)} mg`:g<1e3?`${+g.toPrecision(2)} g`:g<1e6?`${+(g/1e3).toPrecision(2)} kg`:`${(+(g/1e6).toPrecision(2)).toLocaleString('en-US')} metric tons`; }
 function metFmtSize(cm){ return cm<0.1?`${+(cm*10).toPrecision(2)} mm`:cm<100?`${+cm.toPrecision(2)} cm`:`${+(cm/100).toPrecision(2)} m`; }
 const MET_SRC={apex:'from the apex of Earth’s motion: cometary dust met head-on', helion:'from the helion source, near the Sun', antihelion:'from the antihelion source, opposite the Sun',
   toroidal:'from a toroidal source, high above the ecliptic', iso:'from no particular direction', aster:'from the asteroid belt, slow', ring:'falling from the ring'};
@@ -829,7 +829,7 @@ function meteorSpectrumTip(h){
     for(let i=0;i<SP_N;i++) S[i]+=0.08*y*na[i]/(spY(na)||1);
     const marks=[{l:589.3, t:'Na D', em:true}];
     spThroughAir(S, marks, key, X);
-    return {S, Y:1, parts:[], marks, note:`An impact flash on the Moon’s night side · rock vapour and melt glowing at about ${Math.round(f.temp/100)*100} K, for a fraction of a second · V ${h.mag.toFixed(1)}`};
+    return {S, Y:1, parts:[], marks, note:`An impact flash on the Moon’s night side · rock vapor and melt glowing at about ${Math.round(f.temp/100)*100} K, for a fraction of a second · V ${h.mag.toFixed(1)}`};
   }
   const m=h.m, k=extK(key), S=metEmission(m.v, air, m.src==='ring'), marks=[];
   const Or=(air.O||0)/0.21, Nr=(air.N||0)/0.79, Cr=Math.min(1, (air.C||0)/0.3), hot=m.v>35, fast=m.v>30;

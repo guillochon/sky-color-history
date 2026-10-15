@@ -472,7 +472,7 @@ vrStick.addEventListener('pointerup', e=>{ if(e.pointerId===vrStickId) endStick(
 vrStick.addEventListener('pointercancel', e=>{ if(e.pointerId===vrStickId) endStick(); });
 syncVRPad();
 // Inspect (q): the camera holds still, the pointer comes back, and a tooltip under it gives the
-// pixel's colour and the spectrum of the sky in that direction; each click pins one (pinVRTip).
+// pixel's color and the spectrum of the sky in that direction; each click pins one (pinVRTip).
 // q again leaves inspect, and so does Esc where VR can hold it (vrHoldEsc). Pinned tooltips stay
 // after inspect ends, until VR does.
 let vrInspect=false, vrInspectAt=null, vrInspectTimer=0, vrEdgeRAF=0, vrEdgeT=0;
@@ -536,7 +536,7 @@ function vrCanvasPx(cx, cy){
   return {x:Math.min(c.width-1, Math.max(0, Math.floor(cx*c.width/W))), y:Math.min(c.height-1, Math.max(0, c.height-1-Math.floor(cy*c.height/H)))};
 }
 // Reads that do not wait for the GPU: vrReadAsync copies a pixel into a buffer, vrProbeAsk queues
-// all a tooltip needs (the drawn colour, scenery hit, clouds, aurora) behind one fence, and
+// all a tooltip needs (the drawn color, scenery hit, clouds, aurora) behind one fence, and
 // vrAskPoll hands them over once the GPU has got there, a frame or so later. Waiting on readPixels
 // instead stalls the page until everything drawn so far is finished.
 const VR_PBOS=[];
@@ -634,7 +634,7 @@ function lowAirAt(comp, app){
 // The Sun's image under the view ray at azimuth comp (radians) and apparent altitude app (degrees),
 // found as the sky shader's sunDiskAt finds it, from the same bands, refraction, inversion layers
 // and mirage: the fraction of the disk's radius in the nearest band image that reaches the ray (r,
-// 2 off the disk) and the ray's offset from the Sun's centre in that image (off), so a low,
+// 2 off the disk) and the ray's offset from the Sun's center in that image (off), so a low,
 // squeezed Sun is read where it is drawn.
 function sunImageAt(comp, app){
   const rd=skyNow.moon.sunRadDeg*DISK_SCALE, sunRad=rd*Math.PI/180;
@@ -872,7 +872,7 @@ function refreshPin(p){
       }};
   });
 }
-// Fill a tooltip with the colour and spectrum at page point (cx, cy), from pixels px read under view.
+// Fill a tooltip with the color and spectrum at page point (cx, cy), from pixels px read under view.
 function fillVRTip(tip, cx, cy, px, view){
   const P=vrProbe(cx, cy, false, px, view), {el, az, app}=P, col=px.col;
   const cur=hex([col[0], col[1], col[2]]);

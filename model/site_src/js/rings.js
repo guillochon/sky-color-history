@@ -9,7 +9,7 @@
 // than once adds up to a third more where the rings are thick, so the B ring's denser bands still
 // show, a little brighter, though no light gets through either. K is the particles' albedo times
 // their phase function: the A ring's 0.7 of the B ring's, the C ring's and the Cassini division's
-// half and greyer, the F ring's dust half (Voyager's and HST's photometry: I/F near 0.6, 0.4 and
+// half and grayer, the F ring's dust half (Voyager's and HST's photometry: I/F near 0.6, 0.4 and
 // 0.1). The rings brighten toward opposition (the Seeliger effect), by a third in the last degree.
 // The light let through toward the viewer and the Sun is exp(−tau/mu): the opacity of the rings
 // over what is behind, and their shadow on the planet.
@@ -30,7 +30,7 @@ const SAT_RING_TAU=(()=>{
 // The particles at r planet radii: their K without the dust (scaled so that the opaque B ring,
 // lit, at mu=mu0 and opposition, is drawn 0.95, about as bright as the middle of the globe), how
 // much of the dust's darkening they have (1 in the C ring and the Cassini division, which today
-// takes K to half), their greyness without the dust and how grey the dust makes them.
+// takes K to half), their grayness without the dust and how gray the dust makes them.
 function satRingParticles(r){
   const km=r*60268, s=(a, b)=>smooth01(a, b, km);
   // C ring, its ramp into the B ring, the Cassini division, its ramp into the A ring, the F ring.
@@ -46,18 +46,18 @@ const SAT_RING_K=(()=>{
 // today's).
 function satRingYouth(age){ const f=Math.pow(Math.max(age, 0.05), -0.75); return {f, dust:Math.min(1, age/f)}; }
 // The running sums, bin by bin, of each band's brightness I, its opacity toward the viewer, its
-// opacity toward the Sun and its grey part of I (lit: the viewer on the Sun's side; alpha the
+// opacity toward the Sun and its gray part of I (lit: the viewer on the Sun's side; alpha the
 // phase angle, degrees; age as satRingYouth). A box filter of any width is then two lookups.
 function satRingTable(muV, mu0, lit, alpha, age=1){
   muV=Math.max(muV, 0.002); mu0=Math.max(mu0, 0.002);
   const S=(1+0.35*Math.exp(-alpha/0.8))/1.35*Math.pow(10, -0.4*0.017*alpha)/4;
   const out=new Float32Array(SAT_RING_TEX_W*SAT_RING_ROWS*4), acc=[0, 0, 0, 0], near=Math.abs(muV-mu0)<1e-4, y=satRingYouth(age);
   for(let i=0;i<SAT_RING_N;i++){
-    const P=SAT_RING_K.subarray(i*4, i*4+4), dust=P[1]*y.dust, grey=dust*P[3]+P[2];
+    const P=SAT_RING_K.subarray(i*4, i*4+4), dust=P[1]*y.dust, gray=dust*P[3]+P[2];
     const t=SAT_RING_TAU[i]*y.f, K=P[0]*(1-0.5*dust)*S*(1+0.35*(1-Math.exp(-t/2)))/1.35, eV=Math.exp(-t/muV), e0=Math.exp(-t/mu0);
     // From the dark side, a little multiply scattered light too.
     const I=lit?K*mu0/(muV+mu0)*(1-eV*e0):K*((near?t/muV*eV:mu0/(muV-mu0)*(eV-e0))+0.04*(1-Math.exp(-t)));
-    acc[0]+=I; acc[1]+=1-eV; acc[2]+=1-e0; acc[3]+=I*grey;
+    acc[0]+=I; acc[1]+=1-eV; acc[2]+=1-e0; acc[3]+=I*gray;
     out.set(acc, (i+1)*4);
   }
   return out;
@@ -72,7 +72,7 @@ function satRingTableFor(b){
   return satRingLast.tab;
 }
 // The rings at r planet radii averaged over r±w: brightness, opacity toward the viewer and toward
-// the Sun, and the grey part of the brightness.
+// the Sun, and the gray part of the brightness.
 function satRingAt(tab, r, w){
   const a=(r-SAT_RING_R0)/SAT_RING_DR, h=Math.max(w/SAT_RING_DR, 0.5), out=[0, 0, 0, 0];
   const add=(x, sg)=>{

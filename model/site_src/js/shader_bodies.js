@@ -1,13 +1,13 @@
 // The planets' and moons' disks, in a pass of their own after the sky's (vr_paint.js drawBodies):
 // one draw per body, clipped to the box round its disk (and Saturn's rings), added to the sky
-// already drawn, or over the Sun, for a planet in front of it, the sky's own colour laid over the
+// already drawn, or over the Sun, for a planet in front of it, the sky's own color laid over the
 // Sun. The sky pass draws them only as points. Kept apart so that the close-up detail of Jupiter's
 // or Saturn's clouds or of the spacecraft maps is a small program of its own, compiled only once
 // the view zooms in on one of them (vr_init.js wantDetail): in the sky's program each cost a
 // recompile of all of it, several seconds.
 const BODY_GLSL=`
-// A planet's cloud tops or ground at planetographic latitude lat (degrees): Mercury's grey rock,
-// Venus's clouds, Mars's ochre with its darker south and polar caps, Jupiter's belts and zones,
+// A planet's cloud tops or ground at planetographic latitude lat (degrees): Mercury's gray rock,
+// Venus's clouds, Mars's ocher with its darker south and polar caps, Jupiter's belts and zones,
 // Saturn's fainter bands, Uranus's pale cyan (paler toward the poles), Neptune's paler blue with a
 // darker equator and its dark band near 60°S, or Oceanus's own (bE.w 1); a moon in its own tint.
 float bandOf(float lat, float a, float b, float w){ return smoothstep(a-w, a+w, lat)-smoothstep(b-w, b+w, lat); }
@@ -73,7 +73,7 @@ vec3 eraAlb(int kind, vec3 c){
 // Juno and Hubble images: the clouds a tracer stirred by eddies and drawn out by the jets, so the
 // belts and zones and the finer banding within them are marbled into curls and filaments, rougher
 // in the belts than in the zones; the belts' edges rolled up by the Kelvin-Helmholtz instability
-// of the shear between neighbouring jets into chains of curling billows; the Red Spot a vortex in
+// of the shear between neighboring jets into chains of curling billows; the Red Spot a vortex in
 // the same flow, winding the clouds round it into its collar, with its turbulent wake; dark
 // festoons trailing from the North Equatorial Belt's southern edge into the Equatorial Zone, with
 // hot spots at their heads; barges; the chain of white ovals in the South South Temperate Belt;
@@ -91,7 +91,7 @@ float clWindS(float lat, float s){
   return 140.0*jG(lat, 23.7, 1.6, s)-30.0*jG(lat, 18.0, 2.5, s)+105.0*jG(lat, 7.0, 3.5, s)+60.0*jG(lat, 0.0, 4.0, s)+105.0*jG(lat, -7.0, 3.5, s)
         -55.0*jG(lat, -17.5, 2.5, s)+40.0*jG(lat, -26.5, 2.0, s)-25.0*jG(lat, -30.0, 2.0, s)+30.0*jG(lat, 31.0, 2.0, s)-20.0*jG(lat, 35.0, 2.0, s)+25.0*jG(lat, -35.0, 2.0, s);
 }
-// A metre a second in degrees of longitude a day on the equator (System II).
+// A meter a second in degrees of longitude a day on the equator (System II).
 const float CL_MS=0.06924;
 // Bands and zones (bodyAlbedo's), with edges w degrees wide.
 float clBelt(float lat, float w){
@@ -118,7 +118,7 @@ float clWindS(float lat, float s){
 }
 const float CL_MS=0.19989;
 // Bands: the equator a little darker, and the dark circumpolar wave near 60°S (drawn with its wander
-// below); in true colour Neptune is a pale greenish blue only a little bluer than Uranus (Irwin et
+// below); in true color Neptune is a pale greenish blue only a little bluer than Uranus (Irwin et
 // al. 2024), not the deep blue of the contrast-stretched Voyager images.
 // Oceanus has its own (bodyAlbedo's).
 float clBelt(float lat, float w){
@@ -235,7 +235,7 @@ vec2 khRoll(vec2 q, float b, float N, float R, float ang, float seed, float cl){
   float cx=(ix+(hj-0.5)*0.3-seed)*lam, Rk=R*(0.6+0.5*hk);
   vec2 d=vec2((q.x-cx)*cl, dy-(hk-0.5)*R*0.8);
   // A few billows have not rolled up; the rest by differing amounts.
-  // Faded to nothing before the edge of the billow's cell, so neighbours meet without a step.
+  // Faded to nothing before the edge of the billow's cell, so neighbors meet without a step.
   float win=(1.0-smoothstep(0.32, 0.48, abs(x-ix)))*(1.0-smoothstep(2.0*R, 3.0*R, abs(dy)));
   float a=ang*smoothstep(0.05, 0.3, hj)*(0.4+0.6*hj)*exp(-dot(d, d)/(Rk*Rk))*win, c=cos(a), s=sin(a);
   d=vec2(c*d.x-s*d.y, s*d.x+c*d.y);
@@ -339,7 +339,7 @@ vec3 cloudAlbedo(float lat, float lon, float pxD, float aux){
   float dye=0.6*(vNg(vec2(yq*0.8, 3.0), 1e4).x-0.5)+0.5*k1*(vNg(vec2(yq*2.0, 9.0), 1e4).x-0.5)+0.35*k2*(vNg(vec2(yq*6.0, 1.0), 1e4).x-0.5)
            +0.5*k1*(vNg(q*vec2(1.0, 2.5)+5.0, 128.0).x-0.5)+0.3*k2*(vNg(q*vec2(3.0, 7.0)+2.0, 384.0).x-0.5);
   // Each band, and each finer band within it, a slightly different hue: redder or yellower,
-  // greyer or bluer, a little lighter or darker, and so along its length, all carried with the
+  // grayer or bluer, a little lighter or darker, and so along its length, all carried with the
   // clouds like the banding itself.
   vec3 hv=vec3(vNg(vec2(yq*1.2, 21.0), 1e4).x, vNg(vec2(yq*3.0, 33.0), 1e4).x, vNg(q*vec2(1.0, 3.0)+40.0, 128.0).x)-0.5;
   hv.yz*=k1;
@@ -353,7 +353,7 @@ vec3 cloudAlbedo(float lat, float lon, float pxD, float aux){
   c=mix(c, c*vec3(0.92, 0.86, 0.82), belt*(s2-0.4));
   float bw=clamp(clBelt(la, max(w, 1.2)), 0.0, 1.0);
   c*=1.0-0.2*bw*(1.0-bw)*4.0;
-  // In the belts, brown streaks and pale filaments; in the zones, white and pale blue-grey.
+  // In the belts, brown streaks and pale filaments; in the zones, white and pale blue-gray.
   c=mix(c, c*vec3(0.80, 0.70, 0.62), belt*clamp(-dye*2.5, 0.0, 1.0));
   c=mix(c, vec3(0.94, 0.92, 0.86), belt*smoothstep(0.08, 0.3, dye)*0.75*(1.0-0.7*pol));
   c=mix(c, vec3(0.74, 0.77, 0.82), (1.0-belt)*smoothstep(0.08, 0.3, -dye)*0.45*(1.0-pol));
@@ -393,7 +393,7 @@ vec3 cloudAlbedo(float lat, float lon, float pxD, float aux){
 #endif
   }
 #if DETAIL_JUP
-  // The North Equatorial Belt's southern edge, about 7°N: dark blue-grey hot spots, gaps in the
+  // The North Equatorial Belt's southern edge, about 7°N: dark blue-gray hot spots, gaps in the
   // clouds a few degrees long, and from some of them thin festoons curving west and down across the
   // Equatorial Zone; a dozen round the planet at uneven spacing, moving with its wind.
   if(lat>-1.0 && lat<9.5){
@@ -539,7 +539,7 @@ float surfReliefLit(float c, vec3 nrm, vec3 pc, vec3 n, vec3 mp, vec3 L, vec3 V,
 }
 #endif
 // A body's disk where the view ray is o (the offset across the sky, in drawn radii) and the line of
-// sight v: its lit colour (rgb) and coverage (a), the surface point x and how far along v it lies
+// sight v: its lit color (rgb) and coverage (a), the surface point x and how far along v it lies
 // (t, toward the observer negative). The disk is the flattened spheroid about pole n (its kind's, or
 // the body's own, bS.w less 1, when that is past 0.5), lit from L, darkening toward the terminator
 // and, by its Minnaert k, the limb; rPx is its radius in pixels. A body with heights in its map has
@@ -651,7 +651,7 @@ ${VIEW_RAY_GLSL}
 ${SURF_GLSL}
 ${BODY_GLSL}
 // Uranus's rings at xr (Uranus's radii, in the equator), averaged over radii xr±w: brightness,
-// opacity toward the viewer and the Sun, and the grey part of the brightness (all of it), as
+// opacity toward the viewer and the Sun, and the gray part of the brightness (all of it), as
 // saturnRing. Each ring the ellipse of its orbit, its width growing with its radius and its depth
 // thinning in proportion, so that what it blocks is the same all round; a band of particles lit
 // and seen as Saturn's rings' (rings.js), but dark: an opaque ring lit and seen square on is drawn

@@ -40,7 +40,7 @@ SHOTS = {
     # Jupiter (jup): over the nights from the date (nights of them), the Sun 18° down and Jupiter 30°
     # up or more, the time its Red Spot best faces us with Jupiter high; the frame's height span of
     # Jupiter's drawn radii, at aim
-    # 0 on its centre or 1 on the Red Spot. The shot is turned so the equator lies level and cropped
+    # 0 on its center or 1 on the Red Spot. The shot is turned so the equator lies level and cropped
     # (crop: its aspect; at: where across it the aim falls; fixed: the crop the same whatever the turn,
     # so the two disks match), in a square frame of size pixels that leaves room for the turn.
     # jupiter_montage() puts them together as view_jupiter.jpg: the spot at its largest (1879, as
@@ -206,7 +206,7 @@ def eclipse_montage():
         for (ph, _), cw in zip(ECL_PHASES, cols):
             im = Image.open(OUT / f'view_ecl_{k}_{ph}.jpg')
             if ph != 'wide':
-                # The close-ups: the middle 720 pixels square, with the Sun at the centre.
+                # The close-ups: the middle 720 pixels square, with the Sun at the center.
                 cx, cy = im.width // 2, im.height // 2
                 im = im.crop((cx - 360, cy - 360, cx + 360, cy + 360))
             sheet.paste(im.resize((cw, S), Image.LANCZOS), (x, y)); x += cw + gap

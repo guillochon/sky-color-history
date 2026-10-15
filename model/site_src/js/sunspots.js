@@ -256,7 +256,7 @@ function sunspotLib(){
       bridges:!pore&&ruKm>3500&&R(i+6)<0.35?(ruKm>6500&&R(i+7)<0.4?2:1):0,
       seed:Math.floor(R(i+8)*1e6), nfil, nf8:Math.max(2, Math.round(nfil/8)), edges:null};
   }
-  // The spot's boundaries round its centre, tabulated once: the penumbra's ragged outer edge and
+  // The spot's boundaries round its center, tabulated once: the penumbra's ragged outer edge and
   // the umbra's, as fractions of its radius.
   const SPOT_NTH=128;
   function spotEdges(sp){
@@ -516,7 +516,7 @@ function pumpSunJobs(){
   }else setTimeout(()=>{ SS.setAct(w.key, w.act); done(SS.buildSunMap(w.key, w.D, w.teff, w.W)); }, 0);
 }
 // Orientation at day number d: the position angle P of the Sun's north pole from celestial north
-// (toward east) and B0, the latitude of the disk's centre (Meeus, Astronomical Algorithms ch. 29;
+// (toward east) and B0, the latitude of the disk's center (Meeus, Astronomical Algorithms ch. 29;
 // the solar equator tilted 7.25° to the ecliptic), and the rotation phase in turns. The map's
 // longitudes turn with the equator's synodic rate.
 function sunOrientation(key, d){
