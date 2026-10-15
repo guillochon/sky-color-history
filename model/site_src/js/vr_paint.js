@@ -573,7 +573,16 @@ function paintVR(){
   // as the beads come.
   gl.uniform1f(u.glareMoon, (0.08+0.92*sStep((vis-0.6)/0.35))*sStep((vis-0.05)/0.25));
   gl.uniform3fv(u.glareDir, glareCentre(vis));
-  gl.uniform3fv(u.sunCol, sunCol); gl.uniform3fv(u.sunTint, sunTintAt(app, rd, sunLight));
+  // The disk's surface, 1.9e9 cd/m² above the air (128,000 lux over its 6.8e-5 sr), dimmed by the
+  // air at its apparent altitude and taken through the sky's tone curve, over the top of that
+  // curve: 1 while it is past the display's reach (every modern sunset), less once the air has
+  // dimmed it below that, as the early Hadean's does low down, so it fades into the sky. Its
+  // light on the scenery fades with it, and its glint as the twentieth of it the water reflects.
+  const diskR=airOff()?1e30:1.9e9*lum(sunBandsAt(app))/Math.max(yTop, 1e-30)/skyNow.rCd;
+  const shown=r=>Math.min(1, toneT(r, skyNow.toneK, skyNow.toneP, 0.95)/toneT(1e30, skyNow.toneK, skyNow.toneP, 0.95));
+  const sunFade=shown(diskR);
+  gl.uniform1f(u.sunFade, sunFade); gl.uniform1f(u.glintFade, shown(diskR*0.05));
+  gl.uniform3fv(u.sunCol, sunCol); gl.uniform3fv(u.sunTint, sunTintAt(app, rd, sunLight).map(v=>v*sunFade));
   gl.uniform3fv(u.ground, ground);
   gl.uniform1f(u.showScn, vrScenery?1:0);
   gl.uniform1f(u.mtnSnow, tableNow(MTN_SNOW, EP[dIdx].key, 0));

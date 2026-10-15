@@ -75,6 +75,10 @@ uniform vec3 sunTint;
 // as the air or the Moon dims it toward what the eye can look at, times the share of its disk
 // above the horizon.
 uniform float sunGlare;
+// How bright the disk shows (vr_paint.js): 1 while it is brighter than the display can show,
+// falling as the air dims it below that, so a Sun all but put out by the air fades into the sky;
+// and the same for its glint, the twentieth of it the water reflects.
+uniform float sunFade, glintFade;
 // The share of the glare laid over the Moon: all of it until the Moon has covered a good part
 // of the Sun, none as the beads come, so in an eclipse its disk emerges from the glare.
 uniform float glareMoon;
@@ -732,7 +736,7 @@ void main(){
         float fres=0.02+0.98*pow(1.0-clamp(-dot(rd, wn), 0.0, 1.0), 5.0);
         vec3 deep=pk>2.5?vec3(0.035, 0.045, 0.02):vec3(0.012, 0.035, 0.05);
         vec3 wc=mix(deep*light, skyLook(refl), fres);
-        wc+=sunCol*pow(max(dot(refl, sd), 0.0), 300.0)*step(0.0, sd.z)*2.0;
+        wc+=sunCol*pow(max(dot(refl, sd), 0.0), 300.0)*step(0.0, sd.z)*2.0*glintFade;
         wc+=snLight*pow(max(dot(refl, snDir), 0.0), 300.0)*6.0+mlLight*pow(max(dot(refl, mlDir), 0.0), 120.0)*4.0+fbLight*pow(max(dot(refl, fbDir), 0.0), 120.0)*4.0;
         if(pk>2.5) wc=mix(wc, vec3(0.10, 0.16, 0.05)*light, smoothstep(0.55, 0.72, vN(gp/7.0+vec2(0.02, 0.01)*waterT))*0.75);
         gcol=mix(gcol*0.55, wc, smoothstep(0.0, 3.0, edge));
@@ -962,7 +966,7 @@ void main(){
       vec3 lin=s2lin3(sunCol), v=sunP*sunG;
       float vm=max(v.r, max(v.g, v.b)), lm=max(lin.r, max(lin.g, lin.b)), x=vm/max(lm, 1e-6);
       if(vm>0.0) lin=v*(lm*(x>0.1?pow(x, 0.45):0.355*pow(x*10.0, 1.3))/vm);
-      lin=clamp(lin, 0.0, 1.0);
+      lin=clamp(lin, 0.0, 1.0)*sunFade;
       vec3 c=lin*vec3(${SUN_LD_C.map(v=>v.toFixed(4)).join(', ')});
       c*=max(lin.r, max(lin.g, lin.b))/max(max(c.r, max(c.g, c.b)), 1e-9);
       // Over the sky in front of it, as opaque as it is bright against that sky, so an image
@@ -985,7 +989,8 @@ void main(){
         vec3 hot=mix(lin/max(lm, 1e-6), vec3(1.0), 0.6);
         dsk=mix(dsk, hot, glareK); op=mix(op, 1.0, glareK);
       }
-      skyC=lin2s3(mix(sl, dsk, op*sunCov));
+      // A faded disk is light added to the sky in front of it, not a disk drawn over it.
+      skyC=lin2s3(mix(mix(sl, dsk, op*sunCov), min(sl+dsk*sunCov, vec3(1.0)), 1.0-sunFade));
     }
     if(moonOn>0.5&&te>-1.2){
       vec3 md=azElDir(moonAz, moonEl);
