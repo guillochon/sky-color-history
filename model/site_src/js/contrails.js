@@ -302,6 +302,8 @@ function ctFlash(kind, t){
 // Draws the airliners over the composited view, each scissored to its patch; the cloud layer's
 // opacity is on unit 2, the land's distances on 10, the sky on 0.
 function drawPlanesVR(gl, c, ez, sunCol){
+  // The ones drawn this frame, for the labels (vr_hud.js): place on the canvas, height and distance (m).
+  CT.drawn=[];
   if(!vrClouds||!CT_TRAFFIC[EP[dIdx].key]) return;
   if(!CT.planeJob){
     CT.planeJob=glProgramAsync(gl, vrGL.vs, PLANEFS);
@@ -330,12 +332,13 @@ function drawPlanesVR(gl, c, ez, sunCol){
     const el=Math.asin(dir[2])*180/Math.PI, az=Math.atan2(dir[0], dir[1])*180/Math.PI;
     const Lsky=skyRAt(skyNow.rgrid, Math.max(el, 0), az)*skyNow.rCd;
     const vx=-(dir[0]*P.F[0]+dir[1]*P.F[1]), vy=-(dir[0]*P.R[0]+dir[1]*P.R[1]), side=Math.atan2(vy, vx)*180/Math.PI;
-    let n=0, sig=0;
+    let n=0, sig=0, seen=false;
     for(const [q, rgb, cd, s, fl] of CT_LIGHTS){
       const shown=s===0?1:s===2?smooth01(105, 115, Math.abs(side)):smooth01(-5, 5, s*side)*(1-smooth01(105, 115, s*side));
       if(!(shown>0)) continue;
       const m=starThroughAir(-14.18-2.5*Math.log10(cd*shown/(dist*dist)), Math.max(el, 0), key), vis=starVisible(m, Lsky);
       if(vis<0.01) continue;
+      seen=true;
       if(fl){ flashing=true; if(!ctFlash(fl, now+P.f.seed*7)) continue; }
       const amp=Math.min(1, 0.62*Math.sqrt(Math.pow(10, -0.4*(m-STAR_VANCHOR))))*vis, d=pointDisplay(m), s2=Math.max(d.px*pxRad, pixA*0.6);
       const w=[P.p[0]+P.F[0]*q[0]+P.R[0]*q[1]-eye[0], P.p[1]+P.F[1]*q[0]+P.R[1]*q[1]-eye[1], P.p[2]+q[2]-eye[2]], wl=Math.hypot(...w);
@@ -343,6 +346,8 @@ function drawPlanesVR(gl, c, ez, sunCol){
     }
     // The patch: the airliner's 40 m and its lights' glow, in pixels.
     const R=Math.max(25/dist, 4*sig)/pixA+2;
+    // Labelled while it shows at all: its shape, or a light, a strobe between its flashes too.
+    if((R>=2.6||seen)&&X>-8&&X<W+8&&Y>-8&&Y<H+8) CT.drawn.push({X, Y, dir, dist, alt:P.f.alt*1000});
     if(R<2.6&&!n) continue;
     if(X+R<0||X-R>W||Y+R<0||Y-R>H) continue;
     if(!drawn){

@@ -174,7 +174,10 @@ function drawVRLabels(){
     return Math.abs(x)<3&&Math.abs(y)<3?[W/2+x*W/2, H/2-y*H/2]:null;
   };
   const at=(el, az)=>{ const p=projectBody(el, az, 0); return p.inView?[W/2+p.nx*W/2, H/2-p.ny*H/2]:null; };
-  drawSkyLabels(ctx, W, H, {proj, at, lim:3+8*Math.log10(60/vrFov), diskPx:s=>s.radDeg*(s.rings?2.3:1)/(vrFov/H), cloudAt:vrGL&&vrGL.cloudAt, top:40, bottom:72});
+  // The airliners drawn this frame (contrails.js drawPlanesVR, which runs only with the clouds
+  // shown), from the canvas's pixels to the page's.
+  const gc=vrGL&&vrGL.gl.canvas, planes=gc&&vrClouds&&CT.drawn?CT.drawn.map(p=>({x:p.X/gc.width*W, y:H-p.Y/gc.height*H, dir:p.dir, dist:p.dist, alt:p.alt})):[];
+  drawSkyLabels(ctx, W, H, {proj, at, lim:3+8*Math.log10(60/vrFov), diskPx:s=>s.radDeg*(s.rings?2.3:1)/(vrFov/H), cloudAt:vrGL&&vrGL.cloudAt, top:40, bottom:72, planes});
 }
 // The labels, for the walk-around view or the dome (drawDomeLabels), onto ctx W by H page pixels:
 // proj places a direction at true altitude for the constellations' lines (null behind), at a true
@@ -195,6 +198,12 @@ function drawSkyLabels(ctx, W, H, o){
   };
   // The novae, supernovae, eruptions and comets in the colour of their stars in the date picker (transients.js).
   for(const s of skyNow.sns||[]) add(s, s.name, 'sn', TR_TYPES[s.ev.type].color);
+  // The airliners in the walk-around view, each by its height and how far off it is, unless the
+  // cloud in front hides it.
+  for(const p of o.planes||[]){
+    if(cloudAt&&cloudAt(p.dir)>0.5) continue;
+    pts.push({x:p.x, y:p.y, mag:2.5, text:`airliner · ${(p.alt/1000).toFixed(1)} km up · ${p.dist<9500?(p.dist/1000).toFixed(1):Math.round(p.dist/1000)} km`, kind:'plane'});
+  }
   // Active meteor showers' radiants (showers.js), marked with a small cross.
   for(const r of radiantMarks()){ const p=at(r.el, r.az); if(p) pts.push({x:p[0], y:p[1], mag:-3, text:r.text, kind:'rad'}); }
   // Nebulae and galaxies (dso.js), where the brightest of their light stands out from the sky; a
@@ -227,7 +236,7 @@ function drawSkyLabels(ctx, W, H, o){
   const first=p=>p.kind==='sn'||p.kind==='comet'?0:1;
   pts.sort((a, b)=>first(a)-first(b)||a.mag-b.mag);
   ctx.textBaseline='middle'; ctx.lineJoin='round';
-  const placed=[], STYLE={con:['italic 13px', 'rgba(150,180,235,.7)'], sn:['600 13px', '#dbeaff'], planet:['600 13px', '#ffe2a8'], moon:['11px', 'rgba(255,226,168,.75)'], rad:['600 12px', '#ffd2b8'], star:['12px', 'rgba(220,230,255,.85)'], dso:['italic 12px', 'rgba(235,205,230,.8)'], stype:['italic 11px', 'rgba(205,215,240,.65)'], sat:['11px', 'rgba(180,190,205,.6)'], comet:['600 13px', '#8ff0cc']};
+  const placed=[], STYLE={con:['italic 13px', 'rgba(150,180,235,.7)'], sn:['600 13px', '#dbeaff'], planet:['600 13px', '#ffe2a8'], moon:['11px', 'rgba(255,226,168,.75)'], rad:['600 12px', '#ffd2b8'], star:['12px', 'rgba(220,230,255,.85)'], dso:['italic 12px', 'rgba(235,205,230,.8)'], stype:['italic 11px', 'rgba(205,215,240,.65)'], sat:['11px', 'rgba(180,190,205,.6)'], plane:['11px', 'rgba(255,214,170,.75)'], comet:['600 13px', '#8ff0cc']};
   for(const p of pts){
     if(!p.text) continue;
     const [font, kindCol]=STYLE[p.kind], col=p.color||kindCol;
