@@ -30,6 +30,9 @@ const MOMENTS=[
   {epoch:'modern', date:null, t:0, storm:true, clear:true, title:'A Leonid meteor storm', sub:'Over a thousand an hour from one point in Leo, even through city glow', art:'storm'},
   {epoch:'modern', date:null, eclipse:true, clear:true, title:'The next total eclipse', sub:'The corona, Baily’s beads, and a sunset all round the horizon', art:'eclipse'},
   {epoch:'modern', date:null, lunar:true, look:'moon', clear:true, title:'The next total lunar eclipse', sub:'A copper Moon, lit by every sunrise and sunset on Earth', art:'lunar'},
+  // Noctilucent clouds (nlc.js) on a bright night of 2100's season, from mid-latitudes, where by
+  // then they reach overhead: the Sun 10.6° down, the weather's clouds cleared.
+  {epoch:'y2100', date:'2100-07-01', t:1260, look:[0, 14], clear:true, title:'Noctilucent clouds, 2100', sub:'Ice 83 km up, still in sunlight after dark, spreading as methane rises', art:'nlc'},
   {epoch:'y2100', date:'2100-03-12', t:1167, look:[300, 28], clear:true, title:'Satellites at dusk, 2100', sub:'Megaconstellations and orbital datacenters still in sunlight', art:'sats'},
 ];
 const MOMENT_ART={
@@ -52,6 +55,8 @@ const MOMENT_ART={
     return `<line x1="${x0.toFixed(1)}" y1="${y0.toFixed(1)}" x2="${x1.toFixed(1)}" y2="${y1.toFixed(1)}" stroke="#f3f6ff" stroke-width="${(0.4+o*0.6).toFixed(2)}" stroke-linecap="round" opacity="${o.toFixed(2)}"/>`; }).join(''),
   stars:'',
   day:'',
+  // Silvery-blue bands over the twilight's last glow.
+  nlc:'<g fill="none" stroke="#bcd6ee" stroke-linecap="round">'+[0, 1, 2, 3, 4, 5].map(k=>`<path d="M${-6+k*4} ${44-k*5} C30 ${36-k*5} 70 ${40-k*5} ${126-k*3} ${26-k*5}" stroke-width="${(2.4-k*0.25).toFixed(2)}" opacity="${(0.55-k*0.07).toFixed(2)}"/>`).join('')+'</g>',
   // The low Sun's glow on the right, and the newborn Moon above: a dark disk, glowing cracks all
   // over it, a thin crescent lit toward the Sun, and its red aureole.
   hadean:'<defs><radialGradient id="msun"><stop offset="0" stop-color="#fff0c8" stop-opacity=".95"/><stop offset=".25" stop-color="#ffc37a" stop-opacity=".55"/><stop offset="1" stop-color="#ff9a50" stop-opacity="0"/></radialGradient>'
@@ -77,7 +82,7 @@ function momentGradient(m){
     return `linear-gradient(${hex(tone(xyY2XYZ(v.z), YREF))}, ${hex(tone(xyY2XYZ(v.h), YREF))})`;
   }
   return {theia:'linear-gradient(#04050a, #1a1622)', aurora:'linear-gradient(#06050f, #151027)', eclipse:'linear-gradient(#0f1a2e, #3a3442)', lunar:'linear-gradient(#05060c, #161625)', nova:'linear-gradient(#05060c, #141a2c)', galaxy:'linear-gradient(#06070b, #121521)',
-    city:'linear-gradient(#2a1f17, #6b4527)', sats:'linear-gradient(#0c0b0f, #2e2620)', storm:'linear-gradient(#04050b, #121626)', meteors:'linear-gradient(#07070c, #1d1a1c)', stars:'linear-gradient(#05060a, #10131c)'}[m.art];
+    city:'linear-gradient(#2a1f17, #6b4527)', sats:'linear-gradient(#0c0b0f, #2e2620)', nlc:'linear-gradient(#0b0e1a, #1d2232 60%, #4a3a2c)', storm:'linear-gradient(#04050b, #121626)', meteors:'linear-gradient(#07070c, #1d1a1c)', stars:'linear-gradient(#05060a, #10131c)'}[m.art];
 }
 function starsSVG(seed){
   let s='', x=seed*9301+49297;

@@ -138,10 +138,59 @@ vec4 rainNear(vec3 rd, float tHit, float pa, vec3 L){
   return acc;
 }
 `;
+// Radiation fog (clouds.js cloudFog): a layer over the low ground on a still, damp, clear night,
+// thickest about sunrise and burned off as the Sun climbs. fogP: x its extinction (per meter)
+// at the bottom, y its top (m, over the level the land rises from, so hills stand out of it),
+// z how far it has formed (0-1), w a seed for its patches. Its top is crisp, as a valley fog's is
+// from above, and rolls a little; it lies in banks a few kilometers across. The droplets
+// scatter the sunlight as dropTex's fog row has it (droplets.js): a fogbow some 38° from the
+// antisolar point, white with an orange rim, and a glory about it, round the shadow of the eye
+// on the fog. Seen from inside thin fog with the Sun low behind, or from a hill above it.
+const FOG_GLSL=`
+uniform vec4 fogP;
+uniform float fogRow;
+float fogTop(vec2 xy){ return fogP.y*(0.85+0.3*stN(xy/700.0+fogP.w)); }
+// Extinction (per meter) at p, and the fog's top there.
+float fogSigma(vec3 p, out float top){
+  vec2 dh=p.xy-eye.xy;
+  float alt=p.z+dot(dh, dh)/(2.0*833333.0);
+  top=fogTop(p.xy);
+  float bank=smoothstep(0.30, 0.55, stN(p.xy/4000.0+fogP.w*3.1)*0.75+fogP.z*0.45);
+  return fogP.x*bank*smoothstep(top, top-max(6.0, 0.12*top), alt);
+}
+// The fog between ro and tEnd along rd, premultiplied linear color and opacity, lit by the Sun
+// (through the fog above each point), the sky and the light the fog itself scatters about.
+vec4 fogVeil(vec3 ro, vec3 rd, float tEnd){
+  float hiTop=fogP.y*1.15, t0=0.0, t1=min(tEnd, 25000.0);
+  if(ro.z>hiTop){ if(rd.z>=-1.0e-4) return vec4(0.0); t0=(ro.z-hiTop)/(-rd.z); }
+  else if(rd.z>1.0e-4) t1=min(t1, (hiTop-ro.z)/rd.z+50.0);
+  if(t1<=t0) return vec4(0.0);
+  vec3 amb, sunB, sd;
+  rainLight(amb, sunB, sd);
+  float cs=dot(rd, sd), th=acos(clamp(cs, -1.0, 1.0))*57.2957795;
+  vec3 ph=vrDropOk>0.5?min(dropAt(th, fogRow).rgb, vec3(300.0)):vec3(mix((1.0-0.64)/pow(1.64-1.6*cs, 1.5), 1.0, 0.3));
+  float T=1.0, tp=t0;
+  vec3 col=vec3(0.0);
+  for(int i=0;i<24;i++){
+    float f=(float(i)+1.0)/24.0, t=t0+(t1-t0)*f*f, dt=t-tp, tm=t-0.5*dt;
+    tp=t;
+    vec3 p=ro+rd*tm;
+    float top, s=fogSigma(p, top);
+    if(s<1.0e-6) continue;
+    // The fog above p, on the Sun's way in and the sky's.
+    float depth=max(top-p.z, 0.0), tauS=min(s*depth/max(sd.z, 0.04), 40.0), tauU=s*depth;
+    vec3 L=sunB*(ph*exp(-tauS)+0.35*max(sd.z, 0.0)*exp(-0.3*tauS))+amb*mix(0.45, 1.0, exp(-0.3*tauU));
+    float a=1.0-exp(-s*dt);
+    col+=T*a*L; T*=1.0-a;
+    if(T<0.01) break;
+  }
+  return vec4(col, 1.0-T);
+}
+`;
 const COMPFS=`#version 300 es
 precision highp float;
 uniform sampler2D cloudTex; uniform sampler2D hitInfo; uniform vec2 res;
-uniform float yaw,pitch,fov,showScn,seaR,waterT,nr,na;
+uniform float yaw,pitch,fov,showScn,seaR,waterT,nr,na,vrDropOk;
 uniform vec3 eye; uniform sampler2D sky;
 out vec4 fragColor;
 ${SHELL_GLSL}
@@ -154,6 +203,8 @@ vec4 toneCloud(vec4 c){
 ${VIEW_RAY_GLSL}
 ${STEAM_GLSL}
 ${RAIN_GLSL}
+${DROP_GLSL}
+${FOG_GLSL}
 // Linear premultiplied color to the display values the clouds are blended in, with their shoulder.
 vec4 rainDisplay(vec4 v){
   if(v.a<1.0e-4) return vec4(0.0);
@@ -163,8 +214,8 @@ vec4 rainDisplay(vec4 v){
 }
 void main(){
   vec4 c=texture(cloudTex, gl_FragCoord.xy/res);
-  bool rain=rainP.x+rainP.y+rainP.z>0.0;
-  if(c.a<0.004 && !rain){ fragColor=c; return; }
+  bool rain=rainP.x+rainP.y+rainP.z>0.0, fog=fogP.x>0.0;
+  if(c.a<0.004 && !rain && !fog){ fragColor=c; return; }
   vec3 rd=viewRay(gl_FragCoord.xy, res, fov, yaw, pitch), ro=eye;
   vec4 occ=texture(hitInfo, gl_FragCoord.xy/res);
   float tHit=showScn>0.5 && occ.g>0.5 && occ.r>0.0?occ.r:1.0e8;
@@ -179,6 +230,13 @@ void main(){
     // steam the sky pass laid under them, which this blend would hide, is put back.
     float tIn=shellT(ro, rd, 1200.0), a=steamOpacity(ro, rd, tIn>=0.0?tIn:30000.0);
     fragColor.rgb=fragColor.rgb*(1.0-a)+steamColor(rd)*a*fragColor.a;
+  }
+  if(fog){
+    // As far as the land, or the ground.
+    float tEnd=tHit;
+    if(tEnd>=1.0e8 && rd.z<0.0) tEnd=max(ro.z, 0.0)/(-rd.z);
+    vec4 fv=rainDisplay(fogVeil(ro, rd, tEnd));
+    fragColor=fv+(1.0-fv.a)*fragColor;
   }
   if(rain){
     // As far as the cloud base, the land, or the ground (on the 833 km sphere the passes curve

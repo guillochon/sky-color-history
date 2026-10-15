@@ -107,6 +107,14 @@ for key in order:
     if key not in DAY_FILES:     # the epochs that keep today's air
         DAY_FILES[key] = DAY_FILES['modern']
 DAY_META = dict(szas=DAY['szas'], vz=DAY['vz'], az=DAY['az'], lats=DAY_LATS, yEmin=Y_EMIN, files=DAY_FILES)
+# The cloud and fog droplets' light (droplets.py, droplets.js): site/drops.bin, half floats,
+# fetched when the walk-around view opens; which rows each epoch's clouds and fog take.
+DROP_META = json.loads((HERE / 'droplets.json').read_text(encoding='utf-8'))
+_drops = (SITE / 'drops.bin').read_bytes()
+assert len(_drops) == DROP_META['rows']*DROP_META['n']*8, 'drops.bin is stale: run droplets.py'
+DROPS = dict(n=DROP_META['n'], rows=DROP_META['rows'], epochs=DROP_META['epochs'], file=f'drops.bin?v={hashlib.sha1(_drops).hexdigest()[:10]}')
+# The noctilucent clouds' color and brightness through each epoch's air (nlc.py, nlc.js).
+NLC_TAB = json.loads((HERE / 'nlc.json').read_text(encoding='utf-8'))
 # The air through time (airgrid.py, air_time.js): the airs along the timeline the page blends, by
 # year for the background, by level for each event instance, and the polluted city's.
 AIR_NODES = json.loads((HERE / 'air_nodes.json').read_text(encoding='utf-8'))
@@ -164,6 +172,7 @@ PARTS = [
     'js/corona.js',
     'js/spectrum.js',
     'js/rainbow.js',
+    'js/droplets.js',
     'js/meteors.js',
     'js/showers.js',
     'js/contrails.js',
@@ -179,6 +188,7 @@ PARTS = [
     'js/shader_sky.js',
     'js/shader_clouds.js',
     'js/shader_present.js',
+    'js/nlc.js',
     'js/shader_temporal.js',
     'js/shader_noise.js',
     'js/clouds.js',
@@ -207,7 +217,7 @@ html = html.replace('__FAVICON__', 'data:image/svg+xml,' + urllib.parse.quote(fa
 # The report's links carry its hash, so a new build is never served from a browser's cache.
 PDF_V = hashlib.sha1((HERE.parent / 'latex' / 'main.pdf').read_bytes()).hexdigest()[:10]
 html = html.replace('href="main.pdf"', f'href="main.pdf?v={PDF_V}"')
-html = html.replace('__EP__', json.dumps(EP, separators=(',',':'))).replace('__DAY__', json.dumps(DAY_META, separators=(',',':'))).replace('__SHAFT__', json.dumps(SHAFT)).replace('__AIR__', json.dumps(AIR, separators=(',', ':')))
+html = html.replace('__EP__', json.dumps(EP, separators=(',',':'))).replace('__DAY__', json.dumps(DAY_META, separators=(',',':'))).replace('__SHAFT__', json.dumps(SHAFT)).replace('__DROPS__', json.dumps(DROPS, separators=(',', ':'))).replace('__NLC__', json.dumps(NLC_TAB, separators=(',', ':'))).replace('__AIR__', json.dumps(AIR, separators=(',', ':')))
 html = html.replace('__SURF_FILES__', json.dumps(SURF_FILES)).replace('__MOON_MAPS__', json.dumps(MOON_MAPS)).replace('__RELIEF_FILES__', json.dumps(RELIEF_FILES)).replace('__DSO_IMG__', DSO_IMG).replace('__DSO_HI__', json.dumps(DSO_HI)).replace('__DSO__', json.dumps(DSO, separators=(',', ':'), ensure_ascii=False)).replace('__MW_EPOCH__', json.dumps(MW_EPOCH, separators=(',', ':')))
 
 
@@ -233,6 +243,6 @@ print(len(html)/1e6, 'MB')
 # The report the page links to (main.pdf), from the LaTeX build.
 shutil.copy2(HERE.parent / 'latex' / 'main.pdf', SITE / 'main.pdf')
 # Compressed copies for nginx's gzip_static, so the server need not compress them on the fly.
-for path in [SITE / 'index.html', SITE / 'spectra.bin', *sorted(day_dir.glob('*.bin')), *sorted((SITE / 'air').glob('*.bin'))]:
+for path in [SITE / 'index.html', SITE / 'spectra.bin', SITE / 'drops.bin', *sorted(day_dir.glob('*.bin')), *sorted((SITE / 'air').glob('*.bin'))]:
     if path.exists():
         path.with_name(path.name + '.gz').write_bytes(gzip.compress(path.read_bytes(), 9, mtime=0))

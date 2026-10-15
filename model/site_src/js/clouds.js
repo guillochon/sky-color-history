@@ -163,7 +163,43 @@ function cloudField(key){
   // thickening ahead of a front.
   const cirrus=Math.min(1, e.cirrus*Math.min(2, Math.max(0, 1+0.8*w.zc+0.4*w.front)));
   const type=g.type>0.2?g.type+(0.2-g.type)*deck:g.type, T=surfaceTemp(key, w, cov);
-  return {cov, deck, type, base:g.base, top:g.top, cirrus, scale, T, rain:cloudPrecip(w, {cov, deck, type, base:g.base}, T), ...cloudClock(scale)};
+  return {cov, deck, type, base:g.base, top:g.top, cirrus, scale, T, rain:cloudPrecip(w, {cov, deck, type, base:g.base}, T),
+    fog:cloudFog(key, w, cov, T), liq:cloudLiquid(T, g.base), ...cloudClock(scale)};
+}
+// How much of the cloud is liquid, by the air's temperature at its base (6.5 °C colder a kilometer
+// up): water down to about −10 °C, supercooled, and ice below −20 °C, as in the Snowball's air.
+function cloudLiquid(T, base){ return smoothstep(-20, -8, T-6.5*base/1000); }
+// Radiation fog: on a clear night the ground cools the still, damp air over it to its dew point,
+// and fog fills the low ground, deepest and thickest about sunrise; the Sun burns it off within
+// two or three hours. So it needs damp air (w.damp), a stable one (w.stab), a clear sky (the
+// cover then) and no front passing; in the tropics' long warm nights it forms less. pot is how
+// readily it forms today, 0 to 1; top its depth (m) when it has; vis the distance one sees in it
+// at its thickest (m). Not on the hot Hadean seas, whose steam stands in for it, nor in air colder
+// than −15 °C, where it is ice fog, the diamond dust of the halos (halo.js).
+// share, how far it has formed by now, from about 21:00 to 05:00; burn, how much of it the Sun has
+// left as it climbs from 3° to 16°: the fog thins and sinks as it burns off, so for a while the
+// Sun shines through a shallow mist, and that is when a fogbow shows from the ground.
+function cloudFog(key, w, cov, T){
+  if(key==='protoearth455'||key==='hadean45') return {pot:0, top:0, vis:1e9, share:0};
+  const lat=Math.abs(LATDEG[dLat]??45), still=1-smoothstep(0.6, 1.6, Math.abs(w.front));
+  const pot=smoothstep(0.2, 1.3, w.damp)*smoothstep(-0.4, 0.6, w.stab)*(1-smoothstep(0.35, 0.75, cov))*still*smoothstep(-15, -10, T)*(lat<20?0.6:1);
+  const h=(cloudDate().m%DAYMIN)/60, sunEl=skyNow?90-skyNow.sza:-10;
+  const share=pot*smoothstep(21, 29, h<12?h+24:h), burn=1-smoothstep(3, 16, sunEl);
+  return {pot, top:25+230*pot*pot, vis:900*Math.exp(-2.6*pot), share:share*Math.sqrt(burn), burn};
+}
+// The fog's uniform (shader_present.js fogP): its extinction at the bottom, its top, how far it
+// has formed, and a seed for its banks from the day.
+function fogUniform(f){
+  const g=f.fog;
+  if(!g || g.share<0.02) return [0, 0, 0, 0];
+  const b=g.burn;
+  return [3.9/g.vis*smoothstep(0.02, 0.4, g.share)*b*b, g.top*(0.6+0.4*smoothstep(0.02, 0.5, g.share))*(0.25+0.75*b), g.share, (cloudDate().k%97)*1.7];
+}
+// For the clock line: ' · fog' when the eye stands in it thick enough to hide things a kilometer off, ' · mist' thinner.
+function fogLabel(f, z){
+  const u=fogUniform(f);
+  if(u[0]<=0 || z>u[1]*0.9) return '';
+  return 3.9/u[0]<1000?' · fog':' · mist';
 }
 // The air at the ground here and now (°C): the era's mean for the latitude, the season (warmest
 // late in July in the north, January in the south), the day (warmest at 15:00, less so under
@@ -239,7 +275,7 @@ function cloudCovHere(f, x, y){
 function rainLabel(f, x, y, z){
   const R=f.here||0, r=f.rain;
   if(R<0.05){
-    if(!(r.virgaH>z)) return '';
+    if(!(r.virgaH>z)) return fogLabel(f, z);
     const d=Math.max(0, f.base-r.virgaH)*r.tilt, m=rainMapAt(f, x+0.92*d, y+0.39*d);
     return m.rain+m.driz>0.1?' · virga':'';
   }

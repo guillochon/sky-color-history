@@ -345,18 +345,18 @@ function setupShadowProg(gl, sp){
 function setupCloudProgs(gl, cp, pp, tp, np){
   const vols=makeCloudVolumes(gl, np);
   if(!vols){ console.warn('cloud noise build failed'); return; }
-  const names=['res','yaw','pitch','fov','eye','sunAz','sunEl','sunCol','sunMu','showScn','cloudCov','cloudScale','cloudDrift','noiseOff','detOff','cirW','cirS','cirD','cloudFrame','nr','na','cloudType','cloudBase','cloudTop','cloudCirrus','useHDR','groundCol','sunVis','cityUp','cloudDeck','snDir','snLight','mlDir','mlLight','fbDir','fbLight','cbOn','cbPar','ctN','impHole'];
+  const names=['res','yaw','pitch','fov','eye','sunAz','sunEl','sunCol','sunMu','showScn','cloudCov','cloudScale','cloudDrift','noiseOff','detOff','cirW','cirS','cirD','cloudFrame','nr','na','cloudType','cloudBase','cloudTop','cloudCirrus','useHDR','groundCol','sunVis','cityUp','cloudDeck','snDir','snLight','mlDir','mlLight','fbDir','fbLight','cbOn','cbPar','ctN','impHole','dropRow','dropLiq'];
   const cu=uniformLocs(gl, cp, [...names, 'obj[0]', 'kind[0]', 'shN', 'shPart[0]', 'shExt[0]', 'shSca[0]', 'shMoon', 'shFlash']);
   const weather=ensureWeather(gl);
   const hdr=!!gl.getExtension('EXT_color_buffer_float');
   gl.useProgram(cp);
-  bindSamplers(gl, cp, [['noiseBase',1],['noiseDetail',6],['weather',7],['sky',0],['hitInfo',10],['ctTex',16],['shTab',17],['shSrc',18]]);
+  bindSamplers(gl, cp, [['noiseBase',1],['noiseDetail',6],['weather',7],['sky',0],['hitInfo',10],['ctTex',16],['shTab',17],['shSrc',18],['dropTex',20]]);
   gl.uniform1i(gl.getUniformLocation(cp,'shPad'), 0);
   gl.uniform1f(cu.fov, vrFov*Math.PI/180);
   gl.uniform1f(cu.useHDR, hdr?1:0);
   const compU=uniformLocs(gl, pp, ['res','yaw','pitch','fov','showScn','eye','obj[0]','kind[0]','seaR','waterT','nr','na',
-    'cloudCov','cloudScale','cloudDrift','cloudBase','sunAz','sunEl','sunVis','sunCol','groundCol','rainP','rainQ']);
-  gl.useProgram(pp); bindSamplers(gl, pp, [['cloudTex',2],['hitInfo',10],['sky',0],['weather',7],['bowTex',19]]); gl.uniform1f(compU.fov, vrFov*Math.PI/180);
+    'cloudCov','cloudScale','cloudDrift','cloudBase','sunAz','sunEl','sunVis','sunCol','groundCol','rainP','rainQ','fogP','fogRow','vrDropOk']);
+  gl.useProgram(pp); bindSamplers(gl, pp, [['cloudTex',2],['hitInfo',10],['sky',0],['weather',7],['bowTex',19],['dropTex',20]]); gl.uniform1f(compU.fov, vrFov*Math.PI/180);
   let tu=null;
   if(tp){
     tu=uniformLocs(gl, tp, ['res','yaw','pitch','prevYaw','prevPitch','fov','histValid','histW','eye','prevEye','cbOn','cbPar']);

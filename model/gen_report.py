@@ -498,6 +498,7 @@ def blocks():
     B.append(fig(view('archean'), "An afternoon at 2.52 Ga under the thick organic haze, as the site's first-person view draws it: a pale orange dome with almost no difference between zenith and horizon, the Sun a soft glow behind broken cumulus lit gold by its haze-reddened light.", 'fig:archean', wide=False))
     B.append(S('Crepuscular rays')); B += ps(*rv.SHAFTS)
     B.append(S('Rainbows')); B += ps(*RS['Rainbows'])
+    B.append(S('Fog, fogbows and glories')); B += ps(*RS['Fog, fogbows and glories'])
     B.append(S('Ice halos')); B += ps(*RS['Ice halos'])
     B.append(fig(view('halos'), "A morning on Snowball Earth at 700 Ma, from mid-latitudes, the Sun 22° up through clear air full of "
                  "diamond dust: the 22° halo with its tangent arcs hugging its top and bottom, the sun dogs just outside it, the faint "
@@ -566,6 +567,7 @@ def blocks():
 
     B.append(P('The night and what crosses it', 'night'))
     B.append(S('Twilight and the night sky')); B += ps(*RS['Twilight and the night sky'][:-1])
+    B.append(S('Noctilucent clouds')); B += ps(*RS['Noctilucent clouds'])
     B.append(S('Aurorae')); B += ps(*RS['Aurorae'])
     B.append(fig(view('aurora'), "An aurora over the young Earth at 3.8 Ga, from mid-latitudes, on an active night, drawn as a dark-adapted eye sees it: with no free oxygen, nitrogen's violet bands and pink lower border rather than today's green and red. The aurora is brightened for print, 100 times its luminance on the site, where a true night is too dim to reproduce on paper.", 'fig:aurora', wide=False))
     B.append(S('Meteors and meteor showers')); B += ps(*RS['Meteors'])

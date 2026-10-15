@@ -750,8 +750,10 @@ function paintVR(){
   // The aurora, in its own pass, for the sky pass to add.
   const aurSt=skyNow.aur, aurOn=!!(aurSt&&aurSt.on&&vrGL.aurProg&&vrPitch+vrFov*0.5>-2);
   if(aurOn){ perfPass('aurora'); drawAuroraVR(gl, aurSt, c); perfPassEnd('aurora', vrGL.aurFbo); }
+  // The noctilucent clouds (nlc.js), into the aurora's target.
+  const nlcOn=drawNlcVR(gl, c, aurOn);
   perfPass('sky');
-  gl.uniform1f(u.aurOn, aurOn&&!airOff()?vrFigGain.aur:0);
+  gl.uniform1f(u.aurOn, airOff()?0:aurOn?vrFigGain.aur:nlcOn?1:0);
   const hl=skyNow.halo;
   gl.uniform2fv(u.haloK, hl?hl.k:new Float32Array(2));
   if(hl){ gl.uniform3fv(u.haloSunLin, hl.sun); gl.uniform3fv(u.haloMoonLin, hl.moon); }
@@ -840,6 +842,10 @@ function paintVR(){
     gl.uniform1f(cu.ctN, contrailUpload(gl));
     gl.uniform3fv(cu.impHole, new Float32Array(impactHole(metSec())));
     shaftUpload(gl, cu);
+    // The droplets' cloudbows and glories (droplets.js), once their table has come.
+    bindDrops(gl);
+    const drops=dropRowsFor(EP[dIdx].key);
+    gl.uniform1f(cu.dropRow, drops[0]); gl.uniform1f(cu.dropLiq, vrGL.dropOk?field.liq:0);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     perfPassEnd('clouds');
     let shown=vrGL.cloudTex;
@@ -902,6 +908,9 @@ function paintVR(){
     gl.uniform3fv(pu.sunCol, sunCol); gl.uniform3fv(pu.groundCol, groundSeen);
     gl.uniform4f(pu.rainP, rn.strat, rn.conv, rn.driz, rn.snow); gl.uniform4f(pu.rainQ, rn.virgaH, rn.tilt, field.here, 0);
     bindRainbow(gl, rn.strat+rn.conv+rn.driz>0 && rn.snow<1 ? rainbowNow(EP[dIdx].key, field.T) : null);
+    // The fog (clouds.js cloudFog), with its fogbow and glory.
+    bindDrops(gl);
+    gl.uniform4fv(pu.fogP, fogUniform(field)); gl.uniform1f(pu.fogRow, drops[1]); gl.uniform1f(pu.vrDropOk, vrGL.dropOk?1:0);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     perfPassEnd('composite');
     gl.disable(gl.BLEND);

@@ -69,6 +69,20 @@ float hg(float c, float g){
   return (1.0-g2)/pow(max(1.0+g2-2.0*g*c, 1.0e-4), 1.5);
 }
 float phase(float c){ return mix(hg(c, 0.55), hg(c, -0.2), 0.3); }
+${DROP_GLSL}
+// The droplets' row in dropTex (droplets.js), and how much of the cloud is liquid: none in the
+// Snowball's frozen air, where the cloud is ice and the halos take over.
+uniform float dropRow, dropLiq;
+// Sunlight scattered once off the droplets, back from the Sun past 95°, is not the smooth phase
+// function's: it takes the droplets' own structure, the cloudbow some 38° from the antisolar
+// point (white, orange outside) and the glory's rings about that point. The smooth phase keeps
+// the cloud's brightness; the table's light over its own 12° mean gives the structure.
+vec3 dropMod(float c){
+  float th=acos(clamp(c, -1.0, 1.0))*57.2957795;
+  if(dropLiq<=0.0 || th<95.0) return vec3(1.0);
+  vec4 d=dropAt(th, dropRow);
+  return mix(vec3(1.0), d.rgb/max(d.a, 1.0e-4), dropLiq*smoothstep(95.0, 115.0, th));
+}
 // Density at p without the fine detail or the fall-off at the base (cloudDen). hOut is the height
 // inside the local column, 0 at the base and 1 at its top; q and ng are where the base noise was
 // read and its green and blue, for cloudDetail.
@@ -409,6 +423,7 @@ void main(){
   vec3 bounce=sunL*0.03*sat(sd.z*2.0+0.2);
   float cosT=dot(rd, sd);
   float ph0=phase(cosT), ph1=phase(cosT*0.55), ph2=phase(cosT*0.3);
+  vec3 bow=dropMod(cosT);
   const float SIGMA=0.05;
 
   float t=tIn, T=1.0, tAcc=0.0, wAcc=0.0;
@@ -431,7 +446,7 @@ void main(){
         float powder=1.0-0.6*exp(-den*SIGMA*900.0);
         vec2 dh=p.xy-eye.xy;
         vec3 sunP=sunBase*smoothstep(-250.0, 250.0, p.z+dot(dh,dh)/(2.0*833333.0)-shadowAlt);
-        vec3 S=sunP*(exp(-tau)*ph0+0.5*exp(-tau*0.3)*ph1+0.2*exp(-tau*0.1)*ph2)*mix(powder, 1.0, sat(cosT*0.5+0.5));
+        vec3 S=sunP*(exp(-tau)*ph0*bow+0.5*exp(-tau*0.3)*ph1+0.2*exp(-tau*0.1)*ph2)*mix(powder, 1.0, sat(cosT*0.5+0.5));
         // Sky light from above is blocked by whatever cloud sits overhead, so a
         // thin patch of a deck stays lighter than a thick one.
         float hu, u1=cloudDen(p+vec3(0.0, 0.0, 280.0), false, hu), u2=cloudDen(p+vec3(0.0, 0.0, 900.0), false, hu);

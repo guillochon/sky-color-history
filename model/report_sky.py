@@ -206,6 +206,33 @@ SECTIONS = [
 "lands, and little direct sunlight gets through the air. The bow's brightness rests on how much sunlight the drawn "
 "clouds let under them, so it is an estimate; the Moon's faint bow is not drawn."]],
 
+['Fog, fogbows and glories', [
+"Cloud and fog droplets, a few to twenty microns across, scatter light in ways geometric optics misses. Their bows "
+"are broad and nearly white, with an orange outer rim and a bluish inner one: the fogbow, some 37–39° from the "
+"antisolar point, a little inside the rainbow's 42°. Straight back toward the Sun they send a glory, colored rings "
+"of a degree or two around the antisolar point, a wave effect of light grazing the droplets' edges. Both are worked "
+"out by Lorenz–Mie theory, over a gamma distribution of droplet radii (Hansen &amp; Travis 1974) of effective "
+"variance 0.1 for clouds and 0.15 for fog, through the solar spectrum and blurred by the Sun's disk. The smaller "
+"the droplets, the whiter and narrower the bow and the larger and brighter the glory (Lynch &amp; Schwartz 1991; "
+"Gedzelman 2003). Glories are brightest for droplets of 10–20 microns (Lock 1989), and their sharp rings show "
+"how narrow real droplet distributions are (Mayer et al. 2004).",
+"The droplets' size follows how much the air offers water to condense on. Few particles make few, large droplets; "
+"many make many small ones. Today's cloud droplets are about 10–14 microns over the oceans and 6–9 over land "
+"(Han et al. 1994). Before life the air had only sea salt and volcanic sulfate to seed clouds, so their droplets "
+"were large: 16 microns is drawn, as Archean climate studies take (Rosing et al. 2010; Wolf &amp; Toon 2014). The "
+"Archean's organic haze takes up water (Hasenkopf et al. 2011) and seeds more droplets, 13 microns. Land plants' "
+"vapors bring them to 11 microns from the Ordovician on. The sulfate of the 1815 eruption and the Chicxulub impact's "
+"sulfate and soot make them small, 9 and 7 microns, as today's polluted air does. Fog droplets are drawn smaller "
+"than the same air's cloud droplets. These sizes are estimates. In the dense, hot air of the Early Hadean the "
+"droplets bend light less, as the raindrops do, so the bows widen by some 4°.",
+"Single-scattered sunlight on the clouds takes the droplets' structure past 95° from the Sun, so a sunlit cloud "
+"opposite a low Sun can carry a faint cloudbow. In the Snowball's frozen air the clouds are ice and show halos "
+"instead. Radiation fog forms on still, damp, clear nights, as the ground cools the air over it to its dew point. "
+"It fills the low ground, deepest about sunrise, and burns off as the Sun climbs past 16°, thinning and sinking as "
+"it goes. Inside deep fog no sunlight gets through. In the shallow mist of its last hour a fogbow shows opposite "
+"the Sun. From a hill above the fog its top lies like a sea, with the glory around the antisolar point and the "
+"fogbow's ring around that. Fog is drawn in every epoch with land and liquid water, but not on the Hadean's hot "
+"seas, whose steam stands in for it, and not in air below −15 °C, where it is ice."]],
 ['Twilight and the night sky', [
 "Because the photometric scale of {ref:method} is absolute, the night is drawn on the same scale as the day. The sky is "
 "computed for Sun heights down to 20° below the horizon; past 9° below, where the model's twilight fades too "
@@ -232,6 +259,32 @@ SECTIONS = [
 "electric light from almost nothing in 1900, the oil lamps of 1816 (Fouquet &amp; Pearson 2006), to a third of "
 "today's in 1990 and today's now (<em>City light</em>)."]],
 
+['Noctilucent clouds', [
+"Noctilucent, or polar mesospheric, clouds are ice grains about 40–50 nm across (Baumgarten et al. 2008) near "
+"83 km, at the summer polar mesopause, the coldest air on Earth. They form from late May to mid-August in the "
+"north, poleward of about 50° today, and show only in twilight with the Sun 6–16° below the horizon, still sunlit "
+"against a dark sky. From 45° they are rare and low in the northern sky. From 75° the midsummer Sun never sets far "
+"enough to show them. The page does not place them: it draws a layer at 83 km and lets the twilight show it or not. "
+"Their light is computed through each epoch's air: the sunlight reaching the layer as it grazes past the Earth's "
+"shadow (none below about 12 km, where cloud and haze screen it), the grains' Mie scattering, and the path down to "
+"the eye. Ozone's Chappuis band takes the red from that grazing sunlight, which is most of why they look silvery "
+"blue (Lange et al. 2022). With no ozone, before 2.4 Ga, the same clouds would look white. In the hazy Archean, "
+"after Chicxulub and in the 30-bar Hadean, almost no sunlight reaches them. A bright display has an optical depth "
+"of about 1e-4 (Fogle &amp; Rees 1972), roughly a candela per square meter against a twilight sky a hundred times "
+"fainter. The page's twilight display curve would compress that contrast, so they are drawn, as the nebulae are, "
+"with a minimum step of brightness for each tenfold of light.",
+"How often they come follows what they need: a cold mesopause, which more CO₂ cools further, and water there, most "
+"of it made from methane. Since industrialization methane has raised the water at their height by about 40%, "
+"which made them much brighter. They presumably existed earlier, but before the twentieth century the chance of "
+"seeing one was very small (Lübken et al. 2018). The first recognized sightings came in 1885, two years after "
+"Krakatoa, though one was recorded at Parma in 1840 (Bertolin &amp; Domínguez-Castro 2020; Dalin et al. 2012). Two "
+"years is how long volcanic water takes to reach the summer mesopause (Wallis et al. 2025). Today a display comes "
+"on about a quarter of the season's nights at 60°. By 2100 they are brighter and reach farther toward the equator "
+"(Lübken et al. 2021; Lübken et al. 2024; Yu et al. 2023). Before the industrial era they are drawn faint and seldom. Deep time "
+"is uncertain and the page says so. In the high methane of the Cretaceous and Paleogene they spread to "
+"mid-latitudes (Dutta et al. 2024). The Archean's cold, ozone-free middle atmosphere and its methane may have made "
+"them common, and they are drawn so. In the Hadean, with the surface over 350 K, the upper air was warm and wet "
+"(Kasting et al. 2015), so none are drawn."]],
 ['Aurorae', [
 "The aurora is an oval round the magnetic pole, fixed relative to the Sun: on a moderately active night today "
 "(Kp 3) it spans about 63–72° latitude on the night side (the ovals of Feldstein &amp; Starkov 1967). Its field lines reach out to the "
