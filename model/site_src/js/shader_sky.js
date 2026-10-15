@@ -1227,6 +1227,11 @@ void main(){
     if(a>0.0) col=mix(col, steamColor(rd), a);
   }
 #endif
+  // Dither: up to one step of the display's 8 bits either way (triangular, the same in all three
+  // channels, fixed to the screen), so a dark sky's slow gradient is an even grain, not bands a
+  // step apart. It fades out below the first step, so black stays black.
+  float dth=(h12(gl_FragCoord.xy)+h12(gl_FragCoord.xy+vec2(57.31, 113.7))-1.0)/255.0;
+  col+=dth*clamp(col*255.0, 0.0, 1.0);
   fragColor=vec4(col,1.0);
 }`;
 // ANGLE on Windows compiles through Direct3D, whose compiler unrolls a loop of constant count,
