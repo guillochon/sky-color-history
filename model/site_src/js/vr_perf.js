@@ -14,7 +14,7 @@ const PERF=/[?&]perf(=|&|$)/.test(location.search)?{
   frames:[], gpu:[], idle:0, last:0, el:null, shown:0, paints:0
 }:null;
 const PERF_N=240;
-const PERF_GPU=['terrain', 'town', 'shadow', 'aurora', 'sky', 'rays', 'clouds', 'cloud blend', 'composite'];
+const PERF_GPU=['terrain', 'town', 'shadow', 'aurora', 'sky', 'bodies', 'rays', 'clouds', 'cloud blend', 'composite', 'lightning'];
 const PERF_CPU=['sky model', 'setup', 'terrain', 'town', 'shadow', 'aurora', 'sky', 'rays', 'clouds', 'cloud mask', 'cloud blend', 'composite', 'labels & HUD', 'tooltips'];
 // A CPU section; begun and ended by name. Sections of one name add up within a frame.
 function perfBeg(k){ if(PERF) PERF.open[k]=performance.now(); }

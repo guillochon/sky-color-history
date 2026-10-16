@@ -212,15 +212,22 @@ vec3 clPsi(vec2 P, float u, float pxC, float T){
 // (two slices of noise, each drifting from its own start, the one fading in as the other fades
 // out); not at all in the Red Spot (gC, gA as in cloudAlbedo) and its collar, and most west of
 // it, in the South Equatorial Belt, its turbulent wake.
-float clStir(vec2 q, vec2 gC, vec2 gA, float T){
-  float la=clLat(q.y), uS=clWindS(la, 8.0)*CL_MS*0.355556/max(cos(la*0.01745329252), 0.1);
+// What of it depends on the latitude la alone: the smoothed wind's drift (x) and the strength
+// before the patches (y); the cloud's march asks it at two latitudes for three points.
+vec2 clStirLat(float la){
+  return vec2(clWindS(la, 8.0)*CL_MS*0.355556/max(cos(la*0.01745329252), 0.1),
+              CL_STIR*(0.55+0.65*clamp(clBelt(la, 3.0), 0.0, 1.0)+0.5*smoothstep(40.0, 60.0, abs(la))));
+}
+// At q, with lp its latitude's clStirLat.
+float clStir(vec2 q, vec2 lp, vec2 gC, vec2 gA, float T){
+  float uS=lp.x;
   vec2 E=vec2(mod(q.x-gC.x+64.0, 128.0)-64.0, q.y-gC.y)/gA, wq=vec2((E.x+2.8)/1.8, (E.y-0.35)/0.75);
   float ph=T/12.0, i0=floor(ph), fr=fract(ph), pa=0.0;
   for(int k=0;k<2;k++){
     float sl=i0+float(k), n=vNg(vec2((q.x-uS*(T-12.0*sl))*0.0625+sl*3.7, q.y*0.4+sl*5.3), 8.0).x;
     pa+=(k==0?1.0-smoothstep(0.0, 1.0, fr):smoothstep(0.0, 1.0, fr))*smoothstep(0.3, 0.7, n);
   }
-  float s=CL_STIR*(0.55+0.65*clamp(clBelt(la, 3.0), 0.0, 1.0)+0.5*smoothstep(40.0, 60.0, abs(la)))*(0.4+1.2*pa);
+  float s=lp.y*(0.4+1.2*pa);
   return CL_SPOT?s*(1.0+1.6*exp(-dot(wq, wq)))*smoothstep(1.0, 1.7, length(E)):s;
 }
 // One chain of Kelvin-Helmholtz billows along the boundary at latitude b, N to the circle of
@@ -298,18 +305,25 @@ vec3 cloudAlbedo(float lat, float lon, float pxD, float aux){
     float la=clLat(q.y), cq=max(cos(la*0.01745329252), 0.1);
     // The eddies drift with the wind smoothed over a few degrees: carried by the narrow jets
     // themselves they would be sheared into hairlines.
-    vec3 g=clPsi(q, clWindS(la, 4.0)*CL_MS/cq*0.355556, pxC, T);
+    float u4=clWindS(la, 4.0);
+    vec3 g=clPsi(q, u4*CL_MS/cq*0.355556, pxC, T);
     vec2 E=vec2(mod(q.x-gC.x+64.0, 128.0)-64.0, q.y-gC.y)/gA;
     float e=grs?length(E):1e3, x=max(e-0.95, 0.0);
     // Along the streamlines of the eddies' stream function times their strength, which keeps the
     // flow from crowding the clouds into creases; and the jets' own shear (against the smoothed
     // wind) drawing what they stir out along the bands, though not across the Red Spot's edge.
     // The strength here and a twentieth of a cell east and north, in one loop (a loop of four
-    // stays a loop in D3D, which would copy the function three times over).
-    float Sv[3];
-    for(int j=0;j<4;j++){ if(j==3) break; Sv[j]=clStir(q+0.05*vec2(j==1, j==2), gC, gA, T); }
+    // stays a loop in D3D, which would copy the function three times over); the point east is at
+    // this latitude, so it shares its clStirLat.
+    float Sv[3]; vec2 lp=vec2(0.0);
+    for(int j=0;j<4;j++){
+      if(j==3) break;
+      vec2 qj=q+0.05*vec2(j==1, j==2);
+      if(j!=1) lp=clStirLat(j==0?la:clLat(qj.y));
+      Sv[j]=clStir(qj, lp, gC, gA, T);
+    }
     float S=Sv[0], Sx=(Sv[1]-S)*20.0, Sy=(Sv[2]-S)*20.0;
-    q+=0.05*vec2(-(S*g.z+g.x*Sy), S*g.y+g.x*Sx)+smoothstep(1.0, 1.7, e)*vec2(0.0025*(clWind(la)-clWindS(la, 4.0)), 0.0);
+    q+=0.05*vec2(-(S*g.z+g.x*Sy), S*g.y+g.x*Sx)+smoothstep(1.0, 1.7, e)*vec2(0.0025*(clWind(la)-u4), 0.0);
     // The Red Spot, an anticyclone, turning the clouds about it along its ellipses: faster toward
     // its edge, so what it draws in winds into spirals, and dying away beyond it. Round its edge
     // the flow also runs a little inward, so the collar is drawn in as arms spiralling onto the
@@ -584,12 +598,28 @@ vec4 bodyDisk(vec3 o, vec3 v, vec3 n, vec3 L, int kind, float rPx, vec3 tint, ve
   // The surface's degrees to a pixel there, foreshortened toward the limb.
   float pxS=57.2957795/max(rPx, 1.0)/max(mu, 0.08);
   vec3 alb=bodyAlbedo(kind, lat, tint);
+#if DETAIL_JUP || DETAIL_SAT || DETAIL_NEP
 #if DETAIL_JUP
-  if(kind==3) alb=cloudAlbedo(lat, lon, pxS, atan(dot(grsDir, cross(n, mp)), dot(grsDir, mp))*57.2957795);
+  const int GK=3;
 #elif DETAIL_SAT
-  if(kind==4) alb=cloudAlbedo(lat, lon, pxS, dot(n, L));
-#elif DETAIL_NEP
-  if(kind==6) alb=cloudAlbedo(lat, lon, pxS, atan(dot(grsDir, cross(n, mp)), dot(grsDir, mp))*57.2957795);
+  const int GK=4;
+#else
+  const int GK=6;
+#endif
+  if(kind==GK){
+    // Deep in a zoom the clouds' finest detail, about 0.2° (less toward the poles, where the cells
+    // narrow with the meridians), spans many pixels: there they are read from the ALB_PASS's grid
+    // of one texel to albK.x pixels, where that is under a sixteenth of the detail and the four
+    // texels about the pixel are on the disk, and worked out here everywhere else.
+    vec4 ca=vec4(0.0);
+#if !ALB_PASS
+    if(albK.x>1.5 && albK.x*pxS*16.0<=min(0.2, 0.4*cos(lat*0.01745329252))) ca=texture(albTex, gl_FragCoord.xy/(albK.x*vec2(textureSize(albTex, 0))));
+#endif
+    alb=ca.a>0.999?ca.rgb:cloudAlbedo(lat, lon, pxS, GK==4?dot(n, L):atan(dot(grsDir, cross(n, mp)), dot(grsDir, mp))*57.2957795);
+#if ALB_PASS
+    return vec4(alb, cov>0.999?1.0:0.0);
+#endif
+  }
 #endif
   if(kind==4) alb=satSeason(alb, lat, dot(n, L));
   alb=eraAlb(kind, alb);
@@ -615,6 +645,12 @@ precision highp float;
 #define DETAIL_SAT 1
 #define DETAIL_NEP 1
 #define DETAIL_MAP 1
+#ifndef ALB_PASS
+#define ALB_PASS 0
+#endif
+// A giant's clouds worked out ahead on a coarser grid (ALB_PASS, which writes them): albK.x pixels
+// to a texel, 0 for none.
+uniform sampler2D albTex; uniform vec4 albK;
 uniform sampler2D sky; uniform sampler2D noiseTex; uniform sampler2D hitInfo; uniform highp sampler2DArray dsoTex;
 uniform vec2 res, hitScale; uniform float yaw, pitch, fov, showScn, refK, rCd, mwK, moonGain, starPx, nr, na;
 // 0 with the air off (sunset.js airOff): no reddening.
@@ -677,11 +713,17 @@ vec4 uranusRing(vec3 xr, float w, float muV, float mu0, bool lit){
 }
 void main(){
   float fy=(fov<2e-3?0.5*fov:tan(fov*0.5));
-  vec3 rd=viewRay(gl_FragCoord.xy, res, fov, yaw, pitch);
+  // The pixel: in the ALB_PASS, the full view's at this texel's middle.
+#if ALB_PASS
+  vec2 FC=gl_FragCoord.xy*albK.x;
+#else
+  vec2 FC=gl_FragCoord.xy;
+#endif
+  vec3 rd=viewRay(FC, res, fov, yaw, pitch);
   float elevDeg=asin(clamp(rd.z, -1.0, 1.0))*57.2957795, hw=max(fwidth(elevDeg), 0.04);
   // Not below the horizon, behind the scenery, or behind the Moon.
   if(elevDeg<=-hw) discard;
-  if(showScn>0.5 && texelFetch(hitInfo, ivec2(gl_FragCoord.xy*hitScale), 0).r>0.0) discard;
+  if(showScn>0.5 && texelFetch(hitInfo, ivec2(FC*hitScale), 0).r>0.0) discard;
   float te=trueAlt(elevDeg);
   if(te<=0.0) discard;
   float comp=atan(rd.x, rd.y); if(comp<0.0) comp+=6.28318530718;
@@ -704,7 +746,7 @@ void main(){
   // The offset from the body: zoomed in, from the image plane (as the sky shader's).
   vec3 dd=src-bP.xyz;
   if(fy<0.02){
-    vec2 fuv=((gl_FragCoord.xy/res)*2.0-1.0)*vec2(fy*res.x/max(res.y, 1.0), fy);
+    vec2 fuv=((FC/res)*2.0-1.0)*vec2(fy*res.x/max(res.y, 1.0), fy);
     float fcp=cos(pitch), fsp=sin(pitch);
     vec3 axR=vec3(cos(yaw), -sin(yaw), 0.0), axU=vec3(-sin(yaw)*fsp, -cos(yaw)*fsp, fcp);
     dd=axR*(fuv.x-bS.x)+axU*((fuv.y-bS.y)*bS.z);
@@ -713,6 +755,10 @@ void main(){
   // safe from the GPU's sine, which loses its last digits for tiny angles (a small moon deep in the
   // zoom, a few 1e-7 radians, was drawn at half its size).
   vec3 o=(dd-bP.xyz*dot(dd, bP.xyz))/(bP.w<1e-3?bP.w:sin(bP.w)), x; float t;
+#if ALB_PASS
+  fragColor=bodyDisk(o, bP.xyz, bN.xyz, bL.xyz, kind, rPx, bC.rgb, bM, x, t);
+  return;
+#endif
   float hz=smoothstep(-hw, hw, elevDeg);
   if(inSun){
     // A planet nearer than the Sun, dark against it: the sky without the Sun laid over it.
@@ -789,14 +835,16 @@ void main(){
 }`;
 // The bodies' program with the close-up detail in set f ('jup', 'sat', 'map') and none other; Jupiter's
 // and Saturn's clouds share their functions' names, so a set holds at most one of the two.
-function bodyFS(f){
+// With alb, the pass that works out a giant's clouds alone, on a coarser grid (ALB_PASS).
+function bodyFS(f, alb=false){
   const def=(k, on)=>s=>s.replace('#define DETAIL_'+k+' 1', '#define DETAIL_'+k+' '+(on?1:0));
-  return keepLoops([def('JUP', f.has('jup')), def('SAT', f.has('sat')&&!f.has('jup')), def('NEP', f.has('nep')&&!f.has('jup')&&!f.has('sat')), def('MAP', f.has('map'))].reduce((s, g)=>g(s), BODYFS_SRC));
+  const src=[def('JUP', f.has('jup')), def('SAT', f.has('sat')&&!f.has('jup')), def('NEP', f.has('nep')&&!f.has('jup')&&!f.has('sat')), def('MAP', f.has('map'))].reduce((s, g)=>g(s), BODYFS_SRC);
+  return keepLoops(alb?src.replace('#define DETAIL_MAP', '#define ALB_PASS 1\n#define DETAIL_MAP'):src);
 }
 const BODY_UNIFORMS=['res','hitScale','yaw','pitch','fov','showScn','refK','airOn','rCd','mwK','moonGain','starPx','nr','na','fineT','grsDir','grsAB',
-  'bP','bC','bL','bN','bS','bM','bR','bRN','bE','shadowM[0]','shadowK[0]','shadowCnt','sunQ','moonQ','uRingEl[0]','uRingAx'];
+  'bP','bC','bL','bN','bS','bM','bR','bRN','bE','shadowM[0]','shadowK[0]','shadowCnt','sunQ','moonQ','uRingEl[0]','uRingAx','albK'];
 function setupBodyProg(gl, p){
   gl.useProgram(p);
-  bindSamplers(gl, p, [['sky',0],['noiseTex',12],['hitInfo',10],['dsoTex',6],['satRingTex',16]]);
+  bindSamplers(gl, p, [['sky',0],['noiseTex',12],['hitInfo',10],['dsoTex',6],['satRingTex',16],['albTex',23]]);
   return {p, u:uniformLocs(gl, p, BODY_UNIFORMS)};
 }

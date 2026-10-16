@@ -55,6 +55,12 @@ function wantDetail(gl, f, name=VR_DETAIL_NAMES[f]){
     if(!vrGL) return;
     const src=f==='sun'?skyDetail(true):bodyFS(new Set([f]));
     const job=glProgramAsync(gl, vrGL.vs, src);
+    // A giant's clouds also get the pass that works them out on a coarser grid deep in a zoom,
+    // compiled beside the detail without holding it up, and used once both are there.
+    if(f==='jup'||f==='sat'||f==='nep'){
+      const aj=glProgramAsync(gl, vrGL.vs, bodyFS(new Set([f]), true));
+      whenLinked(gl, [aj], ap=>{ if(!vrGL||!ap) return; vrGL.albProg=vrGL.albProg||{}; vrGL.albProg[f]=setupBodyProg(gl, ap); vrRestoreGL(gl); requestVR(); });
+    }
     whenLinked(gl, [job], dp=>{
       if(!vrGL) return;
       if(dp){

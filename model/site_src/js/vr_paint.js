@@ -1078,7 +1078,31 @@ function drawBodies(gl){
     const sr=b.map&&SURF_RELIEF[b.map], cx=(Sx/fx*0.5+0.5)*W, cy=(Sy/fy*0.5+0.5)*H, r=rPx*(b.rings?2.35:b.uRings?2.06:sr?1+1.2*sr[1]/sr[2]:1)*1.05+3;
     const x0=Math.max(0, Math.floor(cx-r)), y0=Math.max(0, Math.floor(cy-r)), x1=Math.min(W, Math.ceil(cx+r)), y1=Math.min(H, Math.ceil(cy+r));
     if(x1<=x0||y1<=y0) return;
-    const code=surfCode(b.map), pr=(b.kind===3&&bp.jup)||(b.kind===4&&bp.sat)||(b.kind===6&&bp.nep)||(code>-0.5&&bp.map)||bp.base, u=pr.u;
+    const code=surfCode(b.map), pr=(b.kind===3&&bp.jup)||(b.kind===4&&bp.sat)||(b.kind===6&&bp.nep)||(code>-0.5&&bp.map)||bp.base;
+    // Deep in a zoom, a giant's clouds are worked out first on a grid of one texel to ak pixels
+    // (shader_bodies.js ALB_PASS), where the disk is over 18,336 pixels in radius: the shader reads
+    // the grid where its spacing is under a sixteenth of the clouds' finest detail, which ak leaves
+    // true out to where the disk is foreshortened by half.
+    const ap=pr!==bp.base&&pr!==bp.map&&vrGL.albProg&&vrGL.albProg[b.kind===3?'jup':b.kind===4?'sat':'nep'], ak=ap&&vrGL.cloudHDR?Math.min(8, Math.floor(rPx/9168)):0;
+    if(ak>=2){
+      const aw=Math.ceil(W/ak), ah=Math.ceil(H/ak);
+      ensureAlbTarget(gl, aw, ah);
+      gl.activeTexture(gl.TEXTURE23); gl.bindTexture(gl.TEXTURE_2D, null); gl.activeTexture(gl.TEXTURE0);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.albFbo); gl.drawBuffers([gl.COLOR_ATTACHMENT0]); gl.viewport(0, 0, aw, ah); gl.disable(gl.BLEND);
+      const ax0=Math.max(0, Math.floor(x0/ak)-1), ay0=Math.max(0, Math.floor(y0/ak)-1), ax1=Math.min(aw, Math.ceil(x1/ak)+1), ay1=Math.min(ah, Math.ceil(y1/ak)+1);
+      gl.scissor(ax0, ay0, ax1-ax0, ay1-ay0); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+      bodyU(ap, b, i, ak);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.drawBuffers([gl.BACK]); gl.viewport(0, 0, W, H); gl.enable(gl.BLEND);
+      gl.activeTexture(gl.TEXTURE23); gl.bindTexture(gl.TEXTURE_2D, vrGL.albTex); gl.activeTexture(gl.TEXTURE0);
+    }
+    bodyU(pr, b, i, ak>=2?ak:0);
+    gl.scissor(x0, y0, x1-x0, y1-y0);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+  });
+  // The uniforms of program pr for body b (the i-th), with the clouds' grid ak (0 for none).
+  function bodyU(pr, b, i, ak){
+    const u=pr.u, Sx=BODY_U.S[i*4], Sy=BODY_U.S[i*4+1], code=surfCode(b.map);
     if(pr!==used){
       used=pr; gl.useProgram(pr.p);
       gl.uniform2f(u.res, W, H); gl.uniform2f(u.hitScale, vrGL.hitInfo?vrGL.hitW/W:0, vrGL.hitInfo?vrGL.hitH/H:0);
@@ -1112,11 +1136,25 @@ function drawBodies(gl){
     gl.uniform1f(u.shadowCnt, sh.length);
     if(b.kind===4&&b.rings) syncSatRingTex(gl, b);
     else if(b.ring) syncSatRingTex(gl, b.ring.host);
-    gl.scissor(x0, y0, x1-x0, y1-y0);
-    gl.drawArrays(gl.TRIANGLES, 0, 6);
-  });
+    gl.uniform4f(u.albK, ak, 0, 0, 0);
+  }
   gl.disable(gl.SCISSOR_TEST); gl.disable(gl.BLEND);
   gl.useProgram(vrGL.prog);
+}
+// The target of a giant's clouds on a coarser grid (drawBodies), half floats, w by h.
+function ensureAlbTarget(gl, w, h){
+  if(vrGL.albW===w&&vrGL.albH===h) return;
+  if(vrGL.albTex) gl.deleteTexture(vrGL.albTex);
+  // Made on its own unit, which is left empty while the pass draws into it.
+  vrGL.albTex=gl.createTexture(); vrGL.albW=w; vrGL.albH=h;
+  gl.activeTexture(gl.TEXTURE23); gl.bindTexture(gl.TEXTURE_2D, vrGL.albTex);
+  texParams(gl, gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.HALF_FLOAT, null);
+  gl.bindTexture(gl.TEXTURE_2D, null); gl.activeTexture(gl.TEXTURE0);
+  vrGL.albFbo=vrGL.albFbo||gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.albFbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, vrGL.albTex, 0);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 }
 // The planets and moons (planets.js placePlanets) into the sky shader's bodies, at their true
 // size, and the moons' shadows on them.
