@@ -346,9 +346,10 @@ document.addEventListener('keydown',e=>{
 });
 const SPEED_KEYS={1:'real', 2:'default', 3:'fast'};
 // x copies a link to this view: the moment, the place, where it looks and how far it is zoomed.
+// It says so in the middle of the screen, fading at once.
 function shareVRLink(){
   syncVRLink(true);
-  const url=location.origin+vrLinkURL(), say=t=>{ vrNote=t; requestVR(); setTimeout(()=>{ if(vrNote===t){ vrNote=''; requestVR(); } }, 2000); };
+  const url=location.origin+vrLinkURL(), say=t=>{ const el=document.getElementById('vrtoast'); el.textContent=t; el.classList.remove('on'); void el.offsetWidth; el.classList.add('on'); };
   if(navigator.clipboard) navigator.clipboard.writeText(url).then(()=>say('link copied'), ()=>say('could not copy the link'));
   else say('could not copy the link');
 }
