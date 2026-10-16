@@ -67,7 +67,7 @@ const LT_TAU=0.07;
 // 8.7e4 lm·s a meter. Later strokes down the same channel are about half as bright. A flash within
 // the cloud is taken at 1e8 lm·s in all, in a burst of pulses over a few tenths of a second.
 const LT_QM=8.7e4, LT_QIC=1e8;
-const LT={lapse:null, grid:null, gridKey:'', bins:new Map(), active:[], storm:false, lit:false, near:0, far:0, lastT:null, lastNow:0, span:0, job:null, prog:null, u:null, vao:null, buf:null, tints:{}};
+const LT={lapse:null, grids:new Map(), bins:new Map(), active:[], storm:false, lit:false, near:0, far:0, lastT:null, lastNow:0, span:0, job:null, prog:null, u:null, vao:null, buf:null, tints:{}};
 // The share of flashes to the ground at latitude lat (deg).
 function ltGroundShare(lat){ const a=Math.min(60, Math.abs(lat))*Math.PI/180; return 1/(1+4.16+2.16*Math.cos(3*a)); }
 // The cloud tops' height (m) from the field's top (0-1), and how much of the charging zone they
@@ -85,13 +85,21 @@ function ltPerKm2(f, key){
   const warm=Math.max(0, 1000*f.T/6.5-f.base), wf=Math.exp(-(warm-2200)/1500);
   return 1e6/3600/LT_YIELD*cape*Math.min(2, wf)*ltIce(f)*e.k;
 }
-// The storms about the eye: the flash rate (per second) in each cell, as a running sum for picking
-// a cell, made again each minute of sky time (the clouds move 88 m a minute) or when the eye has
-// gone far enough to need another center.
-function ltGrid(f, key){
+// The storms about the eye in clock minute mi (whole minutes since day 0): the flash rate (per
+// second) in each cell, as a running sum for picking a cell, from that minute's own weather (the
+// clouds move 88 m a minute), worked out from the date alone, so a bin's flashes don't depend on
+// when it was first made. The cover is taken about the eye to the nearest 2 km, as the clouds
+// drawn take it (clouds.js cloudCovHere).
+function ltGrid(key, mi){
   const ax=Math.round(vrX/20000)*20000, ay=Math.round(vrY/20000)*20000, id=key+'|'+dLat+'|'+ax+'|'+ay;
-  const gk=id+'|'+Math.floor(f.minAbs)+'|'+f.covGL.toFixed(3);
-  if(LT.gridKey===gk) return LT.grid;
+  const ex=Math.round(vrX/2000)*2000, ey=Math.round(vrY/2000)*2000, gk=id+'|'+mi+'|'+ex+'|'+ey+'|'+vrScenery;
+  const had=LT.grids.get(gk);
+  if(had) return had;
+  const k=Math.floor(mi/DAYMIN), k0=cloudDate().k;
+  let f;
+  cloudAt={k, m:mi-k*DAYMIN, dk:k-k0};
+  try{ f=cloudField(key); f.covGL=cloudCovHere(f, ex, ey); }
+  finally{ cloudAt=null; }
   const n=Math.round(2*LT_SPAN/LT_CELL), r=f.rain;
   // Flashes a second for 1 mm/h of convective rain over a cell.
   const per=(LT_CELL/1000)**2*ltPerKm2(f, key), cc=Math.min(3, Math.max(0.08, Math.exp(0.06*(f.T-15))));
@@ -102,9 +110,10 @@ function ltGrid(f, key){
     const c=r.conv*smoothstep(0.55, 0.85, m.th)*smoothstep(0.3, 0.6, m.cov);
     s+=c*c/(cc*LT_CREF)*per; cum[j*n+i]=s;
   }
-  LT.grid={id, ax, ay, n, cum, total:s, base:f.base, top:ltTopZ(f), cg:ltGroundShare(LATDEG[dLat]??45)};
-  LT.gridKey=gk;
-  return LT.grid;
+  const G={id, ax, ay, n, cum, total:s, base:f.base, top:ltTopZ(f), cg:ltGroundShare(LATDEG[dLat]??45)};
+  LT.grids.set(gk, G);
+  if(LT.grids.size>6) LT.grids.delete(LT.grids.keys().next().value);
+  return G;
 }
 // A cell picked in proportion to its rate, by u in [0, 1), and a place in it.
 function ltPlace(G, u, v, w){
@@ -184,7 +193,9 @@ function ltTick(T){
   // The sky seconds a frame has stood for lately.
   if(LT.lastT!=null&&now>LT.lastNow){ const dt=Math.max(0, T-LT.lastT); LT.span=0.7*LT.span+0.3*Math.min(dt, 1e5); }
   LT.lastT=T; LT.lastNow=now;
-  const G=ltGrid(f, key);
+  // The clock minute of sky time t (a minute of the clock is dayHours × 2.5 s).
+  const cd=cloudDate(), mNow=cd.k*DAYMIN+cd.m, Tnow=metSec(), minOf=t=>Math.floor(mNow+(t-Tnow)/(dayHours()*2.5));
+  const G=ltGrid(key, minOf(T));
   if(!(G.total>0)) return false;
   LT.storm=true;
   // How often within 20 km of the eye and within LT_REACH, for the clock line (flashes a minute).
@@ -210,7 +221,7 @@ function ltTick(T){
     if(k>0.02) out=LT.lapse.list.map(a=>({fl:a.fl, I:a.I*k, I1:a.I1*k}));
   }else{
     LT.lapse=null;
-    for(let b=Math.floor((T-1.5)/LT_BIN);b<=Math.floor(T/LT_BIN);b++) for(const fl of ltBin(G, b)){
+    for(let b=Math.floor((T-1.5)/LT_BIN);b<=Math.floor(T/LT_BIN);b++) for(const fl of ltBin(ltGrid(key, minOf(b*LT_BIN)), b)){
       if(T<fl.t0||T>fl.t0+fl.dur+0.5) continue;
       const [I, I1]=ltSeen(fl, T);
       if(I>1e4) out.push({fl, I, I1});
@@ -266,9 +277,15 @@ function ltThrough(f, x, y, d){
   const air=[0.8, 1, 1.3].map(c=>Math.exp(-tV*c));
   return {air, img:air.map(c=>c*Math.exp(-Math.min(tr, 30))), light:air.map(c=>c*Math.exp(-Math.min(tr, 30)/6))};
 }
-// The eye-relative place of world point (x, y, z), lowered by the curve of the 833 km sphere the
-// passes draw the ground and the clouds on.
-function ltRel(x, y, z, ez){ const dx=x-vrX, dy=y-vrY; return [dx, dy, z-ez-(dx*dx+dy*dy)/(2*LT_R)]; }
+// The eye-relative place of world point (x, y, z), lowered by the curve of the 833 km shell the
+// passes draw the clouds and the rain on. The ground is drawn flat, so a channel's points take a
+// share of the drop that runs from all of it at the cloud base (zb) to none at the ground (zg):
+// it hangs from the clouds drawn and comes down on the ground drawn, its foot never dipping below
+// the horizon.
+function ltRel(x, y, z, ez, zg=null, zb=null){
+  const dx=x-vrX, dy=y-vrY, k=zg==null?1:Math.min(1, Math.max(0, (z-zg)/Math.max(1, zb-zg)));
+  return [dx, dy, z-ez-k*(dx*dx+dy*dy)/(2*LT_R)];
+}
 // For the paint: the brightest flash's light on the scene, as a fireball's (meteors.js
 // metUniforms fire: its direction, magnitude and color), its illuminance at the eye (lux), and
 // the glow of up to four flashes in the clouds, for the composite (shader_present.js): ltP, each
@@ -334,8 +351,8 @@ function ltBolt(fl){
 // quad about it, lit as a line source of the flash's light spread along the channel (cd/m), seen
 // as a core about 1 m wide (or a pixel's width) and a glare about it carrying 4% of the light, as
 // the eye's own scattering spreads a bright line, both taken through the display curve over the
-// sky behind. The land in front hides them (hitInfo), and the clouds hide the parts within them:
-// only the channel below the base is drawn.
+// sky behind. The land in front hides them (hitInfo), and so does the ground beyond which they
+// stand; the clouds hide the parts within them: only the channel below the base is drawn.
 const LTVS=`#version 300 es
 layout(location=0) in vec2 aPos;
 layout(location=1) in vec4 aSeg;
@@ -347,7 +364,7 @@ void main(){ vSeg=aSeg; vW=aW; vD=aD; vC=aC; gl_Position=vec4(aPos, 0.0, 1.0); }
 const LTFS=`#version 300 es
 precision highp float;
 uniform sampler2D sky, hitInfo;
-uniform vec2 res; uniform float yaw, pitch, fov, showScn, nr, na;
+uniform vec2 res; uniform float yaw, pitch, fov, showScn, nr, na, eyeZ;
 uniform vec4 toneU;
 in vec4 vSeg; in vec4 vW; in vec2 vD; in vec3 vC;
 out vec4 fragColor;
@@ -372,12 +389,15 @@ void main(){
     if(h.g>0.5 && h.r>0.0 && h.r<mix(vD.x, vD.y, s)) discard;
   }
   vec3 rd=viewRay(p, res, fov, yaw, pitch);
+  // Nor any beyond the ground in front, drawn flat.
+  if(rd.z<0.0 && mix(vD.x, vD.y, clamp(dot(p-A, ab)/max(dot(ab, ab), 1e-6), 0.0, 1.0))>max(eyeZ, 0.5)/(-rd.z)*1.02+20.0) discard;
   float comp=atan(rd.x, rd.y); if(comp<0.0) comp+=6.28318530718;
   float el=asin(clamp(rd.z, -1.0, 1.0))*57.2957795;
   float rBg=el<0.0?0.0:pow(10.0, texture(sky, vec2((fract(comp/6.28318530718)*na+0.5)/(na+1.0), ((90.0-el)/90.0*nr+0.5)/(nr+1.0))).a*${LOGR_SPAN.toFixed(1)}+${LOGR_LO.toFixed(1)});
   float t0=toneT(rBg), t1=toneT(rBg+r);
-  // Near the display's white the color gives way to white, as overexposed light does.
-  vec3 c=min(vec3(1.0), t1*mix(vC, vec3(1.0), smoothstep(0.6, 1.0, t1)));
+  // The light it adds takes its color, giving way to white near the display's white, as
+  // overexposed light does; the sky behind keeps its own.
+  vec3 c=min(vec3(1.0), t0+(t1-t0)*mix(vC, vec3(1.0), smoothstep(0.6, 1.0, t1)));
   fragColor=vec4(max(lin2s3(c)-vec3(lin2s(t0)), vec3(0.0)), 0.0);
 }`;
 function ltDrawVR(gl, c, ez){
@@ -389,7 +409,7 @@ function ltDrawVR(gl, c, ez){
     LT.job=glProgramAsync(gl, vs, LTFS);
     whenLinked(gl, [LT.job], p=>{
       if(!p) return;
-      LT.u=uniformLocs(gl, p, ['res', 'yaw', 'pitch', 'fov', 'showScn', 'nr', 'na', 'toneU']);
+      LT.u=uniformLocs(gl, p, ['res', 'yaw', 'pitch', 'fov', 'showScn', 'nr', 'na', 'toneU', 'eyeZ']);
       gl.useProgram(p); bindSamplers(gl, p, [['sky', 0], ['hitInfo', 10]]); gl.useProgram(vrGL.prog);
       LT.vao=gl.createVertexArray(); LT.buf=gl.createBuffer();
       gl.bindVertexArray(LT.vao); gl.bindBuffer(gl.ARRAY_BUFFER, LT.buf);
@@ -416,7 +436,7 @@ function ltDrawVR(gl, c, ez){
     for(const [A, B, w] of segs){
       const J=(w>=1?Jm:Jb*w)*tr[1];
       if(!(J>0)) continue;
-      const pa=proj(ltRel(...A, ez)), pb=proj(ltRel(...B, ez));
+      const pa=proj(ltRel(...A, ez, fl.ground, fl.base)), pb=proj(ltRel(...B, ez, fl.ground, fl.base));
       if(!pa||!pb) continue;
       const d=0.5*(pa[2]+pb[2]), sc=Math.max(0.7, 1/d/pixA), sh=Math.min(60, Math.max(4, 0.004/pixA));
       const r0=J/(d*sc*pixA*2.5066)/rCd, rh=0.04*J/(d*sh*pixA*2.5066)/rCd;
@@ -435,7 +455,7 @@ function ltDrawVR(gl, c, ez){
   gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, vrGL.tex);
   gl.uniform2f(u.res, W, H); gl.uniform1f(u.yaw, yaw); gl.uniform1f(u.pitch, pitch); gl.uniform1f(u.fov, fovR);
   gl.uniform1f(u.showScn, vrScenery&&vrGL.hitInfo?1:0); gl.uniform1f(u.nr, skyNow.nr); gl.uniform1f(u.na, skyNow.na);
-  gl.uniform4f(u.toneU, skyNow.toneK, skyNow.toneP, 0.95, TOE_CD);
+  gl.uniform4f(u.toneU, skyNow.toneK, skyNow.toneP, 0.95, TOE_CD); gl.uniform1f(u.eyeZ, ez);
   gl.bindVertexArray(LT.vao); gl.bindBuffer(gl.ARRAY_BUFFER, LT.buf);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STREAM_DRAW);
   gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);

@@ -222,12 +222,16 @@ void main(){
   vec3 rd=viewRay(gl_FragCoord.xy, res, fov, yaw, pitch), ro=eye;
   vec4 occ=texture(hitInfo, gl_FragCoord.xy/res);
   // The cloud and the rain about a flash glow with its light, falling off with the ray's nearest
-  // distance from it as light diffusing out of a cloud does.
+  // distance from it as light diffusing out of a cloud does; none where the land, or the ground
+  // (drawn flat), stops the ray well short of the flash, as the rain there is far from it.
   vec3 ltAdd=vec3(0.0);
-  for(int i=0;i<4;i++){
-    if(float(i)>=ltN) break;
-    vec3 P=ltP[i].xyz; float tp=max(dot(P, rd), 0.0);
-    ltAdd+=ltC[i].rgb*exp(-length(P-rd*tp)/ltP[i].w);
+  if(ltN>0.5){
+    float tStop=min(occ.g>0.5 && occ.r>0.0 && showScn>0.5?occ.r:1.0e8, rd.z<0.0?max(ro.z, 0.5)/(-rd.z):1.0e8);
+    for(int i=0;i<4;i++){
+      if(float(i)>=ltN) break;
+      vec3 P=ltP[i].xyz; float tp=max(dot(P, rd), 0.0), R=ltP[i].w;
+      ltAdd+=ltC[i].rgb*exp(-length(P-rd*tp)/R)*smoothstep(tp-2.0*R, tp-0.25*R, tStop);
+    }
   }
   float tHit=showScn>0.5 && occ.g>0.5 && occ.r>0.0?occ.r:1.0e8;
   if(c.a<0.004) c=vec4(0.0);
