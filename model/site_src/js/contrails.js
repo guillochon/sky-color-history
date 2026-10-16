@@ -332,14 +332,14 @@ function drawPlanesVR(gl, c, ez, sunCol){
     const el=Math.asin(dir[2])*180/Math.PI, az=Math.atan2(dir[0], dir[1])*180/Math.PI;
     const Lsky=skyRAt(skyNow.rgrid, Math.max(el, 0), az)*skyNow.rCd;
     const vx=-(dir[0]*P.F[0]+dir[1]*P.F[1]), vy=-(dir[0]*P.R[0]+dir[1]*P.R[1]), side=Math.atan2(vy, vx)*180/Math.PI;
-    let n=0, sig=0, seen=false;
+    let n=0, sig=0, seen=false, blinks=false;
     for(const [q, rgb, cd, s, fl] of CT_LIGHTS){
       const shown=s===0?1:s===2?smooth01(105, 115, Math.abs(side)):smooth01(-5, 5, s*side)*(1-smooth01(105, 115, s*side));
       if(!(shown>0)) continue;
       const m=starThroughAir(-14.18-2.5*Math.log10(cd*shown/(dist*dist)), Math.max(el, 0), key), vis=starVisible(m, Lsky);
       if(vis<0.01) continue;
       seen=true;
-      if(fl){ flashing=true; if(!ctFlash(fl, now+P.f.seed*7)) continue; }
+      if(fl){ blinks=true; if(!ctFlash(fl, now+P.f.seed*7)) continue; }
       const amp=Math.min(1, 0.62*Math.sqrt(Math.pow(10, -0.4*(m-STAR_VANCHOR))))*vis, d=pointDisplay(m), s2=Math.max(d.px*pxRad, pixA*0.6);
       const w=[P.p[0]+P.F[0]*q[0]+P.R[0]*q[1]-eye[0], P.p[1]+P.F[1]*q[0]+P.R[1]*q[1]-eye[1], P.p[2]+q[2]-eye[2]], wl=Math.hypot(...w);
       lD.set([w[0]/wl, w[1]/wl, w[2]/wl, s2], n*4); lC.set(rgb.map(v=>v*amp), n*3); n++; sig=Math.max(sig, s2);
@@ -348,6 +348,8 @@ function drawPlanesVR(gl, c, ez, sunCol){
     const R=Math.max(25/dist, 4*sig)/pixA+2;
     // Labeled while it shows at all: its shape, or a light, a strobe between its flashes too.
     if((R>=2.6||seen)&&X>-8&&X<W+8&&Y>-8&&Y<H+8) CT.drawn.push({X, Y, dir, dist, alt:P.f.alt*1000});
+    // Its blinking keeps the view painting only while it is on the screen.
+    if(blinks&&X+R+8>0&&X-R-8<W&&Y+R+8>0&&Y-R-8<H) flashing=true;
     if(R<2.6&&!n) continue;
     if(X+R<0||X-R>W||Y+R<0||Y-R>H) continue;
     if(!drawn){

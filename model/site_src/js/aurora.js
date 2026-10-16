@@ -503,6 +503,9 @@ out vec4 fragColor;
 void main(){
   vec3 rd=viewRay(gl_FragCoord.xy, res, fov, yaw, pitch);
   fragColor=auroraLight(rd, 2.0*(fov<2e-3?0.5*fov:tan(fov*0.5))/res.y)*1000.0;
+  // A ray that passes nowhere near the oval (or under the horizon) writes nothing on the cleared
+  // target, so the query about the pass (drawAuroraVR) tells whether any of the aurora is in view.
+  if(fragColor==vec4(0.0)) discard;
 }`;
 // The aurora's light (auroraLight) added to a sky of luminance ratio rBg shown as sRGB skyC,
 // under the display curve, as the Milky Way is added in the sky shader. Its color is the

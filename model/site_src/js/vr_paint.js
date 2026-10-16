@@ -770,8 +770,14 @@ function paintVR(){
     }
   }
   // The aurora, in its own pass, for the sky pass to add.
-  const aurSt=skyNow.aur, aurOn=!!(aurSt&&aurSt.on&&vrGL.aurProg&&vrPitch+vrFov*0.5>-2);
-  if(aurOn){ perfPass('aurora'); drawAuroraVR(gl, aurSt, c); perfPassEnd('aurora', vrGL.aurFbo); }
+  // Not where the last pass for this view and this aurora found none of it in view (drawAuroraVR):
+  // nothing of it would be added, and it would keep the view painting for its shimmer.
+  const aurSt=skyNow.aur, aurKey=aurSt&&aurSt.on?[vrYaw, vrPitch, vrFov, c.width, c.height, aurSt.key, aurSt.lat, aurSt.ns, aurSt.mlt0, aurSt.A, aurSt.B, aurSt.W0, aurSt.W1].join('|'):'';
+  const aq=vrGL.aurQ;
+  if(aq&&aq.pending&&gl.getQueryParameter(aq.q, gl.QUERY_RESULT_AVAILABLE)){ aq.seen=!!gl.getQueryParameter(aq.q, gl.QUERY_RESULT); aq.pending=false; }
+  const aurNone=!!aq&&!aq.pending&&aq.key===aurKey&&!aq.seen;
+  const aurOn=!!(aurSt&&aurSt.on&&vrGL.aurProg&&vrPitch+vrFov*0.5>-2)&&!aurNone;
+  if(aurOn){ perfPass('aurora'); drawAuroraVR(gl, aurSt, c, aurKey); perfPassEnd('aurora', vrGL.aurFbo); }
   // The noctilucent clouds (nlc.js), into the aurora's target.
   const nlcOn=drawNlcVR(gl, c, aurOn);
   perfPass('sky');
@@ -991,7 +997,7 @@ function paintVR(){
   perfEnd('labels & HUD');
   // Water and magma move in real time, so keep painting at about 30 fps while one is in view.
   if(!vrGL.poolTimer && movingPoolInView()) vrGL.poolTimer=setTimeout(()=>{ vrGL.poolTimer=0; requestVR(); }, 33);
-  // So does the aurora.
+  // So does the aurora, while it is in view or that is not yet known.
   if(!vrGL.aurTimer && aurOn) vrGL.aurTimer=setTimeout(()=>{ vrGL.aurTimer=0; requestVR(); }, 33);
   // And the rain or snow falling on the eye.
   if(!vrGL.rainTimer && vrClouds && vrGL.field && vrGL.field.here>=0.02) vrGL.rainTimer=setTimeout(()=>{ vrGL.rainTimer=0; requestVR(); }, 33);
@@ -1026,7 +1032,9 @@ function shaftUpload(gl, cu){
 // The aurora pass: a half-size float target (three quarters on low-density screens), since the
 // march is costly and the aurora has little detail at the pixel scale. Leaves the sky program in
 // use with the result on unit 9.
-function drawAuroraVR(gl, st, c){
+// key names the view and the aurora: an occlusion query about the draw finds whether any of it is
+// in view, read a frame or so later (paintVR then leaves the pass out while key holds).
+function drawAuroraVR(gl, st, c, key){
   const dpr=Math.min(window.devicePixelRatio||1, 2), s=dpr>=1.5?0.5:0.75;
   const w=Math.max(2, Math.round(c.width*s)), h=Math.max(2, Math.round(c.height*s));
   gl.activeTexture(gl.TEXTURE9);
@@ -1050,7 +1058,13 @@ function drawAuroraVR(gl, st, c){
   gl.uniform2f(au.res, w, h); gl.uniform1f(au.fov, vrFov*Math.PI/180);
   gl.uniform1f(au.yaw, vrYaw*Math.PI/180); gl.uniform1f(au.pitch, vrPitch*Math.PI/180);
   auroraSetUniforms(gl, au, st, f.t, new Float32Array(horizDir(skyNow.sunAz, 90-skyNow.sza)), f);
+  gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+  // Asked once for each key, one at a time.
+  const q=vrGL.aurQ||(vrGL.aurQ={q:gl.createQuery(), pending:false, key:'', seen:true});
+  const ask=!q.pending&&q.key!==key;
+  if(ask){ gl.beginQuery(gl.ANY_SAMPLES_PASSED_CONSERVATIVE, q.q); q.key=key; }
   gl.drawArrays(gl.TRIANGLES, 0, 6);
+  if(ask){ gl.endQuery(gl.ANY_SAMPLES_PASSED_CONSERVATIVE); q.pending=true; }
   gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.drawBuffers([gl.BACK]); gl.viewport(0, 0, c.width, c.height);
   gl.useProgram(vrGL.prog);
   gl.activeTexture(gl.TEXTURE9); gl.bindTexture(gl.TEXTURE_2D, vrGL.aurTex);
