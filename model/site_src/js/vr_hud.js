@@ -378,6 +378,12 @@ function vrQuery(){
   if(epochIndexAt(eventTime(), EPOCH_PARENT[EP[dIdx].key]||EP[dIdx].key)!==dIdx) q.set('epoch', EP[dIdx].key); else q.delete('epoch');
   q.set('lat', dLat==='Equator'?'equator':String(LATDEG[dLat]));
   q.set('t', String(Math.floor(minutes)));
+  // Where the view looks (azimuth from north and altitude, degrees) and its vertical field when zoomed,
+  // to a few thousandths of the field.
+  const dp=Math.max(1, Math.min(7, Math.ceil(-Math.log10(vrFov/200))));
+  q.set('az', String(+(((vrYaw%360)+360)%360).toFixed(dp)));
+  q.set('alt', String(+vrPitch.toFixed(dp)));
+  if(Math.abs(vrFov-60)>0.05) q.set('fov', String(+vrFov.toPrecision(4))); else q.delete('fov');
   return q;
 }
 function vrLinkURL(){ return location.pathname+'?'+vrQuery().toString()+location.hash; }
@@ -438,5 +444,9 @@ function applyLink(){
     else m=+raw;
     if(m>=0 && m<=DAYMIN){ minutes=m; hslider.value=String(minutes); }
   }
+  // The view's direction and zoom, in place of toward the Sun.
+  const az=parseFloat(q.get('az')), alt=parseFloat(q.get('alt')), fov=parseFloat(q.get('fov'));
+  if(q.has('vr')&&isFinite(fov)) vrFov=Math.max(1e-5, Math.min(VR_FOV_MAX, fov));
+  if(q.has('vr')&&isFinite(az)&&isFinite(alt)) vrEntryLook=()=>{ vrYaw=((az%360)+360)%360; vrPitch=Math.max(-80, Math.min(85, alt)); };
   return q.has('vr');
 }

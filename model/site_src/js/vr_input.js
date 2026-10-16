@@ -299,6 +299,7 @@ document.addEventListener('keydown',e=>{
     if(k==='v'&&!e.repeat){ e.preventDefault(); setAirOff(!vrAirOff); return; }
     if(k==='l'&&!e.repeat){ e.preventDefault(); vrLabels=!vrLabels; requestVR(); syncVRPad(); return; }
     if(k==='f'&&!e.repeat){ e.preventDefault(); openFind(); return; }
+    if(k==='x'&&!e.repeat){ e.preventDefault(); shareVRLink(); return; }
     if(k==='y'&&!e.repeat){ e.preventDefault(); openDatePop(); return; }
     if(k==='q'&&!e.repeat&&!vrTouch){ e.preventDefault(); setInspect(!vrInspect); return; }
     if(e.key==='Escape'){ e.preventDefault(); if(vrInspect) setInspect(false); else exitVR(); return; }
@@ -344,6 +345,13 @@ document.addEventListener('keydown',e=>{
   if(act){ e.preventDefault(); act(); }
 });
 const SPEED_KEYS={1:'real', 2:'default', 3:'fast'};
+// x copies a link to this view: the moment, the place, where it looks and how far it is zoomed.
+function shareVRLink(){
+  syncVRLink(true);
+  const url=location.origin+vrLinkURL(), say=t=>{ vrNote=t; requestVR(); setTimeout(()=>{ if(vrNote===t){ vrNote=''; requestVR(); } }, 2000); };
+  if(navigator.clipboard) navigator.clipboard.writeText(url).then(()=>say('link copied'), ()=>say('could not copy the link'));
+  else say('could not copy the link');
+}
 // The air taken away (sunset.js airOff) or put back; its clouds go with it and come back as they were.
 let airClouds=null;
 function setAirOff(on){
