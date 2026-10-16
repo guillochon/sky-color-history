@@ -20,6 +20,9 @@ const NOISE_ROT=[0.8328, -0.1109, -0.5424, 0.0, 0.9797, -0.2003, 0.5536, 0.1668,
 const CIRRUS_SLANT=[0.4142, 0.2361];
 const CLOUDFS=`#version 300 es
 precision highp float;
+#ifndef RAY_PASS
+#define RAY_PASS 0
+#endif
 precision highp sampler2D;
 precision highp sampler3D;
 uniform sampler3D noiseBase;
@@ -375,6 +378,28 @@ vec4 shaftLayer(vec3 ro, vec3 rd, vec3 sd, vec3 skyD, float ign){
   return vec4(max(T-(1.0-a)*P, 0.0), a);
 }
 ${VIEW_RAY_GLSL}
+#if RAY_PASS
+// The crepuscular rays alone (shaftLayer), on a target half as wide and half as high as the
+// clouds' (res is its own size), for the cloud pass to read. They change slowly across the sky,
+// and the cloud pass's history averages their jitter as it does its own. Worked out a little
+// below the horizon too, so the texels along it don't blend with none.
+void main(){
+  vec3 rd=viewRay(gl_FragCoord.xy, res, fov, yaw, pitch), ro=eye;
+  fragColor=vec4(0.0); fragDepth=vec4(0.0);
+  if(rd.z<-0.02) return;
+  float sunA=sunAz*0.01745329252, sunZen=(90.0-sunEl)*0.01745329252;
+  vec3 sd=normalize(vec3(sin(sunA)*sin(sunZen), cos(sunA)*sin(sunZen), cos(sunZen)));
+  thickMax=mix(500.0, 7000.0, pow(cloudType, 1.6))*mix(0.75, 1.30, cloudTop);
+  vec2 jp=gl_FragCoord.xy+5.588238*mod(cloudFrame, 64.0);
+  float ign=fract(52.9829189*fract(dot(jp, vec2(0.06711056, 0.00583715))));
+  float comp=atan(rd.x, rd.y); if(comp<0.0) comp+=6.28318530718;
+  float elevDeg=asin(clamp(rd.z,-1.0,1.0))*57.2957795;
+  vec3 skyD=texture(sky, vec2((fract(comp*57.2957795/360.0)*na+0.5)/(na+1.0), ((90.0-max(elevDeg,0.0))/90.0*nr+0.5)/(nr+1.0))).rgb;
+  fragColor=shaftLayer(ro, rd, sd, skyD, ign);
+}
+#else
+// The rays' pass, the size of the view.
+uniform sampler2D shRay;
 void main(){
   vec2 fc=gl_FragCoord.xy;
   if(cbOn>0.5) fc.x=floor(fc.x)*2.0+mod(floor(fc.y)+cbPar, 2.0)+0.5;
@@ -402,7 +427,7 @@ void main(){
   vec3 skyD=texture(sky, vec2((fract(comp*57.2957795/360.0)*na+0.5)/(na+1.0), ((90.0-max(elevDeg,0.0))/90.0*nr+0.5)/(nr+1.0))).rgb;
   vec3 skyC=toLin(skyD);
   // The crepuscular rays, behind whatever cloud there is; none over the land.
-  vec4 shL=tHit<1e8?vec4(0.0):shaftLayer(ro, rd, sd, skyD, ign);
+  vec4 shL=tHit<1e8?vec4(0.0):texture(shRay, fc/res);
   fragColor=shL;
   float tIn=shellT(ro, rd, cloudBase), tOut=shellT(ro, rd, top);
   if(tIn<0.0||tOut<tIn) return;
@@ -512,7 +537,10 @@ void main(){
   c=pow(c, vec3(1.0/2.2));
   fragColor=vec4(c*alpha, alpha)+shL*(1.0-alpha);
   fragDepth=vec4(tMean, 0.0, 0.0, 1.0);
-}`;
+}
+#endif`;
+// The crepuscular rays' pass (CLOUDFS's RAY_PASS).
+function rayVariant(){ return CLOUDFS.replace('precision highp float;', 'precision highp float;\n#define RAY_PASS 1'); }
 
 // The airliners (contrails.js drawPlanesVR), one at a time over the few pixels each covers: a
 // simple shape traced four times a pixel, lit as the clouds are, and its lights as points. Behind

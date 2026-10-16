@@ -128,7 +128,7 @@ function initVR(ready){
   if(!vs){ ready(false); return; }
   const boot=glProgramAsync(gl, vs, VRFS_BOOT);
   const skyJob=glProgramAsync(gl, vs, VRFS_MAIN);
-  const cloudJobs=[CLOUDFS, COMPFS, TEMPFS, NOISEFS].map(src=>glProgramAsync(gl, vs, src));
+  const cloudJobs=[CLOUDFS, COMPFS, TEMPFS, NOISEFS, rayVariant()].map(src=>glProgramAsync(gl, vs, src));
   const bodyJob=glProgramAsync(gl, vs, bodyFS(new Set()));
   vrBoot=[ready];
   whenLinked(gl, [boot], prog=>{
@@ -240,7 +240,7 @@ function setupVR(gl, vs, prog, skyJob, cloudJobs, bodyJob){
   });
   // The bodies' pass, plain (shader_bodies.js).
   whenLinked(gl, [bodyJob], bp=>{ if(!vrGL) return; if(bp){ (vrGL.bodyProg||(vrGL.bodyProg={})).base=setupBodyProg(gl, bp); vrRestoreGL(gl); requestVR(); } setupStep(gl); });
-  whenLinked(gl, cloudJobs, (cp, pp, tp, np)=>{ if(!vrGL) return; if(cp&&pp&&np){ setupCloudProgs(gl, cp, pp, tp, np); markSlow(cloudJobs[0], cp, 'the clouds'); vrRestoreGL(gl); requestVR(); } setupStep(gl); });
+  whenLinked(gl, cloudJobs, (cp, pp, tp, np, rp)=>{ if(!vrGL) return; if(cp&&pp&&np&&rp){ setupCloudProgs(gl, cp, pp, tp, np, rp); markSlow(cloudJobs[0], cp, 'the clouds'); markSlow(cloudJobs[4], rp, 'the clouds'); vrRestoreGL(gl); requestVR(); } setupStep(gl); });
   // Last: when the moon image is already loaded this paints, so vrGL has to be complete.
   if(moonReady) uploadMoon();
 }
@@ -342,18 +342,22 @@ function setupShadowProg(gl, sp){
   gl.uniform1i(gl.getUniformLocation(sp,'loopPad'), 0);
   return su;
 }
-function setupCloudProgs(gl, cp, pp, tp, np){
+function setupCloudProgs(gl, cp, pp, tp, np, rp){
   const vols=makeCloudVolumes(gl, np);
   if(!vols){ console.warn('cloud noise build failed'); return; }
   const names=['res','yaw','pitch','fov','eye','sunAz','sunEl','sunCol','sunMu','showScn','cloudCov','cloudScale','cloudDrift','noiseOff','detOff','cirW','cirS','cirD','cloudFrame','nr','na','cloudType','cloudBase','cloudTop','cloudCirrus','useHDR','groundCol','sunVis','cityUp','cloudDeck','snDir','snLight','mlDir','mlLight','fbDir','fbLight','cbOn','cbPar','ctN','impHole','dropRow','dropLiq'];
-  const cu=uniformLocs(gl, cp, [...names, 'obj[0]', 'kind[0]', 'shN', 'shPart[0]', 'shExt[0]', 'shSca[0]', 'shMoon', 'shFlash']);
+  const all=[...names, 'obj[0]', 'kind[0]', 'shN', 'shPart[0]', 'shExt[0]', 'shSca[0]', 'shMoon', 'shFlash'];
+  // The rays' pass is the cloud program's source with RAY_PASS, so it takes the same uniforms.
+  const cu=uniformLocs(gl, cp, all), ru=uniformLocs(gl, rp, all);
   const weather=ensureWeather(gl);
   const hdr=!!gl.getExtension('EXT_color_buffer_float');
-  gl.useProgram(cp);
-  bindSamplers(gl, cp, [['noiseBase',1],['noiseDetail',6],['weather',7],['sky',0],['hitInfo',10],['ctTex',16],['shTab',17],['shSrc',18],['dropTex',20]]);
-  gl.uniform1i(gl.getUniformLocation(cp,'shPad'), 0);
-  gl.uniform1f(cu.fov, vrFov*Math.PI/180);
-  gl.uniform1f(cu.useHDR, hdr?1:0);
+  for(const [p, q] of [[cp, cu], [rp, ru]]){
+    gl.useProgram(p);
+    bindSamplers(gl, p, [['noiseBase',1],['noiseDetail',6],['weather',7],['sky',0],['hitInfo',10],['ctTex',16],['shTab',17],['shSrc',18],['dropTex',20],['shRay',22]]);
+    gl.uniform1i(gl.getUniformLocation(p,'shPad'), 0);
+    gl.uniform1f(q.fov, vrFov*Math.PI/180);
+    gl.uniform1f(q.useHDR, hdr?1:0);
+  }
   const compU=uniformLocs(gl, pp, ['res','yaw','pitch','fov','showScn','eye','obj[0]','kind[0]','seaR','waterT','nr','na',
     'cloudCov','cloudScale','cloudDrift','cloudBase','sunAz','sunEl','sunVis','sunCol','groundCol','rainP','rainQ','fogP','fogRow','vrDropOk','ltP[0]','ltC[0]','ltN']);
   gl.useProgram(pp); bindSamplers(gl, pp, [['cloudTex',2],['hitInfo',10],['sky',0],['weather',7],['bowTex',19],['dropTex',20]]); gl.uniform1f(compU.fov, vrFov*Math.PI/180);
@@ -364,7 +368,7 @@ function setupCloudProgs(gl, cp, pp, tp, np){
     bindSamplers(gl, tp, [['currTex',2],['histTex',9],['metaTex',8]]);
     gl.uniform1f(tu.fov, vrFov*Math.PI/180);
   }
-  vrGL.cloudProg=cp; vrGL.compProg=pp; vrGL.tempProg=tp; vrGL.cu=cu; vrGL.compU=compU; vrGL.tu=tu;
+  vrGL.cloudProg=cp; vrGL.rayProg=rp; vrGL.ru=ru; vrGL.rayFbo=gl.createFramebuffer(); vrGL.rayTex=null; vrGL.compProg=pp; vrGL.tempProg=tp; vrGL.cu=cu; vrGL.compU=compU; vrGL.tu=tu;
   vrGL.noise=vols.base; vrGL.noiseDetail=vols.detail; vrGL.weather=weather;
   vrGL.cloudHDR=hdr; vrGL.cloudFbo=gl.createFramebuffer(); vrGL.accumFbo=gl.createFramebuffer(); vrGL.histFbo=gl.createFramebuffer();
   vrGL.cloudTex=null; vrGL.metaTex=null; vrGL.accumTex=null; vrGL.histTex=null; vrGL.cw=0; vrGL.ch=0; vrGL.histOk=false; vrGL.cloudFrame=0; vrGL.cloudMRT=false;

@@ -829,57 +829,66 @@ function paintVR(){
   perfPass('bodies'); drawBodies(gl); perfPassEnd('bodies');
   if(!vrClouds||!vrLabels) vrGL.cloudAt=null;
   if(vrClouds&&vrGL.cloudProg&&vrGL.noise){
-    perfPass('clouds');
     vrGL.cloudFrame=(vrGL.cloudFrame||0)+1;
     if(vrGL.histKey!==EP[dIdx].key){ vrGL.histOk=false; vrGL.histKey=EP[dIdx].key; }
     const cw=Math.max(2,Math.round(c.width/2)), ch=Math.max(2,Math.round(c.height/2));
-    const field=vrGL.field, cu=vrGL.cu;
+    const field=vrGL.field;
     // A new date puts the clouds somewhere else: start their history afresh.
     if(Math.abs(field.minAbs-(vrGL.histMin??field.minAbs))>60) vrGL.histOk=false;
     vrGL.histMin=field.minAbs;
     // A checkerboard needs the temporal pass to fill in the pixels a frame leaves out.
     ensureCloudTarget(cw, ch, !!vrGL.tempProg);
-    const cb=vrGL.cloudCB, par=vrGL.cloudFrame&1;
-    gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.cloudFbo);
-    gl.drawBuffers(vrGL.cloudMRT?[gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]:[gl.COLOR_ATTACHMENT0]);
-    gl.viewport(0,0,vrGL.cloudMW,ch); gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.useProgram(vrGL.cloudProg); gl.uniform1f(cu.fov, vrFov*Math.PI/180);
-    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_3D, vrGL.noise);
-    gl.activeTexture(gl.TEXTURE6); gl.bindTexture(gl.TEXTURE_3D, vrGL.noiseDetail);
-    gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, vrGL.weather);
-    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex);
-    if(vrGL.hitInfo){ gl.activeTexture(gl.TEXTURE10); gl.bindTexture(gl.TEXTURE_2D, vrGL.hitInfo); gl.activeTexture(gl.TEXTURE0); }
-    gl.uniform2f(cu.res, cw, ch); gl.uniform1f(cu.cbOn, cb?1:0); gl.uniform1f(cu.cbPar, par);
-    gl.uniform1f(cu.yaw, vrYaw*Math.PI/180); gl.uniform1f(cu.pitch, vrPitch*Math.PI/180);
-    gl.uniform3f(cu.eye, vrX, vrY, ez);
-    gl.uniform1f(cu.sunAz, skyNow.sunAz); gl.uniform1f(cu.sunEl, 90-skyNow.sza);
-    gl.uniform1f(cu.sunMu, sunMu);
-    gl.uniform3fv(cu.sunCol, sunCol);
-    gl.uniform3fv(cu.groundCol, groundSeen);
-    gl.uniform1f(cu.nr, skyNow.nr); gl.uniform1f(cu.na, skyNow.na);
-    gl.uniform1f(cu.showScn, vrScenery?1:0);
-    gl.uniform1f(cu.cloudCov, field.covGL); gl.uniform1f(cu.cloudScale, field.scale); gl.uniform1f(cu.cloudDrift, field.drift);
-    gl.uniform3fv(cu.noiseOff, field.noiseOff); gl.uniform3fv(cu.detOff, field.detOff);
-    gl.uniform2fv(cu.cirW, field.cirW); gl.uniform3fv(cu.cirS, field.cirS); gl.uniform3fv(cu.cirD, field.cirD);
-    gl.uniform1f(cu.cloudFrame, vrGL.cloudFrame||0);
-    gl.uniform1f(cu.cloudType, field.type); gl.uniform1f(cu.cloudDeck, field.deck);
-    gl.uniform3fv(cu.snLight, vrGL.snLight||new Float32Array(3)); if(vrGL.snDir) gl.uniform3fv(cu.snDir, vrGL.snDir);
-    gl.uniform3fv(cu.mlLight, vrGL.mlLight||new Float32Array(3)); if(vrGL.mlDir) gl.uniform3fv(cu.mlDir, vrGL.mlDir);
-    gl.uniform3fv(cu.fbLight, vrGL.fbCloud||new Float32Array(3)); if(vrGL.fbDirCloud) gl.uniform3fv(cu.fbDir, vrGL.fbDirCloud); gl.uniform1f(cu.cloudBase, field.base); gl.uniform1f(cu.cloudTop, field.top); gl.uniform1f(cu.cloudCirrus, field.cirrus);
-    gl.uniform1f(cu.useHDR, vrGL.cloudHDR?1:0);
-    gl.uniform1f(cu.sunVis, skyNow.sunVis==null?1:skyNow.sunVis);
-    gl.uniform3fv(cu.cityUp, skyNow.cityUp||new Float32Array(3));
-    gl.uniform4fv(cu.obj, sc.o); gl.uniform1fv(cu.kind, sc.k);
-    // Contrails and bolide dust trails (contrails.js).
-    gl.uniform1f(cu.ctN, contrailUpload(gl));
-    gl.uniform3fv(cu.impHole, new Float32Array(impactHole(metSec())));
-    shaftUpload(gl, cu);
-    // The droplets' cloudbows and glories (droplets.js), once their table has come.
-    bindDrops(gl);
-    const drops=dropRowsFor(EP[dIdx].key);
-    gl.uniform1f(cu.dropRow, drops[0]); gl.uniform1f(cu.dropLiq, vrGL.dropOk?field.liq:0);
-    gl.drawArrays(gl.TRIANGLES, 0, 6);
-    perfPassEnd('clouds');
+    const cb=vrGL.cloudCB, par=vrGL.cloudFrame&1, drops=dropRowsFor(EP[dIdx].key);
+    // The crepuscular rays first, on a target half as wide and half as high as the clouds' (the
+    // cloud program's source with RAY_PASS), then the clouds, which read them on unit 22. Both take
+    // the same uniforms.
+    for(const ray of [true, false]){
+      const cu=ray?vrGL.ru:vrGL.cu, W=ray?vrGL.rayW:cw, H=ray?vrGL.rayH:ch;
+      perfPass(ray?'rays':'clouds');
+      if(ray){ gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.rayFbo); gl.drawBuffers([gl.COLOR_ATTACHMENT0]); gl.viewport(0,0,W,H); }
+      else{
+        gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.cloudFbo);
+        gl.drawBuffers(vrGL.cloudMRT?[gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]:[gl.COLOR_ATTACHMENT0]);
+        gl.viewport(0,0,vrGL.cloudMW,ch); gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.activeTexture(gl.TEXTURE22); gl.bindTexture(gl.TEXTURE_2D, vrGL.rayTex);
+      }
+      gl.useProgram(ray?vrGL.rayProg:vrGL.cloudProg); gl.uniform1f(cu.fov, vrFov*Math.PI/180);
+      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_3D, vrGL.noise);
+      gl.activeTexture(gl.TEXTURE6); gl.bindTexture(gl.TEXTURE_3D, vrGL.noiseDetail);
+      gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, vrGL.weather);
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex);
+      if(vrGL.hitInfo){ gl.activeTexture(gl.TEXTURE10); gl.bindTexture(gl.TEXTURE_2D, vrGL.hitInfo); gl.activeTexture(gl.TEXTURE0); }
+      gl.uniform2f(cu.res, W, H); gl.uniform1f(cu.cbOn, cb?1:0); gl.uniform1f(cu.cbPar, par);
+      gl.uniform1f(cu.yaw, vrYaw*Math.PI/180); gl.uniform1f(cu.pitch, vrPitch*Math.PI/180);
+      gl.uniform3f(cu.eye, vrX, vrY, ez);
+      gl.uniform1f(cu.sunAz, skyNow.sunAz); gl.uniform1f(cu.sunEl, 90-skyNow.sza);
+      gl.uniform1f(cu.sunMu, sunMu);
+      gl.uniform3fv(cu.sunCol, sunCol);
+      gl.uniform3fv(cu.groundCol, groundSeen);
+      gl.uniform1f(cu.nr, skyNow.nr); gl.uniform1f(cu.na, skyNow.na);
+      gl.uniform1f(cu.showScn, vrScenery?1:0);
+      gl.uniform1f(cu.cloudCov, field.covGL); gl.uniform1f(cu.cloudScale, field.scale); gl.uniform1f(cu.cloudDrift, field.drift);
+      gl.uniform3fv(cu.noiseOff, field.noiseOff); gl.uniform3fv(cu.detOff, field.detOff);
+      gl.uniform2fv(cu.cirW, field.cirW); gl.uniform3fv(cu.cirS, field.cirS); gl.uniform3fv(cu.cirD, field.cirD);
+      gl.uniform1f(cu.cloudFrame, vrGL.cloudFrame||0);
+      gl.uniform1f(cu.cloudType, field.type); gl.uniform1f(cu.cloudDeck, field.deck);
+      gl.uniform3fv(cu.snLight, vrGL.snLight||new Float32Array(3)); if(vrGL.snDir) gl.uniform3fv(cu.snDir, vrGL.snDir);
+      gl.uniform3fv(cu.mlLight, vrGL.mlLight||new Float32Array(3)); if(vrGL.mlDir) gl.uniform3fv(cu.mlDir, vrGL.mlDir);
+      gl.uniform3fv(cu.fbLight, vrGL.fbCloud||new Float32Array(3)); if(vrGL.fbDirCloud) gl.uniform3fv(cu.fbDir, vrGL.fbDirCloud); gl.uniform1f(cu.cloudBase, field.base); gl.uniform1f(cu.cloudTop, field.top); gl.uniform1f(cu.cloudCirrus, field.cirrus);
+      gl.uniform1f(cu.useHDR, vrGL.cloudHDR?1:0);
+      gl.uniform1f(cu.sunVis, skyNow.sunVis==null?1:skyNow.sunVis);
+      gl.uniform3fv(cu.cityUp, skyNow.cityUp||new Float32Array(3));
+      gl.uniform4fv(cu.obj, sc.o); gl.uniform1fv(cu.kind, sc.k);
+      // Contrails and bolide dust trails (contrails.js).
+      gl.uniform1f(cu.ctN, contrailUpload(gl));
+      gl.uniform3fv(cu.impHole, new Float32Array(impactHole(metSec())));
+      shaftUpload(gl, cu);
+      // The droplets' cloudbows and glories (droplets.js), once their table has come.
+      bindDrops(gl);
+      gl.uniform1f(cu.dropRow, drops[0]); gl.uniform1f(cu.dropLiq, vrGL.dropOk?field.liq:0);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+      perfPassEnd(ray?'rays':'clouds', ray?vrGL.rayFbo:undefined);
+    }
     let shown=vrGL.cloudTex;
     // The view: while it holds still the clouds average over frames and settle.
     const viewKey=[vrYaw,vrPitch,vrFov,vrX,vrY,minutes,dIdx,dLat,cw,ch].join('|');

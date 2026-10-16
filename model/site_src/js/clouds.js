@@ -406,6 +406,12 @@ function ensureCloudTarget(w, h, cb){
   vrGL.cloudTex=allocCloudTex(gl, mw, h, hdr);
   vrGL.accumTex=allocCloudTex(gl, w, h, hdr);
   vrGL.histTex=allocCloudTex(gl, w, h, hdr);
+  // The crepuscular rays' target (shader_clouds.js RAY_PASS), half as wide and half as high.
+  if(vrGL.rayTex) gl.deleteTexture(vrGL.rayTex);
+  vrGL.rayW=Math.ceil(w/2); vrGL.rayH=Math.ceil(h/2);
+  vrGL.rayTex=allocCloudTex(gl, vrGL.rayW, vrGL.rayH, hdr);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, vrGL.rayFbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, vrGL.rayTex, 0);
   vrGL.metaTex=gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, vrGL.metaTex);
   texParams(gl, gl.NEAREST, gl.NEAREST, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE);
