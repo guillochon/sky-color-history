@@ -118,9 +118,19 @@ function conPlaces(key, year){
 }
 // The constellation lines, as great circles between their stars, cut at the horizon; returns
 // the names to label, at the middle of the stars of each figure's lines that are drawn.
-function drawConstellations(ctx, proj){
+function drawConstellations(ctx, proj, reach){
   const key=EP[dIdx].key, P=conPlaces(key, STAR_YEAR[key]||pageDate()[0]);
   if(!P) return [];
+  // reach, when given, is [the view's middle, the cosine of the angle out to which proj places
+  // anything]: a line wholly beyond it is left unsampled.
+  const arcNear=(a, b, ang)=>{
+    if(!reach) return true;
+    const [f, cr]=reach;
+    if(vdot(a, f)>cr||vdot(b, f)>cr) return true;
+    // The great circle's point nearest f, when it lies between a and b.
+    const n=vnorm(vcross(a, b)), fp=vnorm([f[0]-n[0]*vdot(f, n), f[1]-n[1]*vdot(f, n), f[2]-n[2]*vdot(f, n)]);
+    return ang>1e-6&&vdot(fp, a)>Math.cos(ang)&&vdot(fp, b)>Math.cos(ang)&&vdot(fp, f)>cr;
+  };
   const lat=LATDEG[dLat], LST=localSidereal();
   const dirs=P.map(p=>{ let H=rev(LST-rev(p.ra)); if(H>180) H-=360; const a=altaz(lat, p.dec, H); return horizDir(a.az, a.alt); });
   ctx.strokeStyle='rgba(140,170,225,.38)'; ctx.lineWidth=1; ctx.beginPath();
@@ -135,6 +145,7 @@ function drawConstellations(ctx, proj){
         any=true;
         for(const i of [run[k-1], run[k]]){ sum[0]+=dirs[i][0]; sum[1]+=dirs[i][1]; sum[2]+=dirs[i][2]; }
         const a=dirs[run[k-1]], b=dirs[run[k]], ang=Math.acos(Math.max(-1, Math.min(1, vdot(a, b))));
+        if(!arcNear(a, b, ang)) continue;
         const n=Math.max(1, Math.ceil(ang*180/Math.PI/0.5)), s=Math.sin(ang)||1;
         let pen=false;
         for(let j=0;j<=n;j++){
@@ -177,7 +188,10 @@ function drawVRLabels(){
   // The airliners drawn this frame (contrails.js drawPlanesVR, which runs only with the clouds
   // shown), from the canvas's pixels to the page's.
   const gc=vrGL&&vrGL.gl.canvas, planes=gc&&vrClouds&&CT.drawn?CT.drawn.map(p=>({x:p.X/gc.width*W, y:H-p.Y/gc.height*H, dir:p.dir, dist:p.dist, alt:p.alt})):[];
-  drawSkyLabels(ctx, W, H, {proj, at, lim:3+8*Math.log10(60/vrFov), diskPx:s=>s.radDeg*(s.rings?2.3:1)/(vrFov/H), cloudAt:vrGL&&vrGL.cloudAt, top:40, bottom:72, planes});
+  // proj places points out to three times the view's half-width and half-height (and a degree for
+  // the refraction).
+  const rr=Math.atan(3*fy*Math.hypot(1, W/Math.max(H, 1)))+0.0175, reach=rr<Math.PI/2?[horizDir(vrYaw, vrPitch), Math.cos(rr)]:null;
+  drawSkyLabels(ctx, W, H, {proj, at, reach, lim:3+8*Math.log10(60/vrFov), diskPx:s=>s.radDeg*(s.rings?2.3:1)/(vrFov/H), cloudAt:vrGL&&vrGL.cloudAt, top:40, bottom:72, planes});
 }
 // The labels, for the walk-around view or the dome (drawDomeLabels), onto ctx W by H page pixels:
 // proj places a direction at true altitude for the constellations' lines (null behind), at a true
@@ -186,7 +200,7 @@ function drawVRLabels(){
 // and top and bottom the heights kept clear for the controls.
 function drawSkyLabels(ctx, W, H, o){
   const {at, lim, cloudAt}=o, key=EP[dIdx].key, pts=[];
-  for(const n of drawConstellations(ctx, o.proj)) if(n.x>0&&n.x<W&&n.y>0&&n.y<H) pts.push({x:n.x, y:n.y, mag:1, text:n.text, kind:'con'});
+  for(const n of drawConstellations(ctx, o.proj, o.reach)) if(n.x>0&&n.x<W&&n.y>0&&n.y<H) pts.push({x:n.x, y:n.y, mag:1, text:n.text, kind:'con'});
   const add=(s, text, kind, color)=>{
     if(s.el<=0) return;
     const p=at(s.el, s.az);
@@ -210,13 +224,15 @@ function drawSkyLabels(ctx, W, H, o){
   // galaxy's label gives its distance in the epoch shown.
   for(const p of skyNow.dso||[]){
     const el=Math.asin(Math.max(-1, Math.min(1, p.C[2])))*180/Math.PI, az=Math.atan2(p.C[0], p.C[1])*180/Math.PI;
-    if(el<=0||p.k*extinction(el, skyNow.extK)*extZenith(key)<0.1*skyRAt(skyNow.rgrid, el, (az+360)%360)*skyNow.rCd) continue;
+    if(el<=0||!at(el, (az+360)%360)||p.k*extinction(el, skyNow.extK)*extZenith(key)<0.1*skyRAt(skyNow.rgrid, el, (az+360)%360)*skyNow.rCd) continue;
     const ly=p.o.d*3261.56/p.s, far=p.o.k==='g'?` · ${ly>=1e6?(ly/1e6).toPrecision(2)+' Mly':Math.round(ly/1000)+' kly'}`:'';
     add({el, az:(az+360)%360, mag:2}, (/^(M|NGC )\d/.test(p.o.id)&&p.o.name!==p.o.id?`${p.o.id} ${p.o.name}`:p.o.name)+far, 'dso');
   }
   for(const s of skyNow.starMarks){
     // A comet is labeled whenever it shows, however faint its head next to the stars labeled.
     if((s.mag>lim&&!s.planet&&!s.comet&&!s.asteroid)||s.el<=0||markHidden(s)||s.transient) continue;
+    // Out of view it is not labeled (add), so its light need not be worked out.
+    if(!at(s.el, s.az)) continue;
     // Labeled when it shows: its color as the sky pass adds it (faded near the naked-eye limit,
     // dimmed by the air), times what the cloud in front lets through. 0.06 is where the drawn
     // point stands out from the sky around it. A planet or moon at its color as zoomed in

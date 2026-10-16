@@ -153,6 +153,19 @@ void main(){
   }
   fragColor=vec4(L, Y)*1000.0;
 }`;
+// Whether any of tonight's clouds nt can be in view, the Sun toward sd: the shader's tests for the
+// layer's point along a ray, poleward of the clouds' edge (with 2° to spare) and in sunlight (with
+// more than the ragged shadow's 0.017), at each ray of a grid across the view (viewGridRays).
+function nlcInView(nt, sd){
+  const R=6371000, H=NLC.h*1000, lat=LATDEG[dLat]??45, muh=-Math.sqrt(1-(R/(R+H))**2);
+  for(const rd of viewGridRays()){
+    if(rd[2]<=0) continue;
+    const b=R*rd[2], t=-b+Math.sqrt(b*b+2*R*H+H*H), P=[rd[0]*t, rd[1]*t, rd[2]*t], l=Math.hypot(P[0], P[1], P[2]+R);
+    const u=((P[0]*sd[0]+P[1]*sd[1]+(P[2]+R)*sd[2])/l-muh)/(1-muh), latP=lat+P[1]/111195, pole=lat<0?-latP:latP;
+    if(u>-0.03&&pole>nt.lat-5) return true;
+  }
+  return false;
+}
 // Draws tonight's clouds into the aurora's target, after the aurora if it was drawn (aur), else
 // over a cleared one. True when there are any to show; leaves the sky program in use with the
 // target on unit 9.
@@ -162,6 +175,10 @@ function drawNlcVR(gl, c, aur){
   if(sunEl>-2 || sunEl<-20) return false;
   const key=EP[dIdx].key, nt=nlcTonight(key);
   if(!nt) return false;
+  // None where no ray across the view meets the layer poleward of their edge and in sunlight.
+  const sd=horizDir(skyNow.sunAz, sunEl), gk=[vrYaw, vrPitch, vrFov, sunEl, skyNow.sunAz, nt.lat, dLat].join('|');
+  if(vrGL.nlcGateKey!==gk){ vrGL.nlcGateKey=gk; vrGL.nlcGate=nlcInView(nt, sd); }
+  if(!vrGL.nlcGate) return false;
   if(!vrGL.nlcProg){
     if(!vrGL.nlcJob){
       vrGL.nlcJob=true;

@@ -617,7 +617,18 @@ function metUniforms(){
   const A=new Float32Array(MET_GL*4), B=new Float32Array(MET_GL*4), C=new Float32Array(MET_GL*4);
   const scene=MET.scene||[], pxRad=0.35*(vrFov*Math.PI/180)/Math.max(window.innerHeight, 1), pix=1.2*Math.tan(vrFov*Math.PI/360)/Math.max(window.innerHeight, 1);
   let n=0, flash=0, flashRGB=null, fire=null;
-  const put=(h, t, sig, kind, rgb, amp)=>{ if(n>=MET_GL) return; A.set([h[0], h[1], h[2], Math.max(sig, pix)], n*4); B.set([t[0], t[1], t[2], kind], n*4); C.set([rgb[0]*amp, rgb[1]*amp, rgb[2]*amp, 0], n*4); n++; };
+  // Only those whose light reaches the view: the streak's nearest point to the view's middle within
+  // its half-diagonal, ten widths of the glow (where it has fallen under a millionth) and a degree
+  // for the refraction. The scene's light from a fireball is worked out apart, wherever it is.
+  const fy=Math.tan(vrFov*Math.PI/360), half=Math.atan(fy*Math.hypot(1, window.innerWidth/Math.max(window.innerHeight, 1))), fwd=horizDir(vrYaw, vrPitch);
+  const reaches=(h, t, sig)=>{
+    const r=half+10*sig+0.0175;
+    if(r>=Math.PI) return true;
+    const ht=[h[0]-t[0], h[1]-t[1], h[2]-t[2]], L2=vdot(ht, ht), s=L2>1e-12?Math.max(0, Math.min(1, (vdot(fwd, ht)-vdot(t, ht))/L2)):1;
+    const p=[t[0]+ht[0]*s, t[1]+ht[1]*s, t[2]+ht[2]*s];
+    return vdot(p, fwd)/Math.hypot(...p)>Math.cos(r);
+  };
+  const put=(h, t, sig, kind, rgb, amp)=>{ if(n>=MET_GL||!reaches(h, t, Math.max(sig, pix))) return; A.set([h[0], h[1], h[2], Math.max(sig, pix)], n*4); B.set([t[0], t[1], t[2], kind], n*4); C.set([rgb[0]*amp, rgb[1]*amp, rgb[2]*amp, 0], n*4); n++; };
   const sorted=scene.slice().sort((a, b)=>b.amp-a.amp);
   for(const s of sorted){
     if(s.kind===0){ put(s.head, s.tail, s.sig??s.px*pxRad, 0, s.rgb, Math.min(1, s.amp)); if(s.mag<-5){ const E=Math.pow(10, -0.4*(s.mag+13.99)); if(E>flash){ flash=E; flashRGB=s.rgb; fire={dir:s.head, mag:s.mag, rgb:s.rgb}; } } }

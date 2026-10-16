@@ -773,10 +773,13 @@ function paintVR(){
   // Not where the last pass for this view and this aurora found none of it in view (drawAuroraVR):
   // nothing of it would be added, and it would keep the view painting for its shimmer.
   const aurSt=skyNow.aur, aurKey=aurSt&&aurSt.on?[vrYaw, vrPitch, vrFov, c.width, c.height, aurSt.key, aurSt.lat, aurSt.ns, aurSt.mlt0, aurSt.A, aurSt.B, aurSt.W0, aurSt.W1].join('|'):'';
+  // And not where no ray across the view comes near the oval (aurInView), so a view turned away
+  // from it skips the pass also while the clock runs and the query can't settle.
+  if(aurKey&&vrGL.aurGateKey!==aurKey){ vrGL.aurGateKey=aurKey; vrGL.aurGate=aurInView(aurSt); }
   const aq=vrGL.aurQ;
   if(aq&&aq.pending&&gl.getQueryParameter(aq.q, gl.QUERY_RESULT_AVAILABLE)){ aq.seen=!!gl.getQueryParameter(aq.q, gl.QUERY_RESULT); aq.pending=false; }
   const aurNone=!!aq&&!aq.pending&&aq.key===aurKey&&!aq.seen;
-  const aurOn=!!(aurSt&&aurSt.on&&vrGL.aurProg&&vrPitch+vrFov*0.5>-2)&&!aurNone;
+  const aurOn=!!(aurSt&&aurSt.on&&vrGL.aurProg&&vrPitch+vrFov*0.5>-2)&&vrGL.aurGate&&!aurNone;
   if(aurOn){ perfPass('aurora'); drawAuroraVR(gl, aurSt, c, aurKey); perfPassEnd('aurora', vrGL.aurFbo); }
   // The noctilucent clouds (nlc.js), into the aurora's target.
   const nlcOn=drawNlcVR(gl, c, aurOn);
@@ -1028,6 +1031,40 @@ function shaftUpload(gl, cu){
   gl.uniform3fv(cu.shFlash, vrGL.metFlash||new Float32Array(3));
   const U=vrGL.shaftU;
   gl.uniform1f(cu.shN, U.n); gl.uniform4fv(cu.shPart, U.P); gl.uniform3fv(cu.shExt, U.E); gl.uniform3fv(cu.shSca, U.S);
+}
+// Rays across the view as viewRay gives them, on a 17 by 11 grid reaching a little past its edges.
+function viewGridRays(){
+  const c=vrGL.gl.canvas, key=[vrYaw, vrPitch, vrFov, c.width, c.height].join('|');
+  if(vrGL.gridKey===key) return vrGL.gridRays;
+  const fov=vrFov*Math.PI/180, fy=fov<2e-3?0.5*fov:Math.tan(fov*0.5), fx=fy*c.width/Math.max(c.height, 1);
+  const yaw=vrYaw*Math.PI/180, pitch=vrPitch*Math.PI/180, cp=Math.cos(pitch), sp=Math.sin(pitch), cy=Math.cos(yaw), sy=Math.sin(yaw), rays=[];
+  for(let j=0;j<11;j++) for(let i=0;i<17;i++){
+    const u=(i/16*2.1-1.05)*fx, v=(j/10*2.1-1.05)*fy, d=[sy*cp+u*cy-v*sy*sp, cy*cp-u*sy-v*cy*sp, sp+v*cp], l=Math.hypot(...d);
+    rays.push([d[0]/l, d[1]/l, d[2]/l]);
+  }
+  vrGL.gridKey=key; vrGL.gridRays=rays;
+  return rays;
+}
+// Whether any of aurora st can be in view: the aurora shader's own test for a ray near the oval
+// (auroraSpecies), at its seven heights, with the band 6° wider, at each ray of the grid, or the
+// band passing between two neighboring rays (its latitude's offset changing sign).
+function aurInView(st){
+  const R=6371, sl=Math.sin(st.lat*Math.PI/180), cl=Math.cos(st.lat*Math.PI/180), D=[];
+  for(const rd of viewGridRays()){
+    if(rd[2]<=0){ D.push(null); continue; }
+    const y=rd[1]*st.ns, b2=R*R*rd[2]*rd[2], row=[];
+    for(let k=0;k<7;k++){
+      const h=80+340*k/6, t=-R*rd[2]+Math.sqrt(b2+(2*R+h)*h), P=[rd[0]*t, y*t, R+rd[2]*t], l=Math.hypot(...P), n=P.map(v=>v/l);
+      const nax=n[1]*cl+n[2]*sl, lat=Math.asin(Math.max(-1, Math.min(1, nax)))*180/Math.PI, pp=[n[0], n[1]-cl*nax, n[2]-sl*nax];
+      const mlt=st.mlt0+Math.atan2(pp[0], -pp[1]*sl+pp[2]*cl)*3.81971863, c=Math.cos((mlt-12)*0.261799388), dl=lat-(st.A+st.B*c);
+      if(Math.abs(dl)<st.W0+st.W1*c+11) return true;
+      row.push(dl);
+    }
+    D.push(row);
+  }
+  const near=(a, b)=>a&&b&&a.some((v, k)=>v*b[k]<0);
+  for(let j=0;j<11;j++) for(let i=0;i<17;i++){ const a=D[j*17+i]; if((i<16&&near(a, D[j*17+i+1]))||(j<10&&near(a, D[(j+1)*17+i]))) return true; }
+  return false;
 }
 // The aurora pass: a half-size float target (three quarters on low-density screens), since the
 // march is costly and the aurora has little detail at the pixel scale. Leaves the sky program in
