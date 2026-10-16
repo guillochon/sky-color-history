@@ -70,10 +70,13 @@ vec4 rainVeil(vec3 ro, vec3 rd, float tEnd, vec3 skyC){
     // The shaft over p left the base upwind in the shear; in dry air it is gone below rainQ.x.
     vec2 at=p.xy+vec2(0.92, 0.39)*below*rainQ.y;
     vec4 m=rainMap(at);
-    float fall=rainQ.x>0.0?clamp((alt-rainQ.x)/fade, 0.0, 1.0):1.0;
+    float fall=rainQ.x>0.0?clamp((alt-rainQ.x)/fade, 0.0, 1.0):1.0, s0=rainSigma(m)*fall;
+    // The streaks below raise it at most 1.45 times, so a step too dry even then is passed over
+    // before their noise, as it would be after.
+    if(s0<6.8e-8) continue;
     // Fall streaks: the shafts are fibrous, finer across the wind than along it.
     float fib=mix(0.55, 1.45, stN(vec2(dot(at, vec2(0.39, -0.92))/500.0, dot(at, vec2(0.92, 0.39))/2500.0)));
-    float s=rainSigma(m)*fall*fib;
+    float s=s0*fib;
     if(s<1.0e-7) continue;
     vec3 L=rainAmb(amb, m);
     if(sunB.g>0.0){
