@@ -636,6 +636,9 @@ const REFL={
   Pallas:{n:[[380, 1], [500, 1], [650, 0.98], [780, 0.96]], note:'sunlight off dark carbonaceous rock, faintly blue (a B-type surface)'},
   Vesta:{n:[[380, 0.42], [450, 0.6], [550, 0.84], [650, 0.98], [720, 1], [780, 0.86]], note:'sunlight off basalt (a V-type surface), red, then falling into pyroxene’s band at 0.9 µm', band:[740, 780, 'pyroxene']},
   Theia:{n:[[380, 0.6], [450, 0.68], [550, 0.82], [650, 0.94], [780, 1]], note:'sunlight off dark, iron-rich basalt, as the lunar maria'},
+  Protomercury:{n:[[380, 0.62], [500, 0.78], [600, 0.89], [780, 1]], note:'sunlight off dark rock poor in iron oxide, darkened by graphite, its plains redder'},
+  Anteros:{n:[[380, 0.42], [450, 0.53], [550, 0.72], [650, 0.88], [780, 1]], note:'sunlight off basalt darkened and reddened by the young Sun’s wind'},
+  Enyo:{n:[[380, 0.45], [450, 0.62], [550, 0.85], [650, 0.98], [720, 1], [780, 0.88]], note:'sunlight off basalt like Vesta’s, red, then falling into pyroxene’s band at 0.9 µm', band:[740, 780, 'pyroxene']},
   icy:{n:[[380, 0.85], [500, 0.95], [780, 1]], note:'sunlight off nearly pure water ice'},
   sat:{n:[[380, 0.85], [780, 1]], note:'sunlight off its metal, panels and paint'},
 };
@@ -661,7 +664,7 @@ function reflAt(r, l){
 }
 function reflectedSpectrum(s){
   const key=EP[dIdx].key, S=spPlanck(5772), e=s.body&&s.body.era, ice=s.kind===6;
-  let r=REFL[s.planet==='Oceanus'?'Neptune':s.planet||'sat']||REFL.icy;
+  let r=REFL[s.planet==='Oceanus'?'Neptune':s.body&&s.body.map==='Protomercury'?'Protomercury':s.planet||'sat']||REFL.icy;
   const stages=e?REFL_ERA[ice?'ice':'gas']:null, wts=e?[(ice?0.7:0.6)*e[0], 0.85*e[1], e[2]]:null;
   for(let i=0;i<SP_N;i++){
     const l=SP_LAM[i];
@@ -688,7 +691,7 @@ function reflectedSpectrum(s){
   const spot=s.planet!=='Jupiter'?'':s.grs?` · the Great Red Spot, ${(s.grs.L*1.154).toFixed(0)},000 km long, at ${s.grs.lon.toFixed(0)}° (System II)${s.grs.held?', held at its size of the 2040s: what it does next is not known':''}`:s.unknown?' · no Great Red Spot drawn: storms like it come and go over centuries':' · no Great Red Spot: it was first seen for sure in 1831';
   const where=s.unknown?' · its place on its orbit this day cannot be known: drawn at one picked at random for the epoch':'';
   // A hypothetical body, or one named here; Saturn's mid-sized moons may themselves be young.
-  const what=BODY_NOTES[s.planet]?' · '+BODY_NOTES[s.planet]:s.host==='Saturn'&&s.ageMa>=RINGS_DEBATED_MA&&['Mimas', 'Enceladus', 'Tethys', 'Dione', 'Rhea'].includes(s.planet)?' · it may be younger than this: Saturn’s mid-sized moons may have formed again in the last few hundred Myr (Ćuk et al. 2016)':'';
+  const what=s.body&&s.body.map==='Protomercury'?' · '+PROTO_MERCURY_NOTE:BODY_NOTES[s.planet]?' · '+BODY_NOTES[s.planet]:s.host==='Saturn'&&s.ageMa>=RINGS_DEBATED_MA&&['Mimas', 'Enceladus', 'Tethys', 'Dione', 'Rhea'].includes(s.planet)?' · it may be younger than this: Saturn’s mid-sized moons may have formed again in the last few hundred Myr (Ćuk et al. 2016)':'';
   const kin=s.what||'';
   // Mars's moons in an epoch before history, where the tides had their orbits (planets.js MOON_TIDE).
   const mt=MOON_TIDE[s.planet]&&s.ageMa?PLANET_MOONS.find(m=>m[0]===s.planet):null;

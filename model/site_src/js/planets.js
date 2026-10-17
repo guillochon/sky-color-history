@@ -200,6 +200,8 @@ const BODY_NOTES={
   Kymo:'hypothetical, named here: one of Neptune’s first moons, scattered and destroyed when it captured Triton (Rufu & Canup 2017)',
   Oceanus:'hypothetical, named here: the fifth giant planet of Nesvorný (2011) and Nesvorný & Morbidelli (2012), thrown out of the Solar System by Jupiter in the instability',
   Theia:'the Mars-sized body thought to strike the proto-Earth and make the Moon; where its orbit lay is not known (Branco, Machado & Raymond 2025). Its surface is imagined: airless, dark basalt richer in iron oxide than Earth’s (Meier et al. 2014), saturated with craters',
+  Anteros:'hypothetical, named here: a Mars-sized body that grazes proto-Mercury, stripping most of its mantle (Franco et al. 2025), then strikes Venus, which may have left Venus turning slowly backward with no moon (Bussmann et al. 2025); that one body did both is a choice made here, and its orbit is made up. Its surface is imagined: basalt darkened and reddened by the young Sun’s wind, a great flooded basin over one side',
+  Enyo:'hypothetical, named here: the body whose impact made Mars’s crustal dichotomy, about 1,400 km across (Marinova et al. 2008; Ballantyne et al. 2022); its orbit is made up. Its surface is imagined: basalt like Vesta’s, with dark carbonaceous spatter and great deep basins',
 };
 BODY_NOTES.Galene=BODY_NOTES.Thetis=BODY_NOTES.Amphitrite=BODY_NOTES.Kymo;
 // The bodies the walk-around view draws as disks at once (bodyP..bodyN in the sky shader): those on
@@ -251,12 +253,36 @@ function earlyOrbit(name, el, rate){
 // basalt, airless and saturated with craters (theia_map.py): geometric albedo about 0.12, so H
 // -1.25 for its 6,800 km, against Mars's -1.52 at 0.17. Their days, unknown, are taken as 16 hours,
 // near Neptune's and Uranus's, and 20.
-// Theia until the Moon-forming impact (airtime.py T_IMPACT).
-const THEIA_MA=4510;
+// Anteros (named here: the son of Aphrodite, love returned, "counter-love"): a Mars-sized embryo,
+// about 0.1 Earth masses, that grazes proto-Mercury, stripping its mantle in a collision of
+// similar-mass bodies (Franco et al. 2025), and later strikes Venus head-on, reaccreting, the impact
+// that may have left Venus's slow, backward spin and no moon (Bussmann et al. 2025). That one body
+// did both is a choice made here. Its orbit, made up, crosses both theirs (0.39 to 0.72 AU). Its
+// crust is dark, reddish, heavily weathered basalt (embryo_maps.py): albedo about 0.11, so H -1.08
+// for its 6,600 km. Enyo (named here: Ares's companion in battle): the body of about 1,400 km whose
+// impact made Mars's crustal dichotomy (Marinova et al. 2008; Ballantyne et al. 2022), on a
+// Mars-crossing orbit, made up; its crust basalt like Vesta's, albedo about 0.28, so H 1.27. Their
+// days, unknown, are taken as 14 and 7 hours.
+// Theia until the Moon-forming impact (airtime.py T_IMPACT); Anteros until it strikes Venus, after
+// grazing proto-Mercury at MERCURY_GRAZE_MA (both dates made up, within the giant impacts' first
+// 100 Myr and after the first epoch); Enyo until the dichotomy, with Mars's first moons.
+const THEIA_MA=4510, MERCURY_GRAZE_MA=4540, ANTEROS_MA=4530;
+// Each row ends with what the body is (find.js, the spectrum's note).
 const LOST_PLANETS=[
-  ['Oceanus', [9.62, 0.01, 1.0, 0, 30, 60], [0, 0, 0, 36000/Math.pow(9.62, 1.5), 0, 0], [0.62, 0.82, 1.0], [25000, 0.017, 45, 62], -7.0, 6, preInstability, [0, 540]],
-  ['Theia', [0.95, 0.07, 1.5, 0, 200, 140], [0, 0, 0, 36000/Math.pow(0.95, 1.5), 0, 0], [0.80, 0.72, 0.62], [3400, 0, 300, 70], -1.25, 7, key=>planetAgeMa(key)>THEIA_MA, [120, 432]],
+  ['Oceanus', [9.62, 0.01, 1.0, 0, 30, 60], [0, 0, 0, 36000/Math.pow(9.62, 1.5), 0, 0], [0.62, 0.82, 1.0], [25000, 0.017, 45, 62], -7.0, 6, preInstability, [0, 540], 'a lost ice giant'],
+  ['Theia', [0.95, 0.07, 1.5, 0, 200, 140], [0, 0, 0, 36000/Math.pow(0.95, 1.5), 0, 0], [0.80, 0.72, 0.62], [3400, 0, 300, 70], -1.25, 7, key=>planetAgeMa(key)>THEIA_MA, [120, 432], 'a planet-sized body'],
+  ['Anteros', [0.555, 0.30, 4.0, 0, 120, 60], [0, 0, 0, 36000/Math.pow(0.555, 1.5), 0, 0], [0.86, 0.75, 0.64], [3300, 0, 40, -20], -1.08, 7, key=>planetAgeMa(key)>ANTEROS_MA, [60, 617.14], 'a planet-sized body'],
+  ['Enyo', [1.75, 0.18, 6.0, 0, 300, 20], [0, 0, 0, 36000/Math.pow(1.75, 1.5), 0, 0], [0.90, 0.86, 0.80], [700, 0, 210, 35], 1.27, 7, key=>planetAgeMa(key)>MARS_MOONS_MA, [200, 1234.29], 'a protoplanet'],
 ];
+// The rows drawn before the others were added, whose phases are drawn first (planetPhases).
+const LOST_EARLY=2;
+// Mercury before the graze: proto-Mercury, about 0.12 Earth masses with its mantle, 3,500 km in
+// radius (Benz et al. 2007; Chau et al. 2018), its crust dark with graphite and a quarter of it
+// brighter volcanic plains (embryo_maps.py), albedo about 0.13: 0.69 magnitudes brighter than
+// Mercury at the same place. Its day, unknown, before the Sun's tides slowed it, taken as 18 hours.
+const PROTO_MERCURY={R:3500, dm:-0.69, tint:[1.0, 0.97, 0.92], map:'Protomercury', W:[0, 480]};
+const PROTO_MERCURY_NOTE='proto-Mercury, before a grazing collision with Anteros stripped most of its mantle (Franco et al. 2025; the classic single impact, Benz et al. 2007, is dynamically unlikely: Clement et al. 2019). Its surface is imagined: dark crust with graphite from its magma ocean (Peplowski et al. 2016), brighter volcanic plains, dark halos where craters dig through them';
+const protoMercury=key=>planetAgeMa(key)>MERCURY_GRAZE_MA;
 // The three largest asteroids, which reach the naked eye or binoculars: Vesta magnitude 5.2 at its
 // best, Ceres 6.7, Pallas 6.4. Each row: name, elements and rates as PLANETS and periodic terms in the
 // mean longitude for Jupiter's pull (sine and cosine amplitudes, degrees, and rate, degrees a century;
@@ -335,10 +361,12 @@ function planetPhases(key){
   let h=2166136261; for(const c of dataKey(key)+(id===key?'':id.slice(key.length))) h=Math.imul(h^c.charCodeAt(0), 16777619);
   // Drawn in this order so each table's later rows leave the earlier ones' phases as they were.
   const rand=mulberry32(h>>>0), planets=PLANETS.map(()=>rand()*360), jup=rand()*360;
-  const moons=PLANET_MOONS.map(m=>m[1]===3?jup:MOON_LATE.has(m[0])?0:rand()*360), lost=LOST_PLANETS.map(()=>rand()*360);
+  const moons=PLANET_MOONS.map(m=>m[1]===3?jup:MOON_LATE.has(m[0])?0:rand()*360), lost=LOST_PLANETS.map((_, i)=>i<LOST_EARLY?rand()*360:0);
   const saturnPole=rand()*360;
   PLANET_MOONS.forEach((m, i)=>{ if(MOON_LATE.has(m[0])) moons[i]=rand()*360; });
-  return P[id]={planets, moons, lost, saturnPole, asteroids:ASTEROIDS.map(()=>rand()*360)};
+  const asteroids=ASTEROIDS.map(()=>rand()*360);
+  LOST_PLANETS.forEach((_, i)=>{ if(i>=LOST_EARLY) lost[i]=rand()*360; });
+  return P[id]={planets, moons, lost, saturnPole, asteroids};
 }
 // Jupiter's Great Red Spot, from its first sure sighting in 1831 (Schwabe; Cassini's "permanent
 // spot" of 1665-1713 may have been another storm) on. Its System II longitude (degrees, unwrapped)
@@ -472,7 +500,9 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
   };
   BODY_WHERE.clear();
   PLANETS.forEach(([name, el0, rate0, tint0], k)=>{
-    const [Rkm, flat, pra0, pdec0]=PLANET_BODY[k], [el, rate]=early?earlyOrbit(name, el0, rate0):[el0, rate0];
+    // Mercury before the graze, with its mantle (PROTO_MERCURY).
+    const proto=k===0&&protoMercury(epochKey);
+    const [Rkm0, flat, pra0, pdec0]=PLANET_BODY[k], Rkm=proto?PROTO_MERCURY.R:Rkm0, [el, rate]=early?earlyOrbit(name, el0, rate0):[el0, rate0];
     const [pra, pdec]=name==='Saturn'?saturnPole(pra0, pdec0):[pra0, pdec0];
     const h=planetHelio(phases?el.map((v, n)=>n===3?v+phases.planets[k]:v):el, rate, T), g=[h[0]-earth[0], h[1]-earth[1], h[2]-earth[2]];
     const r=Math.hypot(...h), d=Math.hypot(...g);
@@ -480,8 +510,8 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
     const i=Math.acos(Math.max(-1, Math.min(1, (r*r+d*d-R*R)/(2*r*d))))*180/Math.PI;
     const ringed=name==='Saturn'&&rings, ringSinB=ringed?Math.abs(vdot(qn, pole)):0;
     // A young giant's clouds, which change its color and brightness (giantEra).
-    const era=ageMa?giantEra(name, ageMa, el[0], sunL):null, look=eraLook(k, tint0, era), tint=look.tint;
-    const mag=planetMag(name, r, d, i, ringSinB)+dimMag+look.dm;
+    const era=ageMa?giantEra(name, ageMa, el[0], sunL):null, look=eraLook(k, proto?PROTO_MERCURY.tint:tint0, era), tint=look.tint;
+    const mag=planetMag(name, r, d, i, ringSinB)+dimMag+look.dm+(proto?PROTO_MERCURY.dm:0);
     const p=horiz(q);
     const radDeg=Math.atan(Rkm/(d*PL_AU_KM))*180/Math.PI, show=planetDisplay(mag, tint);
     BODY_WHERE.set(name, {az:p.az, el:p.alt, radDeg, rings:ringed, mag});
@@ -496,7 +526,7 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
         grs={...s, dir:horiz(vadd(vscale(ax.i, Math.cos(w)), vscale(ax.j, Math.sin(w)), [0, 0, 0])).dir};
       }
     }
-    const Wk=PLANET_W[k], axk=equatorAxes(pra, pdec), Wr=Wk?(Wk[0]+Wk[1]*(tD-d*LIGHT_DAY_AU))*Math.PI/180:0;
+    const Wk=proto?PROTO_MERCURY.W:PLANET_W[k], axk=equatorAxes(pra, pdec), Wr=Wk?(Wk[0]+Wk[1]*(tD-d*LIGHT_DAY_AU))*Math.PI/180:0;
     const meridian=horiz(vadd(vscale(axk.i, Math.cos(Wr)), vscale(axk.j, Math.sin(Wr)), [0, 0, 0])).dir;
     // Neptune's dark vortex, if one is drawn: its direction at east longitude lon from the meridian.
     let nds=null;
@@ -504,12 +534,12 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
       const s=nepSpotAt(2000+(tD-d*LIGHT_DAY_AU)/365.25);
       if(s){ const w=Wr+s.lon*Math.PI/180; nds={...s, dir:horiz(vadd(vscale(axk.i, Math.cos(w)), vscale(axk.j, Math.sin(w)), [0, 0, 0])).dir}; }
     }
-    const body={grs, meridian, map:SURF_FILES[name]?name:null, dir:p.dir, rad:radDeg*Math.PI/180, light:vnorm(horiz(eq(h.map(v=>-v))).dir), pole:horiz(pole).dir, kind:k, px:show.px, rgb:show.rgb, mag, front:d<R, shadows:[], rings:ringed, ringAge:(RINGS_MA-ageMa)/RINGS_MA, tint, nds, era};
+    const body={grs, meridian, map:proto?PROTO_MERCURY.map:SURF_FILES[name]?name:null, dir:p.dir, rad:radDeg*Math.PI/180, light:vnorm(horiz(eq(h.map(v=>-v))).dir), pole:horiz(pole).dir, kind:k, px:show.px, rgb:show.rgb, mag, front:d<R, shadows:[], rings:ringed, ringAge:(RINGS_MA-ageMa)/RINGS_MA, tint, nds, era};
     // Uranus's rings, where the light now arriving left them: their state, and the node their
     // longitudes count from (the IAU pole's, the equator's ascending node on the J2000 equator).
     if(name==='Uranus') body.uRings={el:uraRingEl(tD-d*LIGHT_DAY_AU), ax:horiz(axk.i).dir};
     if(p.alt>0){
-      marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb, planet:name, mag, ra:p.ra, dec:p.dec, radDeg, dist:d, lit:(1+Math.cos(i*Math.PI/180))/2, body, kind:k, rings:ringed, unknown:!!phases, ageMa, grs, tint});
+      marks.push({az:p.az, el:p.alt, px:show.px, rgb:show.rgb, planet:name, mag, ra:p.ra, dec:p.dec, radDeg, dist:d, lit:(1+Math.cos(i*Math.PI/180))/2, body, kind:k, rings:ringed, unknown:!!phases, ageMa, grs, tint, what:proto?'before it lost most of its mantle':undefined});
       bodies.push(body);
     }
     // Its moons, where the light now arriving left them, and the Sun's way from the host.
@@ -594,8 +624,8 @@ function placePlanets(lat, marks, bodies, epochKey, year, LST){
   };
   // The planets only the earliest epochs have: a giant's phase law (Neptune's: none), or a rocky
   // body's (Mars's).
-  LOST_PLANETS.forEach(([name, el, rate, tint, [Rkm, , pra, pdec], H, kind, eps, spin], li)=>{
-    if(eps(epochKey)) placeAlone(name, el, rate, tint, Rkm, undefined, pra, pdec, kind, spin, phases?phases.lost[li]:null, (r, d, i)=>H+5*Math.log10(r*d)+(kind===BODY_MOON?0.016*i:0), name==='Theia'?'a planet-sized body':'a lost ice giant', giantEra(name, ageMa, el[0], sunL));
+  LOST_PLANETS.forEach(([name, el, rate, tint, [Rkm, , pra, pdec], H, kind, eps, spin, what], li)=>{
+    if(eps(epochKey)) placeAlone(name, el, rate, tint, Rkm, undefined, pra, pdec, kind, spin, phases?phases.lost[li]:null, (r, d, i)=>H+5*Math.log10(r*d)+(kind===BODY_MOON?0.016*i:0), what, giantEra(name, ageMa, el[0], sunL));
   });
   // The largest asteroids, in every epoch, by the H, G law.
   ASTEROIDS.forEach(([name, el, rate, terms, tint, [Rkm, flat, pra, pdec], spin, H, G, what], ai)=>{

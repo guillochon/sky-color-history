@@ -524,7 +524,7 @@ const float BODY_GAIN[8]=float[8](${BODY_GAIN.map(v=>v.toFixed(2)).join(', ')}),
 float surfReliefLit(float c, vec3 nrm, vec3 pc, vec3 n, vec3 mp, vec3 L, vec3 V, float lon, float lat, float pxS, float km, float w, float litS){
   // Mercury's and Mars's maps are 4096 texels round (surfTex's level 3 past a 512-texel map's), the
   // rest 1024 (level 1).
-  float kind=mod(c, 8.0), big=kind>0.5&&kind<2.5?1.0:0.0, lv=big>0.5?3.0:1.0;
+  float kind=mod(c, ${SURF_KINDS}.0), big=kind>0.5&&kind<2.5?1.0:0.0, lv=big>0.5?3.0:1.0;
   vec4 hrs=SURF_HRS[int(kind+0.5)];
   float R=hrs.z, span=hrs.y, sunA=hrs.w;
   float tD=360.0/(big>0.5?4096.0:1024.0), st=max(pxS/tD, 2.0), l5=log2(st)-1.0-lv, d=st*tD, dr=d*0.01745329252;
@@ -568,11 +568,11 @@ vec4 bodyDisk(vec3 o, vec3 v, vec3 n, vec3 L, int kind, float rPx, vec3 tint, ve
   vec3 mp=M.xyz-n*dot(M.xyz, n); mp=dot(mp, mp)>1e-8?normalize(mp):normalize(cross(n, abs(n.x)<0.9?vec3(1.0, 0.0, 0.0):vec3(0.0, 1.0, 0.0)));
   float edge=1.0;
 #if DETAIL_MAP
-  if(M.w>-0.5 && mod(M.w, 8.0)>0.5 && rPx>2.0){
+  if(M.w>-0.5 && mod(M.w, ${SURF_KINDS}.0)>0.5 && rPx>2.0){
     // The closest point, back from the stretched sphere to the spheroid, and the height there.
     vec3 sp=op-bh*vp; sp/=max(length(sp), 1e-6);
     vec3 pl=normalize(sp-(k/(1.0+k))*dot(sp, n)*n);
-    vec4 hrs=SURF_HRS[int(mod(M.w, 8.0)+0.5)];
+    vec4 hrs=SURF_HRS[int(mod(M.w, ${SURF_KINDS}.0)+0.5)];
     float hl=surfH(M.w, atan(dot(pl, cross(n, mp)), dot(pl, mp))*57.2957795, asin(clamp(dot(pl, n), -1.0, 1.0))*57.2957795, log2(max(160.0/rPx, 1e-6)));
     edge=1.0+hl/hrs.z;
   }
@@ -629,7 +629,7 @@ vec4 bodyDisk(vec3 o, vec3 v, vec3 n, vec3 L, int kind, float rPx, vec3 tint, ve
   float latC=asin(clamp(dot(pc, n), -1.0, 1.0))*57.2957795;
   if(M.w>-0.5) alb=surfAt(M.w, lon, latC, log2(max(512.0/360.0*pxS, 1e-6)));
   // The relief of those with heights, once the disk is a few pixels across.
-  if(M.w>-0.5 && mod(M.w, 8.0)>0.5 && rPx>8.0) lit=surfReliefLit(M.w, nrm, pc, n, mp, L, -v, lon, latC, pxS, km, w, lit);
+  if(M.w>-0.5 && mod(M.w, ${SURF_KINDS}.0)>0.5 && rPx>8.0) lit=surfReliefLit(M.w, nrm, pc, n, mp, L, -v, lon, latC, pxS, km, w, lit);
 #endif
 #if !DETAIL_JUP
   if(kind==3 && grsAB.x>0.0) alb=grsPaint(alb, nrm, n, lat);

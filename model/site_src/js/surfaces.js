@@ -20,17 +20,20 @@
 // the array remade with room for each map as it arrives. Uploading tiles straight from the image
 // made the browser convert the whole image again for each one, freezing the page for half a minute.
 const SURF_FILES=__SURF_FILES__;
-// Mercury's, Mars's, Theia's, Ceres's, Vesta's and Phobos's heights (relief_maps.py: MESSENGER's and
-// MOLA's; theia_map.py: from its imagined basins and craters; small_bodies.py: Dawn's and Mars
+// Mercury's, Mars's, Theia's, Ceres's, Vesta's, Phobos's, proto-Mercury's, Anteros's and Enyo's heights
+// (relief_maps.py: MESSENGER's and MOLA's; theia_map.py and embryo_maps.py: from their imagined
+// basins and craters; small_bodies.py: Dawn's and Mars
 // Express's shapes, over the spheroids planets.js draws them as), on their maps' grid, one byte from
 // SURF_RELIEF[name][0] to [1] km; the radius they stand on (km) and the Sun's angular radius there
 // (radians). They ride in their maps' alpha (level ground until they come) and light the slopes, cast
 // the shadows and shape the outlines of the bodies' disks (shader_bodies.js surfReliefLit, bodyDisk).
 const RELIEF_FILES=__RELIEF_FILES__, SURF_RELIEF={Mercury:[-5.5, 4.7, 2439.4, 0.012], Mars:[-8.3, 21.3, 3389.5, 0.0031], Theia:[-15, 7.5, 3400, 0.0047],
-  Ceres:[-7.3, 9.4, 482.1, 0.00168], Vesta:[-19.7, 23.1, 280.98, 0.00197], Phobos:[-1.6, 2.0, 12.12, 0.0031]};
+  Ceres:[-7.3, 9.4, 482.1, 0.00168], Vesta:[-19.7, 23.1, 280.98, 0.00197], Phobos:[-1.6, 2.0, 12.12, 0.0031],
+  Protomercury:[-13, 8, 3500, 0.0120], Anteros:[-15, 9.5, 3300, 0.00838], Enyo:[-21, 12, 700, 0.00266]};
 // Each mapped body's kind in the shaders' code (surfCode): 0 a moon's two tiles, no heights; 1
-// Mercury's and 2 Mars's 8 x 4 tiles; from 3 on two tiles with heights, in SURF_RELIEF's order.
-const SURF_KIND={Mercury:1, Mars:2};
+// Mercury's and 2 Mars's 8 x 4 tiles; from 3 on two tiles with heights, in SURF_RELIEF's order. The
+// code holds up to SURF_KINDS kinds.
+const SURF_KIND={Mercury:1, Mars:2}, SURF_KINDS=16;
 Object.keys(SURF_RELIEF).filter(n=>!SURF_KIND[n]).forEach((n, i)=>{ SURF_KIND[n]=3+i; });
 const surfMaps={};
 let surfReliefIn=0;
@@ -66,7 +69,7 @@ function wantSurface(name){
 // plus its kind (SURF_KIND).
 function surfCode(name){
   const s=name&&surfMaps[name];
-  return s&&s.base!=null?s.base*8+(SURF_KIND[name]||0):-1;
+  return s&&s.base!=null?s.base*SURF_KINDS+(SURF_KIND[name]||0):-1;
 }
 // The nebulae's tiles (dso.js, from their pixels; left empty until they are in), every map that
 // has arrived, and the pieces of each nebula's full-size tile that has, in one array (unit 6),
@@ -111,7 +114,7 @@ function syncSurfTex(gl){
 // (degrees), lod the level of detail of a 512-texel map round the equator.
 const SURF_GLSL=`
 vec4 surfTex(float c, float lon, float lat, float lod){
-  float kind=mod(c, 8.0), base=floor(c/8.0+0.01), u=fract(lon/360.0), v=clamp((90.0-lat)/180.0, 0.0, 1.0);
+  float kind=mod(c, ${SURF_KINDS}.0), base=floor(c/${SURF_KINDS}.0+0.01), u=fract(lon/360.0), v=clamp((90.0-lat)/180.0, 0.0, 1.0);
   float layer, s, t;
   if(kind>0.5 && kind<2.5){ float x=min(u*8.0, 7.9999), y=min(v*4.0, 3.9999); layer=floor(y)*8.0+floor(x); s=fract(x); t=fract(y); lod+=3.0; }
   else { float x=min(u*2.0, 1.9999); layer=floor(x); s=fract(x); t=v; lod+=1.0; }
@@ -119,13 +122,13 @@ vec4 surfTex(float c, float lon, float lat, float lod){
 }
 vec3 surfAt(float c, float lon, float lat, float lod){
   // Mars's disk is drawn brighter (planets.js BODY_GAIN); its map a little darker to match.
-  float kind=mod(c, 8.0);
+  float kind=mod(c, ${SURF_KINDS}.0);
   return surfTex(c, lon, lat, lod).rgb*(kind>1.5&&kind<2.5?1.3:1.78);
 }
 // For each kind with heights (SURF_KIND, 0 for none): their lowest and span, the radius they stand on
 // (km) and the Sun's angular radius there (SURF_RELIEF).
-const vec4 SURF_HRS[8]=vec4[8](${[0, 1, 2, 3, 4, 5, 6, 7].map(k=>{ const n=Object.keys(SURF_KIND).find(n=>SURF_KIND[n]===k), r=n&&SURF_RELIEF[n]; return 'vec4('+(r?[r[0], r[1]-r[0], r[2], r[3]].map(v=>v.toFixed(5)):['0.0', '0.0', '1.0', '0.0']).join(', ')+')'; }).join(', ')});
-vec3 surfHR(float c){ return SURF_HRS[int(mod(c, 8.0)+0.5)].xyz; }
+const vec4 SURF_HRS[${SURF_KINDS}]=vec4[${SURF_KINDS}](${Array.from({length:SURF_KINDS}, (_, k)=>k).map(k=>{ const n=Object.keys(SURF_KIND).find(n=>SURF_KIND[n]===k), r=n&&SURF_RELIEF[n]; return 'vec4('+(r?[r[0], r[1]-r[0], r[2], r[3]].map(v=>v.toFixed(5)):['0.0', '0.0', '1.0', '0.0']).join(', ')+')'; }).join(', ')});
+vec3 surfHR(float c){ return SURF_HRS[int(mod(c, ${SURF_KINDS}.0)+0.5)].xyz; }
 // Their heights in km, from their maps' alpha.
 float surfH(float c, float lon, float lat, float lod){
   vec3 hr=surfHR(c);
