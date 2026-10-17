@@ -17,7 +17,7 @@ east to the right) and their heights -> site/relief/<name>.webp, made as theia_m
     rays erased soon, so only the freshest craters stand out, gray and bright. One great old basin,
     flooded with darker lava, covers much of one hemisphere, as Procellarum does on the Moon.
   - Enyo: the body of about 1,400 km whose impact made Mars's crustal dichotomy (Marinova et al.
-    2008, 1,600-2,700 km for a northern Borealis basin; Ballantyne et al. 2022, 1,000-1,500 km for a
+    2008, 1,600-2,700 km for a northern Borealis basin; Ballantyne et al. 2023, 1,000-1,500 km for a
     southern impact). A protoplanet of the asteroid belt's inner edge melted by aluminum-26, its
     crust basalt like Vesta's (eucrites), brighter (albedo about 0.28) and lightly weathered, with
     the dark carbonaceous spatter of the impactors that struck it (as on Vesta: McCord et al. 2012),

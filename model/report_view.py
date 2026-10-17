@@ -150,6 +150,28 @@ PLANETS_WHERE = [
 "(Meier, Reufer &amp; Wieler 2014), its steam atmosphere lost to the young Sun within a few tens of "
 "millions of years (Odert et al. 2018), with eight great basins and a few young rayed craters.",
 
+"Three more worlds of the giant impacts share the 4.55 Ga sky, all hypothetical and named here. Mercury, "
+"its core some 70% of its mass, seems to have lost most of its mantle in a collision. A single giant impact on "
+"a larger proto-Mercury (Benz et al. 2007; Chau et al. 2018) seldom leaves Mercury and Venus on orbits like "
+"theirs (Clement, Kaib &amp; Chambers 2019), but a grazing collision of two bodies of similar mass, the "
+"commonest kind in models of the planets' growth, can make Mercury (Franco et al. 2025). We draw that: until "
+"4.54 Ga Mercury is proto-Mercury, about 0.12 Earth masses and 3,500 km in radius, 0.7 magnitudes brighter "
+"than Mercury in the same place, and the body that grazes it, Anteros, is a Mars-sized planet on an orbit from "
+"0.39 to 0.72 AU that crosses both Mercury's and Venus's. A giant impact can also account for Venus's slow, "
+"backward spin and its lack of a moon (Bussmann et al. 2025), and after the graze we let Anteros strike Venus, "
+"at 4.53 Ga. That one body did both is our choice, and its orbit and both dates are made up. From the Earth it "
+"keeps within 46 degrees of the Sun, as Venus does, at about magnitude −0.5, and −1.6 at its brightest. Enyo is "
+"the body whose impact made Mars's crustal dichotomy: 1,600–2,700 km across for a northern Borealis basin "
+"(Marinova, Aharonson &amp; Asphaug 2008), 1,000–1,500 km for an impact in the south (Ballantyne et al. 2023); "
+"we take 1,400 km. On a made-up orbit crossing Mars's, it reaches magnitude 1 at its best and is usually fainter "
+"than 5, and it stays until 4.3 Ga, when it makes the dichotomy and Mars's first moons. Their faces are "
+"invented as Theia's is, with heights (embryo_maps.py). Proto-Mercury's oldest crust is dark with graphite "
+"floated from its magma ocean (Vander Kaaden &amp; McCubbin 2015; Peplowski et al. 2016), under brighter, "
+"redder volcanic plains over a quarter of it, as on Mercury (Denevi et al. 2013), where craters dig up dark "
+"halos. Anteros's crust is basalt darkened and reddened by the young Sun's wind, with a great lava-flooded "
+"basin over one side. Enyo's is light basalt like Vesta's, with dark carbonaceous spatter (McCord et al. 2012) "
+"and basins as deep for its size as Vesta's.",
+
 "The three largest asteroids are placed the same way, in every epoch: Vesta, which reaches magnitude 5.2 "
 "and the naked eye, Ceres and Pallas. Their elements are fit here to JPL Horizons over 1800–2200, with "
 "periodic terms in the mean longitude for Jupiter's pull (for Pallas, 0.9 degrees over 83 years), to a "
@@ -181,7 +203,7 @@ PLANETS_CLOSE = [
 "Park et al. 2016; Vesta 281 by 226 km), with what is left of the shape, up to 23 km on Vesta, as relief "
 "that lights the slopes and also bends the outline of the disk, so Vesta's south, cut by its great basins, "
 "shows flattened and lumpy. Phobos has the Mars Express map and shape the same way, though it is never more "
-"than a few pixels. Pallas, which no spacecraft has visited, is the spheroid of the shape from Marsset "
+"than a few pixels. Proto-Mercury, Anteros and Enyo wear their invented maps and heights as Theia does. Pallas, which no spacecraft has visited, is the spheroid of the shape from Marsset "
 "et al. (2020), in its own faintly blue tint. {ref:fig:surfaces} shows every rocky surface the site draws.",
 ]
 
@@ -190,7 +212,8 @@ SURFACES_CAPTION = ("The rocky surfaces the site draws, each its own map on a gl
 "the Lunar Reconnaissance Orbiter's Wide Angle Camera color mosaic and Laser Altimeter heights (NASA's CGI Moon Kit); "
 "Mercury, the USGS MESSENGER MDIS color mosaic and MESSENGER heights (Becker et al. 2016); Mars, the USGS Viking "
 "color mosaic and the Mars Orbiter Laser Altimeter's gridded heights; and Theia, invented from what it was likely "
-"made of (Meier, Reufer &amp; Wieler 2014). The Moon's older faces are today's with Tycho and its rays removed and "
+"made of (Meier, Reufer &amp; Wieler 2014). Proto-Mercury, Anteros and Enyo, the 4.55 Ga sky's other invented worlds, are drawn small, "
+"shaded by their heights. The Moon's older faces are today's with Tycho and its rays removed and "
 "the maria part- or un-flooded (Hiesinger et al. 2011), on the same heights; the molten Moon is a model of its "
 "magma ocean, glowing by its own light. Io, Europa, Ganymede and Callisto are the USGS Voyager and Galileo SSI "
 "mosaics; Mimas, Enceladus, Tethys, Dione, Rhea and Iapetus are Cassini color maps (NASA/JPL-Caltech/SSI/LPI, "
@@ -842,7 +865,7 @@ EPOCH_CAPTION = ("The epochs, each at its own year on the site's timeline; the h
                  "(2015); the day and the Moon's width from the Moon's distance ({ref:tab:moon}); the last column lists "
                  "what the sections that follow find in each sky besides its color.")
 EPOCH_NOTE = {
- 'protoearth455': 'No Moon; Theia passing; the giant planets before the instability, with a fifth giant; a saturated young Sun',
+ 'protoearth455': 'No Moon; Theia and Anteros passing; proto-Mercury with its mantle; the giant planets before the instability, with a fifth giant; a saturated young Sun',
  'hadean45': 'The molten Moon at 8 R⊕; 10,000× today’s meteors; no stars through 30 bar of CO₂ and the debris’s glow',
  'hadean40': 'Bombardment; nitrogen aurorae to 37°; the Moon before the maria',
  'archean38': 'The maria flooding, lava fountains on the Moon; Mars’s lost moon Harmonia',

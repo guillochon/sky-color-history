@@ -201,7 +201,7 @@ const BODY_NOTES={
   Oceanus:'hypothetical, named here: the fifth giant planet of Nesvorný (2011) and Nesvorný & Morbidelli (2012), thrown out of the Solar System by Jupiter in the instability',
   Theia:'the Mars-sized body thought to strike the proto-Earth and make the Moon; where its orbit lay is not known (Branco, Machado & Raymond 2025). Its surface is imagined: airless, dark basalt richer in iron oxide than Earth’s (Meier et al. 2014), saturated with craters',
   Anteros:'hypothetical, named here: a Mars-sized body that grazes proto-Mercury, stripping most of its mantle (Franco et al. 2025), then strikes Venus, which may have left Venus turning slowly backward with no moon (Bussmann et al. 2025); that one body did both is a choice made here, and its orbit is made up. Its surface is imagined: basalt darkened and reddened by the young Sun’s wind, a great flooded basin over one side',
-  Enyo:'hypothetical, named here: the body whose impact made Mars’s crustal dichotomy, about 1,400 km across (Marinova et al. 2008; Ballantyne et al. 2022); its orbit is made up. Its surface is imagined: basalt like Vesta’s, with dark carbonaceous spatter and great deep basins',
+  Enyo:'hypothetical, named here: the body whose impact made Mars’s crustal dichotomy, about 1,400 km across (Marinova et al. 2008; Ballantyne et al. 2023); its orbit is made up. Its surface is imagined: basalt like Vesta’s, with dark carbonaceous spatter and great deep basins',
 };
 BODY_NOTES.Galene=BODY_NOTES.Thetis=BODY_NOTES.Amphitrite=BODY_NOTES.Kymo;
 // The bodies the walk-around view draws as disks at once (bodyP..bodyN in the sky shader): those on
@@ -260,7 +260,7 @@ function earlyOrbit(name, el, rate){
 // did both is a choice made here. Its orbit, made up, crosses both theirs (0.39 to 0.72 AU). Its
 // crust is dark, reddish, heavily weathered basalt (embryo_maps.py): albedo about 0.11, so H -1.08
 // for its 6,600 km. Enyo (named here: Ares's companion in battle): the body of about 1,400 km whose
-// impact made Mars's crustal dichotomy (Marinova et al. 2008; Ballantyne et al. 2022), on a
+// impact made Mars's crustal dichotomy (Marinova et al. 2008; Ballantyne et al. 2023), on a
 // Mars-crossing orbit, made up; its crust basalt like Vesta's, albedo about 0.28, so H 1.27. Their
 // days, unknown, are taken as 14 and 7 hours.
 // Theia until the Moon-forming impact (airtime.py T_IMPACT); Anteros until it strikes Venus, after

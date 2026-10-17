@@ -5,7 +5,8 @@ phase angle of about 55 degrees so the terminator crosses the disk. The four bod
 (the Moon, Mercury, Mars and Theia: site/moon/relief.webp, site/relief/<name>.webp) are drawn large
 and shaded by their slopes at true scale, as the shader shades them; the rest are drawn small with
 their maps alone, but for Ceres, Vesta and Phobos, shaded by their heights too (small_bodies.py) and
-drawn as the spheroids the site draws them as, pole up. The Moon's older faces share its heights; the
+drawn as the spheroids the site draws them as, pole up, and proto-Mercury, Anteros and Enyo, shaded by
+their invented heights (embryo_maps.py). The Moon's older faces share its heights; the
 molten Moon glows by its own light.
 Each body is scaled to its own exposure, so the panels do not compare in albedo; the Moon's
 faces share the present Moon's.
@@ -56,6 +57,9 @@ SMALLS = [
     ('Ceres', 'surf/ceres.webp', 0, ('relief/ceres.webp', -7.3, 9.4, 482.1), 240, 0, False, 0.07507),
     ('Vesta', 'surf/vesta.webp', 0, ('relief/vesta.webp', -19.7, 23.1, 280.98), 60, 0, False, 0.19425),
     ('Phobos', 'surf/phobos.webp', 0, ('relief/phobos.webp', -1.6, 2.0, 12.12), 0, 0, False, 0.24611),
+    ('Proto-Mercury (invented)', 'surf/protomercury.webp', 0, ('relief/protomercury.webp', -13.0, 8.0, 3500.0), 0, 10, False),
+    ('Anteros (invented)', 'surf/anteros.webp', 0, ('relief/anteros.webp', -15.0, 9.5, 3300.0), 300, 15, False),
+    ('Enyo (invented)', 'surf/enyo.webp', 0, ('relief/enyo.webp', -21.0, 12.0, 700.0), 0, 0, False),
 ]
 SUN = np.array([-0.72, 0.28, 0.63]); SUN /= np.linalg.norm(SUN)   # view frame: x right, y up, z out
 
