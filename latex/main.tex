@@ -103,7 +103,7 @@ The same holds for the rest of the view. Its pieces are separate results: the Mo
 
 \subsection{The sky's colors}\label{method-colors}
 
-For each epoch the atmosphere is built from components with their own vertical profile and spectral optical depth: Rayleigh-scattering gas (N$_2$, O$_2$, CO$_2$, CH$_4$, H$_2$O in their epoch-appropriate partial pressures), ozone (the Chappuis cross section of \protect\hyperlink{cite.serdyuchenko2014}{Serdyuchenko et al. 2014} at 223 K, on a layer whose peak falls from 26 km at the equator to 18 km at the pole), tropospheric aerosol, a stratospheric sulfate layer, a tholin-like fractal organic haze (strongly blue-absorbing, forward-scattering), and impact soot (Table~\ref{tab:epochs}). Sky radiance is integrated numerically along each line of sight through a spherical-shell atmosphere, so grazing sunlight at twilight is handled properly. The light scattered more than once is carried by a table over altitude and the Sun's local elevation, as in \protect\hyperlink{cite.hillaire2020}{Hillaire (2020)}: from each of its nodes, rays in 576 directions gather the light scattered once on its way there and the sunlight off the ground; every later order is then solved exactly, as a linear system for each wavelength, with the ground lit by the scattered light too, and the first four orders keep their directions, which the forward-scattering hazes and aerosols need. Against CalcMySky (\protect\hyperlink{cite.kabatsayev2025}{Kabatsayev 2025}), an independent multiple-scattering code after \protect\hyperlink{cite.bruneton2008}{Bruneton \& Neyret (2008)} that Stellarium uses (\protect\hyperlink{cite.zotti2023}{Zotti \& Wolf 2023}), run on the same atmospheres, the modern sky agrees within 2\% at the zenith from noon until the Sun is 18$^\circ$ below the horizon and within 0.002 in chromaticity, the hazy Archean and impact skies within 12\% by day and 20\% in twilight, and the 30-bar Hadean within 20\% at the zenith wherever CalcMySky itself converges (600--750 nm). Spectra from 380--780 nm are converted to CIE XYZ with the analytic color-matching functions of \protect\hyperlink{cite.wyman2013}{Wyman, Sloan \& Shirley (2013)} and shown as sRGB. The model reproduces measured modern values (clear zenith 10,000--20,000 K, horizon 6,000--8,500 K, setting Sun $\sim$1,700 K, pink-lavender antisolar Belt of Venus) before being pointed backward.
+For each epoch the atmosphere is built from components with their own vertical profile and spectral optical depth: Rayleigh-scattering gas (N$_2$, O$_2$, CO$_2$, CH$_4$, H$_2$O in their epoch-appropriate partial pressures), ozone (the Chappuis cross section of \protect\hyperlink{cite.serdyuchenko2014}{Serdyuchenko et al. 2014} at 223 K, on a layer whose peak falls from 26 km at the equator to 18 km at the pole), tropospheric aerosol, a stratospheric sulfate layer, a tholin-like fractal organic haze (strongly blue-absorbing, forward-scattering), and impact soot (Table~\ref{tab:epochs}). Sky radiance is integrated numerically along each line of sight through a spherical-shell atmosphere, so grazing sunlight at twilight is handled properly. The light scattered more than once is carried by a table over altitude and the Sun's local elevation, as in \protect\hyperlink{cite.hillaire2020}{Hillaire (2020)}: from each of its nodes, rays in 576 directions gather the light scattered once on its way there and the sunlight off the ground; every later order is then solved exactly, as a linear system for each wavelength, with the ground lit by the scattered light too, and the first four orders keep their directions, which the forward-scattering hazes and aerosols need. Against CalcMySky (\protect\hyperlink{cite.kabatsayev2025}{Kabatsayev 2025}), an independent multiple-scattering code after \protect\hyperlink{cite.bruneton2008}{Bruneton \& Neyret (2008)} that Stellarium uses (\protect\hyperlink{cite.zotti2023}{Zotti \& Wolf 2023}), run on the same atmospheres, the modern sky agrees within 2\% at the zenith from noon until the Sun is 18$^\circ$ below the horizon and within 0.002 in chromaticity, the hazy Archean and impact skies within 12\% by day and 20\% in twilight, and the 30-bar Hadean within 20\% at the zenith wherever CalcMySky itself converges (600--750 nm) (Appendix~B). Spectra from 380--780 nm are converted to CIE XYZ with the analytic color-matching functions of \protect\hyperlink{cite.wyman2013}{Wyman, Sloan \& Shirley (2013)} and shown as sRGB. The model reproduces measured modern values (clear zenith 10,000--20,000 K, horizon 6,000--8,500 K, setting Sun $\sim$1,700 K, pink-lavender antisolar Belt of Venus) before being pointed backward.
 
 We treat the young Sun as a blackbody whose effective temperature and luminosity follow the solar track of \protect\hyperlink{cite.baraffe2015}{Baraffe et al. (2015)}: 5,530 K and 68\% of today's output at 4.5 Ga, rising through 5,620 K (75\%) at 3.8 Ga, 5,660 K (80\%) at 2.7 Ga and 5,700 K (85\%) at 2.2 Ga to 5,772 K today, and 4,614 K (47\%) for the 17-million-year-old Sun of 4.55 Ga; between the epochs the temperature runs linearly in time and the inverse of the luminosity too, the form of the brightening that \protect\hyperlink{cite.gough1981}{Gough (1981)} gives. The color effect is small: the 5,530 K Sun of 4.5 Ga is only about 240 K cooler in color temperature than the modern one, a difference that is barely perceptible side by side and is swamped by atmospheric effects ten to a hundred times larger. The brightness effect is not small, and is why the early-epoch skies are rendered dimmer. We ignore Fraunhofer lines and the young Sun's ultraviolet excess, which matter for haze photochemistry but not for visible color. The model is provided as the Python source \emph{skymodel.py}; \emph{run\_epochs.py} produces the sky colors and \emph{limb\_grid.py} the limb and disk colors.
 
@@ -948,7 +948,7 @@ Between the epochs the air follows curves fitted through the epochs' own values 
 {\footnotesize\microtypesetup{expansion=false}\bibliography{refs}}
 
 \onecolumn
-\section*{Appendix: computed chromaticities}
+\section*{Appendix A: computed chromaticities}\label{app:chroma}
 \scriptsize
 \rowcolors{2}{rowa}{white}
 \begin{longtable}{@{}llllllr@{}}
@@ -1011,4 +1011,70 @@ Modern, polluted megacity & Mid-latitude & 0.297, 0.310 & 7,698 & 0.327, 0.338 &
 Modern, polluted megacity & Polar summer & 0.287, 0.300 & 8,779 & 0.334, 0.342 & 5,437 & 0.08 \\
 \bottomrule
 \end{longtable}
+
+\clearpage
+\normalsize
+\section*{Appendix B: our sky model and CalcMySky}\label{app:calcmysky}
+
+CalcMySky (\protect\hyperlink{cite.kabatsayev2025}{Kabatsayev 2025}) is the atmosphere code behind ShowMySky, the optional sky model Stellarium has shipped since version 1.0 (\protect\hyperlink{cite.zotti2023}{Zotti \& Wolf 2023}). It follows the precomputed atmospheric scattering of \protect\hyperlink{cite.bruneton2008}{Bruneton \& Neyret (2008)}: a command-line tool, \emph{calcmysky}, precomputes a model on the GPU from a plain-text description of the atmosphere, and a runtime library, \emph{libShowMySky}, renders it in real time for any geometry. It is meant for unusual atmospheres too, Mars among its samples, which makes it the natural independent check on ours. There is no refereed paper on CalcMySky itself; Zotti \& Wolf describe it in Stellarium. Table~\ref{tab:calcmysky-methods} sets the two approaches side by side.
+
+{\small
+\rowcolors{2}{rowa}{white}
+\begin{longtable}{@{}p{0.15\linewidth}p{0.4\linewidth}p{0.4\linewidth}@{}}
+\caption{Our sky model (\emph{skymodel.py}) and CalcMySky v0.4.0.}\label{tab:calcmysky-methods}\\ \toprule
+& Ours & CalcMySky \\ \midrule \endfirsthead
+\toprule & Ours & CalcMySky \\ \midrule \endhead
+Geometry & Spherical shell, straight rays, observer on the ground & Spherical shell, straight rays, observer at any altitude up to the top of the atmosphere \\
+Single scattering & Integrated numerically along each view ray, with the columns toward the Sun at every point and the Earth's shadow & Exact, in a precomputed four-dimensional texture \\
+Multiple scattering & A table over altitude and the Sun's local elevation (\protect\hyperlink{cite.hillaire2020}{Hillaire 2020}), gathered from each node by rays in 576 directions; all orders solved exactly as a linear system per wavelength, with the ground lit by the scattered light too; orders 2--4 keep their directions and later orders are spread evenly. The altitudes adapt so that no two neighbors are more than 0.3 apart in optical depth & Every order computed explicitly in spherical geometry, with its directions, up to a set number of orders (the sample Earth uses 4, Mars 8) \\
+Spectrum & 41 wavelengths, 380--780 nm & Set by the user; its samples use 16 wavelengths, 360--830 nm \\
+Constituents & Rayleigh gas mix, ozone (\protect\hyperlink{cite.serdyuchenko2014}{Serdyuchenko et al. 2014}), tropospheric aerosol, sulfate, tholin haze, soot and dust, each with its own profile, spectral optical depth and single-scattering albedo & Any number of scatterers, each with a density profile and a phase function written in GLSL, a cross-section with an Ångström exponent and a spectral single-scattering albedo; absorbers with spectral cross-sections \\
+Phase functions & Rayleigh and Henyey--Greenstein & Anything written in GLSL, chromatic or not \\
+Surface & Lambertian, albedo 0.08, 0.18 or 0.70 by latitude & Lambertian, one albedo spectrum over the whole globe \\
+Inhomogeneity & Cloud-shadow shafts, computed apart from the sky's radiative transfer (Section~\ref{crepuscular-rays}) & None: the atmosphere is spherically symmetric \\
+Refraction & None in the sky's radiance; exact in the lunar eclipse's ray trace and the setting Sun's image & None \\
+Solar eclipses & Drawn over the computed sky (Section~\ref{solar-eclipses}) & In the radiative transfer, up to the second order of scattering \\
+Output & Precomputed per air: 34 solar zenith angles $\times$ 9 view zenith angles $\times$ 10 azimuths $\times$ 3 latitudes, interpolated on the site & Any geometry in real time, from the textures \\
+Validation & Against measured modern colors, and against CalcMySky (below) & The method family is evaluated against libRadtran and measured skies by \protect\hyperlink{cite.bruneton2017}{Bruneton (2017)} \\
+\bottomrule
+\end{longtable}}
+
+\subsection*{The cross-check}
+
+Each epoch's atmosphere, as our model builds it, is written out as a CalcMySky description (\emph{calcmysky\_check.py}): every component's own vertical profile, its optical depth as a power law in wavelength (fitted to within $10^{-13}$), its spectral single-scattering albedo and its phase function, ozone as an absorber with the same cross-sections, the epoch's Sun as the same Planck spectrum, a ground albedo of 0.18, and 44 wavelengths from 380 to 810 nm. CalcMySky's radiance textures are read back at the ground on the grid the site uses, with single and multiple scattering kept apart, and compared with ours at mid-latitude. CalcMySky ran 10 orders of scattering for the modern and hazy Archean skies, 20 for the very thick haze and the impact winter, and up to 60 for the 30-bar Hadean.
+
+Single scattering checks the setup: ours matches CalcMySky's within 0.1--0.6\% from the Sun overhead to 5$^\circ$ below the horizon in every epoch, and within 1--5\% from 6$^\circ$ to 9$^\circ$ below it, where single scattering is a small part of the light. The inputs are therefore the same, and what differs is the multiple scattering (Table~\ref{tab:calcmysky-zenith}, Figure~\ref{fig:calcmysky}).
+
+\begin{table}[h]\centering\small
+\caption{Zenith luminance, ours $\div$ CalcMySky, at mid-latitude. $\tau_{450}$ is the total optical depth at 450 nm.}\label{tab:calcmysky-zenith}
+\rowcolors{3}{rowa}{white}
+\begin{tabular}{@{}rcccc@{}}\toprule
+Solar zenith & Modern & Hazy Archean, 2.52 Ga & Very thick haze & K--Pg impact winter \\
+angle & ($\tau_{450}$ 0.34) & (0.91) & (1.8) & (1.7) \\ \midrule
+0$^\circ$ & 1.01 & 1.00 & 1.01 & 1.00 \\
+30$^\circ$ & 1.01 & 1.02 & 1.04 & 1.03 \\
+60$^\circ$ & 1.01 & 1.05 & 1.08 & 1.05 \\
+84$^\circ$ & 1.00 & 1.07 & 1.11 & 1.04 \\
+90$^\circ$ & 1.00 & 1.09 & 1.12 & 1.05 \\
+93$^\circ$ & 0.99 & 1.07 & 1.07 & 1.03 \\
+96$^\circ$ & 1.00 & 1.17 & 1.17 & 1.05 \\
+100$^\circ$ & 1.01 & 1.20 & 1.18 & 1.07 \\
+104$^\circ$ & 1.01 & 1.17 & 1.12 & 1.06 \\
+108$^\circ$ & 1.02 & 1.10 & 1.04 & 0.97 \\
+\bottomrule\end{tabular}
+\end{table}
+
+\begin{figure}[h]\centering\includegraphics[width=\linewidth]{figures/calcmysky_zenith.png}
+\caption{Zenith luminance against the Sun's zenith angle (top) and its ratio to CalcMySky (bottom), for our model (``New''), CalcMySky, and the delta-Eddington two-stream term (\protect\hyperlink{cite.toon1989}{Toon et al. 1989}) that carried our multiple scattering before, the same in every direction and faded by hand past a solar zenith angle of 80$^\circ$.}\label{fig:calcmysky}
+\end{figure}
+
+\paragraph{The modern sky} agrees within 1--2\% at the zenith from noon until the Sun is 18$^\circ$ down, and within 0.93--1.08 at the horizon (view zenith angle 84$^\circ$), toward and away from the Sun, until it is 10$^\circ$ down. The zenith's chromaticity agrees within 0.002 until the Sun is 14$^\circ$ down, through the ozone blue of deep twilight, which takes the zenith to about (0.20, 0.20).
+
+\paragraph{The hazy skies} agree within 0.93--1.08 at the horizon from noon to sunset. Once the Sun is 3$^\circ$ down the side toward it falls to 0.78--0.89 of CalcMySky, while the side away from it stays within 0.93--1.07 until the Sun is 10$^\circ$ down. The zenith runs 5--20\% bright, most in twilight, and its chromaticity agrees within 0.004 (Archean) and 0.007 (impact winter) until the Sun is 14$^\circ$ down, through the Archean's deep-twilight orange. The excess comes from spreading the fifth and later orders evenly: with the hazes made isotropic in both models, ours matches CalcMySky within 5\% until the Sun is 10$^\circ$ down. Raising CalcMySky's own resolution moves its result by 0--5\% at the zenith.
+
+\paragraph{The 30-bar Hadean} ($\tau \approx 12$ at 450 nm) is where CalcMySky stops being a reference. A thick, nearly lossless layer needs on the order of $\tau^2$ orders of scattering: from 30 to 60 orders, CalcMySky's zenith multiple scattering still grew 2.8$\times$ at 380 nm and 1.6$\times$ at 450 nm, while from 650 nm up it changed by under 1\%. Sixty orders took 2.6 hours on an RTX 3080. In the converged 600--750 nm, our zenith is 0.82--0.99 of CalcMySky from noon until the Sun is 10$^\circ$ down, and the whole sky 0.76--1.34. Our solve sums every order, so its blue is converged by construction; it is checked instead against the delta-Eddington two-stream flux at the ground, which is good in so thick a layer, and agrees with it within 3--5\% from 450 nm up.
+
+\subsection*{Where each goes further}
+
+CalcMySky follows every order of scattering with its directions, where ours spreads the fifth and later orders evenly. It renders any geometry in real time, from any altitude, with solar eclipses in the radiative transfer and phase functions of any shape, and every atmosphere goes through exactly the same calculation, so atmospheres differ only in their inputs. Its cost grows with the number of orders, though, which puts the blue of an atmosphere as thick as the Hadean's beyond it. Ours sums every order in one linear solve, so its cost hardly depends on how thick the air is: a table takes about 15 s on the same GPU, or 59 s for the Hadean. Beyond the radiative transfer, ours carries what a spherically symmetric model cannot (albedo that changes with latitude, the shadows of clouds, refraction where it shows, in the eclipsed Moon and the setting Sun, and the views from space), and it adds the researched deep-time atmospheres themselves and the color science on top: spectra, chromaticities and color temperatures, checked against measured modern skies. CalcMySky supplies the machinery for any atmosphere, but each one still has to be written and justified.
 \end{document}
