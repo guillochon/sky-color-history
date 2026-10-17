@@ -220,9 +220,9 @@ COLORS_METHOD = [
 "ground lit by the scattered light too, and the first four orders keep their directions, which the forward-scattering "
 "hazes and aerosols need. Against CalcMySky (Kabatsayev 2025), an independent multiple-scattering code after Bruneton "
 "&amp; Neyret (2008) that Stellarium uses (Zotti &amp; Wolf 2023), run on the same atmospheres, the modern sky agrees "
-"within 2% at the zenith from noon until the Sun is 18° below the horizon and within 0.002 in chromaticity, the hazy "
-"Archean and impact skies within 12% by day and 20% in twilight, and the 30-bar Hadean within 20% at the zenith "
-"wherever CalcMySky itself converges (600–750 nm). Spectra from 380–780 nm "
+"within 3% at the zenith from noon until the Sun is 20° below the horizon and within 0.002 in chromaticity, the hazy "
+"Archean and impact skies within 10% by day and 18% in twilight, and the 30-bar Hadean within 10% at the zenith "
+"wherever CalcMySky itself converges (650–750 nm), though its horizon is up to 22% brighter there (Appendix B). Spectra from 380–780 nm "
 "are converted to CIE XYZ with the analytic color-matching functions of Wyman, Sloan &amp; Shirley (2013) and shown as "
 "sRGB. The model reproduces measured modern values (clear zenith 10,000–20,000 K, horizon 6,000–8,500 K, setting Sun "
 "~1,700 K, pink-lavender antisolar Belt of Venus) before being pointed backward.",
@@ -350,7 +350,7 @@ CAVEATS = [
 "modern camera set to daylight balance would record rather than what an adapted observer would “see” (an adapted "
 "eye would perceive the hazy Archean sky as nearer to white and the modern sky as bluer than shown). Clouds are "
 "omitted from the radiative transfer throughout. Orders of scattering past the fourth are spread evenly in all "
-"directions, which leaves the hazy skies' zenith up to 20% bright in twilight, and the blue of the 30-bar Hadean sky "
+"directions, which leaves the hazy skies' zenith up to 18% bright in twilight, and the blue of the 30-bar Hadean sky "
 "is checked against no other code: CalcMySky's had not converged after 60 orders of scattering.",
 "Between the epochs the air follows curves fitted through the epochs' own values and the few dated steps the "
 "record gives ({ref:method-time}); the real air wandered between them, and the events' dates and durations carry "
@@ -455,13 +455,156 @@ def appendix_block():
            "brightness relative to the modern equatorial Sun. The Late Cretaceous, the supernova epochs, 1900 and the Year 2100 "
            "have today's clean air and share its rows.")
     body = '\n'.join(' & '.join(D.tex(c) for c in r) + r' \\' for r in rows)
-    t = ('\\onecolumn\n\\section*{Appendix: computed chromaticities}\n\\scriptsize\n\\rowcolors{2}{rowa}{white}\n\\begin{longtable}{@{}llllllr@{}}\n'
+    t = ('\\onecolumn\n\\section*{Appendix A: computed chromaticities}\\label{app:chroma}\n\\scriptsize\n\\rowcolors{2}{rowa}{white}\n\\begin{longtable}{@{}llllllr@{}}\n'
          '\\caption{' + D.tex(cap) + '}\\label{tab:chroma}\\\\ \\toprule\n' + ' & '.join(D.tex(h) for h in head) + ' \\\\ \\midrule \\endfirsthead\n'
          '\\toprule ' + ' & '.join(D.tex(h) for h in head) + ' \\\\ \\midrule \\endhead\n' + body + '\n\\bottomrule\n\\end{longtable}\n')
-    h = ('<h2 class="part" id="appendix">Appendix: computed chromaticities</h2><div class="wrap" id="tab:chroma"><table><caption><b>{ref:tab:chroma}.</b> ' + cap + '</caption><tr>'
+    h = ('<h2 class="part" id="appendix">Appendix A: computed chromaticities</h2><div class="wrap" id="tab:chroma"><table><caption><b>{ref:tab:chroma}.</b> ' + cap + '</caption><tr>'
          + ''.join(f'<th>{x}</th>' for x in head) + '</tr>' + ''.join('<tr>' + ''.join(f'<td>{c}</td>' for c in r) + '</tr>' for r in rows) + '</table></div>')
     b = D.raw(h, t); b['tables'] = ['tab:chroma']
     return b
+
+# Appendix B: our sky model against CalcMySky (calcmysky_check.py; the CalcMySky spectra are in data/calcmysky/).
+CMS_INTRO = (
+"CalcMySky (Kabatsayev 2025) is the atmosphere code behind ShowMySky, the optional sky model Stellarium has shipped "
+"since version 1.0 (Zotti &amp; Wolf 2023). It follows the precomputed atmospheric scattering of Bruneton &amp; Neyret "
+"(2008): a command-line tool, <em>calcmysky</em>, precomputes a model on the GPU from a plain-text description of the "
+"atmosphere, and a runtime library, <em>libShowMySky</em>, renders it in real time for any geometry. It is meant for "
+"unusual atmospheres too, Mars among its samples, which makes it the natural independent check on ours. There is no "
+"refereed paper on CalcMySky itself; Zotti &amp; Wolf describe it in Stellarium. {ref:tab:calcmysky-methods} sets the "
+"two approaches side by side.")
+CMS_METHODS_CAP = "Our sky model (<em>skymodel.py</em>) and CalcMySky v0.4.0."
+CMS_METHODS = [
+("Geometry", "Spherical shell, straight rays, observer on the ground",
+ "Spherical shell, straight rays, observer at any altitude up to the top of the atmosphere"),
+("Single scattering", "Integrated numerically along each view ray, with the columns toward the Sun at every point and the Earth's shadow",
+ "Exact, in a precomputed four-dimensional texture"),
+("Multiple scattering", "A table over altitude and the Sun's local elevation (Hillaire 2020), gathered from each node by rays in "
+ "576 directions; all orders solved exactly as a linear system per wavelength, with the ground lit by the scattered light too; "
+ "orders 2–4 keep their directions and later orders are spread evenly. The altitudes adapt so that no two neighbors are more "
+ "than 0.3 apart in optical depth",
+ "Every order computed explicitly in spherical geometry, with its directions, up to a set number of orders (the sample Earth "
+ "uses 4, Mars 8)"),
+("Spectrum", "41 wavelengths, 380–780 nm", "Set by the user; its samples use 16 wavelengths, 360–830 nm"),
+("Constituents", "Rayleigh gas mix, ozone (Serdyuchenko et al. 2014), tropospheric aerosol, sulfate, tholin haze, soot and "
+ "dust, each with its own profile, spectral optical depth and single-scattering albedo",
+ "Any number of scatterers, each with a density profile and a phase function written in GLSL, a cross-section with an "
+ "Ångström exponent and a spectral single-scattering albedo; absorbers with spectral cross-sections"),
+("Phase functions", "Rayleigh and Henyey–Greenstein", "Anything written in GLSL, chromatic or not"),
+("Surface", "Lambertian, albedo 0.08, 0.18 or 0.70 by latitude", "Lambertian, one albedo spectrum over the whole globe"),
+("Inhomogeneity", "Cloud-shadow shafts, computed apart from the sky's radiative transfer ({ref:crepuscular-rays})",
+ "None: the atmosphere is spherically symmetric"),
+("Refraction", "None in the sky's radiance; exact in the lunar eclipse's ray trace and the setting Sun's image", "None"),
+("Solar eclipses", "Drawn over the computed sky ({ref:solar-eclipses})",
+ "In the radiative transfer, up to the second order of scattering"),
+("Output", "Precomputed per air: 34 solar zenith angles × 9 view zenith angles × 10 azimuths × 3 latitudes, interpolated on the site",
+ "Any geometry in real time, from the textures"),
+("Validation", "Against measured modern colors, and against CalcMySky (below)",
+ "The method family is evaluated against libRadtran and measured skies by Bruneton (2017)"),
+]
+CMS_CHECK = [
+"Each epoch's atmosphere, as our model builds it, is written out as a CalcMySky description (<em>calcmysky_check.py</em>): "
+"every component's own vertical profile, its optical depth as a power law in wavelength (fitted to within 10⁻¹³), its "
+"spectral single-scattering albedo and its phase function, ozone as an absorber with the same cross-sections, the "
+"epoch's Sun as the same Planck spectrum, a ground albedo of 0.18, and 44 wavelengths from 380 to 810 nm. CalcMySky's "
+"radiance textures are read back at the ground on the grid the site uses, with single and multiple scattering kept "
+"apart, and compared with ours at mid-latitude. CalcMySky ran 10 orders of scattering for the modern and hazy Archean "
+"skies, 20 for the very thick haze and the impact winter, and up to 60 for the 30-bar Hadean.",
+"Single scattering checks the setup: ours matches CalcMySky's within 0.7% in every epoch until the Sun is 4° below the "
+"horizon. Further down, where nearly all the light has been scattered more than once, the two differ by 10% or more, "
+"which hardly changes the total. The inputs are therefore the same, and what differs is the multiple scattering "
+"({ref:tab:calcmysky-zenith}, {ref:fig:calcmysky}).",
+]
+CMS_ZEN_CAP = "Zenith luminance, ours ÷ CalcMySky, at mid-latitude. τ<sub>450</sub> is the total optical depth at 450 nm."
+CMS_ZEN_HEAD = ["Solar zenith angle", "Modern (τ<sub>450</sub> 0.34)", "Hazy Archean, 2.52 Ga (0.91)",
+                "Very thick haze (1.8)", "K–Pg impact winter (1.7)"]
+CMS_ZEN = [("0°", "1.01", "1.00", "1.01", "1.00"), ("30°", "1.01", "1.02", "1.03", "1.02"),
+           ("60°", "1.01", "1.04", "1.07", "1.04"), ("84°", "1.00", "1.06", "1.10", "1.04"),
+           ("90°", "1.00", "1.07", "1.10", "1.04"), ("93°", "0.99", "1.05", "1.05", "1.02"),
+           ("96°", "1.00", "1.15", "1.14", "1.04"), ("100°", "1.01", "1.18", "1.15", "1.06"),
+           ("104°", "1.01", "1.16", "1.09", "1.03"), ("108°", "1.02", "1.10", "0.99", "1.02")]
+CMS_FIG_CAP = ("Zenith luminance against the Sun's zenith angle (top) and its ratio to CalcMySky (bottom), for our model "
+               "(“New”), CalcMySky, and the delta-Eddington two-stream term (Toon et al. 1989) that carried our multiple "
+               "scattering before, the same in every direction and faded by hand past a solar zenith angle of 80°.")
+CMS_RESULTS = [
+("The modern sky",
+ "agrees within 3% at the zenith from noon until the Sun is 20° down, and the zenith's chromaticity within 0.002, through "
+ "the ozone blue of deep twilight, which takes the zenith to about (0.20, 0.20). At the horizon (view zenith angle 84°) it "
+ "agrees within 0.99–1.08 on the side toward the Sun until the Sun is 10° down, and within 0.93–1.01 on the side away from "
+ "it throughout. Across the whole sky it agrees within 0.90–1.10 in brightness and 0.006 in chromaticity until the Sun is "
+ "6° down. Below that, a few directions low on the Sun's side, toward the last sunlit air, differ by up to a factor of 3."),
+("The hazy skies",
+ "run bright at the zenith: by 0–10% by day, and by up to 18% in twilight. Their zenith chromaticity agrees within 0.006 "
+ "until the Sun is 20° down, through the Archean's deep-twilight orange, and the whole sky's within 0.021. At the horizon, "
+ "the side toward the Sun agrees within 0.92–1.04 until sunset. It then falls to 0.78–0.84 of CalcMySky by the time the "
+ "Sun is 10° down, and to 0.5–0.7 at 20° in the two thickest skies. The side away from the Sun stays within 0.82–1.07. "
+ "The excess comes from spreading the fifth and later orders evenly: with the hazes made isotropic in both models, ours "
+ "matches CalcMySky within 5% at the zenith until the Sun is 20° down. Raising CalcMySky's own resolution moves its result "
+ "by 0–5% at the zenith."),
+("The 30-bar Hadean",
+ "(τ ≈ 12 at 450 nm) is where CalcMySky stops being a reference. A thick, nearly lossless layer needs on the order of τ² "
+ "orders of scattering. From 30 to 60 orders, CalcMySky's zenith multiple scattering still grew 2.8× at 380 nm, 1.6× at "
+ "450 nm and 4% at 600 nm, while from 650 nm up its whole sky changed by 1% or less. Sixty orders took 2.6 hours on an "
+ "RTX 3080. In the converged 650–750 nm, our zenith is 0.95–1.09 of CalcMySky from noon until the Sun is 10° down. Our "
+ "horizon is brighter than CalcMySky's, by up to 7% at 750 nm, 12% at 700 nm and 22% at 650 nm, and its brightest "
+ "direction is 1.46× CalcMySky's. Our solve sums every order, so its blue is converged by construction. It is checked "
+ "instead against the delta-Eddington two-stream flux at the ground, which is good in so thick a layer, and agrees with "
+ "it within 3–5% from 450 nm up."),
+]
+CMS_FURTHER = (
+"CalcMySky follows every order of scattering with its directions, where ours spreads the fifth and later orders evenly. "
+"It renders any geometry in real time, from any altitude, with solar eclipses in the radiative transfer and phase "
+"functions of any shape, and every atmosphere goes through exactly the same calculation, so atmospheres differ only in "
+"their inputs. Its cost grows with the number of orders, though, which puts the blue of an atmosphere as thick as the "
+"Hadean's beyond it. Ours sums every order in one linear solve, so its cost hardly depends on how thick the air is: a "
+"table takes about 15 s on the same GPU, or 59 s for the Hadean. Beyond the radiative transfer, ours carries what a "
+"spherically symmetric model cannot (albedo that changes with latitude, the shadows of clouds, refraction where it "
+"shows, in the eclipsed Moon and the setting Sun, and the views from space), and it adds the researched deep-time "
+"atmospheres themselves and the color science on top: spectra, chromaticities and color temperatures, checked against "
+"measured modern skies. CalcMySky supplies the machinery for any atmosphere, but each one still has to be written and "
+"justified.")
+CMS_FIG = FIGS / 'calcmysky_zenith.png'
+
+def calcmysky_numbers():
+    b = D.raw(); b['tables'] = ['tab:calcmysky-methods', 'tab:calcmysky-zenith']; b['figures'] = ['fig:calcmysky']
+    return b
+
+def calcmysky_html(nums):
+    t = lambda s: D.html_text(s, nums, BIB)
+    def table(label, cap, head, rows):
+        n = nums[label]
+        return (f'<div class="wrap" id="{label}"><table><caption><b>{n[0]} {n[1]}.</b> {t(cap)}</caption><tr>'
+                + ''.join(f'<th>{h}</th>' for h in head) + '</tr>'
+                + ''.join('<tr>' + ''.join(f'<td>{t(c)}</td>' for c in r) + '</tr>' for r in rows) + '</table></div>')
+    n = nums['fig:calcmysky']
+    return ('<h2 class="part" id="appendix-b">Appendix B: our sky model and CalcMySky</h2>'
+            f'<p>{t(CMS_INTRO)}</p>'
+            + table('tab:calcmysky-methods', CMS_METHODS_CAP, ['', 'Ours', 'CalcMySky'], CMS_METHODS)
+            + '<h3 id="the-cross-check">The cross-check</h3>' + ''.join(f'<p>{t(s)}</p>' for s in CMS_CHECK)
+            + table('tab:calcmysky-zenith', CMS_ZEN_CAP, CMS_ZEN_HEAD, CMS_ZEN)
+            + f'<figure class="fig" id="fig:calcmysky"><img src="{D._img_data(CMS_FIG)}" alt="Zenith luminance against solar zenith angle, ours and CalcMySky">'
+            f'<figcaption><b>{n[0]} {n[1]}.</b> {t(CMS_FIG_CAP)}</figcaption></figure>'
+            + ''.join(f'<p><b>{h}</b> {t(s)}</p>' for h, s in CMS_RESULTS)
+            + '<h3 id="where-each-goes-further">Where each goes further</h3>' + f'<p>{t(CMS_FURTHER)}</p>')
+
+def calcmysky_tex():
+    t = lambda s: D.tex_text(s, BIB)
+    rows = lambda rr: '\n'.join(' & '.join(t(c) for c in r) + r' \\' for r in rr)
+    zhead = (r'Solar zenith & Modern & Hazy Archean, 2.52 Ga & Very thick haze & K--Pg impact winter \\' + '\n'
+             r'angle & ($\tau_{450}$ 0.34) & (0.91) & (1.8) & (1.7) \\ \midrule')
+    return ('\n\\clearpage\n\\normalsize\n\\section*{Appendix B: our sky model and CalcMySky}\\label{app:calcmysky}\n\n'
+            + t(CMS_INTRO) + '\n\n{\\small\n\\rowcolors{2}{rowa}{white}\n'
+            '\\begin{longtable}{@{}p{0.15\\linewidth}p{0.4\\linewidth}p{0.4\\linewidth}@{}}\n'
+            '\\caption{' + t(CMS_METHODS_CAP) + '}\\label{tab:calcmysky-methods}\\\\ \\toprule\n'
+            '& Ours & CalcMySky \\\\ \\midrule \\endfirsthead\n\\toprule & Ours & CalcMySky \\\\ \\midrule \\endhead\n'
+            + rows(CMS_METHODS) + '\n\\bottomrule\n\\end{longtable}}\n\n\\subsection*{The cross-check}\n\n'
+            + '\n\n'.join(t(s) for s in CMS_CHECK) + '\n\n'
+            '\\begin{table}[h]\\centering\\small\n\\caption{' + t(CMS_ZEN_CAP) + '}\\label{tab:calcmysky-zenith}\n'
+            '\\rowcolors{3}{rowa}{white}\n\\begin{tabular}{@{}rcccc@{}}\\toprule\n' + zhead + '\n'
+            + rows(CMS_ZEN) + '\n\\bottomrule\\end{tabular}\n\\end{table}\n\n'
+            '\\begin{figure}[h]\\centering\\includegraphics[width=\\linewidth]{figures/' + CMS_FIG.name + '}\n'
+            '\\caption{' + t(CMS_FIG_CAP) + '}\\label{fig:calcmysky}\n\\end{figure}\n\n'
+            + '\n\n'.join('\\paragraph{' + h + '} ' + t(s) for h, s in CMS_RESULTS) + '\n\n'
+            '\\subsection*{Where each goes further}\n\n' + t(CMS_FURTHER) + '\n')
 
 BIB = R.BIB
 
@@ -689,7 +832,7 @@ def number_html(body):
     """Number the parts and sections (1, 1.1, ...) as the paper does, and list the parts."""
     toc, n = [], [0, 0]
     def h2(m):
-        if m.group(2) in ('appendix', 'references'): return m.group(0)
+        if m.group(2) in ('appendix', 'appendix-b', 'references'): return m.group(0)
         n[0] += 1; n[1] = 0
         toc.append((m.group(2), f'{n[0]}. {m.group(3)}'))
         return f'{m.group(1)}{n[0]}. {m.group(3)}</h2>'
@@ -705,8 +848,8 @@ def number_html(body):
 
 def render_html(B, nums):
     body, toc = number_html(D.render_html(B, BIB, nums))
-    appendix = D._refs_html(appendix_block()['html'], nums)
-    toc_html = '<nav class="toc">' + ''.join(f'<a href="#{i}">{t}</a>' for i, t in toc) + '<a href="#references">References</a><a href="#appendix">Appendix</a></nav>'
+    appendix = D._refs_html(appendix_block()['html'], nums) + '\n' + calcmysky_html(nums)
+    toc_html = '<nav class="toc">' + ''.join(f'<a href="#{i}">{t}</a>' for i, t in toc) + '<a href="#references">References</a><a href="#appendix">Appendix A</a><a href="#appendix-b">Appendix B</a></nav>'
     return f'''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>A Complete History of the Earth's Sky</title>
@@ -788,12 +931,12 @@ def render_tex(B):
 % Font expansion fails on the bibliography's small slanted Helvetica, a virtual font.
 {\footnotesize\microtypesetup{expansion=false}\bibliography{refs}}
 
-""" + appendix_block()['tex'] + "\\end{document}\n")
+""" + appendix_block()['tex'] + calcmysky_tex() + "\\end{document}\n")
     return PREAMBLE + head + body + tail
 
 def build():
     B = blocks()
-    return B, D.numbering(B + [appendix_block()], first_figure=2)
+    return B, D.numbering(B + [appendix_block(), calcmysky_numbers()], first_figure=2)
 
 if __name__ == '__main__':
     import sys
