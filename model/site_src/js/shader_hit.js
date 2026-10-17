@@ -360,7 +360,7 @@ void main(){
     }
   }
   float tHill=-1.0, rHill=1.0, hHill=1.0; vec3 nHill=vec3(0.0,0.0,1.0);
-  if(showScn>0.5 && rd.z<0.5){
+  if(showScn>0.5){
     float cap=min(tBest, 14000.0);
     if(rd.z>0.02) cap=min(cap, (480.0-ro.z)/rd.z);
     else if(rd.z<-0.0001) cap=min(cap, (-6.0-ro.z)/rd.z);
@@ -421,7 +421,6 @@ void main(){
   vec4 info=texelFetch(landInfo, lp, 0), nrm=texelFetch(landNrm, lp, 0);
   hitInfo=info; hitNrm=nrm;
   vec3 rd=viewRay(gl_FragCoord.xy, res, fov, yaw, pitch), ro=eye;
-  if(rd.z>=0.6) return;
   float cap=rd.z<0.0?-ro.z/rd.z:1e8;
   if(info.r>0.0) cap=min(cap, info.r);
   for(int i=0;i<int(townN)+loopPad;i++){

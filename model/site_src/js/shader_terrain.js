@@ -211,7 +211,7 @@ vec3 massifN(vec3 p, vec4 q, float volc){
 }
 float marchLand(vec3 ro, vec3 rd, float tMax, out vec3 nOut, out float ROut, out float HOut){
   nOut=vec3(0.0, 0.0, 1.0); ROut=1.0; HOut=1.0;
-  if(tMax<0.4||rd.z>0.5) return -1.0;
+  if(tMax<0.4) return -1.0;
   const float cell=1800.0;
   float best=-1.0; vec2 cBest=vec2(0.0); float Rb=1.0, Hb=1.0;
   vec2 r=rd.xy;
