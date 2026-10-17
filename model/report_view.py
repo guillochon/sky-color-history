@@ -444,7 +444,7 @@ EVENTS = [
 "The timeline also holds the sky's own dated events, which come on their days in whichever epoch's sky holds "
 "that day, and which the date picker lists under Extended events: every supernova, nova and stellar eruption "
 "known to have shone brighter than magnitude 3 ({ref:tab:transients}), the 24 real comets at their best "
-"apparitions, three volcanic veils, three great aurorae, three meteor storms and three impacts, and four events "
+"apparitions, three volcanic veils, three great aurorae, three meteor storms and three impacts, and three events "
 "to come. None is an epoch of its own: each is laid over the sky of its time, the volcanic veils on its air, the "
 "rest among its stars, meteors and aurorae. Going to one sets the clock to the hour it shows best, highest in the "
 "darkest sky (a meteor storm at its peak, a volcanic veil at dusk, an impact as it comes in), and the latitude it "
@@ -491,7 +491,7 @@ SUPERNOVAE = [
 "peak, with P Cygni profiles from fast ejecta (Filippenko 1997). At these distances neither touches the "
 "sky's colors (Thomas et al. 2016).",
 
-"Four are to come. Betelgeuse's supernova is the same event as Geminga's, in the same patch of "
+"Three are to come. Betelgeuse's supernova is the same event as Geminga's, in the same patch of "
 "sky: 1.4° from Geminga's star in the sky of 342 ka, a red supergiant of 16.5 to 19 solar masses burning "
 "helium in its core, some 100,000 years from collapse, at 168 pc (Joyce et al. 2020), or 222 pc by radio "
 "astrometry (Harper et al. 2017). A red supergiant ends as a Type II-P, so it should peak at −10 to −10.6, "
@@ -651,8 +651,8 @@ CONTRAILS = [
 
 SCENERY = [
 "The ground is scenery, like the clouds: a walkable landscape chosen for each era rather than computed, lit by the "
-"model's sky and Sun. The proto-Earth has magma pools; the 4.5 Ga Earth a hot ocean, about 230 °C while 100 to "
-"200 bars of CO₂ remained (Zahnle et al. 2010), steaming round volcanic islands; the Archean, water and volcanic shields; Snowball "
+"model's sky and Sun. The proto-Earth has magma pools; the 4.5 Ga Earth a hot ocean, cooling as the CO₂ "
+"was drawn down (about 230 °C while 100 to 200 bars remained; Zahnle et al. 2010), steaming round volcanic islands; the Archean, water and volcanic shields; Snowball "
 "Earth, ice plateaus with blue banded cliffs and frozen ponds, open water again in the Cryogenian between the "
 "glaciations; the Ordovician, shallow seas with no land plants beyond mosses and crusts; the Carboniferous, forest "
 "and swamps; the Late Cretaceous, forest, dead woods in its impact winter; the Pleistocene, 1816 and 1900, woods and "
@@ -753,7 +753,7 @@ INTRO = [
 "stars on through every year, and some epochs are events with dates and durations of their own, the haze "
 "episodes, the glaciations, the impact winter, the volcanic year ({ref:method-time}). The sky's own dated "
 "events come on their days too: the supernovae, novae and stellar eruptions that outshone third magnitude, the "
-"real comets, volcanic veils, great aurorae, meteor storms and impacts, and four events still to come "
+"real comets, volcanic veils, great aurorae, meteor storms and impacts, and three events still to come "
 "({ref:events}).",
 
 "This is a living document. Much of what it draws rests on questions that are still argued: when the giant "
@@ -865,7 +865,7 @@ EPOCH_CAPTION = ("The epochs, each at its own year on the site's timeline; the h
                  "(2015); the day and the Moon's width from the Moon's distance ({ref:tab:moon}); the last column lists "
                  "what the sections that follow find in each sky besides its color.")
 EPOCH_NOTE = {
- 'protoearth455': 'No Moon; Theia and Anteros passing; proto-Mercury with its mantle; the giant planets before the instability, with a fifth giant; a saturated young Sun',
+ 'protoearth455': 'No Moon; Theia and Anteros passing; proto-Mercury with its mantle; Enyo before it strikes Mars; the giant planets before the instability, with a fifth giant; a saturated young Sun',
  'hadean45': 'The molten Moon at 8 R⊕; 10,000× today’s meteors; no stars through 30 bar of CO₂ and the debris’s glow',
  'hadean40': 'Bombardment; nitrogen aurorae to 37°; the Moon before the maria',
  'archean38': 'The maria flooding, lava fountains on the Moon; Mars’s lost moon Harmonia',

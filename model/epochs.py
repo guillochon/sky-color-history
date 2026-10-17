@@ -2,7 +2,7 @@
 from skymodel import make_atm, column_ozone, ozone_latitude
 
 EPOCHS = [
- dict(key='protoearth455', name='Proto-Earth, ~4.55 Ga', sub='before the Moon-forming impact; a guessed ~3 bar CO2/N2 air with impact dust; the young Sun at 17 Myr',
+ dict(key='protoearth455', name='Proto-Earth, ~4.55 Ga', sub='before the Moon-forming impact; a guessed air of ~3 bar CO2 over 1 bar N2, with impact dust; the young Sun at 17 Myr',
       gas={'CO2':3,'N2':1,'H2O':0.05}, ozone=0, aer=(0.15,1.0,0.95,0.7), dust=0.05, sun=(4614,0.47),
       note='No constraint exists on the air before the last giant impact. Sun: Baraffe et al. 2015 1 Msun track at 17 Myr (4614 K, log L -0.327)'),
  dict(key='hadean45', name='Early Hadean, ~4.50 Ga', sub='~10 Myr after the Moon-forming impact: magma ocean frozen, ~30 bar CO2 left; Moon at ~8 Earth radii',
