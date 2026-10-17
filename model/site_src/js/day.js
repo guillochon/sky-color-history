@@ -76,11 +76,10 @@ function domeXYZ(key, lat, si, st, vz, azr){
 }
 function skySource(sza, az){
   // Samples run through 20° below the horizon. From there to 30°, fade that last sky to black.
-  // Past 9° down the model's twilight fades too slowly: measured zenith skies dim by about a
-  // magnitude per degree of depression until the natural night sky takes over near 18°, while
-  // the model's dim by a quarter of that. The extra 0.75 mag per degree closes the gap.
+  // Down to 20° the model's own twilight is used: its zenith dims by about a magnitude per degree
+  // of depression past 9°, as measured skies do, and agrees with CalcMySky to a few percent.
   const last=SZ[SZ.length-1], past=Math.max(0, sza-last);
-  const fade=(past<=0 ? 1 : Math.max(0, 1-past/10))*Math.pow(10, -0.3*Math.max(0, sza-99));
+  const fade=past<=0 ? 1 : Math.max(0, 1-past/10);
   const [si,st]=bracket(SZ, Math.min(Math.max(sza, SZ[0]), last));
   return {si, st, fade, az, past};
 }

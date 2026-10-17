@@ -235,9 +235,8 @@ SECTIONS = [
 "seas, whose steam stands in for it, and not in air below −15 °C, where it is ice."]],
 ['Twilight and the night sky', [
 "Because the photometric scale of {ref:method} is absolute, the night is drawn on the same scale as the day. The sky is "
-"computed for Sun heights down to 20° below the horizon; past 9° below, where the model's twilight fades too "
-"slowly, we make it dim by about a magnitude per "
-"degree, as measured. Without the Sun or Moon the sky has its own light: today 22.0 mag/arcsec² at a dark zenith "
+"computed for Sun heights down to 20° below the horizon, and past 9° below its zenith dims by about a magnitude "
+"per degree, as measured skies do, until the night sky's own light takes over near 18°. Without the Sun or Moon the sky has its own light: today 22.0 mag/arcsec² at a dark zenith "
 "(Leinert et al. 1998), half of it starlight and zodiacal light and half airglow, brighter toward the horizon.",
 "Nearly all of today's airglow needs free oxygen: the 557.7 nm green and 630 nm red lines of oxygen atoms, the "
 "hydroxyl bands (H + O₃), the sodium D lines cycled through ozone, and the NO₂ continuum. We take its strength "
