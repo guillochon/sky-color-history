@@ -146,7 +146,7 @@ function domePixelDirs(geo){
   }
   return geo.pdir=d;
 }
-// Light of luminance ratio rH and linear color L times k added to dome pixel bytes at o of px,
+// Light of luminance ratio rH and linear sRGB color L times k added to dome pixel bytes at o of px,
 // over the sky cell c at (tr, ta), under the display curve the way the Milky Way is. The halos,
 // comets and ring share it.
 function domeMixLight(px, o, c, tr, ta, H, rH, L, k){
@@ -154,7 +154,9 @@ function domeMixLight(px, o, c, tr, ta, H, rH, L, k){
   const g=H.rgrid, NC=H.NC, rBg=(g[c]*(1-ta)+g[c+1]*ta)*(1-tr)+(g[c+NC]*(1-ta)+g[c+NC+1]*ta)*tr+(H.under||0);
   if(rH<rBg*0.003) return;
   const rNew=rBg+rH, tBg=toneAt(H.T, rBg), tNew=toneAt(H.T, rNew), a=tBg>0?(tNew/tBg)*(rBg/rNew):0, b=tNew/rNew*k;
-  for(let q=0;q<3;q++) px[o+q]=linToByte(SRGB_LIN[px[o+q]]*a+L[q]*b);
+  let l0=L[0]*b, l1=L[1]*b, l2=L[2]*b;
+  if(P3){ const Q=S2P, m0=Q[0][0]*l0+Q[0][1]*l1, m1=Q[1][0]*l0+Q[1][1]*l1, m2=Q[2][0]*l0+Q[2][1]*l1+Q[2][2]*l2; l0=m0; l1=m1; l2=m2; }
+  px[o]=linToByte(SRGB_LIN[px[o]]*a+l0); px[o+1]=linToByte(SRGB_LIN[px[o+1]]*a+l1); px[o+2]=linToByte(SRGB_LIN[px[o+2]]*a+l2);
 }
 // Add the halos to dome pixel j (bytes at o of px), over the sky cell c at (tr, ta).
 function domeHaloPixel(px, o, j, c, tr, ta, halos, H){

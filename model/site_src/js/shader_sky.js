@@ -218,6 +218,7 @@ uniform vec4 road[64];
 uniform float gridN, roadN;
 uniform float kind[12];
 out vec4 fragColor;
+${OUT_GLSL}
 float h12(vec2 p){
   vec3 q=fract(vec3(p.xyx)*vec3(0.1031, 0.1030, 0.0973));
   q+=dot(q, q.yzx+33.33);
@@ -1304,7 +1305,7 @@ void main(){
   // step apart. It fades out below the first step, so black stays black.
   float dth=(h12(gl_FragCoord.xy)+h12(gl_FragCoord.xy+vec2(57.31, 113.7))-1.0)/255.0;
   col+=dth*clamp(col*255.0, 0.0, 1.0);
-  fragColor=vec4(col,1.0);
+  fragColor=vec4(toOut(col),1.0);
 }`;
 // ANGLE on Windows compiles through Direct3D, whose compiler unrolls a loop of constant count,
 // copying its body that many times, and inlines every call: the sky shader took over 15 seconds.

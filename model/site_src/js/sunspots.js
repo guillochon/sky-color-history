@@ -624,7 +624,11 @@ function drawSunSurfaceOnDome(sx, sy, rad, az, el, moonC){
     if(u*u+v*v>=0.995) continue;
     sunSurfaceAt(S, o, u, v, n, f);
     const k=((y-y0)*bw+(x-x0))*4;
-    for(let q=0;q<3;q++) px[k+q]=linToByte(SRGB_LIN[px[k+q]]*f[q]);
+    if(P3){
+      // f is per sRGB channel: through linear sRGB and back.
+      const s=mul3(P2S, [SRGB_LIN[px[k]], SRGB_LIN[px[k+1]], SRGB_LIN[px[k+2]]]), d=mul3(S2P, [s[0]*f[0], s[1]*f[1], s[2]*f[2]]);
+      for(let q=0;q<3;q++) px[k+q]=linToByte(d[q]);
+    }else for(let q=0;q<3;q++) px[k+q]=linToByte(SRGB_LIN[px[k+q]]*f[q]);
   }
   dctx.putImageData(img, x0, y0);
 }

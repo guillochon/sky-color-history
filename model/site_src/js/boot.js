@@ -25,7 +25,8 @@ function colorTip(canvas, tip, inside, pixel=()=>null, extra=null){
     // The canvas box is read before the tip changes, so the tip forces one layout rather than two.
     const b=canvas.getBoundingClientRect();
     const x=Math.max(0,Math.min(canvas.width-1,Math.round(px))), y=Math.max(0,Math.min(canvas.height-1,Math.round(py)));
-    const d=pixel(x,y)||ctx.getImageData(x,y,1,1).data; cur=hex([d[0],d[1],d[2]]);
+    // The readout is in sRGB, whatever space the canvas draws in.
+    const d=pixel(x,y)||ctx.getImageData(x,y,1,1,{colorSpace:'srgb'}).data; cur=hex([d[0],d[1],d[2]]);
     if(!tip.firstChild||!tip.querySelector('.tline')) tip.innerHTML='<span class="tline"></span>'+(extra?'<div class="spbox"></div>':'');
     tip.querySelector('.tline').innerHTML=`<i style="background:${cur}"></i>current color ${cur}${performance.now()<copiedUntil?' copied':''}`;
     if(extra) extra(x, y, tip.querySelector('.spbox'));

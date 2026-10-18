@@ -534,10 +534,11 @@ uniform vec4 toneU; uniform float rCd;
 ${TONE_GLSL}
 ${AUR_GLSL}
 ${AUR_MIX_GLSL}
+${OUT_GLSL}
 out vec4 fragColor;
 void main(){
   vec2 uv=vec2(gl_FragCoord.x/res.x, 1.0-gl_FragCoord.y/res.y);
-  vec3 base=texture(domeTex, uv).rgb;
+  vec3 base=fromP3(texture(domeTex, uv).rgb);
   vec2 d=gl_FragCoord.xy-view.xy; // east right, north up; view is the fisheye's center and radius
   float R=view.z, r=length(d);
   if(r<R){
@@ -548,7 +549,7 @@ void main(){
     float rBg=pow(10.0, s.a*${LOGR_SPAN.toFixed(1)}+${LOGR_LO.toFixed(1)});
     base=auroraMix(base, rBg, aur);
   }
-  fragColor=vec4(base, 1.0);
+  fragColor=vec4(toOut(base), 1.0);
 }`;
 const AUR_VS=`#version 300 es
 in vec2 a;void main(){gl_Position=vec4(a,0.0,1.0);}`;
@@ -617,8 +618,10 @@ const domeAur={gl:null, canvas:null, prog:null, u:null, store:{}, raf:0, last:0,
 function domeAurInit(){
   if(domeAur.gl||domeAur.failed) return domeAur.gl;
   const c=document.getElementById('domeAur');
-  const gl=c&&c.getContext('webgl2', {alpha:false, depth:false, stencil:false, antialias:false, preserveDrawingBuffer:true});
+  const gl=c&&glCanvasP3(c.getContext('webgl2', {alpha:false, depth:false, stencil:false, antialias:false, preserveDrawingBuffer:true}));
   if(!gl){ domeAur.failed=true; return null; }
+  // The dome canvas comes in as it is drawn, in P3 when the page draws in P3 (fromP3 reads it).
+  if(P3) gl.unpackColorSpace='display-p3';
   const vs=glShader(gl, gl.VERTEX_SHADER, AUR_VS), fs=glShader(gl, gl.FRAGMENT_SHADER, DOMEAURFS);
   if(!vs||!fs){ domeAur.failed=true; return null; }
   const p=gl.createProgram(); gl.attachShader(p, vs); gl.attachShader(p, fs); gl.bindAttribLocation(p, 0, 'a'); gl.linkProgram(p);
@@ -678,11 +681,11 @@ function domeAurKick(){
   };
   domeAur.raf=requestAnimationFrame(step);
 }
-// The dome's color under the pointer, with the aurora when it shows.
+// The dome's color under the pointer, with the aurora when it shows, in sRGB.
 function domePixel(x, y){
   if(!domeAur.shown||!domeAur.gl) return null;
   const px=new Uint8Array(4); domeAur.gl.readPixels(x, domeAur.canvas.height-1-y, 1, 1, domeAur.gl.RGBA, domeAur.gl.UNSIGNED_BYTE, px);
-  return px;
+  return dispToSrgb([px[0], px[1], px[2]]);
 }
 // The great aurorae as events for the date picker (transients.js), on the evening (in the
 // visitor's time zone, as the clock is) of the night nearest the middle of each storm, seen from

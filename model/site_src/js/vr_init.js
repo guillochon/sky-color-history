@@ -1,9 +1,9 @@
-function glShader(gl, type, src){ const s=gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)){ console.warn(gl.getShaderInfoLog(s)); gl.deleteShader(s); return null; } return s; }
+function glShader(gl, type, src){ const s=gl.createShader(type); gl.shaderSource(s, type===gl.FRAGMENT_SHADER?glP3(src):src); gl.compileShader(s); if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)){ console.warn(gl.getShaderInfoLog(s)); gl.deleteShader(s); return null; } return s; }
 // Start a compile and link without asking for the result. Asking blocks until the driver is done.
 // The job's cold says whether the program was compiled from scratch rather than taken from the
 // browser's shader cache: a cached program is ready a tenth of a second in, a fresh one is not.
 function glProgramAsync(gl, vs, src){
-  const fs=gl.createShader(gl.FRAGMENT_SHADER); gl.shaderSource(fs, src); gl.compileShader(fs);
+  const fs=gl.createShader(gl.FRAGMENT_SHADER); gl.shaderSource(fs, glP3(src)); gl.compileShader(fs);
   const p=gl.createProgram(); gl.attachShader(p,vs); gl.attachShader(p,fs); gl.bindAttribLocation(p,0,'a'); gl.linkProgram(p);
   const job={p, fs, t0:performance.now()}, ext=gl.getExtension('KHR_parallel_shader_compile');
   if(ext) setTimeout(()=>{ if(job.cold===undefined) job.cold=!gl.getProgramParameter(p, ext.COMPLETION_STATUS_KHR); }, 100);
@@ -129,7 +129,7 @@ function initVR(ready){
   if(vrGL){ ready(true); return; }
   if(vrBoot){ vrBoot.push(ready); return; }
   const canvas=document.getElementById('vrc');
-  const gl=canvas.getContext('webgl2', VR_CTX);
+  const gl=glCanvasP3(canvas.getContext('webgl2', VR_CTX));
   const vs=gl&&glShader(gl, gl.VERTEX_SHADER, '#version 300 es\nin vec2 a;void main(){gl_Position=vec4(a,0.0,1.0);}');
   if(!vs){ ready(false); return; }
   const boot=glProgramAsync(gl, vs, VRFS_BOOT);

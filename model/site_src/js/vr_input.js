@@ -883,7 +883,7 @@ function refreshPin(p){
 }
 // Fill a tooltip with the color and spectrum at page point (cx, cy), from pixels px read under view.
 function fillVRTip(tip, cx, cy, px, view){
-  const P=vrProbe(cx, cy, false, px, view), {el, az, app}=P, col=px.col;
+  const P=vrProbe(cx, cy, false, px, view), {el, az, app}=P, col=dispToSrgb([px.col[0], px.col[1], px.col[2]]);
   const cur=hex([col[0], col[1], col[2]]);
   if(!tip.querySelector('.tline')) tip.innerHTML='<span class="tline"></span><div class="spbox"></div>';
   // Written only when it changes, so an unchanged tooltip does not have to be laid out again.

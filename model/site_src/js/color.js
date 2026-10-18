@@ -60,6 +60,53 @@ function XYZ2rgb(X, expo){ // linear rgb 0..1, soft hue-preserving clip
   const mx=Math.max(r,gg,b); if(mx>1){r/=mx;gg/=mx;b/=mx;} return [r,gg,b];
 }
 const ginv = s => s<=0.04045 ? s/12.92 : Math.pow((s+0.055)/1.055, 2.4);
+// Display P3. On a wide-gamut screen, in a browser that draws both kinds of canvas in it (Chrome,
+// Safari), the dome and the walk-around view draw in Display P3, whose primaries reach deeper
+// reds, oranges and greens than sRGB's: the low Sun, the deepest twilight, the 4.5 Ga Sun.
+// Everywhere else they stay sRGB. ?gamut=srgb or ?gamut=p3 overrides the screen, for testing.
+const P3=(()=>{ try{
+  const q=new URLSearchParams(location.search).get('gamut');
+  if(q==='srgb') return false;
+  const c=document.createElement('canvas').getContext('2d', {colorSpace:'display-p3'});
+  const ok=!!c && !!c.getContextAttributes && c.getContextAttributes().colorSpace==='display-p3'
+    && !!window.WebGL2RenderingContext && 'drawingBufferColorSpace' in WebGL2RenderingContext.prototype;
+  return ok && (q==='p3' || matchMedia('(color-gamut: p3)').matches);
+}catch(err){ return false; } })();
+// Linear sRGB to linear Display P3 and back (both D65), and XYZ to linear Display P3 through M,
+// so a color inside sRGB comes out the same either way.
+const S2P=[[0.8224621,0.1775380,0],[0.0331941,0.9668058,0],[0.0170827,0.0723974,0.9105199]];
+const P2S=[[1.2249401,-0.2249404,0],[-0.0420569,1.0420571,0],[-0.0196376,-0.0786361,1.0982735]];
+const mul3=(A, v)=>[A[0][0]*v[0]+A[0][1]*v[1]+A[0][2]*v[2], A[1][0]*v[0]+A[1][1]*v[1]+A[1][2]*v[2], A[2][0]*v[0]+A[2][1]*v[1]+A[2][2]*v[2]];
+const M_P3=S2P.map(r=>[0, 1, 2].map(j=>r[0]*M[0][j]+r[1]*M[1][j]+r[2]*M[2][j]));
+// The sRGB curve mirrored through zero, for linear colors past a gamut's edge (extended sRGB).
+const gX=v=>v<0?-g(-v):g(v), ginvX=s=>s<0?-ginv(-s):ginv(s);
+// Linear sRGB (of what is mixed into the dome's pixels) in the dome canvas's space.
+const linDisp=v=>P3?mul3(S2P, v):v;
+// sRGB bytes as the dome canvas's bytes, and back (getImageData of the dome is in its space).
+function srgbToDisp(c){ return P3?mul3(S2P, c.map(v=>ginv(v/255))).map(v=>255*g(Math.max(0, Math.min(1, v)))):c; }
+function dispToSrgb(c){ return P3?mul3(P2S, c.map(v=>ginv(v/255))).map(v=>Math.round(255*g(Math.max(0, Math.min(1, v))))):c; }
+// A CSS color for display bytes (0..255).
+function cssDisp(c){ return P3?`color(display-p3 ${(c[0]/255).toFixed(4)} ${(c[1]/255).toFixed(4)} ${(c[2]/255).toFixed(4)})`:hex(c.map(v=>Math.round(v))); }
+// The walk-around view's shaders work in sRGB, and past it where the sky's colors go (extended
+// sRGB). Each that draws to the screen ends with toOut (or toOutPre for premultiplied alpha),
+// which turns that into Display P3 when the canvas is P3 (glP3 defines P3OUT); fromP3 reads a
+// P3 canvas's bytes back into extended sRGB.
+const OUT_GLSL=`
+#ifdef P3OUT
+vec3 p3Lin(vec3 c){ vec3 a=abs(c); return sign(c)*mix(a/12.92, pow((a+0.055)/1.055, vec3(2.4)), step(0.04045, a)); }
+vec3 p3Enc(vec3 l){ vec3 a=abs(l); return sign(l)*mix(a*12.92, 1.055*pow(a, vec3(1.0/2.4))-0.055, step(0.0031308, a)); }
+vec3 toOut(vec3 c){ return p3Enc(clamp(mat3(${S2P[0][0]}, ${S2P[1][0]}, ${S2P[2][0]}, ${S2P[0][1]}, ${S2P[1][1]}, ${S2P[2][1]}, 0.0, 0.0, ${S2P[2][2]})*p3Lin(c), 0.0, 1.0)); }
+vec4 toOutPre(vec4 c){ return c.a>0.0?vec4(toOut(c.rgb/c.a)*c.a, c.a):vec4(toOut(c.rgb), c.a); }
+vec3 fromP3(vec3 c){ return p3Enc(mat3(${P2S[0][0]}, ${P2S[1][0]}, ${P2S[2][0]}, ${P2S[0][1]}, ${P2S[1][1]}, ${P2S[2][1]}, 0.0, 0.0, ${P2S[2][2]})*p3Lin(c)); }
+#else
+vec3 toOut(vec3 c){ return c; }
+vec4 toOutPre(vec4 c){ return c; }
+vec3 fromP3(vec3 c){ return c; }
+#endif
+`;
+function glP3(src){ return P3?src.replace('precision highp float;', 'precision highp float;\n#define P3OUT 1'):src; }
+// A WebGL canvas drawing in Display P3 when the page does.
+function glCanvasP3(gl){ if(P3&&gl) gl.drawingBufferColorSpace='display-p3'; return gl; }
 // Display curve, as linear light t for luminance r=Y/Yref. In daylight and twilight it is
 // k·r^p. A dark-adapted eye sees far more at night than that curve shows, so a second branch
 // gives the sRGB value as TOE_A − TOE_B·exp(−log10 L / TOE_W) for luminance L in cd/m²: black
@@ -114,6 +161,13 @@ function tone(X, Yref, k=0.85, p=0.4, cap=0.92, floor=0){ // returns sRGB 0..255
   if(!(X[1]>0)) return [0,0,0];
   const t=Math.max(toneT(X[1]/Yref, k, p, cap), floor);
   const rgb=XYZ2rgb(X, t/X[1]); return rgb.map(v=>Math.round(255*g(v)));
+}
+// tone() in the dome's space: Display P3 bytes, clipped at P3's gamut, when the page draws in P3.
+function toneDisp(X, Yref, k=0.85, p=0.4, cap=0.92){
+  if(!P3) return tone(X, Yref, k, p, cap);
+  if(!(X[1]>0)) return [0,0,0];
+  const e=toneT(X[1]/Yref, k, p, cap)/X[1], c=mul3(M_P3, X).map(v=>Math.max(0, v*e)), mx=Math.max(...c);
+  return c.map(v=>Math.round(255*g(mx>1?v/mx:v)));
 }
 // Sky luminance r=Y/Yref stored in a byte (the VR sky texture's alpha): log10 r from -12 to 0.5.
 const LOGR_LO=-12, LOGR_SPAN=12.5;

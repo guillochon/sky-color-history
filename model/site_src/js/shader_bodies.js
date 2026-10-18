@@ -669,6 +669,7 @@ uniform vec4 uRingEl[${URA_RINGS.length}]; uniform vec3 uRingAx;
 uniform vec4 shadowM[${SHADOW_MAX}], shadowK[${SHADOW_MAX}]; uniform float shadowCnt;
 uniform vec4 sunQ, moonQ;
 out vec4 fragColor;
+${OUT_GLSL}
 float h12(vec2 p){
   vec3 q=fract(vec3(p.xyx)*vec3(0.1031, 0.1030, 0.0973));
   q+=dot(q, q.yzx+33.33);
@@ -764,7 +765,7 @@ void main(){
     // A planet nearer than the Sun, dark against it: the sky without the Sun laid over it.
     vec4 dk=bodyDisk(o, bP.xyz, bN.xyz, bL.xyz, kind, rPx, bC.rgb, bM, x, t);
     float a=dk.a*min(rPx, 1.0)*hz;
-    fragColor=vec4(skyT.rgb*a, a);
+    fragColor=toOutPre(vec4(skyT.rgb*a, a));
     return;
   }
   if(vis<=0.0 || diskK<=0.0) discard;
@@ -831,7 +832,7 @@ void main(){
   }
   // Added to what is behind, except a moon on the near side of its planet (bN.w past 32), which
   // hides the planet's disk and rings under it: added, the rings' light would show through it.
-  fragColor=vec4(dc*T*diskK*vis*hz, bN.w>31.5?dk.a*diskK*vis*hz:0.0);
+  fragColor=toOutPre(vec4(dc*T*diskK*vis*hz, bN.w>31.5?dk.a*diskK*vis*hz:0.0));
 }`;
 // The bodies' program with the close-up detail in set f ('jup', 'sat', 'map') and none other; Jupiter's
 // and Saturn's clouds share their functions' names, so a set holds at most one of the two.

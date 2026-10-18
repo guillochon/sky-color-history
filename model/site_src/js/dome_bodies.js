@@ -258,9 +258,14 @@ function drawMoonOnDome(moon, sunAz, sunEl, lu){
     const o=((y-y0)*bw+(x-x0))*4;
     const skyY=(0.2126*px[o]+0.7152*px[o+1]+0.0722*px[o+2])/255;
     const veil=1-smooth01(0, 1.15, skyY), w=wlit+(glow?glow*1.3*smooth01(0, 0.7, (s[0]-s[2])/255):0);
-    px[o]=Math.min(255, px[o]+s[0]/255*w*Tr*veil*255);
-    px[o+1]=Math.min(255, px[o+1]+s[1]/255*w*Tg*veil*255);
-    px[o+2]=Math.min(255, px[o+2]+s[2]/255*w*Tb*veil*255);
+    if(P3){
+      const add=srgbToDisp([Math.min(255, s[0]*w*Tr*veil), Math.min(255, s[1]*w*Tg*veil), Math.min(255, s[2]*w*Tb*veil)]);
+      for(let q=0;q<3;q++) px[o+q]=Math.min(255, px[o+q]+add[q]);
+    }else{
+      px[o]=Math.min(255, px[o]+s[0]/255*w*Tr*veil*255);
+      px[o+1]=Math.min(255, px[o+1]+s[1]/255*w*Tg*veil*255);
+      px[o+2]=Math.min(255, px[o+2]+s[2]/255*w*Tb*veil*255);
+    }
   }
   dctx.putImageData(img,x0,y0);
   if(glow){

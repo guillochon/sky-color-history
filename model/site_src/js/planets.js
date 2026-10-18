@@ -745,7 +745,8 @@ function drawBodyOnDome(b, x, y, rPx, show){
     const el=90*(1-rr/R), az=Math.atan2(dx, -dy)*180/Math.PI, c=bodyPixel(b, horizDir(az, el), rad, rPx);
     if(c[0]+c[1]+c[2]<=0) continue;
     const mu=Math.max(Math.sin(Math.max(el, 0)*Math.PI/180), 0.04), T=[1, Math.exp(-0.064/mu), Math.exp(-0.184/mu)], o=((j-y0)*bw+(i-x0))*4;
-    for(let q=0;q<3;q++) px[o+q]=Math.min(255, px[o+q]+c[q]*T[q]*show*255);
+    const add=srgbToDisp([0, 1, 2].map(q=>Math.min(255, c[q]*T[q]*show*255)));
+    for(let q=0;q<3;q++) px[o+q]=Math.min(255, px[o+q]+add[q]);
   }
   dctx.putImageData(img, x0, y0);
 }

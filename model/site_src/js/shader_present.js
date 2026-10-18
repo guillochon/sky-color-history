@@ -199,6 +199,7 @@ uniform vec3 eye; uniform sampler2D sky;
 // radius; the linear light it adds to the cloud there.
 uniform vec4 ltP[4], ltC[4]; uniform float ltN;
 out vec4 fragColor;
+${OUT_GLSL}
 ${SHELL_GLSL}
 vec4 toneCloud(vec4 c){
   vec3 x=c.rgb/max(c.a, 1.0e-4);
@@ -221,7 +222,7 @@ vec4 rainDisplay(vec4 v){
 void main(){
   vec4 c=texture(cloudTex, gl_FragCoord.xy/res);
   bool rain=rainP.x+rainP.y+rainP.z>0.0, fog=fogP.x>0.0;
-  if(c.a<0.004 && !rain && !fog){ fragColor=c; return; }
+  if(c.a<0.004 && !rain && !fog){ fragColor=toOutPre(c); return; }
   vec3 rd=viewRay(gl_FragCoord.xy, res, fov, yaw, pitch), ro=eye;
   vec4 occ=texture(hitInfo, gl_FragCoord.xy/res);
   // The cloud and the rain about a flash glow with its light, falling off with the ray's nearest
@@ -290,4 +291,5 @@ void main(){
     vec4 drops=rainDisplay(rainNear(rd, tHit, pa, rainAmb(amb, me)*1.3+sunB*0.05*exp(-me.x/4.0)));
     fragColor=drops+(1.0-drops.a)*fragColor;
   }
+  fragColor=toOutPre(fragColor);
 }`;

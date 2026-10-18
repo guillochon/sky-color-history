@@ -555,6 +555,7 @@ uniform vec4 lD[8];
 uniform vec3 lC[8];
 uniform float lN;
 out vec4 fragColor;
+${OUT_GLSL}
 ${VIEW_RAY_GLSL}
 vec3 toLin(vec3 c){ return pow(max(c, vec3(0.0)), vec3(2.2)); }
 // Ray (o, d) against the capsule from a to b of radius r (Quilez): distance, or -1.
@@ -642,5 +643,5 @@ void main(){
   }
   float occ=1.0-texture(cloudTex, fc/res).a;
   if(showScn>0.5){ vec4 h=texture(hitInfo, fc/res); if(h.g>0.5 && h.r>0.0 && h.r<length(rel)) occ=0.0; }
-  fragColor=vec4((c*cov+li)*occ, cov*occ);
+  fragColor=toOutPre(vec4((c*cov+li)*occ, cov*occ));
 }`;

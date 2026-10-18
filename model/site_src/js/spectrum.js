@@ -401,14 +401,16 @@ function skySpectrum(el, az, disk, aurora, litHere=1, cloudPx=null, cr=null, moo
 // The plot: the spectrum filled with the color of each wavelength, linear, normalized to the
 // continuum so a bright line runs off the top (marked with a caret) rather than flattening the rest.
 // Past 690 nm the fit's tails turn the hue back toward green, so the deep red holds from there.
-const SP_RGB=SP_CMF.map((c, i)=>SP_CMF[Math.min(i, 310)]).map(([x, y, z])=>{ const r=3.2406*x-1.5372*y-0.4986*z, gr=-0.9689*x+1.8758*y+0.0415*z, b=0.0557*x-0.2040*y+1.0570*z, m=Math.max(r, gr, b, 1e-6);
-  return `rgb(${[r, gr, b].map(v=>Math.round(255*g(Math.max(0, v/m)*0.75+0.08))).join(',')})`; });
+// In Display P3 when the page draws in it, where the spectrum's colors reach further.
+const SP_RGB=SP_CMF.map((c, i)=>SP_CMF[Math.min(i, 310)]).map(X=>{ const [r, gr, b]=mul3(P3?M_P3:M, X), m=Math.max(r, gr, b, 1e-6);
+  return cssDisp([r, gr, b].map(v=>255*g(Math.max(0, v/m)*0.75+0.08))); });
+const SP_CTX=P3?{colorSpace:'display-p3'}:undefined;
 const SP_STRIPS={};
 function spStrip(W, dpr, X){
   const k=W+'@'+dpr;
   if(SP_STRIPS[k]) return SP_STRIPS[k];
   const cv=document.createElement('canvas'); cv.width=Math.round(W*dpr); cv.height=1;
-  const c=cv.getContext('2d'); c.setTransform(dpr, 0, 0, 1, 0, 0);
+  const c=cv.getContext('2d', SP_CTX); c.setTransform(dpr, 0, 0, 1, 0, 0);
   for(let i=0;i<SP_N-1;i++){ const x0=X(SP_LAM[i]), x1=X(SP_LAM[i+1]); c.fillStyle=SP_RGB[i]; c.fillRect(x0, 0, x1-x0+0.5, 1); }
   return SP_STRIPS[k]=cv;
 }
@@ -428,7 +430,7 @@ function drawSpectrum(cv, sp){
   }
   cv._sp={dpr, marks:marksKey, ys, over:mx>top};
   if(cv.width!==W*dpr){ cv.width=W*dpr; cv.height=H*dpr; cv.style.width=W+'px'; cv.style.height=H+'px'; }
-  const c=cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
+  const c=cv.getContext('2d', SP_CTX); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
   // The color fill: a strip of every wavelength's color, made once, clipped to the spectrum's
   // steps (each column as high as the lower of its two ends) instead of a rectangle per column.
   c.save(); c.beginPath(); c.moveTo(X(SP_LAM[0]), B);

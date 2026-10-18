@@ -391,6 +391,7 @@ uniform mat3 frB, frW;
 uniform vec4 pC[${SAT_PART_MAX}], pO[${SAT_PART_MAX}];
 uniform vec3 pH[${SAT_PART_MAX}];
 out vec4 fragColor;
+${OUT_GLSL}
 ${VIEW_RAY_GLSL}
 // Ray (o, d) against the box of half-size h about the origin: distance and the face's normal, or -1.
 float boxHit(vec3 o, vec3 d, vec3 h, out vec3 n){
@@ -457,7 +458,7 @@ void main(){
   // old frame's clouds, which would cut holes in it.
   float occ=cloudOn>0.5?1.0-texture(cloudTex, fc/res).a:1.0;
   if(showScn>0.5){ vec4 h=texture(hitInfo, fc/res); if(h.g>0.5 && h.r>0.0) occ=0.0; }
-  fragColor=vec4(c*cov*occ, cov*occ);
+  fragColor=toOutPre(vec4(c*cov*occ, cov*occ));
 }`;
 const SATV={job:null, prog:null, u:null, parts:new Map()};
 // A shape's parts as the shader takes them, scaled: center (body frame) and frame, offset (own

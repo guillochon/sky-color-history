@@ -1,6 +1,6 @@
 /* ---------- Section 2: a day under that sky ---------- */
 // The Moon pass and the color tip read the dome back every render, so it is kept in memory.
-const dome=document.getElementById('dome'), dctx=dome.getContext('2d', {willReadFrequently:true});
+const dome=document.getElementById('dome'), dctx=dome.getContext('2d', P3?{willReadFrequently:true, colorSpace:'display-p3'}:{willReadFrequently:true});
 const sel=document.getElementById('depoch'); EP.forEach((ep,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=`${ep.age} — ${ep.name}`; sel.appendChild(o); });
 let dIdx=MODERN_IDX, dLat='Mid-latitude', minutes=720, autoExpo=false;
 const DAYMIN=1440; // midnight to midnight
@@ -250,6 +250,19 @@ function toneTo(X, o, Yref, k, p, cap, out){
   const mx=Math.max(r,gg,b); if(mx>1){r/=mx;gg/=mx;b/=mx;}
   out[o]=255*g(r); out[o+1]=255*g(gg); out[o+2]=255*g(b);
 }
+// toneTo with the clip at Display P3's gamut instead: the color as P3 bytes into outP, and as
+// extended sRGB (0..255, past either end outside sRGB) into outX.
+function toneToP3(X, o, Yref, k, p, cap, outP, outX){
+  const x0=X[o], x1=X[o+1], x2=X[o+2];
+  if(!(x1>0)){ outP[o]=outP[o+1]=outP[o+2]=0; outX[o]=outX[o+1]=outX[o+2]=0; return; }
+  const e=Math.max(toneT(x1/Yref, k, p, cap), 0)/x1, Q=M_P3;
+  let r=Q[0][0]*x0+Q[0][1]*x1+Q[0][2]*x2, gg=Q[1][0]*x0+Q[1][1]*x1+Q[1][2]*x2, b=Q[2][0]*x0+Q[2][1]*x1+Q[2][2]*x2;
+  r=Math.max(0,r*e); gg=Math.max(0,gg*e); b=Math.max(0,b*e);
+  const mx=Math.max(r,gg,b); if(mx>1){r/=mx;gg/=mx;b/=mx;}
+  outP[o]=255*g(r); outP[o+1]=255*g(gg); outP[o+2]=255*g(b);
+  const s=mul3(P2S, [r, gg, b]);
+  outX[o]=255*gX(s[0]); outX[o+1]=255*gX(s[1]); outX[o+2]=255*gX(s[2]);
+}
 // The dome's sky grid: DOME_NR+1 rings from the zenith to the horizon, DOME_NA+1 azimuths.
 const DOME_NR=72, DOME_NA=144;
 // The sky in XYZ on that grid, and its log luminance for the Milky Way pass: scratch space that
@@ -295,7 +308,7 @@ function domeExtinction(geo, k){
 // floats 0..1 for an RGBA16F texture (skyTexUpload), finer than bytes (toneTo).
 function skyTexData(sky){
   if(!sky.rgba){
-    const n=sky.rgrid.length, cg=sky.colgrid, d=new Float32Array(n*4);
+    const n=sky.rgrid.length, cg=sky.colgridX||sky.colgrid, d=new Float32Array(n*4);
     for(let c=0;c<n;c++){
       d[c*4]=cg[c*3]/255; d[c*4+1]=cg[c*3+1]/255; d[c*4+2]=cg[c*3+2]/255;
       d[c*4+3]=Math.max(0, Math.min(1, (Math.log10(Math.max(sky.rgrid[c], 1e-13))-LOGR_LO)/LOGR_SPAN));
@@ -432,6 +445,10 @@ function renderDay(fast){
   // Display colors (sRGB bytes) and luminance over the reference, flat in grid order.
   const colgrid=new Float32Array(NG*3), rgrid=new Float64Array(NG);
   for(let c=0;c<NG;c++){ toneTo(grid, c*3, Yref, k, p, 0.95, colgrid); rgrid[c]=Math.max(grid[c*3+1], 1e-30)/Yref; }
+  // In Display P3 the dome's colors (colgridP) and the walk-around view's (colgridX) as well.
+  const colgridP=P3?new Float32Array(NG*3):null, colgridX=P3?new Float32Array(NG*3):null;
+  if(P3) for(let c=0;c<NG;c++) toneToP3(grid, c*3, Yref, k, p, 0.95, colgridP, colgridX);
+  const colDome=colgridP||colgrid;
   // The Milky Way on the dome, per pixel, once the sky is dark enough for it to matter.
   // The Milky Way of the epoch shown (milkyway.js), made again when the epoch changes.
   if(mwMap) buildMilkyWay();
@@ -476,6 +493,7 @@ function renderDay(fast){
       mwR[bi]=rAdd;
       mwA[bi]=tBg>0?(tNew/tBg)*(rBg/rNew):0;
       for(let q=0;q<3;q++) mwB[bi*3+q]=g*((rMw>0?Lm[q]:0)+(rD>0?Ld[q]:0));
+      if(P3){ const v=mul3(S2P, [mwB[bi*3], mwB[bi*3+1], mwB[bi*3+2]]); mwB[bi*3]=v[0]; mwB[bi*3+1]=v[1]; mwB[bi*3+2]=v[2]; }
     }
   }
   // Ice halos (halo.js), from the Sun and the Moon: each source's halo luminance over Yref per
@@ -506,7 +524,7 @@ function renderDay(fast){
       const o=j*4, c=cell[j];
       if(c===0xFFFF){ px[o]=10;px[o+1]=12;px[o+2]=18;px[o+3]=255; continue; }
       const tr=ptr[j], ta=pta[j], c0=c*3;
-      for(let q=0;q<3;q++){ const a=colgrid[c0+q]*(1-ta)+colgrid[c0+3+q]*ta, b=colgrid[c0+C2+q]*(1-ta)+colgrid[c0+C2+3+q]*ta; px[o+q]=a*(1-tr)+b*tr; }
+      for(let q=0;q<3;q++){ const a=colDome[c0+q]*(1-ta)+colDome[c0+3+q]*ta, b=colDome[c0+C2+q]*(1-ta)+colDome[c0+C2+3+q]*ta; px[o+q]=a*(1-tr)+b*tr; }
       px[o+3]=255;
       let under=0;
       if(mwA){
@@ -551,7 +569,8 @@ function renderDay(fast){
     }
     // Limb darkening, as stops of a radial gradient: dense toward the edge, where it falls fastest.
     const g=dctx.createRadialGradient(sx,sy,0,sx,sy,SUNR);
-    for(const r of [0, 0.3, 0.5, 0.65, 0.75, 0.83, 0.89, 0.93, 0.96, 0.98, 1]) g.addColorStop(r, hex(sunLimbRGB(sunRGB, r)));
+    const sunD=P3?toneDisp(sXd, sXd[1], 0.95,0.4,0.98):sunRGB;
+    for(const r of [0, 0.3, 0.5, 0.65, 0.75, 0.83, 0.89, 0.93, 0.96, 0.98, 1]) g.addColorStop(r, cssDisp(sunLimbRGB(sunD, r)));
     dctx.globalAlpha=1; dctx.fillStyle=g; dctx.beginPath(); dctx.arc(sx,sy,SUNR,0,Math.PI*2); dctx.fill(); dctx.restore();
     // Its spots and faculae, where the Moon isn't in front.
     const mrr=R*(90-moon.el)/90, ma=moon.az*Math.PI/180;
@@ -603,7 +622,7 @@ function renderDay(fast){
   // the stars, the bright ones with a glare, and the brightest lights the scene.
   const sns=transientPlaces(LATDEG[dLat]), sn=sns[0]||null;
   if(!fast) for(const s of sns) drawSupernovaOnDome(s);
-  skyNow={colgrid, nr:NR, na:NA, sza, sunAz, sunRGB, sunVis, lunar, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE*1.5+35/60*refK(), moon, corona, coronaMap:cMap, coronaRim:cRim, beads, eclipse:eclipse||(lunar&&moon.on?lunar.text:''), central, rgrid, cityUp:cityUplight(ep.key, Yref, k, p), Yref, toneK:k, toneP:p, rCd:Yref*cdu, gal:mwMap?galacticBasis(LATDEG[dLat]):null, dso:dsoList, extK:ek, stars:stars.tex, starMarks:stars.marks, bodies:stars.bodies, starBins:stars.bins, starIdx:stars.idx, starIdxCount:stars.idxCount, sn, sns, srcShare, moonRel:mScale/MOON_SUN_FULL, mScale, sunFlux, halo:haloVR, ring:ringVR, ecl, comets, aur:auroraState(ep.key, LATDEG[dLat], minutes, rgrid[0]*Yref*cdu), gen:++skyGen};
+  skyNow={colgrid, colgridX, nr:NR, na:NA, sza, sunAz, sunRGB, sunVis, lunar, sunOn:sunRelD>3e-4 && sza<90+SUN_RADIUS_DEG*DISK_SCALE*1.5+35/60*refK(), moon, corona, coronaMap:cMap, coronaRim:cRim, beads, eclipse:eclipse||(lunar&&moon.on?lunar.text:''), central, rgrid, cityUp:cityUplight(ep.key, Yref, k, p), Yref, toneK:k, toneP:p, rCd:Yref*cdu, gal:mwMap?galacticBasis(LATDEG[dLat]):null, dso:dsoList, extK:ek, stars:stars.tex, starMarks:stars.marks, bodies:stars.bodies, starBins:stars.bins, starIdx:stars.idx, starIdxCount:stars.idxCount, sn, sns, srcShare, moonRel:mScale/MOON_SUN_FULL, mScale, sunFlux, halo:haloVR, ring:ringVR, ecl, comets, aur:auroraState(ep.key, LATDEG[dLat], minutes, rgrid[0]*Yref*cdu), gen:++skyGen};
   document.getElementById('raur').textContent=auroraReadout(skyNow.aur);
   document.getElementById('rmet').textContent=meteorReadout();
   document.getElementById('rcomet').textContent=cometeradout();

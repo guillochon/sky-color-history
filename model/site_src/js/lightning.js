@@ -368,6 +368,7 @@ uniform vec2 res; uniform float yaw, pitch, fov, showScn, nr, na, eyeZ;
 uniform vec4 toneU;
 in vec4 vSeg; in vec4 vW; in vec2 vD; in vec3 vC;
 out vec4 fragColor;
+${OUT_GLSL}
 ${TONE_GLSL}
 ${VIEW_RAY_GLSL}
 float erfA(float x){ float x2=x*x; return sign(x)*sqrt(1.0-exp(-x2*(1.27324+0.147*x2)/(1.0+0.147*x2))); }
@@ -398,7 +399,7 @@ void main(){
   // The light it adds takes its color, giving way to white near the display's white, as
   // overexposed light does; the sky behind keeps its own.
   vec3 c=min(vec3(1.0), t0+(t1-t0)*mix(vC, vec3(1.0), smoothstep(0.6, 1.0, t1)));
-  fragColor=vec4(max(lin2s3(c)-vec3(lin2s(t0)), vec3(0.0)), 0.0);
+  fragColor=vec4(max(toOut(lin2s3(c))-vec3(lin2s(t0)), vec3(0.0)), 0.0);
 }`;
 function ltDrawVR(gl, c, ez){
   const list=LT.active.filter(a=>a.fl.cg);
