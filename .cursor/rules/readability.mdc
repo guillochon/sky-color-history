@@ -1,0 +1,59 @@
+---
+description: Sentence-level readability rules for manuscript prose (Clark, Martin & Mahowald 2026, arXiv:2610.29162)
+alwaysApply: true
+---
+
+# Readability
+
+Language models write prose that is denser and harder to parse than human prose. Clark, Martin & Mahowald (2026, arXiv:2610.29162) measured the features below and found that frontier models overuse every one of them. The effect grows over long, iterated editing sessions, which is how these manuscripts are written. Apply these rules to every sentence you write or edit in the manuscript, the abstract, figure captions and the notes in `research/`.
+
+## 1. Give a person the human verbs
+
+A search, statistic, test, survey, model, star or dataset does not ask, refuse, want, see, hear, know, forgive, punish, buy or care. Make "we" or a named author the subject, or use a plain verb for what the procedure does: rejects, tests for, detects, is sensitive to, requires.
+
+```tex
+% BAD
+the question the search asks is whether a transmitter could produce what the data can hear
+% GOOD
+the question is whether a transmitter could produce a signal that the data could detect
+
+% BAD
+the null forgives a slow drift
+% GOOD
+a slow drift does not change the null distribution much
+```
+
+## 2. Keep the optional "that"
+
+Write object relative clauses with their relativizer: "the signal that we look for", not "the signal we look for". Keep "that" after verbs of saying and showing too: "they showed that the rate is low", not "they showed the rate is low".
+
+## 3. Keep subject, verb and object close
+
+Do not put a long clause, a parenthetical or a run of citations between a subject and its verb. Move the material to the end of the sentence or give it a sentence of its own. Aim for one main claim per sentence. A sentence that needs a semicolon to hold two claims is usually two sentences.
+
+```tex
+% BAD
+The amplitude, which for a star at 1 kpc observed by TESS over two sectors with the cadence assumed in Section 3 is about 2 s, sets the limit.
+% GOOD
+The amplitude sets the limit. For a star at 1 kpc observed by TESS over two sectors, it is about 2 s.
+```
+
+## 4. At most two nouns in a modifier chain
+
+"Light-curve timing-residual search pipeline" is four nouns stacked. Write "the pipeline that searches the timing residuals of light curves". Hyphenated compounds count as stacked nouns (`one-bit-per-cycle`, `full-frame-image`, `red-noise-aware`). Spell a compound out in full where it is introduced, and after that use the shortest form that is still clear.
+
+## 5. Prefer the common phrase
+
+If a word pair would surprise a reader in the field ("the data can hear", "the store carries 493 rows", "the fold buys a factor of ten"), use the phrase most astronomers would write. Use a metaphor only where it does real explanatory work, at most once or twice per paper, never as background texture.
+
+## 6. Do not turn nouns into verbs on the fly
+
+Write "we add a footnote" or "we match against the catalog", not "we footnote" or "we catalog-match". Established jargon (prewhiten, bin, fold, detrend) is fine.
+
+## 7. Do not compress for length
+
+Hitting a length or character limit is no reason to break rules 1 to 6. Cut whole side points, repeated arguments and tours of the literature, and leave the remaining sentences at their natural length. If a rewrite comes out shorter but takes two reads, keep the longer version.
+
+## Check before finishing
+
+Reread each paragraph you touched for rules 1, 2 and 4. These are the three that the shorter version gets wrong while looking better on the page.
