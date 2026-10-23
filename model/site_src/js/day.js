@@ -681,14 +681,34 @@ function zoomDome(z, px, py){
   z=Math.max(1, Math.min(DOME_ZOOM_MAX, z));
   setDomeView(z, px-(px-v.cx)*z/v.z-dome.width/2, py-(py-v.cy)*z/v.z-dome.height/2);
 }
+// A wheel turn zooms over about 50 ms rather than in one jump. Each notch adds to the zoom still to
+// go (as a log, kept within lo..hi), and each frame takes most of what is left, so quick notches
+// run together. apply(s) zooms by a factor of exp(s).
+function smoothWheel(apply){
+  let left=0, last=0, raf=0;
+  function step(t){
+    let s=left*(1-Math.exp(-Math.min(t-last, 100)/15)); last=t;
+    if(Math.abs(left-s)<1e-3) s=left;
+    left-=s; apply(s);
+    raf=left?requestAnimationFrame(step):0;
+  }
+  return {
+    get left(){ return left; },
+    add(d, lo, hi){ left=Math.max(lo, Math.min(hi, left+d)); if(!raf) raf=requestAnimationFrame(t=>{ last=t-16; step(t); }); },
+    stop(){ left=0; cancelAnimationFrame(raf); raf=0; },
+  };
+}
+let domeWheelAt=[0, 0];
+const domeWheel=smoothWheel(s=>zoomDome(domeZoom.z*Math.exp(s), domeWheelAt[0], domeWheelAt[1]));
 dome.addEventListener('wheel', e=>{
   const d=e.deltaMode===1?e.deltaY*33:e.deltaMode===2?e.deltaY*400:e.deltaY;
-  if(d>0 && domeZoom.z<=1) return;
+  if(d>0 && domeZoom.z*Math.exp(domeWheel.left)<=1) return;
   e.preventDefault();
   const b=dome.getBoundingClientRect();
-  zoomDome(domeZoom.z*Math.exp(-d*0.0015), (e.clientX-b.left)*dome.width/b.width, (e.clientY-b.top)*dome.height/b.height);
+  domeWheelAt=[(e.clientX-b.left)*dome.width/b.width, (e.clientY-b.top)*dome.height/b.height];
+  domeWheel.add(-d*0.0015, -Math.log(domeZoom.z), Math.log(DOME_ZOOM_MAX/domeZoom.z));
 }, {passive:false});
-dome.addEventListener('dblclick', ()=>zoomDome(1, dome.width/2, dome.height/2));
+dome.addEventListener('dblclick', ()=>{ domeWheel.stop(); zoomDome(1, dome.width/2, dome.height/2); });
 // Dragging with the middle button moves a zoomed view; the sky follows the pointer.
 let domeDrag=null;
 dome.addEventListener('mousedown', e=>{

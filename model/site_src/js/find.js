@@ -354,6 +354,7 @@ function domeFindZoom(w){
 function domeFindStart(t){
   const w=findWhere(t);
   if(!w||w.d[2]<=0) return;
+  domeWheel.stop();
   if(!domeOnScreen) dome.scrollIntoView({block:'center', behavior:'smooth'});
   const v=domeView(), R0=dome.width*0.46*v.z, c0=[-domeZoom.ox/R0, -domeZoom.oy/R0], p=domeFindAt(w);
   // The path's widths are the canvas's width in dome radii.

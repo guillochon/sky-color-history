@@ -192,12 +192,16 @@ function zoomVRAbout(factor, cx, cy){
   if(vrPins.length||(vrInspect&&vrInspectAt)) refreshVRTip();
   requestVR();
 }
+// The wheel zooms smoothly, as on the dome (smoothWheel).
+let vrWheelAt=[0, 0];
+const vrWheel=smoothWheel(s=>{ if(vrOn) zoomVRAbout(Math.exp(s), vrWheelAt[0], vrWheelAt[1]); });
 window.addEventListener('wheel', e=>{
   if(!vrOn) return;
   e.preventDefault();
   const px=e.deltaMode===1?e.deltaY*33:e.deltaMode===2?e.deltaY*400:e.deltaY;
   const locked=document.pointerLockElement===vrc||!!vrLockPin, cx=locked?window.innerWidth/2:e.clientX, cy=locked?window.innerHeight/2:e.clientY;
-  zoomVRAbout(Math.exp(px*0.0015), cx, cy);
+  vrWheelAt=[cx, cy];
+  vrWheel.add(px*0.0015, Math.min(0, Math.log(vrFovMin()/vrFov)), Math.max(0, Math.log(VR_FOV_MAX/vrFov)));
 }, {passive:false});
 window.addEventListener('mousemove', e=>{ if(!vrOn||datePop.open) return; if(vrInspect){ vrInspectAt=[e.clientX, e.clientY]; vrOverPin=!!(e.target.closest&&e.target.closest('.vrpintip')); if(vrOverPin) hideVRHoverTip(); else askVRHoverTip(); if(!vrEdgeRAF) vrEdgeRAF=requestAnimationFrame(edgeScroll); return; } if(!e.movementX&&!e.movementY) return; lookVR(e.movementX, e.movementY); });
 window.addEventListener('pointerdown', e=>{ if(!vrOn) return; pokeVRMusic(); if(e.target.closest&&e.target.closest('.vrpintip')) return; if(vrInspect){ if(e.button===0) pinVRTip(e.clientX, e.clientY); return; } if(document.pointerLockElement===vrc) return; vrRelock=true;
