@@ -547,8 +547,10 @@ vec4 cloudColor(vec4 F, float lat, float lon, float pxD, float aux){
     float stk=(vNg(vec2(xj*0.5, hd*4.0+3.0), 64.0).x-0.5)+0.6*smoothstep(1.5, 3.0, 0.08/fw)*(vNg(vec2(xj*1.5, hd*12.0+7.0), 192.0).x-0.5);
     float bank=exp(-(hd-1.2)*(hd-1.2)/0.6);
     c=mix(c, mix(vec3(0.56, 0.63, 0.68), vec3(0.80, 0.73, 0.55), smoothstep(-0.15, 0.35, aux)), 0.35*(1.0-smoothstep(-fw, fw, hd)));
-    c*=(1.0-0.22*exp(-hd*hd/max(0.6, fw*fw)))*(1.0+0.18*env*stk+0.08*bank);
-    zk+=-8.0*(1.0-smoothstep(-1.5, 0.5, hd))-6.0*exp(-hd*hd/0.8)+5.0*bank+8.0*env*stk;
+    // Either side of the jet, out to some 5°, lanes of cloud 0.7° apart following its shape.
+    float lane=sin(hd*9.0+1.5*dye)*smoothstep(0.5, 1.2, abs(hd))*smoothstep(5.5, 2.5, abs(hd))*smoothstep(0.2, 0.07, pxD);
+    c*=(1.0-0.22*exp(-hd*hd/max(0.6, fw*fw)))*(1.0+0.18*env*stk+0.08*bank+0.07*lane);
+    zk+=-8.0*(1.0-smoothstep(-1.5, 0.5, hd))-6.0*exp(-hd*hd/0.8)+5.0*bank+8.0*env*stk+2.0*lane;
   }
   // The north polar region's smaller weather (Cassini, 2012-2016): within the hexagon many small
   // bright storms, a few hundred km across, their tops domed some 7 km over the clouds and each
@@ -557,26 +559,32 @@ vec4 cloudColor(vec4 F, float lat, float lon, float pxD, float aux){
   // each a pale dome ringed by brighter cloud. All are laid on a grid in the plane about the pole
   // (degrees from it), turning with the wind at 80°N, and shown once they span a few pixels.
   if(lat>64.0){
-    float k1=smoothstep(0.25, 0.08, pxD), k2=smoothstep(0.7, 0.25, pxD);
+    float k2=smoothstep(0.7, 0.25, pxD);
     float rl=(lon-clWindDeg(80.0)*T)*0.01745329252;
     float hx=clHexD(pc, lon), inh=1.0-smoothstep(-0.5, 0.5, hx);
     vec2 P=pc*vec2(cos(rl), sin(rl));
-    if(k1>0.0){
-      // Few large and many small, bunched in patches (noise in the same plane) and none in the
-      // jet; each soft-edged, brightest in its middle.
-      float dome=0.0, core=0.0, rim=0.0, pat=vNg(P*0.35+2.0, 1e4).x;
-      float dens=mix(0.2, 0.55, inh)*smoothstep(0.2, 0.6, pat)*(1.0-0.9*exp(-hx*hx/2.0));
-      for(int j=0;j<2;j++){
-        float cs=j==0?1.1:0.6, sj=float(j)*17.3;
-        vec2 id=floor(P/cs), f=fract(P/cs)-0.5;
+    if(pxD<0.33){
+      // Three sizes, the cells 1.1°, 0.6° and 0.33° across, each shown once its storms span a few
+      // pixels; few large and many small, packed within the hexagon and fewer outside, bunched in
+      // patches and none in the jet. The plane is swirled first (turned about the pole by an angle
+      // wandering with place, and pushed about by noise), which sweeps them into the curving
+      // streams Cassini saw. Each soft-edged, brightest in its middle.
+      float sw=0.35*sin(pc*0.9)+0.9*(vNg(P*0.18+21.0, 1e4).x-0.5), cw=cos(sw), sn=sin(sw);
+      vec2 Q=mat2(cw, sn, -sn, cw)*P+0.6*(vec2(vNg(P*0.5+3.0, 1e4).x, vNg(P*0.5+8.0, 1e4).x)-0.5);
+      float dome=0.0, core=0.0, rim=0.0, pat=vNg(Q*0.35+2.0, 1e4).x;
+      float dens=mix(0.25, 0.75, inh)*(0.35+0.65*smoothstep(0.2, 0.6, pat))*(1.0-0.9*exp(-hx*hx/2.0));
+      for(int j=0;j<3;j++){
+        float cs=j==0?1.1:j==1?0.6:0.33, sj=float(j)*17.3, kj=smoothstep(0.3*cs, 0.1*cs, pxD);
+        if(kj<=0.0) break;
+        vec2 id=floor(Q/cs), f=fract(Q/cs)-0.5;
         vec2 o=vec2(h12(id+sj), h12(id.yx+5.3+sj))-0.5;
-        float hr=h12(id+9.7+sj), r=0.07+0.3*hr*hr*hr, on=step(1.0-dens, h12(id+31.1+sj));
+        float hr=h12(id+9.7+sj), r=0.1+0.28*hr*hr, on=kj*step(1.0-dens, h12(id+31.1+sj));
         float d=length(f-0.25*o)/r;
         dome=max(dome, on*max(1.0-d*d, 0.0)); core=max(core, on*exp(-d*d*3.0)); rim=max(rim, on*exp(-(d-1.2)*(d-1.2)/0.05));
       }
-      c=mix(c, min(c*1.2+0.05, vec3(1.0)), k1*(0.35*smoothstep(0.0, 0.6, dome)+0.3*core));
-      c*=1.0-0.05*k1*rim;
-      zk+=k1*(7.0*dome-1.5*rim);
+      c=mix(c, min(c*1.25+0.06, vec3(1.0)), 0.35*smoothstep(0.0, 0.6, dome)+0.35*core);
+      c*=1.0-0.06*rim;
+      zk+=7.0*dome-1.5*rim;
     }
     if(k2>0.0){
       // The bands wander and come and go round the vortex.
@@ -589,6 +597,13 @@ vec4 cloudColor(vec4 F, float lat, float lon, float pxD, float aux){
       float ring=exp(-(d-0.8)*(d-0.8)/0.02);
       c=mix(c, min(c*1.15+0.05, vec3(1.0)), on*k2*(0.5*ring+0.25*(1.0-smoothstep(0.6, 1.0, d))));
       zk+=on*k2*(6.0*max(1.0-d*d, 0.0)+2.0*ring);
+      // A large pale anticyclone within the hexagon, near a corner, some 1.5° in radius, its
+      // clouds wound into it in two arms (Cassini, 2013).
+      vec2 dv=(P-9.0*vec2(-0.666, 0.746))/1.5;
+      float dl=length(dv), arm=sin(2.0*atan(dv.y, dv.x)+6.0*dl-1.2*T), in1=1.0-smoothstep(0.75, 1.0, dl);
+      c=mix(c, mix(c, vec3(0.88, 0.86, 0.82), 0.6)*(1.0+0.06*arm*dl), k2*in1);
+      c*=1.0+0.1*k2*exp(-(dl-0.88)*(dl-0.88)/0.01);
+      zk+=k2*(6.0*max(1.0-dl*dl, 0.0)+1.5*arm*dl*in1);
     }
   }
   // The polar vortices, a few degrees across, at both poles: a dark eye about a degree in radius
@@ -603,6 +618,10 @@ vec4 cloudColor(vec4 F, float lat, float lon, float pxD, float aux){
     c=mix(c, vec3(0.40, 0.41, 0.40), 0.7*k*(1.0-smoothstep(0.7, 1.1, pc)));
     c*=1.0+k*(0.25*wall+0.08*arm*smoothstep(1.4, 2.2, pc)*smoothstep(6.0, 3.0, pc));
     zk+=k*(10.0*wall-15.0*eye+3.0*arm*smoothstep(1.4, 2.2, pc)*smoothstep(6.0, 3.0, pc)+4.0*eye*dye);
+    // Close up, the eye's floor and wall in concentric rings of cloud some 0.35° apart.
+    float er=sin(pc*18.0+1.5*dye)*(1.0-smoothstep(1.3, 1.8, pc))*smoothstep(0.12, 0.04, pxD);
+    c*=1.0+0.12*er;
+    zk+=2.0*er;
   }
   // The ribbon: a thin wave along the jet at 47°N, some 50 crests round the planet, half a
   // degree high, drifting a little slower than the jet; bright to its north, dark to its south.
