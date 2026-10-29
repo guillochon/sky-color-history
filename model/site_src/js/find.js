@@ -5,7 +5,7 @@
 // galaxy by its tile's window, a constellation by its figure. A star or supernova, a point, ends in
 // a field FIND_POINT_FOV high. The view then follows it as the sky turns: looking about moves it
 // on the screen, and it is held there, as a share of the view's width and height through zooms,
-// till a look takes it out of the view.
+// till a look takes the whole of it out of the view.
 // From the page the dome does the same, as far as its zoom goes (domeFindStart).
 const FIND_MS=2000, FIND_POINT_FOV=3, FIND_MAX=3;
 const FIND_DSO_KIND={g:'galaxy', n:'nebula', p:'planetary nebula', r:'reflection nebula', s:'supernova remnant'};
@@ -163,7 +163,7 @@ function findStep(){
     }
     vrYaw=(yaw%360+360)%360; vrPitch=pitch;
     // Past the highest or lowest the look turns to, it can slip out of the view.
-    if(!vrPointOf(d)) vrFind=null;
+    if(!findOnPage(w)) vrFind=null;
     return;
   }
   vrYaw=(Math.atan2(d[0], d[1])*180/Math.PI+360)%360;
@@ -183,12 +183,25 @@ function findLook(dx, dy){
   f.hold=true;
   return true;
 }
-// After a look: where the found thing now is on the page, as a share of its width and height, or
-// the follow let go when it has left the view.
+// Where a found thing (findWhere's w) is on the page, its middle even off the page, while any of
+// it shows: a disk (w.diam across, rings and all) till the whole of it has left the view. Null
+// once it has, or when it is behind.
+function findOnPage(w){
+  const W=window.innerWidth, H=Math.max(window.innerHeight, 1), fy=Math.tan(vrFov*Math.PI/360), fx=fy*W/H, d=w.d;
+  const yaw=vrYaw*Math.PI/180, pitch=vrPitch*Math.PI/180, cp=Math.cos(pitch), sp=Math.sin(pitch), cyw=Math.cos(yaw), syw=Math.sin(yaw);
+  const depth=d[0]*syw*cp+d[1]*cyw*cp+d[2]*sp;
+  if(depth<0.02) return null;
+  const u=(d[0]*cyw-d[1]*syw)/depth/fx, v=(-d[0]*syw*sp-d[1]*cyw*sp+d[2]*cp)/depth/fy;
+  const cx=(u+1)/2*W, cy=(1-v)/2*H, r=Math.tan(w.diam*Math.PI/360)/fy*H/2;
+  const ox=Math.max(0, Math.abs(cx-W/2)-W/2), oy=Math.max(0, Math.abs(cy-H/2)-H/2);
+  return ox*ox+oy*oy<=r*r?[cx, cy]:null;
+}
+// After a look: where the found thing now is on the page, as a share of its width and height (past
+// 0 or 1 for a disk's middle off the page), or the follow let go when all of it has left the view.
 function findHold(){
   const f=vrFind;
   f.hold=false;
-  const w=findWhere(f.t), p=w&&vrPointOf(w.d);
+  const w=findWhere(f.t), p=w&&findOnPage(w);
   if(!p){ vrFind=null; return; }
   f.at=[p[0]/window.innerWidth, p[1]/Math.max(window.innerHeight, 1)];
 }
