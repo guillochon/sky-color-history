@@ -107,6 +107,9 @@ const float CL_STIR=1.0, CL_KH=1.0;
 // Whether the Red Spot is drawn, and how it turns.
 #define CL_SPOT (grsAB.x>0.0)
 #define CL_SPIN 1.0
+// Its radius (km), and how many km the cloud tops rise for each e-fold in brightness (cloudTop):
+// about a scale height (25 km at the cloud tops), so zones stand some 12 km over the belts.
+const float CL_RKM=71492.0, CL_HKM=30.0;
 #elif DETAIL_NEP
 // Neptune's: Voyager 2's cloud-tracked winds, u = -398 + 0.188 lat² - 1.2e-5 lat⁴ m/s (Sromovsky et
 // al. 1993), retrograde at 400 m/s at the equator and prograde at 250 near 70°, in System III (the
@@ -138,6 +141,9 @@ const float CL_KH=0.0;
 // one way in the south and the other in the north.
 #define CL_SPOT (grsAB.x>0.0)
 #define CL_SPIN (grsAB.z<0.0?1.0:-1.0)
+// Its deck's scale height is near 20 km, but the bright methane clouds stand 50 to 100 km over it
+// (their shadows on it in Voyager 2's images; Smith et al. 1989), several times what the deck's own shading would give.
+const float CL_RKM=24764.0, CL_HKM=150.0;
 #else
 // Saturn's: Cassini's cloud-top winds of 2004-2009 in the continuum (García-Melendo et al. 2011,
 // Icarus 215, 62; their PDS table), fit by 20 Gaussians to 6 m/s rms, in System III. North of 84°N,
@@ -165,7 +171,22 @@ const float CL_B[12]=float[12](18.0, 32.0, 40.0, 49.0, 55.0, 62.0, -18.0, -32.0,
 const float CL_STIR=0.45, CL_KH=0.7;
 #define CL_SPOT false
 #define CL_SPIN 1.0
+// Its scale height near the cloud tops is about 40 km, and its storms rise as far over the deck.
+const float CL_RKM=60268.0, CL_HKM=50.0;
 #endif
+// The cloud tops' height (km, up to a constant) where their color is c: brighter is higher. The
+// thick white ammonia ice forms where air rises (the zones, white ovals and convective plumes), and
+// the darker colors show where it sinks and the clouds thin (the belts, hot spots, festoons and
+// barges). The Red Spot, an anticyclone, is red yet stands some 8 km over the clouds round it:
+// within it, the height is a dome, rising 8 km over the pale Hollow, streaked by its own clouds. e0 is where a point lies in the spot's ellipse (cloudAlbedo's).
+float cloudTop(vec3 c, float e0){
+  float h=CL_HKM*log(max(dot(c, vec3(0.30, 0.55, 0.15)), 0.05));
+#if DETAIL_JUP
+  float ins=grsAB.w*(1.0-smoothstep(0.85, 1.05, e0));
+  h=mix(h, CL_HKM*log(0.9)+8.0*(1.0-0.4*e0*e0)+0.5*(h-CL_HKM*log(0.55)), ins);
+#endif
+  return h;
+}
 float clWind(float lat){ return clWindS(lat, 0.0); }
 float clWindDeg(float lat){ return clWind(lat)*CL_MS/max(cos(lat*0.01745329252), 0.1); }
 // Value noise and its gradient at p, from hashed values at whole cells, N cells round in x, so
@@ -615,9 +636,27 @@ vec4 bodyDisk(vec3 o, vec3 v, vec3 n, vec3 L, int kind, float rPx, vec3 tint, ve
 #if !ALB_PASS
     if(albK.x>1.5 && albK.x*pxS*16.0<=min(0.2, 0.4*cos(lat*0.01745329252))) ca=texture(albTex, gl_FragCoord.xy/(albK.x*vec2(textureSize(albTex, 0))));
 #endif
-    alb=ca.a>0.999?ca.rgb:cloudAlbedo(lat, lon, pxS, GK==4?dot(n, L):atan(dot(grsDir, cross(n, mp)), dot(grsDir, mp))*57.2957795);
+    float aux=GK==4?dot(n, L):atan(dot(grsDir, cross(n, mp)), dot(grsDir, mp))*57.2957795;
+    alb=ca.a>0.999?ca.rgb:cloudAlbedo(lat, lon, pxS, aux);
 #if ALB_PASS
     return vec4(alb, cov>0.999?1.0:0.0);
+#else
+    // The cloud tops' relief at true scale (cloudTop, in radii): the normal tilted by the height's
+    // slope across the pixels (Mikkelsen's surface gradient, from the screen derivatives of the
+    // height and of x), and lit again. Seen from Earth the Sun is never more than 12° from behind
+    // us, so the slopes show mostly as the light and shade of the limb and, most of all, of the
+    // terminator, where the Sun is low over the clouds. Faded out within a few pixels of the limb,
+    // where the pixels beside a pixel may lie off the disk.
+    float e0=1e3;
+    if(GK==3 && grsAB.x>0.0) e0=length(vec2(mod((lon-aux)*0.355556+64.0, 128.0)-64.0, clY(lat)-clY(grsAB.z))/(0.177778*vec2(grsAB.x, grsAB.y/cos(grsAB.z*0.01745329252))));
+    float hR=cloudTop(alb, e0)/CL_RKM;
+    vec3 dX=dFdx(x), dY=dFdy(x), r1=cross(dY, nrm), r2=cross(nrm, dX);
+    float det=dot(dX, r1), rim=smoothstep(2.0, 4.0, 0.5*mu*mu*rPx);
+    if(abs(det)>1e-20){
+      vec3 nB=normalize(nrm-rim*(dFdx(hR)*r1+dFdy(hR)*r2)/det);
+      float mu0B=dot(nB, L), muB=max(dot(nB, -v), 0.05);
+      lit=smoothstep(-w, w, mu0)*min(pow(max(mu0B, 0.0)+0.01, km)*pow(muB, km-1.0), 1.3);
+    }
 #endif
   }
 #endif
