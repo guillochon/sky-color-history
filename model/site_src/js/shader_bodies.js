@@ -563,28 +563,29 @@ vec4 cloudColor(vec4 F, float lat, float lon, float pxD, float aux){
     float rl=(lon-clWindDeg(80.0)*T)*0.01745329252;
     float hx=clHexD(pc, lon), inh=1.0-smoothstep(-0.5, 0.5, hx);
     vec2 P=pc*vec2(cos(rl), sin(rl));
-    if(pxD<0.33){
-      // Three sizes, the cells 1.1°, 0.6° and 0.33° across, each shown once its storms span a few
-      // pixels; few large and many small, packed within the hexagon and fewer outside, bunched in
-      // patches and none in the jet. The plane is swirled first (turned about the pole by an angle
-      // wandering with place, and pushed about by noise), which sweeps them into the curving
-      // streams Cassini saw. Each soft-edged, brightest in its middle.
+    if(pxD<0.26){
+      // Cumulus, as fluffy as Cassini saw them: noise of four octaves (some 0.43°, 0.2°, 0.09° and
+      // 0.04° across), each shown once it spans a few pixels, the clouds where it rises past a
+      // level, so they come as clumps of puffs with lumpy edges, billowed on top by the finer
+      // octaves. Packed within the hexagon and fewer outside, bunched in patches and none in the
+      // jet. The plane is swirled first (turned about the pole by an angle wandering with place,
+      // and pushed about by noise), which sweeps them into the curving streams Cassini saw.
       float sw=0.35*sin(pc*0.9)+0.9*(vNg(P*0.18+21.0, 1e4).x-0.5), cw=cos(sw), sn=sin(sw);
       vec2 Q=mat2(cw, sn, -sn, cw)*P+0.6*(vec2(vNg(P*0.5+3.0, 1e4).x, vNg(P*0.5+8.0, 1e4).x)-0.5);
-      float dome=0.0, core=0.0, rim=0.0, pat=vNg(Q*0.35+2.0, 1e4).x;
-      float dens=mix(0.25, 0.75, inh)*(0.35+0.65*smoothstep(0.2, 0.6, pat))*(1.0-0.9*exp(-hx*hx/2.0));
-      for(int j=0;j<3;j++){
-        float cs=j==0?1.1:j==1?0.6:0.33, sj=float(j)*17.3, kj=smoothstep(0.3*cs, 0.1*cs, pxD);
+      float pat=vNg(Q*0.35+2.0, 1e4).x, fb=0.0, fw4=0.0, fine=0.0;
+      for(int j=0;j<4;j++){
+        float fq=2.3*pow(2.15, float(j)), kj=smoothstep(0.6/fq, 0.25/fq, pxD), aj=pow(0.5, float(j));
         if(kj<=0.0) break;
-        vec2 id=floor(Q/cs), f=fract(Q/cs)-0.5;
-        vec2 o=vec2(h12(id+sj), h12(id.yx+5.3+sj))-0.5;
-        float hr=h12(id+9.7+sj), r=0.1+0.28*hr*hr, on=kj*step(1.0-dens, h12(id+31.1+sj));
-        float d=length(f-0.25*o)/r;
-        dome=max(dome, on*max(1.0-d*d, 0.0)); core=max(core, on*exp(-d*d*3.0)); rim=max(rim, on*exp(-(d-1.2)*(d-1.2)/0.05));
+        float n=vNg(Q*fq+float(j)*13.7, 1e4).x;
+        fb+=aj*mix(0.5, n, kj); fw4+=aj;
+        if(j>=2) fine+=kj*(n-0.5);
       }
-      c=mix(c, min(c*1.25+0.06, vec3(1.0)), 0.35*smoothstep(0.0, 0.6, dome)+0.35*core);
-      c*=1.0-0.06*rim;
-      zk+=7.0*dome-1.5*rim;
+      fb/=max(fw4, 1e-3);
+      float lvl=mix(0.66, 0.53, inh)-0.08*(pat-0.5)+0.25*exp(-hx*hx/2.0);
+      float cum=smoothstep(lvl-0.02, lvl+0.15, fb)*smoothstep(0.26, 0.12, pxD), top=0.75+0.6*fine;
+      c=mix(c, min(c*1.25+0.06, vec3(1.0)), 0.65*cum*clamp(top, 0.0, 1.3));
+      c*=1.0-0.05*smoothstep(lvl-0.06, lvl, fb)*(1.0-cum);
+      zk+=7.0*cum*top;
     }
     if(k2>0.0){
       // The bands wander and come and go round the vortex.
