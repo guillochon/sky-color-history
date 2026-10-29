@@ -173,6 +173,19 @@ const float CL_STIR=0.45, CL_KH=0.7;
 #define CL_SPIN 1.0
 // Its scale height near the cloud tops is about 40 km, and its storms rise as far over the deck.
 const float CL_RKM=60268.0, CL_HKM=50.0;
+// How far (degrees, outward positive) a point pc degrees from the north pole at east longitude lon
+// lies from the hexagon's jet: a hexagon in the plane about the pole, its sides 12.3° from it
+// (77.7°N) and their middles at longitudes 30° + 60°n, its corners rounded 3.5° in radius as in
+// Cassini's images, so they lie at 76.3°N (Quílez's distance to a hexagon).
+float clHexD(float pc, float lon){
+  const vec3 k=vec3(-0.866025404, 0.5, 0.577350269);
+  const float rr=3.5;
+  float a=lon*0.01745329252;
+  vec2 p=abs(pc*vec2(cos(a), sin(a)));
+  p-=2.0*min(dot(k.xy, p), 0.0)*k.xy;
+  p-=vec2(clamp(p.x, -k.z*(12.3-rr), k.z*(12.3-rr)), 12.3-rr);
+  return length(p)*sign(p.y)-rr;
+}
 #endif
 // The cloud tops' height (km, up to a constant) where their color is c: brighter is higher. The
 // thick white ammonia ice forms where air rises (the zones, white ovals and convective plumes), and
@@ -519,8 +532,8 @@ vec4 cloudColor(vec4 F, float lat, float lon, float pxD, float aux){
   }
 #else
   // The hexagon: the jet at 78°N meanders in a standing wave of six (Godfrey 1988), fixed in
-  // System III, its sides 13,800 km long, at 77.7°N midway along each and 75.9°N at its corners
-  // (where its corners lie in longitude is not known here). The jet itself a dark lane, a little
+  // System III, its sides 13,800 km long, at 77.7°N midway along each, its corners rounded
+  // (clHexD; where they lie in longitude is not known here). The jet itself a dark lane, a little
   // ragged; inside it the clouds bluish-gray in the north's winter, golden by its summer (Cassini,
   // 2012-2016).
   // In the jet, the clouds drawn out along it into streaks, carried at its 100 m/s; along its
@@ -529,7 +542,7 @@ vec4 cloudColor(vec4 F, float lat, float lon, float pxD, float aux){
   // these are a few km, as the brightness of the clouds suggests elsewhere.)
   float pc=90.0-abs(lat), sg=sign(lat), fw=max(pxD, 0.3);
   if(lat>65.0){
-    float hp=mod(lon, 60.0)-30.0, hd=pc-12.3/cos(hp*0.01745329252)+0.4*dye;
+    float hd=clHexD(pc, lon)+0.4*dye;
     float xj=(lon-clWindDeg(77.0)*T)*0.355556, env=exp(-hd*hd/4.0);
     float stk=(vNg(vec2(xj*0.5, hd*4.0+3.0), 64.0).x-0.5)+0.6*smoothstep(1.5, 3.0, 0.08/fw)*(vNg(vec2(xj*1.5, hd*12.0+7.0), 192.0).x-0.5);
     float bank=exp(-(hd-1.2)*(hd-1.2)/0.6);
@@ -545,14 +558,14 @@ vec4 cloudColor(vec4 F, float lat, float lon, float pxD, float aux){
   // (degrees from it), turning with the wind at 80°N, and shown once they span a few pixels.
   if(lat>64.0){
     float k1=smoothstep(0.25, 0.08, pxD), k2=smoothstep(0.7, 0.25, pxD);
-    float rl=(lon-clWindDeg(80.0)*T)*0.01745329252, hp=mod(lon, 60.0)-30.0;
-    float inh=1.0-smoothstep(-0.5, 0.5, pc-12.3/cos(hp*0.01745329252));
+    float rl=(lon-clWindDeg(80.0)*T)*0.01745329252;
+    float hx=clHexD(pc, lon), inh=1.0-smoothstep(-0.5, 0.5, hx);
     vec2 P=pc*vec2(cos(rl), sin(rl));
     if(k1>0.0){
       // Few large and many small, bunched in patches (noise in the same plane) and none in the
       // jet; each soft-edged, brightest in its middle.
       float dome=0.0, core=0.0, rim=0.0, pat=vNg(P*0.35+2.0, 1e4).x;
-      float dens=mix(0.2, 0.55, inh)*smoothstep(0.2, 0.6, pat)*(1.0-0.9*exp(-(pc-12.3)*(pc-12.3)/2.0));
+      float dens=mix(0.2, 0.55, inh)*smoothstep(0.2, 0.6, pat)*(1.0-0.9*exp(-hx*hx/2.0));
       for(int j=0;j<2;j++){
         float cs=j==0?1.1:0.6, sj=float(j)*17.3;
         vec2 id=floor(P/cs), f=fract(P/cs)-0.5;
