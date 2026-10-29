@@ -3,7 +3,9 @@
 // zooms the walk-around view to the one chosen in two seconds, along van Wijk & Nuij's smooth
 // path (pulling back for a long turn), until it fills half the view: the Sun, the Moon, a planet or moon by its drawn disk (rings and all), a nebula or
 // galaxy by its tile's window, a constellation by its figure. A star or supernova, a point, ends in
-// a field FIND_POINT_FOV high. The view then follows it as the sky turns, until the look is moved.
+// a field FIND_POINT_FOV high. The view then follows it as the sky turns: looking about moves it
+// on the screen, and it is held there, as a share of the view's width and height through zooms,
+// till a look takes it out of the view.
 // From the page the dome does the same, as far as its zoom goes (domeFindStart).
 const FIND_MS=2000, FIND_POINT_FOV=3, FIND_MAX=3;
 const FIND_DSO_KIND={g:'galaxy', n:'nebula', p:'planetary nebula', r:'reflection nebula', s:'supernova remnant'};
@@ -150,18 +152,45 @@ function findStep(){
     if(t<1) requestVR();
     else { f.flying=false; vrFov=findFov(w.diam); d=w.d; }
   }
+  else if(f.at){
+    // Held off the middle: the look turned till the ray through its page point meets it, a few
+    // steps of the azimuth and altitude it misses by.
+    const W=window.innerWidth, H=Math.max(window.innerHeight, 1), az=v=>Math.atan2(v[0], v[1])*180/Math.PI, el=v=>Math.asin(Math.max(-1, Math.min(1, v[2])))*180/Math.PI;
+    let yaw=vrYaw, pitch=vrPitch;
+    for(let k=0;k<4;k++){
+      const r=vrRayAt(f.at[0]*W, f.at[1]*H, yaw, pitch);
+      yaw+=((az(d)-az(r))%360+540)%360-180; pitch=Math.max(-80, Math.min(85, pitch+el(d)-el(r)));
+    }
+    vrYaw=(yaw%360+360)%360; vrPitch=pitch;
+    // Past the highest or lowest the look turns to, it can slip out of the view.
+    if(!vrPointOf(d)) vrFind=null;
+    return;
+  }
   vrYaw=(Math.atan2(d[0], d[1])*180/Math.PI+360)%360;
   vrPitch=Math.max(-80, Math.min(85, Math.asin(Math.max(-1, Math.min(1, d[2])))*180/Math.PI));
 }
-// A look while flying or following: a few stray pixels are let go, and a real move frees the
-// view (true, and the look applies).
+// A look while flying or following (true, and the look applies). In the flight a few stray
+// pixels are let go, and a real move ends it where it is; then the follow holds the found thing
+// where the look leaves it (findHold).
 function findLook(dx, dy){
   const f=vrFind, now=performance.now();
-  if(now-f.movedAt>250) f.moved=0;
-  f.movedAt=now; f.moved+=Math.abs(dx)+Math.abs(dy);
-  if(f.moved<20) return false;
-  vrFind=null;
+  if(f.flying){
+    if(now-f.movedAt>250) f.moved=0;
+    f.movedAt=now; f.moved+=Math.abs(dx)+Math.abs(dy);
+    if(f.moved<20) return false;
+    f.flying=false;
+  }
+  f.hold=true;
   return true;
+}
+// After a look: where the found thing now is on the page, as a share of its width and height, or
+// the follow let go when it has left the view.
+function findHold(){
+  const f=vrFind;
+  f.hold=false;
+  const w=findWhere(f.t), p=w&&vrPointOf(w.d);
+  if(!p){ vrFind=null; return; }
+  f.at=[p[0]/window.innerWidth, p[1]/Math.max(window.innerHeight, 1)];
 }
 // A change of epoch (stepEpoch) with the view locked on something (a pin's lock, or following
 // something found, in the walk-around view or on the dome) moves the date and clock to keep it

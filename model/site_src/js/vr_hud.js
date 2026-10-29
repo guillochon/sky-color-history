@@ -295,8 +295,8 @@ function hideVRLoad(){ document.getElementById('vrload').hidden=true; }
 function andList(a){ return a.length<2?a.join(''):a.slice(0, -1).join(', ')+' and '+a[a.length-1]; }
 function requestVR(){ if(!vrOn||vrRAF) return; vrRAF=requestAnimationFrame(()=>{ vrRAF=0; paintVR(); }); }
 // A view locked on a pin (vrLockPin) turns only with what it is locked on; one flying to or
-// following something found (vrFind) is freed by a real move.
-function lookVR(dx, dy){ if(vrLockPin||(vrFind&&!findLook(dx, dy))) return; const deg=vrFov/Math.max(window.innerHeight,1); vrYaw=(vrYaw+dx*deg)%360; if(vrYaw<0) vrYaw+=360; vrPitch=Math.max(-80, Math.min(85, vrPitch-dy*deg)); requestVR(); }
+// following something found (vrFind) keeps following it wherever the look leaves it in the view.
+function lookVR(dx, dy){ if(vrLockPin||(vrFind&&!findLook(dx, dy))) return; const deg=vrFov/Math.max(window.innerHeight,1); vrYaw=(vrYaw+dx*deg)%360; if(vrYaw<0) vrYaw+=360; vrPitch=Math.max(-80, Math.min(85, vrPitch-dy*deg)); if(vrFind&&vrFind.hold) findHold(); requestVR(); }
 function walking(){ return vrMove||vrHeld.has('w')||vrHeld.has('a')||vrHeld.has('s')||vrHeld.has('d'); }
 function stepWalk(dt){
   if(dt>0.05) dt=0.05;
