@@ -523,20 +523,32 @@ vec4 cloudColor(vec4 F, float lat, float lon, float pxD, float aux){
   // (where its corners lie in longitude is not known here). The jet itself a dark lane, a little
   // ragged; inside it the clouds bluish-gray in the north's winter, golden by its summer (Cassini,
   // 2012-2016).
+  // In the jet, the clouds drawn out along it into streaks, carried at its 100 m/s; along its
+  // outer edge a bank of brighter clouds; the jet itself a trough, and the clouds within the
+  // hexagon, seen through thinner haze, lower than those outside. (Its heights are not measured:
+  // these are a few km, as the brightness of the clouds suggests elsewhere.)
   float pc=90.0-abs(lat), sg=sign(lat), fw=max(pxD, 0.3);
   if(lat>65.0){
     float hp=mod(lon, 60.0)-30.0, hd=pc-12.3/cos(hp*0.01745329252)+0.4*dye;
+    float xj=(lon-clWindDeg(77.0)*T)*0.355556, env=exp(-hd*hd/4.0);
+    float stk=(vNg(vec2(xj*0.5, hd*4.0+3.0), 64.0).x-0.5)+0.6*smoothstep(1.5, 3.0, 0.08/fw)*(vNg(vec2(xj*1.5, hd*12.0+7.0), 192.0).x-0.5);
+    float bank=exp(-(hd-1.2)*(hd-1.2)/0.6);
     c=mix(c, mix(vec3(0.56, 0.63, 0.68), vec3(0.80, 0.73, 0.55), smoothstep(-0.15, 0.35, aux)), 0.35*(1.0-smoothstep(-fw, fw, hd)));
-    c*=1.0-0.22*exp(-hd*hd/max(0.6, fw*fw));
+    c*=(1.0-0.22*exp(-hd*hd/max(0.6, fw*fw)))*(1.0+0.18*env*stk+0.08*bank);
+    zk+=-8.0*(1.0-smoothstep(-1.5, 0.5, hd))-6.0*exp(-hd*hd/0.8)+5.0*bank+8.0*env*stk;
   }
   // The polar vortices, a few degrees across, at both poles: a dark eye about a degree in radius
   // ringed by the bright wall of its clouds, and arms spiralling out to some 5 degrees from the
-  // pole, turning with the winds (cyclones: anticlockwise in the north, seen from above).
+  // pole, turning with the winds (cyclones: anticlockwise in the north, seen from above). The
+  // eyewall's clouds stand 30 to 70 km over the floor of the eye, from the shadows they cast in
+  // Cassini's images (Dyudina et al. 2008, of the south's; the north's is alike): set here 25 km,
+  // and the eye's darkness and the wall's brightness (cloudTop's) add some 35 more.
   if(pc<6.0){
     float k=smoothstep(1.5, 0.4, pxD), ph=lon*0.01745329252*sg+clWindDeg(88.0*sg)*T*0.01745329252*0.5;
-    float arm=sin(3.0*ph+5.0*log(pc+0.3)+3.0*dye);
+    float arm=sin(3.0*ph+5.0*log(pc+0.3)+3.0*dye), wall=exp(-(pc-1.4)*(pc-1.4)/0.12), eye=1.0-smoothstep(0.9, 1.35, pc);
     c=mix(c, vec3(0.40, 0.41, 0.40), 0.7*k*(1.0-smoothstep(0.7, 1.1, pc)));
-    c*=1.0+k*(0.25*exp(-(pc-1.4)*(pc-1.4)/0.12)+0.08*arm*smoothstep(1.4, 2.2, pc)*smoothstep(6.0, 3.0, pc));
+    c*=1.0+k*(0.25*wall+0.08*arm*smoothstep(1.4, 2.2, pc)*smoothstep(6.0, 3.0, pc));
+    zk+=k*(10.0*wall-15.0*eye+3.0*arm*smoothstep(1.4, 2.2, pc)*smoothstep(6.0, 3.0, pc)+4.0*eye*dye);
   }
   // The ribbon: a thin wave along the jet at 47°N, some 50 crests round the planet, half a
   // degree high, drifting a little slower than the jet; bright to its north, dark to its south.
