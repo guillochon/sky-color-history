@@ -178,12 +178,13 @@ const float CL_RKM=60268.0, CL_HKM=50.0;
 // thick white ammonia ice forms where air rises (the zones, white ovals and convective plumes), and
 // the darker colors show where it sinks and the clouds thin (the belts, hot spots, festoons and
 // barges). The Red Spot, an anticyclone, is red yet stands some 8 km over the clouds round it:
-// within it, the height is a dome, rising 8 km over the pale Hollow, streaked by its own clouds. e0 is where a point lies in the spot's ellipse (cloudAlbedo's).
+// within it, the height is a dome, rising 8 km over the pale Hollow, streaked by its own clouds.
+// e0 is where a point lies in the spot's ellipse (clSpotE).
 float cloudTop(vec3 c, float e0){
   float h=CL_HKM*log(max(dot(c, vec3(0.30, 0.55, 0.15)), 0.05));
 #if DETAIL_JUP
   float ins=grsAB.w*(1.0-smoothstep(0.85, 1.05, e0));
-  h=mix(h, CL_HKM*log(0.9)+8.0*(1.0-0.4*e0*e0)+0.5*(h-CL_HKM*log(0.55)), ins);
+  h=mix(h, CL_HKM*log(0.9)+8.0*(1.0-0.4*e0*e0)+(h-CL_HKM*log(0.55)), ins);
 #endif
   return h;
 }
@@ -234,7 +235,7 @@ vec3 clPsi(vec2 P, float u, float pxC, float T){
 // the poles, less in the zones; in patches of storms some 45 degrees long, calm stretches between,
 // which drift with the wind smoothed over 8 degrees and break out and die away over a dozen days
 // (two slices of noise, each drifting from its own start, the one fading in as the other fades
-// out); not at all in the Red Spot (gC, gA as in cloudAlbedo) and its collar, and most west of
+// out); not at all in the Red Spot (gC, gA as in cloudFlow) and its collar, and most west of
 // it, in the South Equatorial Belt, its turbulent wake.
 // What of it depends on the latitude la alone: the smoothed wind's drift (x) and the strength
 // before the patches (y); the cloud's march asks it at two latitudes for three points.
@@ -280,26 +281,24 @@ vec2 khRoll(vec2 q, float b, float N, float R, float ang, float seed, float cl){
 // them into curls and filaments, sheared out along the winds; the color is the banding where it
 // ends up. Then Jupiter's festoons and hot spots, barges and white ovals, or Saturn's hexagon,
 // polar vortices, ribbon and storms.
-vec3 cloudAlbedo(float lat, float lon, float pxD, float aux){
-  // The Red Spot (grsAB: its length and width in degrees, its latitude and redness; aux its
-  // longitude) in cells: its middle, its half-axes, and where a point is in them.
+// In two parts: cloudFlow follows the point back, the costly part, to where its cloud came from
+// (q, in cells, and gT, as below; w 0 where the disk is too small for any of it), and cloudColor
+// colors it there. Where the flow is smooth across the pixels, cloudColor alone can be asked again
+// a little way off (bodyDisk's relief).
+// The Red Spot (grsAB: its length and width in degrees, its latitude and redness; aux its
+// longitude) in cells: its middle and its half-axes.
+vec2 clSpotC(float aux){ return vec2(aux*0.355556, clY(grsAB.z)); }
+vec2 clSpotA(){ return 0.177778*vec2(grsAB.x, grsAB.y/cos(grsAB.z*0.01745329252)); }
+// Where (lat, lon) lies in the spot's ellipse, 1 at its edge; far off without one.
+float clSpotE(float lat, float lon, float aux){
+  return CL_SPOT?length(vec2(mod(lon*0.355556-aux*0.355556+64.0, 128.0)-64.0, clY(lat)-clY(grsAB.z))/clSpotA()):1e3;
+}
+vec4 cloudFlow(float lat, float lon, float pxD, float aux){
   bool grs=CL_SPOT;
-  vec2 gC=vec2(aux*0.355556, clY(grsAB.z)), gA=0.177778*vec2(grsAB.x, grsAB.y/cos(grsAB.z*0.01745329252));
-  vec2 E0=vec2(mod(lon*0.355556-gC.x+64.0, 128.0)-64.0, clY(lat)-gC.y)/gA;
-  float e0=grs?length(E0):1e3;
-  float w=clamp(pxD*2.0, 0.25, 1.5);
-#if DETAIL_JUP
-  if(pxD>2.5) return mix(clColor(lat, clBelt(lat, 1.5)), vec3(0.80, 0.42, 0.30), grsAB.w*(1.0-smoothstep(0.8, 1.0, e0)));
-#elif DETAIL_NEP
-  if(pxD>2.5) return mix(clColor(lat, clBelt(lat, 1.5)), vec3(0.24, 0.34, 0.66), 0.6*grsAB.w*(1.0-smoothstep(0.8, 1.0, e0)));
-#else
-  if(pxD>2.5) return bodyAlbedo(4, lat, vec3(1.0));
-#endif
+  vec2 gC=clSpotC(aux), gA=clSpotA();
+  float e0=clSpotE(lat, lon, aux);
+  if(pxD>2.5) return vec4(0.0);
   float T=fineT.y, cl=max(cos(lat*0.01745329252), 0.1), pxC=pxD*0.355556/cl;
-  // The bands wander a degree or so along their length, and darken along some stretches. The
-  // wander drifts all at one rate, a turn in T's 2000 days, so it meets itself when T wraps:
-  // drifting with each latitude's own wind it was sheared, late in T, into fine streaks.
-  float s1=clSlow(lon-0.18*T, lat, 1.0), s2=clSlow(lon, lat, 2.0);
   // Stirring: strongest in the belts and their edges and toward the poles, calmer in the zones.
   // The billows: at each boundary between a belt and a zone, two chains, the second a third the
   // size of the first, each turning the way of the shear's vorticity there and carried along at
@@ -368,6 +367,26 @@ vec3 cloudAlbedo(float lat, float lon, float pxD, float aux){
     gT=1.0-smoothstep(0.84, 0.88, eT)*(1.0-smoothstep(0.92, 0.95, eT));
     E=mat2(cos(a), sin(a), -sin(a), cos(a))*E; q=gC+E*gA;
   }
+  return vec4(q, gT, 1.0);
+}
+// Its color (rgb), and in a the height (km) its storms add to cloudTop's: the white ovals' and
+// storms' domes, which their color alone would leave flat.
+vec4 cloudColor(vec4 F, float lat, float lon, float pxD, float aux){
+  bool grs=CL_SPOT;
+  vec2 gC=clSpotC(aux), gA=clSpotA(), q=F.xy;
+  float gT=F.z, w=clamp(pxD*2.0, 0.25, 1.5), zk=0.0;
+#if DETAIL_JUP
+  if(F.w<0.5) return vec4(mix(clColor(lat, clBelt(lat, 1.5)), vec3(0.80, 0.42, 0.30), grsAB.w*(1.0-smoothstep(0.8, 1.0, clSpotE(lat, lon, aux)))), 0.0);
+#elif DETAIL_NEP
+  if(F.w<0.5) return vec4(mix(clColor(lat, clBelt(lat, 1.5)), vec3(0.24, 0.34, 0.66), 0.6*grsAB.w*(1.0-smoothstep(0.8, 1.0, clSpotE(lat, lon, aux)))), 0.0);
+#else
+  if(F.w<0.5) return vec4(bodyAlbedo(4, lat, vec3(1.0)), 0.0);
+#endif
+  float T=fineT.y, cl=max(cos(lat*0.01745329252), 0.1), pxC=pxD*0.355556/cl;
+  // The bands wander a degree or so along their length, and darken along some stretches. The
+  // wander drifts all at one rate, a turn in T's 2000 days, so it meets itself when T wraps:
+  // drifting with each latitude's own wind it was sheared, late in T, into fine streaks.
+  float s1=clSlow(lon-0.18*T, lat, 1.0), s2=clSlow(lon, lat, 2.0);
   float la=clLat(q.y)+(2.0*s1-1.0)*0.9;
   float belt=clBelt(la, w);
   vec3 c=clColor(la, belt);
@@ -431,6 +450,8 @@ vec3 cloudAlbedo(float lat, float lon, float pxD, float aux){
     red=mix(red, vec3(0.92, 0.70, 0.55), smoothstep(0.12, 0.35, dye)*0.45*(1.0-smoothstep(0.6, 0.85, e)));
     // A paler spot (grsAB.w under 1) fades toward pale salmon, not the clouds wound up beneath it.
     c=mix(c, mix(vec3(0.93, 0.86, 0.78)*(1.0+0.15*dye*gT), red, grsAB.w), ins);
+    // The clouds wound into it stand out on its dome (cloudTop's) as ridges and troughs.
+    zk+=2.0*ins*grsAB.w*dye*gT;
 #endif
   }
 #if DETAIL_JUP
@@ -453,9 +474,13 @@ vec3 cloudAlbedo(float lat, float lon, float pxD, float aux){
   if(lat>-46.0 && lat<-36.0){
     float xo=lon-clWindDeg(-41.0)*T, k=floor(xo/45.0+0.5), ho=h12(vec2(mod(k, 8.0), 3.3));
     vec2 d=vec2((xo-k*45.0-(ho-0.5)*20.0)*cl/2.2, (lat+41.0+(ho-0.5)*1.2)/1.4);
-    float e=length(d);
+    float e=length(d), on=(1.0-smoothstep(0.75, 1.0, e))*step(0.4, ho);
+    // Anticyclones like the Red Spot, they stand a few km over the clouds round them, domed, with
+    // their own clouds wound into two arms turning once in about four days.
+    float arm=sin(2.0*atan(d.y, d.x)+7.0*e-1.57*T+6.3*ho);
     c=mix(c, c*0.85, 0.5*(1.0-smoothstep(1.0, 1.35, e))*smoothstep(0.85, 1.0, e)*step(0.4, ho));
-    c=mix(c, vec3(0.96, 0.95, 0.92), (1.0-smoothstep(0.75, 1.0, e))*step(0.4, ho));
+    c=mix(c, vec3(0.96, 0.95, 0.92)*(1.0+0.07*arm*smoothstep(0.1, 0.5, e)+0.1*dye), on);
+    zk+=on*(5.0*(1.0-e*e)+1.5*arm*smoothstep(0.1, 0.5, e));
   }
   // Barges: dark red-brown cyclones in the North Equatorial Belt's northern edge, near 15°N.
   if(lat>11.0 && lat<19.0){
@@ -524,12 +549,14 @@ vec3 cloudAlbedo(float lat, float lon, float pxD, float aux){
   if(lat>-44.0 && lat<-37.0){
     float xs=lon-clWindDeg(-40.5)*T, k=floor(xs/45.0+0.5), hs=h12(vec2(mod(k, 8.0), 5.9));
     vec2 d=vec2((xs-k*45.0-(hs-0.5)*24.0)*cl/1.2, (lat+40.5+(hs-0.5))/0.8);
-    float e=length(d);
+    float e=length(d), on=(1.0-smoothstep(0.6, 1.0, e))*step(0.5, hs);
     c=mix(c, c*0.82, 0.5*(1.0-smoothstep(0.8, 1.4, length(d-vec2(1.6, 0.4))))*step(0.5, hs));
-    c=mix(c, vec3(0.97, 0.95, 0.90), (1.0-smoothstep(0.6, 1.0, e))*step(0.5, hs));
+    // Their tops rise well over the deck, billowed by the convection beneath.
+    c=mix(c, vec3(0.97, 0.95, 0.90)*(1.0+0.1*dye), on);
+    zk+=on*10.0*(1.0-e*e);
   }
 #endif
-  return c;
+  return vec4(c, zk);
 }
 #endif
 const float BODY_FLAT[8]=float[8](${BODY_FLAT.map(v=>v.toFixed(5)).join(', ')});
@@ -643,23 +670,57 @@ vec4 bodyDisk(vec3 o, vec3 v, vec3 n, vec3 L, int kind, float rPx, vec3 tint, ve
     if(albK.x>1.5 && albK.x*pxS*16.0<=min(0.2, 0.4*cos(lat*0.01745329252))) ca=texture(albTex, gl_FragCoord.xy/(albK.x*vec2(textureSize(albTex, 0))));
 #endif
     float aux=GK==4?dot(n, L):atan(dot(grsDir, cross(n, mp)), dot(grsDir, mp))*57.2957795;
-    alb=ca.a>0.999?ca.rgb:cloudAlbedo(lat, lon, pxS, aux);
 #if ALB_PASS
+    alb=cloudColor(cloudFlow(lat, lon, pxS, aux), lat, lon, pxS, aux).rgb;
     return vec4(alb, cov>0.999?1.0:0.0);
 #else
+    bool cached=ca.a>0.999;
+    vec4 F=vec4(0.0);
+    if(!cached) F=cloudFlow(lat, lon, pxS, aux);
     // The cloud tops' relief at true scale (cloudTop, in radii): the normal tilted by the height's
     // slope across the pixels (Mikkelsen's surface gradient, from the screen derivatives of the
     // height and of x), and lit again. Seen from Earth the Sun is never more than 12° from behind
     // us, so the slopes show mostly as the light and shade of the limb and, most of all, of the
     // terminator, where the Sun is low over the clouds. Faded out within a few pixels of the limb,
     // where the pixels beside a pixel may lie off the disk.
-    float e0=1e3;
-    if(GK==3 && grsAB.x>0.0) e0=length(vec2(mod((lon-aux)*0.355556+64.0, 128.0)-64.0, clY(lat)-clY(grsAB.z))/(0.177778*vec2(grsAB.x, grsAB.y/cos(grsAB.z*0.01745329252))));
-    float hR=cloudTop(alb, e0)/CL_RKM;
+    // The slope is the height's 1.5 pixels either way in x and in y: the flow's place and the
+    // latitude and longitude are smooth across the pixels, so they are carried on by their screen
+    // derivatives (longitudes wrapped) and the clouds colored there again (cloudColor, without
+    // following the flow anew). Over three pixels, the sharp edges of the clouds' colors give
+    // smooth slopes; the screen derivative of the height itself, taken over each 2×2 block of
+    // pixels, would turn them into stippled ridges. That is used only where the clouds were read
+    // from the ALB_PASS's grid, smooth already (the storms' domes, cloudColor's a, are left out
+    // there), or where a block of pixels mixes both.
+    vec2 qX=dFdx(F.xy), qY=dFdy(F.xy), aX=vec2(dFdx(lat), dFdx(lon)), aY=vec2(dFdy(lat), dFdy(lon));
+    qX.x=mod(qX.x+64.0, 128.0)-64.0; qY.x=mod(qY.x+64.0, 128.0)-64.0;
+    aX.y=mod(aX.y+180.0, 360.0)-180.0; aY.y=mod(aY.y+180.0, 360.0)-180.0;
+    float fl=cached||F.w<0.5?0.0:1.0;
+    bool fine=fl>0.5 && dFdx(fl)==0.0 && dFdy(fl)==0.0;
+    // One call of cloudColor in a loop, which D3D keeps as a loop, rather than five copies of it (a
+    // local array indexed by i would have it unrolled): the height here, and summed across in x and y.
+    float hR=0.0, hX=0.0, hY=0.0;
+    for(int i=0;i<5;i++){
+      if(i>0 && !fine) break;
+      float sx=i==1?1.5:i==2?-1.5:0.0, sy=i==3?1.5:i==4?-1.5:0.0;
+      float la=lat+sx*aX.x+sy*aY.x, lo=lon+sx*aX.y+sy*aY.y;
+      vec4 ci=vec4(ca.rgb, 0.0);
+      if(i>0 || !cached) ci=cloudColor(vec4(F.xy+sx*qX+sy*qY, F.zw), la, lo, pxS, aux);
+      if(i==0) alb=ci.rgb;
+      float hi=(cloudTop(ci.rgb, clSpotE(la, lo, aux))+ci.a)/CL_RKM;
+      if(i==0) hR=hi; else if(i<3) hX+=sx*hi/4.5; else hY+=sy*hi/4.5;
+    }
+    float dhX=dFdx(hR), dhY=dFdy(hR);
+    if(!fine){ hX=dhX; hY=dhY; }
+    // Where the flow is stretched past a few times the pixel (just within the Red Spot's rim, where
+    // its turning dies away), the clouds' place jumps from pixel to pixel and their slope is noise:
+    // there it is left out.
+    float qs=max(length(qX), length(qY))/(pxS*0.355556/max(cos(lat*0.01745329252), 0.1));
+    float hK=1.0-smoothstep(4.0, 8.0, qs);
+    hX*=hK; hY*=hK;
     vec3 dX=dFdx(x), dY=dFdy(x), r1=cross(dY, nrm), r2=cross(nrm, dX);
     float det=dot(dX, r1), rim=smoothstep(2.0, 4.0, 0.5*mu*mu*rPx);
     if(abs(det)>1e-20){
-      vec3 nB=normalize(nrm-rim*(dFdx(hR)*r1+dFdy(hR)*r2)/det);
+      vec3 nB=normalize(nrm-rim*(hX*r1+hY*r2)/det);
       float mu0B=dot(nB, L), muB=max(dot(nB, -v), 0.05);
       lit=smoothstep(-w, w, mu0)*min(pow(max(mu0B, 0.0)+0.01, km)*pow(muB, km-1.0), 1.3);
     }
