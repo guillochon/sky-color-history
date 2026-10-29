@@ -160,8 +160,8 @@ function vrRayAt(cx, cy, yawDeg, pitchDeg){
 // The narrowest field the view may zoom to: VR_FOV_MIN, or narrower while a planet, moon or asteroid
 // is on screen that would still be under a quarter of the view's narrower side there, as narrow as
 // makes the smallest of them a quarter (VR_FILL_MIN) of it: for Pallas some 2″ across, for Phobos
-// a quarter of an arcsecond. A giant with detailed clouds (Jupiter, Saturn, Neptune) may instead
-// span VR_GIANT_FILL views, into its clouds. extraDeg, a drawn diameter (degrees) to count too: a
+// a quarter of an arcsecond. A giant planet (Jupiter, Saturn, Uranus, Neptune, and Oceanus, drawn as
+// Neptune's kind) may instead span VR_GIANT_FILL views, into its clouds. extraDeg, a drawn diameter (degrees) to count too: a
 // body find is flying to.
 function vrFovMin(extraDeg){
   const W=window.innerWidth, H=Math.max(window.innerHeight, 1), fy=Math.tan(vrFov*Math.PI/360), fx=fy*W/H;
@@ -175,7 +175,7 @@ function vrFovMin(extraDeg){
     if(depth<=0) continue;
     const x=(v[0]*cy-v[1]*sy)/depth, y=(-v[0]*sy*sp-v[1]*cy*sp+v[2]*cp)/depth, r=Math.tan(b.rad);
     if(Math.abs(x)>fx+r||Math.abs(y)>fy+r) continue;
-    const giant=b.kind===3||b.kind===4||b.kind===6;
+    const giant=b.kind>=3&&b.kind<=6;
     d=Math.min(d, 2*b.rad*180/Math.PI*(giant?VR_FILL_MIN/VR_GIANT_FILL:1));
   }
   return d<Infinity?Math.min(VR_FOV_MIN, d/VR_FILL_MIN/Math.min(1, W/H)):VR_FOV_MIN;
