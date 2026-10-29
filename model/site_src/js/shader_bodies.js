@@ -208,22 +208,25 @@ float clSlow(float lon, float lat, float seed){
 // Mercator measure, so the cells stay round: clY and clLat turn latitude to and from it.
 float clY(float lat){ return log(tan(0.785398+clamp(lat, -84.0, 84.0)*0.00872665))*20.371833; }
 float clLat(float Y){ return (2.0*atan(exp(Y/20.371833))-1.5707963)*57.2957795; }
-// The eddies' stream function at P (cells) and its gradient: three octaves of noise, cells three
+// The eddies' stream function at P (cells) and its gradient: five octaves of noise, cells three
 // times as long along the winds as across, each scaled so that all turn alike, the finer a little
-// weaker; an octave fades out before its eddies shrink under a few pixels (pxC cells). The eddies
-// drift at u (cells a day), in two copies half a period apart, each restarting when the other is
-// at full strength, so the shear never smears them out. Each octave has its own period, the
-// smaller eddies living shorter (4, 2.6 and 1.7 days), and its own phase, so they renew at
-// different times rather than all at once.
+// weaker; an octave fades out before its eddies shrink under a few pixels (pxC cells), and is not
+// worked out at all till then, so the two finest (eddies some 0.7° and 0.35° across) cost nothing
+// short of a deep zoom. The eddies drift at u (cells a day), in two copies half a period apart,
+// each restarting when the other is at full strength, so the shear never smears them out. Each
+// octave has its own period, the smaller eddies living shorter (4, 2.6, 1.7, 1.1 and 0.7 days),
+// and its own phase, so they renew at different times rather than all at once.
 vec3 clPsi(vec2 P, float u, float pxC, float T){
   vec3 g=vec3(0.0);
-  // One loop over both copies and the octaves of each (D3D keeps a loop of six as a loop).
-  for(int j=0;j<6;j++){
-    float k=float(j/3), o=float(j-3*(j/3)), pd=4.0*pow(0.65, o), ph=T/pd+0.37*o;
+  // One loop over both copies and the octaves of each (D3D keeps a loop of ten as a loop).
+  for(int j=0;j<10;j++){
+    float k=float(j/5), o=float(j-5*(j/5)), f0=0.5*exp2(o), fd=smoothstep(2.0*pxC, 5.0*pxC, 1.0/f0);
+    if(fd<=0.0) continue;
+    float pd=4.0*pow(0.65, o), ph=T/pd+0.37*o;
     float wA=1.0-abs(2.0*fract(ph)-1.0), fk=fract(ph+0.5*k), wk=(k<0.5?wA:1.0-wA)/max(sqrt(wA*wA+(1.0-wA)*(1.0-wA)), 0.5);
-    vec2 Q=vec2(P.x-u*fk*pd+k*41.0, P.y+k*17.0), f=vec2(0.5, 1.5)*exp2(o);
+    vec2 Q=vec2(P.x-u*fk*pd+k*41.0, P.y+k*17.0), f=vec2(1.0, 3.0)*f0;
     vec3 n=vNg(Q*f+o*7.3, 128.0*f.x);
-    g+=wk*smoothstep(2.0*pxC, 5.0*pxC, 1.0/f.x)*pow(0.8, o)/(f.x*f.y)*vec3(n.x-0.5, n.yz*f);
+    g+=wk*fd*pow(0.8, o)/(f.x*f.y)*vec3(n.x-0.5, n.yz*f);
   }
   return g;
 }
@@ -369,10 +372,13 @@ vec3 cloudAlbedo(float lat, float lon, float pxD, float aux){
   float belt=clBelt(la, w);
   vec3 c=clColor(la, belt);
   // Finer banding within the belts and zones, from noise in the carried latitude, and patches
-  // along them, both carried with the clouds; a band too fine for the pixels is left out.
-  float yq=q.y, k1=smoothstep(1.5, 3.0, 0.4/pxC), k2=smoothstep(1.5, 3.0, 0.15/pxC);
+  // along them, both carried with the clouds; a band too fine for the pixels is left out. Deep in
+  // a zoom, two finer layers of each, at a half and a quarter the size of the finest before.
+  float yq=q.y, k1=smoothstep(1.5, 3.0, 0.4/pxC), k2=smoothstep(1.5, 3.0, 0.15/pxC), k3=smoothstep(1.5, 3.0, 0.075/pxC), k4=smoothstep(1.5, 3.0, 0.0375/pxC);
   float dye=0.6*(vNg(vec2(yq*0.8, 3.0), 1e4).x-0.5)+0.5*k1*(vNg(vec2(yq*2.0, 9.0), 1e4).x-0.5)+0.35*k2*(vNg(vec2(yq*6.0, 1.0), 1e4).x-0.5)
            +0.5*k1*(vNg(q*vec2(1.0, 2.5)+5.0, 128.0).x-0.5)+0.3*k2*(vNg(q*vec2(3.0, 7.0)+2.0, 384.0).x-0.5);
+  if(k3>0.0) dye+=k3*(0.35*(vNg(vec2(yq*12.0, 15.0), 1e4).x-0.5)+0.3*(vNg(q*vec2(6.0, 14.0)+8.0, 768.0).x-0.5))
+                 +k4*(0.3*(vNg(vec2(yq*24.0, 27.0), 1e4).x-0.5)+0.25*(vNg(q*vec2(12.0, 28.0)+11.0, 1536.0).x-0.5));
   // Each band, and each finer band within it, a slightly different hue: redder or yellower,
   // grayer or bluer, a little lighter or darker, and so along its length, all carried with the
   // clouds like the banding itself.
@@ -628,10 +634,10 @@ vec4 bodyDisk(vec3 o, vec3 v, vec3 n, vec3 L, int kind, float rPx, vec3 tint, ve
   const int GK=6;
 #endif
   if(kind==GK){
-    // Deep in a zoom the clouds' finest detail, about 0.2° (less toward the poles, where the cells
+    // Deep in a zoom the clouds' finest detail, about 0.1° (less toward the poles, where the cells
     // narrow with the meridians), spans many pixels: there they are read from the ALB_PASS's grid
-    // of one texel to albK.x pixels, where that is under a sixteenth of the detail and the four
-    // texels about the pixel are on the disk, and worked out here everywhere else.
+    // of one texel to albK.x pixels, where a texel is under 0.0125°, an eighth of the detail, and
+    // the four texels about the pixel are on the disk, and worked out here everywhere else.
     vec4 ca=vec4(0.0);
 #if !ALB_PASS
     if(albK.x>1.5 && albK.x*pxS*16.0<=min(0.2, 0.4*cos(lat*0.01745329252))) ca=texture(albTex, gl_FragCoord.xy/(albK.x*vec2(textureSize(albTex, 0))));

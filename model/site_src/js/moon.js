@@ -5,8 +5,8 @@ let vrFov=60; // VR vertical field of view in degrees: twice the angle a desktop
 // Galilean moons' a third to a half; past 0.4° the drawn Sun is already finer than its spot map.
 // Deeper while a smaller body is on screen (vr_input.js vrFovMin), till it spans VR_FILL_MIN of the
 // view's narrower side; while a giant planet is, till it spans VR_GIANT_FILL views,
-// where the finest of their clouds' detail (shader_bodies.js cloudAlbedo, about 0.2° of the surface)
-// is a thirtieth of the view.
+// where the finest of their clouds' detail (shader_bodies.js cloudAlbedo, about 0.1° of the surface)
+// spans some ten pixels.
 const VR_FOV_MIN=0.004, VR_FOV_MAX=90, VR_FILL_MIN=0.25, VR_GIANT_FILL=16;
 const DISK_SCALE=4; // Sun and Moon are drawn at four times their angular size
 const DOME_DISK=11; // fisheye solar radius in pixels, half the previous enlargement
