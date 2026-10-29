@@ -232,7 +232,10 @@ JUPITER = [
 "each boundary between a belt and a zone, Kelvin–Helmholtz billows roll up, turning the way of the shear "
 "there. Dark festoons trail from the North Equatorial Belt into the Equatorial Zone with blue-gray hot "
 "spots at their heads; dark barges sit on the belt's northern edge, and white ovals in the South South "
-"Temperate Belt. The tracer approach follows the flow-field techniques of Dziewanowski (2024).",
+"Temperate Belt. The tracer approach follows the flow-field techniques of Dziewanowski (2024). "
+"We also give the cloud tops relief at true scale, raising brighter clouds by about a scale height for "
+"each e-fold in brightness, and we shade each pixel by the slope of that relief, which shows mainly near "
+"the terminator.",
 
 "The Great Red Spot is a vortex in the same flow: an anticyclone turning the clouds along its ellipses, "
 "faster toward its edge, with a slight inflow that draws belt and zone onto its rim as spiral arms, and "
