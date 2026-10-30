@@ -430,11 +430,18 @@ vec2 sunVor(vec3 p, float t, out vec3 cell){
 }
 // Granulation's intensity (a multiple of the mean) at P (unit vector, solar frame) and its lanes
 // (y, 1 in a lane), where a granule spans gpx pixels and Z is the cosine of the view angle.
+// The granules' Voronoi distances at P, and the cell: a smooth warp bends the cells' straight
+// edges into the rounded shapes of real granules.
+vec2 granVor(vec3 P, out vec3 cell){
+  vec3 p=P*535.0; p+=0.2*sin(p.yzx*1.3+p.zxy*0.7+fineT.x*0.3);
+  return sunVor(p, fineT.x, cell);
+}
+// The height of the surface that we see at P, from 0 in a lane to 1 over a granule's middle:
+// steep at the edges, a low dome on top.
+float granH(vec3 P){ vec3 c; vec2 f=granVor(P, c); float s=1.0-clamp((f.y-f.x)/0.5, 0.0, 1.0); return 1.0-s*s; }
 vec2 granulation(vec3 P, float gpx, float Z){
-  float T=fineT.x; vec3 cell, p=P*535.0;
-  // A smooth warp bends the cells' straight Voronoi edges into the rounded shapes of real granules.
-  p+=0.2*sin(p.yzx*1.3+p.zxy*0.7+T*0.3);
-  vec2 f=sunVor(p, T, cell);
+  float T=fineT.x; vec3 cell;
+  vec2 f=granVor(P, cell);
   vec3 r=h33(cell+17.0);
   float life=fract(T*0.6+r.x), e=f.y-f.x;
   float v=(0.72+0.34*sin(3.14159*life))*(0.55+0.45*smoothstep(0.0, 0.45, e));
@@ -468,12 +475,44 @@ float penFilaments(vec2 tc, vec2 dir, float cl, float ppt){
   }
   return 1.0+1.6*acc/sqrt(max(ww, 0.25));
 }
-vec3 sunSurface(vec2 q, float pxR){
+// The Sun at disk position q: its latitude, its longitude lon0 (turns) without the differential
+// rotation, and Z, the cosine of the view angle.
+vec3 sunLL(vec2 q){
   float cP=cos(sunOri.x), sP=sin(sunOri.x), cB=cos(sunOri.y), sB=sin(sunOri.y);
   float X=q.x*cP-q.y*sP, Y=q.x*sP+q.y*cP, Z=sqrt(max(0.0, 1.0-X*X-Y*Y));
-  float lat=asin(clamp(Y*cB+Z*sB, -1.0, 1.0)), cmd=atan(-X, Z*cB-Y*sB);
-  // Differential rotation against the equator (sunspots.js diffRot), in turns a day.
-  float s2=sin(lat)*sin(lat), dr=(-2.39*s2-1.78*s2*s2)/360.0, lon0=cmd/6.28318530718-sunOri.z;
+  return vec3(asin(clamp(Y*cB+Z*sB, -1.0, 1.0)), atan(-X, Z*cB-Y*sB)/6.28318530718-sunOri.z, Z);
+}
+vec3 llPs(vec3 ll){ float cl=cos(ll.x), la=ll.y*6.28318530718; return vec3(cl*cos(la), cl*sin(la), sin(ll.x)); }
+// Differential rotation against the equator (sunspots.js diffRot), in turns a day.
+float sunDR(float lat){ float s2=sin(lat)*sin(lat); return (-2.39*s2-1.78*s2*s2)/360.0; }
+// The Wilson depression under disk position q, in disk radii, from the map's brightness there: a
+// spot's photosphere lies lower than the rest, about 100 km across the penumbra and 600 km in the
+// umbra, where its cooler gas is more transparent.
+float sunDip(vec2 q, float lod){
+  vec3 ll=sunLL(q);
+  float L=dot(textureLod(sunMap, vec2(fract(ll.y-sunDR(ll.x)*sunDrift.x), ll.x/3.14159265+0.5), lod).rgb, vec3(0.2126, 0.7152, 0.0722));
+  return (100.0*(1.0-smoothstep(0.88, 0.97, L))+500.0*(1.0-smoothstep(0.42, 0.6, L)))/695700.0;
+}
+vec3 sunSurface(vec2 q, float pxR){
+  // A ray that meets the Sun at q goes down and away from us, toward the limb, and the point that
+  // it sees at depth d lies at q/(1-d). Where a spot is sunk below the level round it, the ray
+  // reaches its floor farther out: near the limb the penumbra on the side toward the disk's
+  // middle is hidden behind the spot's rim, and the far side's wall faces us (the Wilson effect).
+  // The ray is marched down to where it meets the depressed surface.
+  float ql=length(q);
+  if(DETAIL_SUN==1 && ql*8e-4/pxR>0.2 && sunDip(q, 3.0)>1e-7){
+    float dp=0.0, fp=-sunDip(q, 0.5);
+    if(fp<0.0){
+      for(int k=0;k<8;k++){
+        float dk=float(k+1)*(650.0/695700.0)/8.0, fk=dk-sunDip(q/(1.0-dk), 0.5);
+        if(fk>=0.0){ dp+=(dk-dp)*(-fp)/max(fk-fp, 1e-12); break; }
+        dp=dk; fp=fk;
+      }
+      q/=1.0-dp*smoothstep(0.2, 0.6, ql*8e-4/pxR);
+    }
+  }
+  vec3 ll=sunLL(q);
+  float lat=ll.x, Z=ll.z, dr=sunDR(lat), lon0=ll.y;
   float lon=fract(lon0-dr*sunDrift.x), v=lat/3.14159265+0.5, pxT=pxR/sqrt(max(Z, 0.04))/6.28318530718;
   float Wt=float(textureSize(sunMap, 0).x), ppt=1.0/max(Wt*pxT, 1e-6), cl=max(cos(lat), 0.02);
   // Zoomed in, the map is read where a fractal warp of up to about a texel moves it, so the
@@ -531,11 +570,34 @@ vec3 sunSurface(vec2 q, float pxR){
   if(DETAIL_SUN==1 && gpx>2.0){
     float Lr=dot(t.rgb, vec3(0.2126, 0.7152, 0.0722));
     float quiet=smoothstep(0.90, 0.985, Lr), umb=1.0-smoothstep(0.42, 0.6, Lr), pen=(1.0-quiet)*(1.0-umb);
-    float la=lon0*6.28318530718;
-    vec3 Ps=vec3(cl*cos(la), cl*sin(la), sin(lat));
+    vec3 Ps=llPs(ll);
     float m=1.0;
     if(quiet>0.0){
-      vec2 g=granulation(Ps, gpx, Z);
+      // The surface that we see is about 150 km higher over a granule than in its lanes. Near
+      // the limb a granule hides the lane beyond it, and its wall toward us is seen more face-on,
+      // so less limb-darkened, than the flat surface round it: the granulation looks like a field
+      // of hills. As for a spot, the ray is marched down, from the granules' tops to the lanes,
+      // and the slope that it meets (along the ray, from the march) sets that wall's brightness.
+      float sn=sqrt(max(0.0, 1.0-Z*Z)), tn=sn/max(Z, 0.05), ld=1.0;
+      float kh=smoothstep(3.0, 8.0, gpx)*smoothstep(0.3, 1.0, 0.113*tn*gpx);
+      vec3 Pg=Ps;
+      if(kh>0.0){
+        const float HG=150.0/695700.0;
+        float dp=0.0, fp=-HG*(1.0-granH(Ps)), sl=1.0;
+        if(fp<0.0){
+          for(int k=0;k<4;k++){
+            float dk=float(k+1)*HG/4.0, fk=dk-HG*(1.0-granH(llPs(sunLL(q/(1.0-dk)))));
+            if(fk>=0.0||k==3){ sl=(fk-fp)/(dk-dp); dp+=(dk-dp)*clamp(-fp/max(fk-fp, 1e-12), 0.0, 1.0); break; }
+            dp=dk; fp=fk;
+          }
+          Pg=llPs(sunLL(q/(1.0-dp*kh)));
+        }
+        // The rise of the surface toward the limb per unit across it, and the cosine of the
+        // view angle on that slope; the limb darkening there over that of the flat surface.
+        float hs=clamp((sl-1.0)/tn, -3.0, 3.0), mu=clamp((hs*sn+Z)/sqrt(1.0+hs*hs), 0.0, 1.0);
+        ld=mix(1.0, (0.4+0.6*mu)/(0.4+0.6*Z), kh);
+      }
+      vec2 g=granulation(Pg, gpx, Z); g.x*=ld;
       // Magnetic bright points in faculae: dots a couple of hundred km across, in the lanes, faint
       // in white light near the disk's middle.
       float bp=0.0, kf=smoothstep(0.05, 0.4, fac)*g.y;
